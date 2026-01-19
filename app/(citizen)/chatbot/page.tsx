@@ -1,7 +1,7 @@
-const Chatbot = () => {
+const CitizenChatbot = () => {
   return (
-    <div>Chatbot</div>
+    <div>CitizenChatbot</div>
   )
 }
 
-export default Chatbot
+export default CitizenChatbot

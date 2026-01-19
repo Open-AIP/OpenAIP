@@ -1,7 +1,7 @@
-const Dashboard = () => {
+const CitizenDashboard = () => {
   return (
-    <div>Dashboard</div>
+    <div>CitizenDashboard</div>
   )
 }
 
-export default Dashboard
+export default CitizenDashboard

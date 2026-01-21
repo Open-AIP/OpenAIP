@@ -15,9 +15,7 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -59,8 +57,10 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           emailRedirectTo: `${window.location.origin}/protected`,
           data: {
             fullName,
-            barangay,
-            role: 'citizen'
+            access: {
+              role: 'citizen',
+              locale: barangay
+            }
           }
         },
       })

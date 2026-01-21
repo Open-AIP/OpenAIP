@@ -1,6 +1,5 @@
 'use client'
 
-import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,11 +14,13 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useState } from 'react'
 
-export function ForgotPasswordForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function ForgotPasswordForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  const rolePath = `${baseURL}${role ===  'citizen' ? '' : '/' + role}`;
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,7 +31,7 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
     try {
       // The url which will be included in the email. This URL needs to be configured in your redirect URLs in the Supabase dashboard at https://supabase.com/dashboard/project/_/auth/url-configuration
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password`,
+        redirectTo: `${rolePath}/update-password`,
       })
       if (error) throw error
       setSuccess(true)
@@ -42,7 +43,7 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
   }
 
   return (
-    <div className={cn('flex flex-col gap-6', className)} {...props}>
+    <div className='flex flex-col gap-6'>
       {success ? (
         <Card>
           <CardHeader>
@@ -72,7 +73,7 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
                   <Input
                     id="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder={`${role === 'citizen' ? role : role + 'official'}@email.com`}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -85,7 +86,7 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
               </div>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{' '}
-                <Link href="/login" className="underline underline-offset-4">
+                <Link href={`${rolePath}/sign-in`} className="underline underline-offset-4">
                   Login
                 </Link>
               </div>

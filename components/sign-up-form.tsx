@@ -1,6 +1,5 @@
 'use client'
 
-import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 
@@ -23,12 +22,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LGUAccounts, ListOfBarangays } from '@/constants'
 // import { time } from 'console'
 
-export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function SignUpForm({role, baseURL}:AuthParameters) {
+  
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -40,18 +40,8 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   const lguListed = useRef(false);
 
   const router = useRouter()
-
-  // determine role of the user signing in to display appropriate components
-  const path = usePathname();
-
-  let role:string = 'citizen';
-
-  if(path.includes('barangay')) {
-    role = 'barangay';
-  }
-  else if (path.includes('city')) {
-    role = 'city';
-  }
+  
+  const rolePath = `${baseURL}${role ===  'citizen' ? '' : '/' + role}`;
 
   useEffect(() => {
 
@@ -100,7 +90,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         email,
         password: passwordRef.current,
         options: {
-          emailRedirectTo: `${window.location.origin}/${role ===  'citizen' ? '' : role}`,
+          emailRedirectTo: rolePath,
           data: {
             fullName: fullNameRef.current,
             access: {
@@ -110,8 +100,11 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           }
         },
       })
+
       if (error) throw error
-      router.push(`/${role ===  'citizen' ? '' : role}/sign-up-success`)
+
+      router.push(`/${role ===  'citizen' ? '' : `${role}/`}sign-up-success`)
+      
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -121,11 +114,11 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   }
 
   return (
-    <div className={cn('flex flex-col gap-6', className)} {...props}>
+    <div className='flex flex-col gap-6'>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>Create a new account</CardDescription>
+          <CardDescription>Create a new {`${role === 'citizen' ? role : role + ' official'}`} account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
@@ -169,7 +162,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                 <Input
                   id="email"
                   type="email"
-                  placeholder="juanbdelacruz@email.com"
+                  placeholder={role + `${role === 'citizen' ? '' : '-official'}@email.com`}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -204,7 +197,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
             </div>
             <div className="mt-4 text-center text-sm">
               Already have an account?{' '}
-              <Link href="/login" className="underline underline-offset-4">
+              <Link href={`${rolePath}/sign-in`} className="underline underline-offset-4">
                 Login
               </Link>
             </div>

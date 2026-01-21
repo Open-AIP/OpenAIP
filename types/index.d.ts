@@ -12,3 +12,8 @@ type LGUAccount = {
   role: string,
   locale: string
 };
+
+type AuthParameters = {
+  role: string,
+  baseURL: string;
+}

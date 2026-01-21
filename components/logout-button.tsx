@@ -9,7 +9,12 @@ export function LogoutButton({role}:AuthParameters) {
 
   const logout = async () => {
     const supabase = createClient()
-    await supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('Logout failed:', error.message)
+      // Optionally show a toast/alert to the user
+      return
+    }
     router.push(`/${role === 'citizen' ? '' : role}`)
   }
 

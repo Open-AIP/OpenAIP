@@ -6,8 +6,10 @@ import { createClient } from '@/lib/supabase/server'
 const CitizenDashboard = async () => {
 
   const role:string = 'citizen';
-  const baseURL = process.env.BASE_URL!;
-
+  const baseURL = process.env.BASE_URL;
+  if (!baseURL) {
+    throw new Error('BASE_URL environment variable is not set');
+  }
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.getClaims()

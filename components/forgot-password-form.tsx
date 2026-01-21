@@ -73,7 +73,7 @@ export function ForgotPasswordForm({role, baseURL}:AuthParameters) {
                   <Input
                     id="email"
                     type="email"
-                    placeholder={`${role === 'citizen' ? role : role + 'official'}@email.com`}
+                    placeholder={`${role === 'citizen' ? role : role + '-official'}@email.com`}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

@@ -44,11 +44,9 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
   const rolePath = `${baseURL}${role ===  'citizen' ? '' : '/' + role}`;
 
   useEffect(() => {
-
     if(email.trim() === '') {
-      setError('');
+      setError(null);
     }
-
   }, [email])
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -77,6 +75,12 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
         setIsLoading(false)
         return
       }
+    }
+    
+    if (role === 'citizen' && !localeRef.current) {
+      setError('Please select your barangay')
+      setIsLoading(false)
+      return
     }
 
     if (passwordRef.current !== repeatPasswordRef.current) {

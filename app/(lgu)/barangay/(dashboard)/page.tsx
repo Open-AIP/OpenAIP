@@ -5,18 +5,29 @@ import { createClient } from '@/lib/supabase/server'
 
 const BarangayDashboard = async () => {
 
+  const role:string = 'barangay';
+  const baseURL = process.env.BASE_URL;
+  if (!baseURL) {
+    throw new Error('BASE_URL environment variable is not set');
+  }
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.getClaims()
   
   if (error || !data?.claims) {
-    redirect('/barangay/login')
+    redirect(`/${role}/sign-in`)
   }
-  
+
   console.log(data.claims.user_metadata);
 
   return (
-    <div>BarangayDashboard</div>
+    <div>
+      <p>BarangayDashboard</p>
+      <p>
+        Hello <span>{data.claims.email}</span>
+      </p>
+      <LogoutButton role={role} baseURL={baseURL}/>
+    </div>
   )
 }
 

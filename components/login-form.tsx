@@ -60,7 +60,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="citizen@email.com"
+                  placeholder={role + `${role === 'citizen' ? '' : '-official'}@email.com`}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

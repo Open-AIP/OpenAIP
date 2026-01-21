@@ -1,0 +1,20 @@
+export const ListOfBarangays: string[] = [
+  'Baclaran',
+  'Banay-Banay',
+  'Banlic',
+  'Bigaa',
+  'Butong',
+  'Casile',
+  'Diezmo',
+  'Gulod',
+  'Mamatid',
+  'Marinig',
+  'Niugan',
+  'Pittland',
+  'Pulo',
+  'Sala',
+  'San Isidro',
+  'Barangay I Poblacion',
+  'Barangay II Poblacion',
+  'Barangay III Poblacion'
+];

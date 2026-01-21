@@ -7,9 +7,12 @@ export default async function ProtectedPage() {
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.getClaims()
+  
   if (error || !data?.claims) {
-    redirect('/auth/login')
+    redirect('/login')
   }
+  
+  console.log(data.claims.user_metadata);
 
   return (
     <div className="flex h-svh w-full items-center justify-center gap-2">

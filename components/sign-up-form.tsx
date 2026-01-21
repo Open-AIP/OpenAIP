@@ -23,19 +23,66 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { ListOfBarangays } from '@/constants'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { LGUAccounts, ListOfBarangays } from '@/constants'
+import { time } from 'console'
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
   const [fullName, setFullName] = useState('')
-  const [barangay, setBarangay] = useState('')
+  const [locale, setLocale] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [repeatPassword, setRepeatPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const lguListed = useRef(false);
+
+  // determine role of the user signing in to display appropriate components
+  const path = usePathname();
+
+  let role: string = 'citizen';
+
+  if(path.includes('barangay')) {
+    role = 'barangay';
+  }
+  else if (path.includes('city')) {
+    role = 'city';
+  }
+
+  useEffect(() => {
+    const timeOutID = setTimeout(() => {
+      
+      if (role !== 'citizen' && email.trim() !== '') {
+
+        lguListed.current = false;
+
+        // check if the lgu is on the list
+        LGUAccounts.forEach((account) => {
+          if(account.email === email && account.role === role) {
+            lguListed.current = true;
+            setLocale(account.locale);
+            setFullName(account.fullName);
+          }
+        });
+
+        if(!lguListed.current) {
+          setError('Unregistered Email. Contact Admin.')
+        }
+        else {
+          setError('');
+        }
+      }
+
+      if(email.trim() === '') {
+        setError('');
+      };
+
+    }, 500);
+
+    return () => clearTimeout(timeOutID);
+  }, [email, role])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,12 +90,18 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
     setIsLoading(true)
     setError(null)
 
+    if (role !== 'citizen' && !lguListed.current) {
+      setIsLoading(false)
+      return
+    }
+
     if (password !== repeatPassword) {
       setError('Passwords do not match')
       setIsLoading(false)
       return
     }
 
+    
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -58,8 +111,8 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
           data: {
             fullName,
             access: {
-              role: 'citizen',
-              locale: barangay
+              role,
+              locale
             }
           }
         },
@@ -71,6 +124,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
     } finally {
       setIsLoading(false)
     }
+      
   }
 
   return (
@@ -83,37 +137,41 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Juan B. Dela Cruz"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Barangay</Label>
-                <Select
-                  onValueChange={(e) => setBarangay(e)}
-                >
-                  <SelectTrigger className="w-full max-w-64">
-                    <SelectValue placeholder="Choose your barangay" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ListOfBarangays.map((barangay) => (
-                      <SelectItem
-                        key={barangay}
-                        value={barangay.toLowerCase()}
-                      >
-                        {barangay}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {role === 'citizen' &&
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Juan B. Dela Cruz"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Barangay</Label>
+                    <Select
+                      onValueChange={(e) => setLocale(e)}
+                    >
+                      <SelectTrigger className="w-full max-w-64">
+                        <SelectValue placeholder="Choose your barangay" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ListOfBarangays.map((barangay) => (
+                          <SelectItem
+                            key={barangay}
+                            value={barangay.toLowerCase()}
+                          >
+                            {barangay}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              }
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

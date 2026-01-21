@@ -18,3 +18,19 @@ export const ListOfBarangays: string[] = [
   'Barangay II Poblacion',
   'Barangay III Poblacion'
 ];
+
+export const LGUAccounts: LGUAccount[] = [
+  {
+    email: 'paduacediejames36@gmail.com',
+    fullName: 'Cedie James A. Padua',
+    role: 'barangay',
+    locale: 'banlic'
+  },
+  {
+    email: 'computerengineers2026@gmail.com',
+    fullName: 'Computer P. Engineers',
+    role: 'city',
+    locale: 'cabuyao'
+  }
+]
+

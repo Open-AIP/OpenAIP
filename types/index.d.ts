@@ -5,3 +5,10 @@ type AIPIdParameter = {
 type ProjectIdParameter = {
   params: Promise<{projectId: string}>
 }
+
+type LGUAccount = {
+  email: string,
+  fullName: string,
+  role: string,
+  locale: string
+};

@@ -26,23 +26,25 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LGUAccounts, ListOfBarangays } from '@/constants'
-import { time } from 'console'
+// import { time } from 'console'
 
 export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
-  const [fullName, setFullName] = useState('')
-  const [locale, setLocale] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [repeatPassword, setRepeatPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  
+  const fullNameRef = useRef('');
+  const localeRef = useRef('');
+  const passwordRef = useRef('');
+  const repeatPasswordRef = useRef('');
   const lguListed = useRef(false);
+
+  const router = useRouter()
 
   // determine role of the user signing in to display appropriate components
   const path = usePathname();
 
-  let role: string = 'citizen';
+  let role:string = 'citizen';
 
   if(path.includes('barangay')) {
     role = 'barangay';
@@ -52,73 +54,64 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
   }
 
   useEffect(() => {
-    const timeOutID = setTimeout(() => {
-      
-      if (role !== 'citizen' && email.trim() !== '') {
 
-        lguListed.current = false;
+    if(email.trim() === '') {
+      setError('');
+    }
 
-        // check if the lgu is on the list
-        LGUAccounts.forEach((account) => {
-          if(account.email === email && account.role === role) {
-            lguListed.current = true;
-            setLocale(account.locale);
-            setFullName(account.fullName);
-          }
-        });
-
-        if(!lguListed.current) {
-          setError('Unregistered Email. Contact Admin.')
-        }
-        else {
-          setError('');
-        }
-      }
-
-      if(email.trim() === '') {
-        setError('');
-      };
-
-    }, 500);
-
-    return () => clearTimeout(timeOutID);
-  }, [email, role])
+  }, [email])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
+
     const supabase = createClient()
+
     setIsLoading(true)
     setError(null)
 
-    if (role !== 'citizen' && !lguListed.current) {
-      setIsLoading(false)
-      return
+    if (role !== 'citizen' && email.trim() !== '') {
+
+      lguListed.current = false;
+
+      // check if the lgu is on the list
+      LGUAccounts.forEach((account) => {
+        if(account.email === email && account.role === role) {
+          lguListed.current = true;
+          fullNameRef.current = account.fullName;
+          localeRef.current = account.locale
+        }
+      });
+
+      if(!lguListed.current) {
+        setError('Unregistered Email. Contact Admin.')
+        setIsLoading(false)
+        return
+      }
     }
 
-    if (password !== repeatPassword) {
+    if (passwordRef.current !== repeatPasswordRef.current) {
       setError('Passwords do not match')
       setIsLoading(false)
       return
     }
 
-    
     try {
       const { error } = await supabase.auth.signUp({
         email,
-        password,
+        password: passwordRef.current,
         options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
+          emailRedirectTo: `${window.location.origin}/${role ===  'citizen' ? '' : role}`,
           data: {
-            fullName,
+            fullName: fullNameRef.current,
             access: {
               role,
-              locale
+              locale: localeRef.current
             }
           }
         },
       })
       if (error) throw error
-      router.push('/sign-up-success')
+      router.push(`/${role ===  'citizen' ? '' : role}/sign-up-success`)
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -146,14 +139,13 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                       type="text"
                       placeholder="Juan B. Dela Cruz"
                       required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      onChange={(e) => fullNameRef.current = e.target.value}
                     />
                   </div>
                   <div className="grid gap-2">
                     <Label>Barangay</Label>
                     <Select
-                      onValueChange={(e) => setLocale(e)}
+                      onValueChange={(e) => localeRef.current = e}
                     >
                       <SelectTrigger className="w-full max-w-64">
                         <SelectValue placeholder="Choose your barangay" />
@@ -191,8 +183,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                   id="password"
                   type="password"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => passwordRef.current = e.target.value}
                 />
               </div>
               <div className="grid gap-2">
@@ -203,8 +194,7 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
                   id="repeat-password"
                   type="password"
                   required
-                  value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
+                  onChange={(e) => repeatPasswordRef.current = e.target.value}
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}

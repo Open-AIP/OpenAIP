@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/types";
 import Image from "next/image";
 import { Users, Hash, Building2, Calendar, DollarSign, Plus } from "lucide-react";
+import Link from "next/link";
 
 function peso(amount: number) {
   return new Intl.NumberFormat("en-PH", {
@@ -24,10 +25,12 @@ export default function ProjectInformationCard({
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
-          <Button className="bg-[#022437] hover:bg-[#033451]">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Information
-          </Button>
+            <Button asChild className="bg-[#022437] hover:bg-[#033451]">
+              <Link href={`/barangay/projects/health/${project.id}/add-information`}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Information
+              </Link>
+            </Button>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -55,7 +58,6 @@ export default function ProjectInformationCard({
               <div className="flex items-center gap-3 text-sm">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Target Participants:</span>
-                <span className="font-medium text-slate-900">{project.targetParticipants}</span>
                 <span className="font-medium text-slate-900">{project.targetParticipants ?? "N/A"}</span>
               </div>
 
@@ -65,7 +67,9 @@ export default function ProjectInformationCard({
                 <span className="font-medium text-slate-900">
                   {project.totalTargetParticipants?.toLocaleString() ?? "N/A"}
                 </span>
-              </div>              <div className="flex items-center gap-3 text-sm">
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
                 <Building2 className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Office:</span>
                 <span className="font-medium text-slate-900">
@@ -82,13 +86,14 @@ export default function ProjectInformationCard({
               </div>
 
               <div className="flex items-center gap-3 text-sm">
-              <div className="flex items-center gap-3 text-sm">
                 <DollarSign className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Budget:</span>
                 <span className="font-semibold text-[#022437]">
                   {project.budgetAllocated != null ? peso(project.budgetAllocated) : "N/A"}
                 </span>
-              </div>          </div>
+              </div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

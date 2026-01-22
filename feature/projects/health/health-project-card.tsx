@@ -1,5 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/types";
@@ -33,8 +34,7 @@ export default function HealthProjectCard({ project }: { project: HealthProject 
       <CardContent className="px-6">
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
           {/* Left image */}
-          <div className="w-full lg:w-[420px] flex items-center justify-center bg-slate-100">
-+            <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">
+            <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">             <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">
               <Image
                 src={project.imageUrl}
                 alt={project.title}

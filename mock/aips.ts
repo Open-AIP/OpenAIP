@@ -611,6 +611,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
     ],
   },
 ];
+
 //For Filtering AIP Years and Project Years in the UI
 export function getAipYears(items: Array<{ year: number }>) {
   return Array.from(new Set(items.map((x) => x.year))).sort((a, b) => b - a);
@@ -620,3 +621,38 @@ export function getProjectYears(items: Array<{ year: number }>) {
   return Array.from(new Set(items.map((x) => x.year))).sort((a, b) => b - a);
 }
 
+export function getHealthProjectById(id: string) {
+  // Search through all AIPs to find the health project
+  for (const aip of MOCK_AIPS) {
+    const project = aip.healthProjects?.find((project) => project.id === id);
+    if (project) {
+      return project;
+    }
+  }
+  return undefined;
+}
+
+export function getInfrastructureProjectById(id: string) {
+  // Search through all AIPs to find the infrastructure project
+  for (const aip of MOCK_AIPS) {
+    const project = aip.infrastructureProjects?.find((project) => project.id === id);
+    if (project) {
+      return project;
+    }
+  }
+  return undefined;
+}
+
+// Helper to get all health projects from a specific scope
+export function getAllHealthProjects(scope: LguScope = "barangay") {
+  return MOCK_AIPS
+    .filter((aip) => aip.scope === scope)
+    .flatMap((aip) => aip.healthProjects || []);
+}
+
+// Helper to get all infrastructure projects from a specific scope
+export function getAllInfrastructureProjects(scope: LguScope = "barangay") {
+  return MOCK_AIPS
+    .filter((aip) => aip.scope === scope)
+    .flatMap((aip) => aip.infrastructureProjects || []);
+}

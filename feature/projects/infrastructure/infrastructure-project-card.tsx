@@ -44,8 +44,9 @@ export default function InfrastructureProjectCard({ project }: { project: Infras
                     sizes="482px"
                 />
                 </div>
-            </div>          <div className="p-6 flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
+            </div>          
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-slate-900">{project.title}</h3>
                 <p className="mt-2 text-sm text-slate-600">{project.description}</p>

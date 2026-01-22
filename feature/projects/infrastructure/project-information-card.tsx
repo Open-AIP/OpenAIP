@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { InfrastructureProject } from "@/types";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Building2,
   User,
@@ -32,11 +33,13 @@ export default function InfrastructureProjectInformationCard({
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
+            <Button asChild className="bg-[#022437] hover:bg-[#033451]">
+              <Link href={`/barangay/projects/infrastructure/${project.id}/add-information`}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Information
+              </Link>
+            </Button>
 
-          <Button className="bg-[#022437] hover:bg-[#033451]">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Information
-          </Button>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">

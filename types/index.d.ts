@@ -1,19 +1,19 @@
-type AIPIdParameter = {
+export type AIPIdParameter = {
   params: Promise<{aipId: string}>
 }
 
-type ProjectIdParameter = {
+export type ProjectIdParameter = {
   params: Promise<{projectId: string}>
 }
 
-type LGUAccount = {
+export type LGUAccount = {
   email: string,
   fullName: string,
   role: string,
   locale: string
 };
 
-type AuthParameters = {
+export type AuthParameters = {
   role: string,
   baseURL: string;
 }
@@ -24,5 +24,5 @@ export type { NavItem, LguVariant } from "./navigation";
 
 export type { AipStatus, AipRecord, AipUploader, AipDetail } from "./aip";
 
-export type { ProjectStatus, HealthProject, InfrastructureProject } from "./projects";
+export type { ProjectStatus, HealthProject, HealthProjectUpdate, InfrastructureProject } from "./projects";
 

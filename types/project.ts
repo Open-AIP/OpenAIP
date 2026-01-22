@@ -1,24 +1,40 @@
 export type ProjectStatus = "Ongoing" | "Planning" | "Completed" | "On Hold";
 
+export type HealthProjectUpdate = {
+  id: string;
+  title: string;
+  date: string; // e.g. "January 20, 2026"
+  description: string;
+  attendanceCount: number;
+  progressPercent: number; // 0..100
+  photoUrls?: string[]; // optional thumbnails
+};
+
 export type HealthProject = {
   id: string;
   year: number;
-  month: string; // for your month dropdown (e.g. "January")
+  month: string;
+
   title: string;
   description: string;
+
+  status: ProjectStatus;
+
   targetParticipants: string;
   totalTargetParticipants: number;
+
   budgetAllocated: number;
   implementingOffice: string;
-  status: ProjectStatus;
-  imageUrl?: string; // optional: "/mock/health/doctor-phone.jpg"
+
+  imageUrl?: string;
+  updates?: HealthProjectUpdate[];
 };
 
 export type InfrastructureProject = {
   id: string;
   year: number;
-  startDate: string; // ISO string or readable (e.g. "2026-01-10")
-  targetCompletionDate: string; // ISO string or readable
+  startDate: string;
+  targetCompletionDate: string;
   title: string;
   description: string;
   implementingOffice: string;
@@ -26,5 +42,5 @@ export type InfrastructureProject = {
   contractorName: string;
   contractCost: number;
   status: ProjectStatus;
-  imageUrl?: string; // optional: "/mock/infra/road.jpg"
+  imageUrl?: string;
 };

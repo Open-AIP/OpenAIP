@@ -47,7 +47,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
       budgetAllocated: 5800000,
     },
 
-    // ✅ Health Projects for this AIP year
+
     healthProjects: [
       {
         id: "hp-2026-vaccination",
@@ -62,6 +62,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         budgetAllocated: 250000,
         status: "Ongoing",
         imageUrl: "/mock/health/health1.jpg",
+        updates: [],
       },
       {
         id: "hp-2026-mch",
@@ -76,10 +77,11 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         budgetAllocated: 180000,
         status: "Planning",
         imageUrl: "/mock/health/health2.jpg",
+        updates: [],
       },
     ],
 
-    // ✅ Infrastructure Projects for this AIP year (matches your Add Information form)
+   
     infrastructureProjects: [
       {
         id: "ip-2026-road-rehab",
@@ -159,6 +161,28 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         budgetAllocated: 300000,
         status: "Completed",
         imageUrl: "/mock/health/health3.jpg",
+        updates: [
+          {
+            id: "u-med-1",
+            title: "Medical mission successfully completed",
+            date: "December 15, 2025",
+            description:
+              "Completed quarterly medical mission with free consultations, laboratory screening, and medicine distribution. Exceeded target participation.",
+            attendanceCount: 850,
+            progressPercent: 100,
+            photoUrls: ["/mock/updates/medical-1.jpg", "/mock/updates/medical-2.jpg", "/mock/updates/medical-3.jpg"],
+          },
+          {
+            id: "u-med-2",
+            title: "Medical supplies and equipment prepared",
+            date: "December 10, 2025",
+            description:
+              "Organized medical supplies, set up consultation booths, and coordinated with volunteer doctors and nurses.",
+            attendanceCount: 0,
+            progressPercent: 80,
+            photoUrls: ["/mock/updates/prep-1.jpg"],
+          },
+        ],
       },
     ],
 
@@ -225,10 +249,109 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         budgetAllocated: 120000,
         status: "Ongoing",
         imageUrl: "/mock/health/health4.jpg",
+        updates: [],
       },
     ],
 
     infrastructureProjects: [],
+  },
+
+  {
+    scope: "barangay",
+    id: "aip-2023-published",
+    title: "Annual Investment Program",
+    description:
+      "Infrastructure development and social services expansion to enhance barangay facilities and resident welfare.",
+    year: 2023,
+    budget: 3200000,
+    uploadedAt: "2025",
+    publishedAt: "November 10, 2025",
+    status: "Published",
+
+    fileName: "Annual_Investment_Plan_2023.pdf",
+    pdfUrl: "/mock/aip-2023.pdf",
+    summaryText:
+      "Infrastructure development and social services expansion to enhance barangay facilities and resident welfare.",
+    detailedBullets: [
+      "Basketball court construction and sports facility upgrades",
+      "Senior citizen wellness program",
+      "Street lighting installation phase 2",
+      "Barangay hall renovation and expansion",
+    ],
+    tablePreviewUrl: "/mock/aip-table.png",
+    sectors: ["All", "Infrastructure", "Health", "Social Welfare"],
+    uploader: {
+      name: "Roberto Cruz",
+      role: "Barangay Chairman",
+      uploadDate: "October 15, 2025",
+      budgetAllocated: 3200000,
+    },
+
+    healthProjects: [
+      {
+        id: "hp-2023-senior-wellness",
+        year: 2023,
+        month: "August",
+        title: "Senior Citizen Wellness Program",
+        description:
+          "Comprehensive wellness program providing health checkups, exercise activities, and social engagement for senior citizens.",
+        totalTargetParticipants: 600,
+        targetParticipants: "Senior Citizens 60 years and above",
+        implementingOffice: "Barangay Social Welfare Office",
+        budgetAllocated: 280000,
+        status: "Completed",
+        imageUrl: "/mock/health/health5.jpg",
+        updates: [
+          {
+            id: "u-senior-1",
+            title: "Program successfully completed with high satisfaction",
+            date: "December 18, 2023",
+            description:
+              "Concluded the senior wellness program with 650 participants. Conducted health screenings, exercise classes, and social activities throughout the program period.",
+            attendanceCount: 650,
+            progressPercent: 100,
+            photoUrls: ["/mock/updates/senior-1.jpg", "/mock/updates/senior-2.jpg"],
+          },
+          {
+            id: "u-senior-2",
+            title: "Weekly exercise and health monitoring sessions",
+            date: "October 20, 2023",
+            description:
+              "Ongoing weekly exercise sessions and monthly health monitoring for enrolled senior citizens. Positive feedback from participants.",
+            attendanceCount: 580,
+            progressPercent: 70,
+            photoUrls: ["/mock/updates/senior-exercise.jpg"],
+          },
+          {
+            id: "u-senior-3",
+            title: "Initial enrollment and health screening",
+            date: "August 15, 2023",
+            description:
+              "Completed enrollment of senior citizens and conducted baseline health screening. Set up program schedule and volunteer coordination.",
+            attendanceCount: 600,
+            progressPercent: 30,
+          },
+        ],
+      },
+    ],
+
+    infrastructureProjects: [
+      {
+        id: "ip-2023-basketball",
+        year: 2023,
+        startDate: "2023-03-15",
+        targetCompletionDate: "2023-09-30",
+        title: "Basketball Court Construction and Renovation",
+        description:
+          "Construction of new basketball court and renovation of existing sports facilities for youth development and community recreation.",
+        implementingOffice: "Barangay Engineering Office",
+        fundingSource: "20% Development Fund + Grants",
+        contractorName: "Sports Facilities Builders Inc.",
+        contractCost: 1500000,
+        status: "Completed",
+        imageUrl: "/mock/infra/basketball.jpg",
+      },
+    ],
   },
 
   // =========================
@@ -265,12 +388,105 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
       budgetAllocated: 125000000,
     },
 
-    // city projects optional; keep empty until needed
+    healthProjects: [
+      {
+        id: "hp-city-2026-hospital",
+        year: 2026,
+        month: "February",
+        title: "City Hospital Emergency Room Expansion",
+        description:
+          "Expansion and modernization of city hospital emergency room facilities to accommodate increased patient volume and improve emergency response time.",
+        totalTargetParticipants: 50000,
+        targetParticipants: "All City Residents",
+        implementingOffice: "City Health Office",
+        budgetAllocated: 15000000,
+        status: "Ongoing",
+        imageUrl: "/mock/health/hospital1.jpg",
+        updates: [
+          {
+            id: "u-hosp-1",
+            title: "Construction phase initiated",
+            date: "February 10, 2026",
+            description:
+              "Began construction of the new emergency room wing. Foundation work completed and structural framework in progress.",
+            attendanceCount: 0,
+            progressPercent: 25,
+            photoUrls: ["/mock/updates/hospital-construction.jpg"],
+          },
+        ],
+      },
+    ],
+    infrastructureProjects: [
+      {
+        id: "ip-city-2026-road",
+        year: 2026,
+        startDate: "2026-01-20",
+        targetCompletionDate: "2026-12-15",
+        title: "Main Avenue Road Widening Project",
+        description:
+          "Widening of main city avenue to reduce traffic congestion and improve traffic flow. Includes installation of modern traffic management systems.",
+        implementingOffice: "City Engineering Office",
+        fundingSource: "City Budget + National Grant",
+        contractorName: "Metro Infrastructure Corp.",
+        contractCost: 45000000,
+        status: "Ongoing",
+        imageUrl: "/mock/infra/city-road.jpg",
+      },
+    ],
+  },
+
+  {
+    scope: "city",
+    id: "city-aip-2025",
+    title: "City Annual Investment Program",
+    description:
+      "Strategic investment program focusing on urban development, public services enhancement, and digital infrastructure.",
+    year: 2025,
+    budget: 98000000,
+    uploadedAt: "2025",
+    publishedAt: "December 15, 2025",
+    status: "Published",
+
+    fileName: "City_AIP_2025.pdf",
+    pdfUrl: "/mock/city-aip-2025.pdf",
+    summaryText:
+      "Strategic investment program focusing on urban development, public services enhancement, and digital infrastructure.",
+    detailedBullets: [
+      "Public market modernization and sanitation upgrades",
+      "City-wide free Wi-Fi implementation",
+      "Parks and recreation facilities development",
+      "Public school infrastructure improvements",
+    ],
+    tablePreviewUrl: "/mock/aip-table.png",
+    sectors: ["All", "Infrastructure", "Education", "Digital Services"],
+    uploader: {
+      name: "City Planning Office",
+      role: "City Official",
+      uploadDate: "November 20, 2025",
+      budgetAllocated: 98000000,
+    },
+
     healthProjects: [],
-    infrastructureProjects: [],
+    infrastructureProjects: [
+      {
+        id: "ip-city-2025-market",
+        year: 2025,
+        startDate: "2025-04-01",
+        targetCompletionDate: "2025-11-30",
+        title: "Public Market Modernization",
+        description:
+          "Complete renovation and modernization of the city public market with improved sanitation, ventilation, and vendor facilities.",
+        implementingOffice: "City Engineering Office",
+        fundingSource: "City Development Fund",
+        contractorName: "Urban Builders Co.",
+        contractCost: 28000000,
+        status: "Completed",
+        imageUrl: "/mock/infra/market.jpg",
+      },
+    ],
   },
 ];
-
+//For Filtering AIP Years and Project Years in the UI
 export function getAipYears(items: Array<{ year: number }>) {
   return Array.from(new Set(items.map((x) => x.year))).sort((a, b) => b - a);
 }

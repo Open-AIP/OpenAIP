@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import type { AuthParameters } from "@/types";
 
 import {
   Card,
@@ -151,7 +152,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
                       onValueChange={(e) => localeRef.current = e}
                       name='barangay'
                     >
-                      <SelectTrigger className="w-full max-w-64">
+                      <SelectTrigger id="barangay" className="w-full max-w-64">
                         <SelectValue placeholder="Choose your barangay" />
                       </SelectTrigger>
                       <SelectContent>

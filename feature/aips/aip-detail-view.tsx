@@ -47,7 +47,8 @@ export default function AipDetailView({
   const editable = canEditAip(aip.status);
   const showFeedback = aip.status === "For Revision";
 
-  const [sector, setSector] = useState<string>(aip.sectors[0] ?? "All");  const [query, setQuery] = useState<string>("");
+  const [sector, setSector] = useState<string>(aip.sectors[0] ?? "All");
+  const [query, setQuery] = useState<string>("");
 
   const breadcrumb = [
     { label: "AIP Management", href: "/barangay/aips" },

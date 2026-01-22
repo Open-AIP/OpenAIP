@@ -84,9 +84,10 @@ export default function AipManagementView({ records }: Props) {
         onSubmit={({ file, year }) => {
           // mock handling for now
           console.log("Upload payload:", { file, year });
+          setOpenUpload(false);
 
           // later: Supabase storage upload + create aip record
-        }}
+        }}        
       />
     </div>
   );

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 
 import { LogoutButton } from '@/components/logout-button'
 import { createClient } from '@/lib/supabase/server'
+import Placeholder from '@/components/layout/placeholder';
 
 const BarangayDashboard = async () => {
 
@@ -22,11 +23,8 @@ const BarangayDashboard = async () => {
 
   return (
     <div>
-      <p>BarangayDashboard</p>
-      <p>
-        Hello <span>{data.claims.email}</span>
-      </p>
-      <LogoutButton role={role} baseURL={baseURL}/>
+      <Placeholder title="Barangay Dashboard" description="Welcome to the Barangay Dashboard. 
+      This is where you can manage barangay affairs and access important information." />
     </div>
   )
 }

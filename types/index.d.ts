@@ -17,3 +17,9 @@ type AuthParameters = {
   role: string,
   baseURL: string;
 }
+
+// Re-export all shared types from a single entry point
+
+export type { NavItem, LguVariant } from "./navigation";
+
+export type { AipStatus, AipRecord, AipUploader, AipDetail } from "./aip";

@@ -24,6 +24,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
     budget: 5800000,
     uploadedAt: "2026",
     status: "For Revision",
+    feedback: "Please provide more detailed cost breakdown for the Multi-purpose Community Hall Construction. Additionally, clarify the timeline for the Road Concreting project and ensure alignment with the city's infrastructure masterplan.",
 
     fileName: "Annual_Investment_Plan_2026.pdf",
     pdfUrl: "/mock/aip-2026.pdf",

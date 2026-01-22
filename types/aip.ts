@@ -27,4 +27,5 @@ export type AipDetail = AipRecord & {
   sectors: string[];
   uploader: AipUploader;
   status: AipStatus;
+  feedback?: string; // optional; provided when status is "For Revision"
 };

@@ -40,10 +40,10 @@ export default function LguSidebar({ variant }: Props) {
   return (
     <aside className="w-[275px] shrink-0 bg-[#022437] text-white min-h-screen flex flex-col">
       {/* Brand */}
-      <div className="px-6 pt-8 pb-4">
+      <div className="px-6 pt-8 pb-3">
         <div className="flex flex-col items-center gap-3">
           <Image 
-            src="/brand/logo.svg" 
+            src="/brand/logo3.svg" 
             alt="OpenAIP Logo" 
             width={100} 
             height={100}

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { FileText, Pencil, TriangleAlert, X } from "lucide-react";
+import { FileText, Pencil, TriangleAlert, X, RotateCw } from "lucide-react";
 import type { AipDetail } from "@/types";
 import { canEditAip, editLockedMessage, peso } from "@/feature/aips/utils";
 
@@ -179,7 +179,6 @@ export default function AipDetailView({ aip }: { aip: AipDetail }) {
           <div className="border border-slate-200 rounded-lg bg-white overflow-hidden">
             <div className="h-[280px] w-full bg-slate-50 grid place-items-center text-sm text-slate-400">
               {aip.tablePreviewUrl ? (
-                // If you add an image at /public/mock/aip-table.png, replace this with next/image
                 <img
                   src={aip.tablePreviewUrl}
                   alt="AIP table preview"
@@ -191,14 +190,7 @@ export default function AipDetailView({ aip }: { aip: AipDetail }) {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button variant="outline" disabled={!editable}>
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-          </div>
-
-          {!editable && (
+          {!editable && !showFeedback && (
             <Alert className="border-slate-200 bg-sky-50">
               <TriangleAlert className="h-4 w-4 text-sky-700" />
               <AlertDescription className="text-sky-800">
@@ -248,11 +240,25 @@ export default function AipDetailView({ aip }: { aip: AipDetail }) {
       </Card>
 
       {/* Bottom action */}
-      <div className="flex justify-end">
-        <Button variant="destructive">
-          <X className="h-4 w-4" />
-          Cancel Submission
-        </Button>
+      <div className="flex justify-end gap-3">
+        {showFeedback && (
+          <>
+            <Button variant="outline">
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+            <Button className="bg-teal-600 hover:bg-teal-700">
+              <RotateCw className="h-4 w-4" />
+              Resubmit
+            </Button>
+          </>
+        )}
+        {aip.status === "Draft" && (
+          <Button variant="destructive">
+            <X className="h-4 w-4" />
+            Cancel Submission
+          </Button>
+        )}
       </div>
     </div>
   );

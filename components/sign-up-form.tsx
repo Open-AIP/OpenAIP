@@ -90,7 +90,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password: passwordRef.current,
         options: {
@@ -107,8 +107,12 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
 
       if (error) throw error
 
-      router.push(`/${role ===  'citizen' ? '' : `${role}/`}sign-up-success`)
-      
+      // Detect "already exists" without relying on error
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        throw new Error("Account already exists. Please log in.");
+      }
+
+      router.push(`${rolePath}/sign-up-success`)      
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -140,9 +144,12 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Barangay</Label>
+                    <Label
+                      htmlFor='barangay'
+                    >Barangay</Label>
                     <Select
                       onValueChange={(e) => localeRef.current = e}
+                      name='barangay'
                     >
                       <SelectTrigger className="w-full max-w-64">
                         <SelectValue placeholder="Choose your barangay" />

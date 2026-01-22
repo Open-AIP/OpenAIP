@@ -1,27 +1,17 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import Placeholder from '@/components/layout/placeholder';
+import { LogoutButton } from '@/components/logout-button'
+import { getUser } from '@/lib/actions/auth.actions'
 
 const BarangayDashboard = async () => {
 
-  const role:string = 'barangay';
-  const baseURL = process.env.BASE_URL;
-  if (!baseURL) {
-    throw new Error('BASE_URL environment variable is not set');
-  }
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.getClaims()
-  
-  if (error || !data?.claims) {
-    redirect(`/${role}/sign-in`)
-  }
-
+  const {fullName, email, userRole, userLocale, baseURL} = await getUser();
 
   return (
     <div>
-      <Placeholder title="Barangay Dashboard" description="Welcome to the Barangay Dashboard. 
-      This is where you can manage barangay affairs and access important information." />
+      <p>BarangayDashboard</p>
+      <p>
+        Hello {fullName}, {email}. A {userRole} {userRole === 'citizen' ? '':' official'} from {userLocale}
+      </p>
+      <LogoutButton role={userRole} baseURL={baseURL}/>
     </div>
   )
 }

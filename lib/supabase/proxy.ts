@@ -37,14 +37,44 @@ export async function updateSession(request: NextRequest) {
 
   const user = data?.claims
 
+  const pathname = request.nextUrl.pathname;
+  const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
+
+  const pathRole = pathArray.indexOf('barangay') > 0 ? 
+    'barangay' : 
+    pathArray.indexOf('city') > 0 ? 
+    'city' : 
+    'citizen';
+
+  const userRole = user?.user_metadata?.access?.role;
+  // no user, accessing protected sites
   if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
+    !user && 
+    !request.nextUrl.pathname.endsWith('/sign-in') &&
+    !request.nextUrl.pathname.endsWith('/sign-up') &&
+    !request.nextUrl.pathname.endsWith('/forgot-password') &&
+    !request.nextUrl.pathname.endsWith('/update-password') 
   ) {
-    // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
+    url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/sign-in`
+    return NextResponse.redirect(url)
+  }
+  
+  // signed in user accessing different role
+  if(user && userRole && pathRole !== userRole) {
+    const url = request.nextUrl.clone()
+    url.pathname = `${userRole === 'citizen' ? '' : '/' + userRole}/unauthorized`
+    return NextResponse.redirect(url)
+  }
+  if (
+    user && (
+      request.nextUrl.pathname.endsWith('/sign-in') ||
+      request.nextUrl.pathname.endsWith('/sign-up') ||
+      request.nextUrl.pathname.endsWith('/forgot-password')
+    )
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/`
     return NextResponse.redirect(url)
   }
 

@@ -1,32 +1,17 @@
-import { redirect } from 'next/navigation'
-
 import { LogoutButton } from '@/components/logout-button'
-import { createClient } from '@/lib/supabase/server'
+import { getUser } from '@/lib/actions/auth.actions';
 
 const CityDashboard = async () => {
 
-  const role:string = 'city';
-  const baseURL = process.env.BASE_URL;
-  if (!baseURL) {
-    throw new Error('BASE_URL environment variable is not set');
-  }
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.getClaims()
-  
-  if (error || !data?.claims) {
-    redirect(`/${role}/sign-in`)
-  }
-
-  console.log(data.claims.user_metadata);
+  const {fullName, email, userRole, userLocale, baseURL} = await getUser();
 
   return (
     <div>
       <p>CityDashboard</p>
       <p>
-        Hello <span>{data.claims.email}</span>
+        Hello {fullName}, {email}. A {userRole} {userRole === 'citizen' ? '':' official'} from {userLocale}
       </p>
-      <LogoutButton role={role} baseURL={baseURL}/>
+      <LogoutButton role={userRole} baseURL={baseURL}/>
     </div>
   )
 }

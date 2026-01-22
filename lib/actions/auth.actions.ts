@@ -1,19 +1,34 @@
-'use server'
-
 import { createClient } from "../supabase/server";
 
 export const getUser = async () => {
 
+  const baseURL = process.env.BASE_URL;
+
+  if (!baseURL) {
+    throw new Error('BASE_URL environment variable is not set');
+  }
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase.from('auth').select();
+  const { data, error } = await supabase.auth.getClaims();
 
   if(error || !data) {
     throw new Error(
       error?.message ||
-      'Failed to fetch users.'
+      'Failed to fetch user info.'
     )
   }
 
-  return data[0];
+  const fullName = data?.claims?.user_metadata?.fullName;
+  const email = data?.claims?.user_metadata?.email;
+  const userRole = data?.claims?.user_metadata?.access?.role;
+  const userLocale = data?.claims?.user_metadata?.access?.locale;
+
+  return {
+    fullName,
+    email,
+    userRole,
+    userLocale,
+    baseURL
+  };
 }

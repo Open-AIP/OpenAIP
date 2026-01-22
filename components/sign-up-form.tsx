@@ -90,7 +90,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password: passwordRef.current,
         options: {
@@ -106,6 +106,11 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
       })
 
       if (error) throw error
+
+      // Detect "already exists" without relying on error
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        throw new Error("Account already exists. Please log in.");
+      }
 
       router.push(`/${role ===  'citizen' ? '' : `${role}/`}sign-up-success`)
       

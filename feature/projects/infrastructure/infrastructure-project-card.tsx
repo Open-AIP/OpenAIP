@@ -8,7 +8,13 @@ import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-
 import { formatPeso } from "@/lib/utils/formatting";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
-export default function InfrastructureProjectCard({ project }: { project: InfrastructureProject }) {
+export default function InfrastructureProjectCard({ 
+  project,
+  scope = "barangay"
+}: { 
+  project: InfrastructureProject;
+  scope?: "city" | "barangay";
+}) {
   return (
     <Card className="border-slate-200 overflow-hidden">
       <CardContent className="p-0">
@@ -77,7 +83,7 @@ export default function InfrastructureProjectCard({ project }: { project: Infras
 
             <div className="flex justify-end pt-2">
               <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
-                <Link href={`/barangay/projects/infrastructure/${project.id}`}>
+                <Link href={`/${scope}/projects/infrastructure/${project.id}`}>
                   View Project
                 </Link>
               </Button>

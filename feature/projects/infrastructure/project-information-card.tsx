@@ -18,9 +18,11 @@ import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 export default function InfrastructureProjectInformationCard({
   aipYear,
   project,
+  scope = "barangay"
 }: {
   aipYear: number;
   project: InfrastructureProject;
+  scope?: "city" | "barangay";
 }) {
   return (
     <Card className="border-slate-200">
@@ -28,7 +30,7 @@ export default function InfrastructureProjectInformationCard({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
             <Button asChild className={PRIMARY_BUTTON_CLASS}>
-              <Link href={`/barangay/projects/infrastructure/${project.id}/add-information`}>
+              <Link href={`/${scope}/projects/infrastructure/${project.id}/add-information`}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Information
               </Link>

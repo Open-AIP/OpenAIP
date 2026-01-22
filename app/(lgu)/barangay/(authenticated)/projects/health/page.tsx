@@ -7,5 +7,5 @@ export default function BarangayHealthProjects() {
     .filter((aip) => aip.scope === "barangay")
     .flatMap((aip) => aip.healthProjects || []);
 
-  return <HealthProjectsView projects={healthProjects} />;
+  return <HealthProjectsView projects={healthProjects} scope="barangay" />;
 }

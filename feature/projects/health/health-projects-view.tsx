@@ -14,7 +14,13 @@ import type { HealthProject } from "@/types";
 import { getProjectYears } from "@/mock/aips";
 import { Search } from "lucide-react";
 
-export default function HealthProjectsView({ projects }: { projects: HealthProject[] }) {
+export default function HealthProjectsView({ 
+  projects,
+  scope = "barangay"
+}: { 
+  projects: HealthProject[];
+  scope?: "city" | "barangay";
+}) {
   const years = useMemo(() => getProjectYears(projects), [projects]);
 
   const [year, setYear] = useState<string>(String(years[0] ?? "all"));
@@ -89,7 +95,7 @@ export default function HealthProjectsView({ projects }: { projects: HealthProje
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <HealthProjectCard key={p.id} project={p} />
+          <HealthProjectCard key={p.id} project={p} scope={scope} />
         ))}
       </div>
     </div>

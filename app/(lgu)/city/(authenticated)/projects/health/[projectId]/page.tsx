@@ -2,7 +2,7 @@ import HealthProjectDetailPageView from "@/feature/projects/health/health-projec
 import { MOCK_AIPS } from "@/mock/aips";
 import { notFound } from "next/navigation";
 
-export default async function BarangayHealthProject({
+export default async function CityHealthProject({
   params,
 }: {
   params: Promise<{ projectId: string }>;
@@ -10,12 +10,12 @@ export default async function BarangayHealthProject({
   const { projectId } = await params;
 
   const aip = MOCK_AIPS.find(
-    (a) => a.scope === "barangay" && (a.healthProjects ?? []).some((p) => p.id === projectId)
+    (a) => a.scope === "city" && (a.healthProjects ?? []).some((p) => p.id === projectId)
   );
   if (!aip) return notFound();
 
   const project = (aip.healthProjects ?? []).find((p) => p.id === projectId);
   if (!project) return notFound();
 
-  return <HealthProjectDetailPageView aipYear={aip.year} project={project} scope="barangay" />;
+  return <HealthProjectDetailPageView aipYear={aip.year} project={project} scope="city" />;
 }

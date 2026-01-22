@@ -8,7 +8,13 @@ import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/utils/formatting";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
-export default function HealthProjectCard({ project }: { project: HealthProject }) {
+export default function HealthProjectCard({ 
+  project,
+  scope = "barangay"
+}: { 
+  project: HealthProject;
+  scope?: "city" | "barangay";
+}) {
   return (
     <Card className="border-slate-200 overflow-hidden">
       <CardContent className="px-6">
@@ -72,7 +78,7 @@ export default function HealthProjectCard({ project }: { project: HealthProject 
 
             <div className="flex justify-end pt-2">
               <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
-                <Link href={`/barangay/projects/health/${project.id}`}>
+                <Link href={`/${scope}/projects/health/${project.id}`}>
                   View Project
                 </Link>
               </Button>

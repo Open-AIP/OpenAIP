@@ -11,12 +11,14 @@ import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 export default function HealthProjectDetailPageView({
   aipYear,
   project,
+  scope = "barangay"
 }: {
   aipYear: number;
   project: HealthProject;
+  scope?: "city" | "barangay";
 }) {
   const breadcrumb = [
-    { label: "Health Project", href: "/barangay/projects/health" },
+    { label: "Health Project", href: `/${scope}/projects/health` },
     { label: "Detail & Updates", href: "#" },
   ];
 
@@ -46,7 +48,7 @@ export default function HealthProjectDetailPageView({
         </div>
       </div>
 
-      <ProjectInformationCard aipYear={aipYear} project={project} />
+      <ProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <ProjectUpdatesSection initialUpdates={initialUpdates} />

@@ -46,7 +46,12 @@ export const CITY_NAV: NavItem[] = [
 
   { label: "Audit", href: "/city/audit", icon: Shield },
   { label: "Chatbot", href: "/city/chatbot", icon: Bot },
-  { label: "Projects", href: "/city/projects", icon: Folder },
+  { label: "Projects", href: "/city/projects", icon: Folder,
+    children: [
+      { label: "Health Project", href: "/city/projects/health", icon: ClipboardList },
+      { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: ClipboardList },
+    ],
+   },
   { label: "Submissions", href: "/city/submissions", icon: ClipboardList },
   { label: "Account", href: "/city/account", icon: User },
 ];

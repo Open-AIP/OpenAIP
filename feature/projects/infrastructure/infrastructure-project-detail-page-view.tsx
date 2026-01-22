@@ -10,12 +10,14 @@ import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 export default function InfrastructureProjectDetailPageView({
   aipYear,
   project,
+  scope = "barangay"
 }: {
   aipYear: number;
   project: InfrastructureProject;
+  scope?: "city" | "barangay";
 }) {
   const breadcrumb = [
-    { label: "Infrastructure Project", href: "/barangay/projects/infrastructure" },
+    { label: "Infrastructure Project", href: `/${scope}/projects/infrastructure` },
     { label: "Detail & Updates", href: "#" },
   ];
 
@@ -47,7 +49,7 @@ export default function InfrastructureProjectDetailPageView({
         </div>
       </div>
 
-      <InfrastructureProjectInformationCard aipYear={aipYear} project={project} />
+      <InfrastructureProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <ProjectUpdatesSection initialUpdates={initialUpdates} />

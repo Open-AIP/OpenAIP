@@ -1,10 +1,26 @@
-import Placeholder from "@/components/layout/placeholder"
+import AccountView from "@/feature/account/account-view";
+import { getUser } from "@/lib/actions/auth.actions";
 
+export default async function CityAccount() {
+  const { fullName, email, userRole, userLocale } = await getUser();
 
-const CityAccount = () => {
+  const position =
+    userRole === "citizen"
+      ? "Citizen"
+      : userRole === "city"
+      ? "City Official"
+      : "Official";
+
+  const office = userLocale || "City Hall";
+
   return (
-    <Placeholder />
-  )
+    <AccountView
+      user={{
+        fullName,
+        email,
+        position,
+        office,
+      }}
+    />
+  );
 }
-
-export default CityAccount

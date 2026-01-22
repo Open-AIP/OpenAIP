@@ -16,8 +16,10 @@ import { Search } from "lucide-react";
 
 export default function InfrastructureProjectsView({
   projects,
+  scope = "barangay"
 }: {
   projects: InfrastructureProject[];
+  scope?: "city" | "barangay";
 }) {
   const years = useMemo(() => getProjectYears(projects), [projects]);
 
@@ -97,7 +99,7 @@ export default function InfrastructureProjectsView({
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <InfrastructureProjectCard key={p.id} project={p} />
+          <InfrastructureProjectCard key={p.id} project={p} scope={scope} />
         ))}
       </div>
     </div>

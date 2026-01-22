@@ -112,8 +112,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
         throw new Error("Account already exists. Please log in.");
       }
 
-      router.push(`/${role ===  'citizen' ? '' : `${role}/`}sign-up-success`)
-      
+      router.push(`${rolePath}/sign-up-success`)      
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
@@ -145,9 +144,12 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Barangay</Label>
+                    <Label
+                      htmlFor='barangay'
+                    >Barangay</Label>
                     <Select
                       onValueChange={(e) => localeRef.current = e}
+                      name='barangay'
                     >
                       <SelectTrigger className="w-full max-w-64">
                         <SelectValue placeholder="Choose your barangay" />

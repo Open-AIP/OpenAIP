@@ -46,8 +46,7 @@ export async function updateSession(request: NextRequest) {
     'city' : 
     'citizen';
 
-  const userRole = user?.user_metadata?.access.role;
-
+  const userRole = user?.user_metadata?.access?.role;
   // no user, accessing protected sites
   if (
     !user && 
@@ -62,12 +61,11 @@ export async function updateSession(request: NextRequest) {
   }
   
   // signed in user accessing different role
-  if(user && pathRole !== userRole) {
+  if(user && userRole && pathRole !== userRole) {
     const url = request.nextUrl.clone()
     url.pathname = `${userRole === 'citizen' ? '' : '/' + userRole}/unauthorized`
     return NextResponse.redirect(url)
   }
-
   if (
     user && (
       request.nextUrl.pathname.endsWith('/sign-in') ||

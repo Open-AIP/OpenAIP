@@ -38,13 +38,15 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims
 
   const pathname = request.nextUrl.pathname;
-
   const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
-  const pathRole = pathArray.length > 2 ? pathArray[1] : 'citizen';
-  const userRole = user?.user_metadata?.access.role;
 
-  console.log(pathname)
-  console.log(pathRole)
+  const pathRole = pathArray.indexOf('barangay') > 0 ? 
+    'barangay' : 
+    pathArray.indexOf('city') > 0 ? 
+    'city' : 
+    'citizen';
+
+  const userRole = user?.user_metadata?.access.role;
 
   // no user, accessing protected sites
   if (

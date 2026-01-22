@@ -1,7 +1,18 @@
 import LguShell from "@/components/layout/lgu-shell";
+import { getUser } from "@/lib/actions/auth.actions";
 
-const BarangayLayout = ({children} : {children: React.ReactNode}) => {
-  return <LguShell variant="barangay">{children}</LguShell>;
+const BarangayLayout = async ({children} : {children: React.ReactNode}) => {
+  const { fullName, userRole } = await getUser();
+  
+  return (
+    <LguShell 
+      variant="barangay" 
+      userName={fullName}
+      roleLabel={userRole === "citizen" ? "Citizen" : "Barangay Official"}
+    >
+      {children}
+    </LguShell>
+  );
 }
 
 export default BarangayLayout;

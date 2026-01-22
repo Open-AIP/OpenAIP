@@ -126,25 +126,31 @@ export default function AddInformationPage({
 
   function requiredOk() {
     if (kind === "health") {
+      // Disabled fields (from projectInfo): month, year, healthName, healthDesc, implementingOffice
+      // Only validate these if projectInfo is not provided (fields are editable)
+      const disabledFieldsValid = projectInfo 
+        ? true 
+        : (month && year && healthName.trim() && healthDesc.trim() && implementingOffice);
+      
       return (
-        month &&
-        year &&
-        healthName.trim() &&
-        healthDesc.trim() &&
+        disabledFieldsValid &&
         totalTarget &&
         targetParticipants.trim() &&
         budgetAllocated &&
-        implementingOffice &&
         healthStatus
       );
     }
+    // Infrastructure
+    // Disabled fields (from projectInfo): infraName, infraDesc, infraOffice, fundingSource
+    // Only validate these if projectInfo is not provided (fields are editable)
+    const disabledFieldsValid = projectInfo
+      ? true
+      : (infraName.trim() && infraDesc.trim() && infraOffice && fundingSource);
+    
     return (
+      disabledFieldsValid &&
       startDate &&
       targetCompletionDate &&
-      infraName.trim() &&
-      infraDesc.trim() &&
-      infraOffice &&
-      fundingSource &&
       contractorName.trim() &&
       contractCost &&
       infraStatus
@@ -172,9 +178,15 @@ export default function AddInformationPage({
                 className="hidden"
                 type="file"
                 accept="image/png,image/jpeg"
-                onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-              />
-              <div className="rounded-xl border border-slate-200 bg-white p-10 text-center hover:bg-slate-50 transition">
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  if (file && file.size > 5 * 1024 * 1024) {
+                    alert("File size must be under 5MB");
+                    return;
+                  }
+                  setPhotoFile(file);
+                }}
+              />              <div className="rounded-xl border border-slate-200 bg-white p-10 text-center hover:bg-slate-50 transition">
                 <div className="mx-auto h-12 w-12 rounded-xl border border-slate-200 bg-slate-50 grid place-items-center">
                   <Upload className="h-6 w-6 text-slate-400" />
                 </div>

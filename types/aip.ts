@@ -1,3 +1,6 @@
+import { InfrastructureProject, HealthProject } from "./project";
+
+
 export type AipStatus = "Draft" | "Under Review" | "For Revision" | "Published";
 
 export type AipRecord = {
@@ -27,4 +30,6 @@ export type AipDetail = AipRecord & {
   sectors: string[];
   uploader: AipUploader;
   feedback?: string; // optional; provided when status is "For Revision"
+  healthProjects?: HealthProject[];
+  infrastructureProjects?: InfrastructureProject[];
 };

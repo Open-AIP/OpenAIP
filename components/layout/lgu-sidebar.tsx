@@ -19,6 +19,8 @@ type Props = {
 function isActive(pathname: string, href: string) {
   // Exact match
   if (pathname === href) return true;
+  // For root paths like "/barangay" or "/city", only match exact path
+  if (href === "/barangay" || href === "/city") return false;
   // Nested route match (avoid "/" edge cases)
   if (href !== "/" && pathname.startsWith(href + "/")) return true;
   return false;

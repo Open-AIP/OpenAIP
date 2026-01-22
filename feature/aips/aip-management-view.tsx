@@ -13,7 +13,7 @@ import AipCard from "@/feature/aips/aip-card";
 import type { AipRecord } from "@/types";
 import { getAipYears } from "@/mock/aips";
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import UploadAipDialog from "@/feature/aips/upload-aip-dialog";
 
 type Props = {
   records: AipRecord[];
@@ -21,10 +21,10 @@ type Props = {
 };
 
 export default function AipManagementView({ records }: Props) {
-  const router = useRouter();
   const years = useMemo(() => getAipYears(records), [records]);
 
   const [yearFilter, setYearFilter] = useState<string>("all");
+  const [openUpload, setOpenUpload] = useState(false);
 
   const filtered = useMemo(() => {
     if (yearFilter === "all") return records;
@@ -63,7 +63,7 @@ export default function AipManagementView({ records }: Props) {
 
           <Button
             className="bg-[#022437] hover:bg-[#022437]/90"
-            onClick={() => router.push("/barangay/aips/upload")}
+            onClick={() => setOpenUpload(true)}
           >
             <Plus className="h-4 w-4" />
             Upload New AIP
@@ -77,6 +77,17 @@ export default function AipManagementView({ records }: Props) {
           <AipCard key={aip.id} aip={aip} />
         ))}
       </div>
+
+      <UploadAipDialog
+        open={openUpload}
+        onOpenChange={setOpenUpload}
+        onSubmit={({ file, year }) => {
+          // mock handling for now
+          console.log("Upload payload:", { file, year });
+
+          // later: Supabase storage upload + create aip record
+        }}
+      />
     </div>
   );
 }

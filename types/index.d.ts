@@ -23,3 +23,6 @@ type AuthParameters = {
 export type { NavItem, LguVariant } from "./navigation";
 
 export type { AipStatus, AipRecord, AipUploader, AipDetail } from "./aip";
+
+export type { ProjectStatus, HealthProject, InfrastructureProject } from "./projects";
+

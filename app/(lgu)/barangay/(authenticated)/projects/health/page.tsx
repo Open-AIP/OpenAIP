@@ -1,7 +1,11 @@
-const BarangayHealthProjects = () => {
-  return (
-    <div>BarangayHealthProjects</div>
-  )
-}
+import HealthProjectsView from "@/feature/projects/health/health-projects-view";
+import { MOCK_AIPS } from "@/mock/aips";
 
-export default BarangayHealthProjects
+export default function BarangayHealthProjects() {
+  // Extract all health projects from barangay AIPs
+  const healthProjects = MOCK_AIPS
+    .filter((aip) => aip.scope === "barangay")
+    .flatMap((aip) => aip.healthProjects || []);
+
+  return <HealthProjectsView projects={healthProjects} />;
+}

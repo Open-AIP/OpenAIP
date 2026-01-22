@@ -97,7 +97,7 @@ export default function UploadAipDialog({ open, onOpenChange, onSubmit }: Props)
         if (!v) reset();
       }}
     >
-      <DialogContent className="sm:max-w-[720px] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[720px] p-0 overflow-hidden" showCloseButton={false}>
         {/* Header */}
         <div className="p-8 pb-4">
           <DialogHeader className="space-y-2">

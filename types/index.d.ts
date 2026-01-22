@@ -24,5 +24,6 @@ export type { NavItem, LguVariant } from "./navigation";
 
 export type { AipStatus, AipRecord, AipUploader, AipDetail } from "./aip";
 
-export type { ProjectStatus, HealthProject, HealthProjectUpdate, InfrastructureProject } from "./projects";
+export type { ProjectStatus, HealthProject, HealthProjectUpdate, InfrastructureProject, InfrastructureProjectUpdate } from "./projects";
 
+export type { ProjectUpdate, ProjectHeaderModel } from "./project-updates";

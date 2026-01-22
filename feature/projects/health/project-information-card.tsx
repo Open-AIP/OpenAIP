@@ -1,0 +1,99 @@
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import type { HealthProject } from "@/types";
+import Image from "next/image";
+import { Users, Hash, Building2, Calendar, DollarSign, Plus } from "lucide-react";
+
+function peso(amount: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export default function ProjectInformationCard({
+  aipYear,
+  project,
+}: {
+  aipYear: number;
+  project: HealthProject;
+}) {
+  return (
+    <Card className="border-slate-200">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
+          <Button className="bg-[#022437] hover:bg-[#033451]">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Information
+          </Button>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Project Image */}
+          <div className="lg:w-96 flex-shrink-0">
+            <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden">
+              <Image
+                src={project.imageUrl || "/mock/health/default-project.jpg"}
+                alt={project.title}
+                fill
+                className="object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Project Details */}
+          <div className="flex-1">
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">
+              {project.title}
+            </h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              {project.description || "Comprehensive vaccination drive targeting all eligible residents including children, senior citizens, and immunocompromised individuals."}
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <Users className="w-4 h-4 text-slate-400" />
+                <span className="text-slate-500">Target Participants:</span>
+                <span className="font-medium text-slate-900">{project.targetParticipants}</span>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <Hash className="w-4 h-4 text-slate-400" />
+                <span className="text-slate-500">Total:</span>
+                <span className="font-medium text-slate-900">
+                  {project.totalTargetParticipants.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <Building2 className="w-4 h-4 text-slate-400" />
+                <span className="text-slate-500">Office:</span>
+                <span className="font-medium text-slate-900">
+                  {project.office || "Barangay Health Office"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span className="text-slate-500">Date:</span>
+                <span className="font-medium text-slate-900">
+                  {project.date || `January ${aipYear}`}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <DollarSign className="w-4 h-4 text-slate-400" />
+                <span className="text-slate-500">Budget:</span>
+                <span className="font-semibold text-[#022437]">
+                  {peso(project.budgetAllocated)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

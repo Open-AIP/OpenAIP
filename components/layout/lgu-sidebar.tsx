@@ -40,7 +40,7 @@ export default function LguSidebar({ variant }: Props) {
   };
 
   return (
-    <aside className="w-[275px] shrink-0 bg-[#022437] text-white min-h-screen flex flex-col">
+    <aside className="w-[275px] shrink-0 bg-[#022437] text-white h-screen flex flex-col sticky top-0 overflow-y-auto">
       {/* Brand */}
       <div className="px-6 pt-8 pb-3">
         <div className="flex flex-col items-center gap-3">

@@ -201,6 +201,35 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractCost: 450000,
         status: "Completed",
         imageUrl: "/mock/infra/drainage.jpg",
+        updates: [
+          {
+            id: "u-drain-1",
+            title: "Project completion and inspection",
+            date: "November 15, 2025",
+            description:
+              "Successfully completed all drainage clearing and mitigation works. Final inspection passed with commendations for quality of work and timely completion.",
+            progressPercent: 100,
+            photoUrls: ["/mock/updates/drainage-complete-1.jpg", "/mock/updates/drainage-complete-2.jpg"],
+          },
+          {
+            id: "u-drain-2",
+            title: "Canal rehabilitation completed",
+            date: "October 25, 2025",
+            description:
+              "Finished rehabilitation of all primary drainage canals. Installed new concrete lining and improved water flow capacity by 40%.",
+            progressPercent: 85,
+            photoUrls: ["/mock/updates/drainage-rehab.jpg"],
+          },
+          {
+            id: "u-drain-3",
+            title: "Debris clearing phase completed",
+            date: "September 10, 2025",
+            description:
+              "Cleared approximately 2 tons of debris and sediment from drainage canals. Improved water flow observed in affected areas.",
+            progressPercent: 50,
+            photoUrls: ["/mock/updates/drainage-clearing.jpg"],
+          },
+        ],
       },
     ],
   },
@@ -350,6 +379,44 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractCost: 1500000,
         status: "Completed",
         imageUrl: "/mock/infra/basketball.jpg",
+        updates: [
+          {
+            id: "u-bball-1",
+            title: "Grand inauguration and turnover",
+            date: "September 30, 2023",
+            description:
+              "Official inauguration ceremony held with barangay officials and community members. Court is now fully operational and open for public use.",
+            progressPercent: 100,
+            photoUrls: ["/mock/updates/basketball-inaug-1.jpg", "/mock/updates/basketball-inaug-2.jpg"],
+          },
+          {
+            id: "u-bball-2",
+            title: "Court surfacing and line marking completed",
+            date: "September 15, 2023",
+            description:
+              "Completed installation of high-quality synthetic sports flooring and professional court line markings. Installed basketball hoops and backboards.",
+            progressPercent: 90,
+            photoUrls: ["/mock/updates/basketball-surfacing.jpg"],
+          },
+          {
+            id: "u-bball-3",
+            title: "Perimeter fence and lighting installed",
+            date: "August 20, 2023",
+            description:
+              "Installed 4-meter high perimeter fence for safety and security. LED floodlights installed to enable evening games and activities.",
+            progressPercent: 70,
+            photoUrls: ["/mock/updates/basketball-fence.jpg"],
+          },
+          {
+            id: "u-bball-4",
+            title: "Foundation and concrete work finished",
+            date: "July 10, 2023",
+            description:
+              "Completed excavation and laying of reinforced concrete foundation. Court base is level and ready for surfacing installation.",
+            progressPercent: 45,
+            photoUrls: ["/mock/updates/basketball-foundation.jpg"],
+          },
+        ],
       },
     ],
   },
@@ -431,6 +498,17 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractCost: 45000000,
         status: "Ongoing",
         imageUrl: "/mock/infra/city-road.jpg",
+        updates: [
+          {
+            id: "u-road-1",
+            title: "Phase 1 excavation and utility relocation",
+            date: "January 22, 2026",
+            description:
+              "Completed excavation for the first 500-meter section. Relocated underground utilities including water pipes and electrical cables to accommodate road widening.",
+            progressPercent: 15,
+            photoUrls: ["/mock/updates/road-excavation-1.jpg", "/mock/updates/road-excavation-2.jpg"],
+          },
+        ],
       },
     ],
   },
@@ -482,6 +560,53 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractCost: 28000000,
         status: "Completed",
         imageUrl: "/mock/infra/market.jpg",
+        updates: [
+          {
+            id: "u-market-1",
+            title: "Market reopening and vendor relocation",
+            date: "November 30, 2025",
+            description:
+              "Successfully completed all modernization works. Market officially reopened with improved facilities. All 250 vendors relocated back to their new stalls.",
+            progressPercent: 100,
+            photoUrls: ["/mock/updates/market-opening-1.jpg", "/mock/updates/market-opening-2.jpg", "/mock/updates/market-opening-3.jpg"],
+          },
+          {
+            id: "u-market-2",
+            title: "Final installations and testing",
+            date: "November 15, 2025",
+            description:
+              "Installed all mechanical and electrical systems including new ventilation, fire suppression, and security CCTV. Conducted safety and systems testing.",
+            progressPercent: 95,
+            photoUrls: ["/mock/updates/market-systems.jpg"],
+          },
+          {
+            id: "u-market-3",
+            title: "Vendor stall construction completed",
+            date: "October 10, 2025",
+            description:
+              "Finished construction of all 250 modernized vendor stalls with improved counters, storage, and sanitation facilities. Painted and numbered all stalls.",
+            progressPercent: 75,
+            photoUrls: ["/mock/updates/market-stalls.jpg"],
+          },
+          {
+            id: "u-market-4",
+            title: "Structural renovation phase completed",
+            date: "August 20, 2025",
+            description:
+              "Completed major structural renovations including roof replacement, floor resurfacing, and wall repairs. Improved natural lighting with new skylight installations.",
+            progressPercent: 50,
+            photoUrls: ["/mock/updates/market-structure.jpg"],
+          },
+          {
+            id: "u-market-5",
+            title: "Demolition and temporary vendor relocation",
+            date: "May 5, 2025",
+            description:
+              "Completed demolition of old facilities and structures. Temporarily relocated all vendors to nearby temporary market area to allow for construction.",
+            progressPercent: 20,
+            photoUrls: ["/mock/updates/market-demo.jpg"],
+          },
+        ],
       },
     ],
   },
@@ -494,3 +619,4 @@ export function getAipYears(items: Array<{ year: number }>) {
 export function getProjectYears(items: Array<{ year: number }>) {
   return Array.from(new Set(items.map((x) => x.year))).sort((a, b) => b - a);
 }
+

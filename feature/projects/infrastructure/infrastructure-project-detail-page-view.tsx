@@ -1,25 +1,24 @@
 "use client";
 
-import * as React from "react";
-import type { HealthProject, ProjectUpdate } from "@/types";
-import ProjectInformationCard from "./project-information-card";
+import type { InfrastructureProject, ProjectUpdate } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { ProjectUpdatesSection } from "../shared/update-view";
+import InfrastructureProjectInformationCard from "./project-information-card";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
-export default function HealthProjectDetailPageView({
+export default function InfrastructureProjectDetailPageView({
   aipYear,
   project,
 }: {
   aipYear: number;
-  project: HealthProject;
+  project: InfrastructureProject;
 }) {
   const breadcrumb = [
-    { label: "Health Project", href: "/barangay/projects/health" },
+    { label: "Infrastructure Project", href: "/barangay/projects/infrastructure" },
     { label: "Detail & Updates", href: "#" },
   ];
 
-  function statusPill(status: HealthProject["status"]) {
+  function statusPill(status: InfrastructureProject["status"]) {
     switch (status) {
       case "Ongoing":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
@@ -33,15 +32,17 @@ export default function HealthProjectDetailPageView({
     }
   }
 
-  // ✅ Adapt Health updates to shared ProjectUpdate (only fields needed by shared UI)
-  const initialUpdates: ProjectUpdate[] = (project.updates ?? []).map((u: HealthProject['updates'][number]): ProjectUpdate => ({
-    id: u.id,
-    title: u.title,
-    date: u.date,
-    description: u.description,
-    progressPercent: u.progressPercent,
-    photoUrls: u.photoUrls,
-  }));
+  // ✅ Adapt Infrastructure updates to shared ProjectUpdate (only fields needed by shared UI)
+  const initialUpdates: ProjectUpdate[] = (project.updates ?? []).map(
+    (u: NonNullable<InfrastructureProject["updates"]>[number]): ProjectUpdate => ({
+      id: u.id,
+      title: u.title,
+      date: u.date,
+      description: u.description,
+      progressPercent: u.progressPercent,
+      photoUrls: u.photoUrls,
+    })
+  );
 
   return (
     <div className="space-y-6">
@@ -59,7 +60,7 @@ export default function HealthProjectDetailPageView({
         </div>
       </div>
 
-      <ProjectInformationCard aipYear={aipYear} project={project} />
+      <InfrastructureProjectInformationCard aipYear={aipYear} project={project} />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <ProjectUpdatesSection initialUpdates={initialUpdates} />

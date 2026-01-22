@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FileText, Pencil, TriangleAlert, X, RotateCw } from "lucide-react";
 import type { AipDetail } from "@/types";
 import { canEditAip, editLockedMessage, peso } from "@/feature/aips/utils";
+import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
 function statusPill(status: AipDetail["status"]) {
   switch (status) {
@@ -57,21 +58,7 @@ export default function AipDetailView({
 
   return (
     <div className="space-y-6">
-      {/* breadcrumb */}
-      <div className="text-xs text-slate-400">
-        {breadcrumb.map((b, idx) => (
-          <span key={b.label}>
-            {idx > 0 ? " / " : ""}
-            {b.href !== "#" ? (
-              <Link href={b.href} className="hover:text-slate-600">
-                {b.label}
-              </Link>
-            ) : (
-              <span>{b.label}</span>
-            )}
-          </span>
-        ))}
-      </div>
+      <BreadcrumbNav items={breadcrumb} />
 
       {/* title bar */}
       <Card className="border-slate-200">

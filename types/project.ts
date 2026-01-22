@@ -30,17 +30,33 @@ export type HealthProject = {
   updates?: HealthProjectUpdate[];
 };
 
+export type InfrastructureProjectUpdate = {
+  id: string;
+  title: string;
+  date: string; // e.g. "January 20, 2026"
+  description: string;
+  progressPercent: number; // 0..100
+  photoUrls?: string[];
+};
+
 export type InfrastructureProject = {
   id: string;
   year: number;
-  startDate: string;
-  targetCompletionDate: string;
+
   title: string;
   description: string;
+  status: ProjectStatus;
+
+  startDate: string;
+  targetCompletionDate: string;
+
   implementingOffice: string;
-  fundingSource: string;
   contractorName: string;
   contractCost: number;
-  status: ProjectStatus;
+  fundingSource: string;
+
   imageUrl?: string;
+
+  // ✅ ADD THIS
+  updates?: InfrastructureProjectUpdate[];
 };

@@ -2,13 +2,13 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import type { HealthProjectUpdate } from "@/types";
+import type { ProjectUpdate } from "@/types";
 import { CalendarDays } from "lucide-react";
 
 export default function UpdatesTimelineView({
   updates,
 }: {
-  updates: HealthProjectUpdate[];
+  updates: ProjectUpdate[];
 }) {
   return (
     <div className="space-y-4">
@@ -43,13 +43,15 @@ export default function UpdatesTimelineView({
 
                   <p className="mt-3 text-sm text-slate-600">{u.description}</p>
 
-                  <div className="mt-3 text-xs text-slate-500">
-                    Attendance:{" "}
-                    <span className="text-slate-700 font-medium">
-                      {u.attendanceCount.toLocaleString()}
-                    </span>{" "}
-                    participants
-                  </div>
+                  {(u as ProjectUpdate & { attendanceCount?: number }).attendanceCount !== undefined && (
+                    <div className="mt-3 text-xs text-slate-500">
+                      Attendance:{" "}
+                      <span className="text-slate-700 font-medium">
+                        {(u as ProjectUpdate & { attendanceCount?: number }).attendanceCount!.toLocaleString()}
+                      </span>{" "}
+                      participants
+                    </div>
+                  )}
 
                   <div className="mt-3">
                     <Progress value={u.progressPercent} />

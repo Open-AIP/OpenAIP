@@ -9,12 +9,16 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import HealthProjectCard from "./health-project-card";
-import type { HealthProject } from "@/types";
+import InfrastructureProjectCard from "./infrastructure-project-card";
+import type { InfrastructureProject } from "@/types";
 import { getProjectYears } from "@/mock/aips";
 import { Search } from "lucide-react";
 
-export default function HealthProjectsView({ projects }: { projects: HealthProject[] }) {
+export default function InfrastructureProjectsView({
+  projects,
+}: {
+  projects: InfrastructureProject[];
+}) {
   const years = useMemo(() => getProjectYears(projects), [projects]);
 
   const [year, setYear] = useState<string>(String(years[0] ?? "all"));
@@ -25,11 +29,15 @@ export default function HealthProjectsView({ projects }: { projects: HealthProje
 
     return projects.filter((p) => {
       const yearOk = year === "all" ? true : p.year === Number(year);
+
       const qOk =
         !q ||
         p.title.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.office?.toLowerCase().includes(q);
+        (p.description ?? "").toLowerCase().includes(q) ||
+        (p.implementingOffice ?? "").toLowerCase().includes(q) ||
+        (p.contractorName ?? "").toLowerCase().includes(q) ||
+        (p.fundingSource ?? "").toLowerCase().includes(q);
+
       return yearOk && qOk;
     });
   }, [projects, year, query]);
@@ -38,14 +46,14 @@ export default function HealthProjectsView({ projects }: { projects: HealthProje
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div className="text-xs text-slate-400">
-        Projects / <span className="text-slate-600">Health Project</span>
+        Projects / <span className="text-slate-600">Infrastructure Project</span>
       </div>
 
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Health Project</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Infrastructure Project</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Manage, monitor, and update health-related programs and initiatives under the Annual Investment Program.
+          Manage, monitor, and update infrastructure programs and initiatives under the Annual Investment Program.
         </p>
       </div>
 
@@ -89,7 +97,7 @@ export default function HealthProjectsView({ projects }: { projects: HealthProje
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <HealthProjectCard key={p.id} project={p} />
+          <InfrastructureProjectCard key={p.id} project={p} />
         ))}
       </div>
     </div>

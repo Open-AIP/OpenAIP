@@ -1,9 +1,7 @@
-import React from 'react'
+import AuditView from "@/feature/audit/audit-view";
+import { MOCK_AUDIT_LOGS } from "@/mock/audit";
 
-const BarangayAudit = () => {
-  return (
-    <div>page</div>
-  )
+export default function BarangayAudit() {
+  const logs = MOCK_AUDIT_LOGS.filter((x) => x.scope === "barangay");
+  return <AuditView logs={logs} />;
 }
-
-export default BarangayAudit

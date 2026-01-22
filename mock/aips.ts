@@ -61,7 +61,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         implementingOffice: "Barangay Health Office",
         budgetAllocated: 250000,
         status: "Ongoing",
-        imageUrl: "/mock/health/health1.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [],
       },
       {
@@ -76,7 +76,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         implementingOffice: "Barangay Health Office",
         budgetAllocated: 180000,
         status: "Planning",
-        imageUrl: "/mock/health/health2.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [],
       },
     ],
@@ -96,7 +96,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractorName: "ABC Construction Services",
         contractCost: 2200000,
         status: "Ongoing",
-        imageUrl: "/mock/infra/road.jpg",
+        imageUrl: "/default/default-no-image.jpg",
       },
       {
         id: "ip-2026-community-hall",
@@ -111,7 +111,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractorName: "Delta Builders Corp.",
         contractCost: 1800000,
         status: "Planning",
-        imageUrl: "/mock/infra/community-hall.jpg",
+        imageUrl: "/default/default-no-image.jpg",
       },
     ],
   },
@@ -160,7 +160,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         implementingOffice: "Barangay Health Office",
         budgetAllocated: 300000,
         status: "Completed",
-        imageUrl: "/mock/health/health3.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-med-1",
@@ -200,7 +200,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractorName: "GreenFlow Services",
         contractCost: 450000,
         status: "Completed",
-        imageUrl: "/mock/infra/drainage.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-drain-1",
@@ -277,7 +277,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         implementingOffice: "Barangay Health Office",
         budgetAllocated: 120000,
         status: "Ongoing",
-        imageUrl: "/mock/health/health4.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [],
       },
     ],
@@ -329,7 +329,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         implementingOffice: "Barangay Social Welfare Office",
         budgetAllocated: 280000,
         status: "Completed",
-        imageUrl: "/mock/health/health5.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-senior-1",
@@ -378,7 +378,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractorName: "Sports Facilities Builders Inc.",
         contractCost: 1500000,
         status: "Completed",
-        imageUrl: "/mock/infra/basketball.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-bball-1",
@@ -468,7 +468,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         implementingOffice: "City Health Office",
         budgetAllocated: 15000000,
         status: "Ongoing",
-        imageUrl: "/mock/health/hospital1.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-hosp-1",
@@ -497,7 +497,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractorName: "Metro Infrastructure Corp.",
         contractCost: 45000000,
         status: "Ongoing",
-        imageUrl: "/mock/infra/city-road.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-road-1",
@@ -559,7 +559,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
         contractorName: "Urban Builders Co.",
         contractCost: 28000000,
         status: "Completed",
-        imageUrl: "/mock/infra/market.jpg",
+        imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
             id: "u-market-1",

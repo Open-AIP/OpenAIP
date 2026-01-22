@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-
+import { AuthParameters } from '@/types/auth' // adjust path as needed
 export function UpdatePasswordForm({role}:AuthParameters) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)

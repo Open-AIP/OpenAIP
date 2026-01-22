@@ -27,3 +27,5 @@ export type { AipStatus, AipRecord, AipUploader, AipDetail } from "./aip";
 export type { ProjectStatus, HealthProject, HealthProjectUpdate, InfrastructureProject, InfrastructureProjectUpdate } from "./projects";
 
 export type { ProjectUpdate, ProjectHeaderModel } from "./project-updates";
+
+export type {AuditEventType, AuditLog } from "./audit";

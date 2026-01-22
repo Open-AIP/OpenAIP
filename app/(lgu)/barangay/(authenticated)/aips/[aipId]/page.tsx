@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { MOCK_AIPS } from "@/mock/aips";
 import AipDetailView from "@/feature/aips/aip-detail-view";
 
-export default async function BarangayAipDetailPage({
+export default async function BarangayAipDetail({
   params,
 }: {
   params: Promise<{ aipId: string }>;

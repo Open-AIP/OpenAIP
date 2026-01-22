@@ -19,28 +19,17 @@ import { FileText, Pencil, TriangleAlert, X, RotateCw } from "lucide-react";
 import type { AipDetail } from "@/types";
 import { canEditAip, editLockedMessage, peso } from "@/feature/aips/utils";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
-
-function statusPill(status: AipDetail["status"]) {
-  switch (status) {
-    case "Published":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "For Revision":
-      return "bg-amber-50 text-amber-800 border-amber-200";
-    case "Under Review":
-      return "bg-sky-50 text-sky-700 border-sky-200";
-    case "Draft":
-    default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
-  }
-}
+import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
 export default function AipDetailView({ 
   aip,
+  scope = "barangay",
   onEdit,
   onResubmit,
   onCancel,
 }: { 
   aip: AipDetail;
+  scope?: "city" | "barangay";
   onEdit?: () => void;
   onResubmit?: () => void;
   onCancel?: () => void;
@@ -52,7 +41,7 @@ export default function AipDetailView({
   const [query, setQuery] = useState<string>("");
 
   const breadcrumb = [
-    { label: "AIP Management", href: "/barangay/aips" },
+    { label: "AIP Management", href: `/${scope}/aips` },
     { label: aip.title, href: "#" },
   ];
 
@@ -67,7 +56,7 @@ export default function AipDetailView({
             {aip.title} <span className="ml-2">{aip.year}</span>
           </h1>
 
-          <Badge variant="outline" className={`rounded-full ${statusPill(aip.status)}`}>
+          <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}>
             {aip.status}
           </Badge>
         </CardContent>
@@ -112,7 +101,7 @@ export default function AipDetailView({
           <div>
             <h3 className="text-base font-semibold text-slate-900">Detailed Description</h3>
             <p className="mt-2 text-sm text-slate-600">
-              This comprehensive infrastructure plan addresses the critical needs of our growing barangay community:
+              This comprehensive infrastructure plan addresses the critical needs of our growing {scope} community:
             </p>
 
             <ol className="mt-3 list-decimal pl-5 space-y-1 text-sm text-slate-600">

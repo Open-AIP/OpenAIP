@@ -12,14 +12,8 @@ import {
   Plus,
   Flag,
 } from "lucide-react";
-
-function peso(amount: number) {
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+import { formatPeso } from "@/lib/utils/formatting";
+import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 export default function InfrastructureProjectInformationCard({
   aipYear,
@@ -33,7 +27,7 @@ export default function InfrastructureProjectInformationCard({
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
-            <Button asChild className="bg-[#022437] hover:bg-[#033451]">
+            <Button asChild className={PRIMARY_BUTTON_CLASS}>
               <Link href={`/barangay/projects/infrastructure/${project.id}/add-information`}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Information
@@ -109,7 +103,7 @@ export default function InfrastructureProjectInformationCard({
                 <PhilippinePeso className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Contract Cost:</span>
                 <span className="font-semibold text-[#022437]">
-                  {project.contractCost != null ? peso(project.contractCost) : "N/A"}
+                  {project.contractCost != null ? formatPeso(project.contractCost) : "N/A"}
                 </span>
               </div>
             </div>

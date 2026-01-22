@@ -8,10 +8,11 @@ export type AipRecord = {
   title: string;
   description: string;
   year: number;
-  budget: number; // store as number; format on UI
-  uploadedAt: string; // ISO or readable string
-  publishedAt?: string; // optional
+  budget: number;
+  uploadedAt: string;
+  publishedAt?: string;
   status: AipStatus;
+  scope: "city" | "barangay";
 };
 
 export type AipUploader = {

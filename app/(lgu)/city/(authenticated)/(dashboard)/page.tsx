@@ -9,6 +9,7 @@ const CityDashboard = async () => {
     user = await getUser();
   } catch (error) {
     console.error('Failed to fetch user:', error);
+    redirect('/login');
   }
   if (!user) {
     redirect('/login');
@@ -20,9 +21,8 @@ const CityDashboard = async () => {
     <div>
       <p>CityDashboard</p>
       <p>
-        Hello {fullName}, {email}. A {userRole} {userRole === 'citizen' ? '':' official'} from {userLocale}
-      </p>
-      <LogoutButton role={userRole} baseURL={baseURL}/>
+        Hello {fullName}, {email}. Role: {userRole}{userRole === 'citizen' ? '' : ' official'} from {userLocale}.
+      </p>      <LogoutButton role={userRole} baseURL={baseURL}/>
     </div>
   )
 }

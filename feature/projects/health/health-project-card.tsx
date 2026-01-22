@@ -5,28 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/types";
 import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
-
-function peso(amount: number) {
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function statusPill(status: HealthProject["status"]) {
-  switch (status) {
-    case "Ongoing":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "Planning":
-      return "bg-sky-50 text-sky-700 border-sky-200";
-    case "Completed":
-      return "bg-slate-50 text-slate-700 border-slate-200";
-    case "On Hold":
-    default:
-      return "bg-amber-50 text-amber-800 border-amber-200";
-  }
-}
+import { formatPeso } from "@/lib/utils/formatting";
+import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
 export default function HealthProjectCard({ project }: { project: HealthProject }) {
   return (
@@ -53,7 +33,7 @@ export default function HealthProjectCard({ project }: { project: HealthProject 
                 <p className="mt-2 text-sm text-slate-600">{project.description}</p>
               </div>
 
-              <Badge variant="outline" className={`rounded-full whitespace-nowrap ${statusPill(project.status)}`}>
+              <Badge variant="outline" className={`rounded-full whitespace-nowrap ${getProjectStatusBadgeClass(project.status)}`}>
                 {project.status}
               </Badge>
             </div>
@@ -86,7 +66,7 @@ export default function HealthProjectCard({ project }: { project: HealthProject 
               <div className="flex items-center gap-2">
                 <PhilippinePeso className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Budget:</span>
-                <span className="font-semibold text-[#022437]">{project.budgetAllocated != null ? peso(project.budgetAllocated) : 'N/A'}</span>
+                <span className="font-semibold text-[#022437]">{project.budgetAllocated != null ? formatPeso(project.budgetAllocated) : 'N/A'}</span>
               </div>
             </div>
 

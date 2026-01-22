@@ -3,33 +3,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { AipRecord } from "@/types";
 import { CalendarDays, PhilippinePeso } from "lucide-react";
+import { formatPeso } from "@/lib/utils/formatting";
+import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
-function peso(amount: number) {
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function statusPill(status: AipRecord["status"]) {
-  // simple mapping that matches your screenshot's feel
-  switch (status) {
-    case "Published":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "For Revision":
-      return "bg-amber-50 text-amber-800 border-amber-200";
-    case "Under Review":
-      return "bg-sky-50 text-sky-700 border-sky-200";
-    case "Draft":
-    default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
-  }
-}
-
-export default function AipCard({ aip }: { aip: AipRecord }) {
+export default function AipCard({ 
+  aip, 
+  scope = "barangay" 
+}: { 
+  aip: AipRecord;
+  scope?: "city" | "barangay";
+}) {
   return (
-    <Link href={`/barangay/aips/${aip.id}`} className="block">
+    <Link href={`/${scope}/aips/${aip.id}`} className="block">
       <Card className="border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
         <CardContent className="p-6">
           <div className="flex items-start justify-between gap-4">
@@ -48,7 +33,7 @@ export default function AipCard({ aip }: { aip: AipRecord }) {
                 <div className="flex items-center gap-2">
                   <PhilippinePeso className="h-4 w-4 text-slate-400" />
                   <span>
-                    Budget: <span className="font-semibold text-[#022437]">{peso(aip.budget)}</span>
+                    Budget: <span className="font-semibold text-[#022437]">{formatPeso(aip.budget)}</span>
                   </span>
                 </div>
 
@@ -66,7 +51,7 @@ export default function AipCard({ aip }: { aip: AipRecord }) {
               </div>
             </div>
 
-            <Badge variant="outline" className={`rounded-full ${statusPill(aip.status)}`}>
+            <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}>
               {aip.status}
             </Badge>
           </div>

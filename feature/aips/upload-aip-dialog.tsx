@@ -25,6 +25,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit?: (payload: { file: File; year: number }) => void;
+  scope?: "city" | "barangay";
 };
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -36,7 +37,7 @@ function buildYears(count = 7) {
   return Array.from({ length: count }, (_, i) => start + i);
 }
 
-export default function UploadAipDialog({ open, onOpenChange, onSubmit }: Props) {
+export default function UploadAipDialog({ open, onOpenChange, onSubmit, scope = "barangay" }: Props) {
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = React.useState<File | null>(null);
@@ -44,6 +45,8 @@ export default function UploadAipDialog({ open, onOpenChange, onSubmit }: Props)
   const [error, setError] = React.useState<string>("");
 
   const years = React.useMemo(() => buildYears(7).sort((a, b) => b - a), []);
+
+  const scopeLabel = scope === "city" ? "city" : "barangay";
 
   function reset() {
     setFile(null);
@@ -107,7 +110,7 @@ export default function UploadAipDialog({ open, onOpenChange, onSubmit }: Props)
                   Upload AIP
                 </DialogTitle>
                 <DialogDescription className="text-base text-slate-500 mt-2">
-                  Upload a new Annual Investment Plan document for your barangay
+                  Upload a new Annual Investment Plan document for your {scopeLabel}
                 </DialogDescription>
               </div>
 

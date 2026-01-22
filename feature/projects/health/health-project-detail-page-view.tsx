@@ -6,6 +6,7 @@ import ProjectInformationCard from "./project-information-card";
 import { Badge } from "@/components/ui/badge";
 import { ProjectUpdatesSection } from "../shared/update-view";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
+import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
 export default function HealthProjectDetailPageView({
   aipYear,
@@ -18,20 +19,6 @@ export default function HealthProjectDetailPageView({
     { label: "Health Project", href: "/barangay/projects/health" },
     { label: "Detail & Updates", href: "#" },
   ];
-
-  function statusPill(status: HealthProject["status"]) {
-    switch (status) {
-      case "Ongoing":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "Planning":
-        return "bg-sky-50 text-sky-700 border-sky-200";
-      case "Completed":
-        return "bg-slate-50 text-slate-700 border-slate-200";
-      case "On Hold":
-      default:
-        return "bg-amber-50 text-amber-800 border-amber-200";
-    }
-  }
 
   // ✅ Adapt Health updates to shared ProjectUpdate (only fields needed by shared UI)
   const initialUpdates: ProjectUpdate[] = (project.updates ?? []).map((u: HealthProject['updates'][number]): ProjectUpdate => ({
@@ -53,7 +40,7 @@ export default function HealthProjectDetailPageView({
         </div>
 
         <div className="flex flex-col items-end">
-          <Badge variant="outline" className={`mt-auto rounded-full ${statusPill(project.status)}`}>
+          <Badge variant="outline" className={`mt-auto rounded-full ${getProjectStatusBadgeClass(project.status)}`}>
             {project.status}
           </Badge>
         </div>

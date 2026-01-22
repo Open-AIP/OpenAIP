@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import type { AuthParameters } from '@/types'
 import {
   Card,
   CardContent,
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
 
 export function LoginForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -22,7 +24,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
-  const rolePath = `${baseURL}${role ===  'citizen' ? '' : '/' + role}`;
+  const rolePath = getRolePath(baseURL, role);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,7 +71,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                 <Input
                   id="email"
                   type="email"
-                  placeholder={role + `${role === 'citizen' ? '' : '-official'}@email.com`}
+                  placeholder={getRoleEmailPlaceholder(role)}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

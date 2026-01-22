@@ -1,53 +1,52 @@
-import type { NavItem } from "@/types";
+import type { ComponentType } from "react";
 import {
   LayoutDashboard,
   FileText,
-  FolderKanban,
+  Folder,
   MessageSquare,
   Bot,
   User,
-  ShieldCheck,
-  Heart,
-  Building2,
+  Shield,
+  ClipboardList,
 } from "lucide-react";
 
-/**
- * NOTE about URLs:
- * Because you're using route groups like (dashboard), the URL is still:
- * - /barangay
- * - /barangay/aips
- * etc.
- */
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  children?: NavItem[];
+};
+
 export const BARANGAY_NAV: NavItem[] = [
   { label: "Dashboard", href: "/barangay", icon: LayoutDashboard },
   { label: "AIP Management", href: "/barangay/aips", icon: FileText },
-  { 
-    label: "Projects", 
-    href: "/barangay/projects", 
-    icon: FolderKanban,
+
+  {
+    label: "Projects",
+    href: "/barangay/projects",
+    icon: Folder,
     children: [
-      { label: "Health Project", href: "/barangay/projects/health", icon: Heart },
-      { label: "Infrastructure Projects", href: "/barangay/projects/infrastructure", icon: Building2 },
-    ]
+      { label: "Health Project", href: "/barangay/projects/health", icon: ClipboardList },
+      { label: "Infrastructure Projects", href: "/barangay/projects/infrastructure-projects", icon: ClipboardList },
+    ],
   },
+
   { label: "Comments", href: "/barangay/comments", icon: MessageSquare },
   { label: "Chatbot", href: "/barangay/chatbot", icon: Bot },
   { label: "Account", href: "/barangay/account", icon: User },
-  { label: "Audit & Accountability", href: "/barangay/audit", icon: ShieldCheck },
+  { label: "Audit & Accountability", href: "/barangay/audit", icon: Shield },
 ];
 
 export const CITY_NAV: NavItem[] = [
   { label: "Dashboard", href: "/city", icon: LayoutDashboard },
   { label: "AIPs", href: "/city/aips", icon: FileText },
-  { 
-    label: "Projects", 
-    href: "/city/projects", 
-    icon: FolderKanban,
-    children: [
-      { label: "Health Project", href: "/city/projects/health", icon: Heart },
-      { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: Building2 },
-    ]
-  },
+
+  // If you have submissions/review queues in city:
+  { label: "Submittals", href: "/city/submittals", icon: ClipboardList },
+
+  { label: "Audit", href: "/city/audit", icon: Shield },
   { label: "Chatbot", href: "/city/chatbot", icon: Bot },
+  { label: "Projects", href: "/city/projects", icon: Folder },
+  { label: "Submissions", href: "/city/submissions", icon: ClipboardList },
   { label: "Account", href: "/city/account", icon: User },
 ];

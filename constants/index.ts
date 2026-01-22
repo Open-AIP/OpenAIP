@@ -1,3 +1,5 @@
+import { LGUAccount } from "@/types";
+
 export const ListOfBarangays: string[] = [
   'Baclaran',
   'Banay-Banay',

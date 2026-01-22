@@ -14,7 +14,7 @@ const CitizenDashboard = async () => {
     redirect('/login');
   }
 
-  const {fullName, email, userRole, userLocale, baseURL} = await getUser();
+  const {fullName, email, userRole, userLocale, baseURL} = user;
 
   return (
     <div>

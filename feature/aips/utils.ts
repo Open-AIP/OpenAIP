@@ -1,12 +1,7 @@
 import type { AipStatus } from "@/types";
 
-export function peso(amount: number) {
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+// Re-export formatting utility from shared location
+export { formatPeso as peso } from "@/lib/utils/formatting";
 
 /**
  * Editing rules (adjust to your workflow):

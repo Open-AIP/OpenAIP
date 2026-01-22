@@ -4,14 +4,8 @@ import type { HealthProject } from "@/types";
 import Image from "next/image";
 import { Users, Hash, Building2, Calendar, DollarSign, Plus } from "lucide-react";
 import Link from "next/link";
-
-function peso(amount: number) {
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+import { formatPeso } from "@/lib/utils/formatting";
+import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 export default function ProjectInformationCard({
   aipYear,
@@ -25,7 +19,7 @@ export default function ProjectInformationCard({
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
-            <Button asChild className="bg-[#022437] hover:bg-[#033451]">
+            <Button asChild className={PRIMARY_BUTTON_CLASS}>
               <Link href={`/barangay/projects/health/${project.id}/add-information`}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Information
@@ -89,7 +83,7 @@ export default function ProjectInformationCard({
                 <DollarSign className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Budget:</span>
                 <span className="font-semibold text-[#022437]">
-                  {project.budgetAllocated != null ? peso(project.budgetAllocated) : "N/A"}
+                  {project.budgetAllocated != null ? formatPeso(project.budgetAllocated) : "N/A"}
                 </span>
               </div>
             </div>

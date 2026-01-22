@@ -26,6 +26,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LGUAccounts, ListOfBarangays } from '@/constants'
+import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
 // import { time } from 'console'
 
 export function SignUpForm({role, baseURL}:AuthParameters) {
@@ -42,7 +43,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
 
   const router = useRouter()
   
-  const rolePath = `${baseURL}${role ===  'citizen' ? '' : '/' + role}`;
+  const rolePath = getRolePath(baseURL, role);
 
   useEffect(() => {
     if(email.trim() === '') {
@@ -174,7 +175,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
                 <Input
                   id="email"
                   type="email"
-                  placeholder={role + `${role === 'citizen' ? '' : '-official'}@email.com`}
+                  placeholder={getRoleEmailPlaceholder(role)}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

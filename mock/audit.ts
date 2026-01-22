@@ -429,8 +429,8 @@ export const MOCK_AUDIT_LOGS: AuditLog[] = [
     dateTimeISO: "2024-11-10T10:55:00+08:00",
     details:
       "Uploaded revised zoning map and development guidelines for northern district expansion.",
-  },  {
-    id: "al-040",
+  },
+  {    id: "al-040",
     scope: "barangay",
     year: 2024,
     name: "Violeta Santos",

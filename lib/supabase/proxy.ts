@@ -47,7 +47,8 @@ export async function updateSession(request: NextRequest) {
     'citizen';
 
   const userRole = user?.user_metadata?.access?.role;
-  // no user, accessing protected sites
+  
+
   if (
     !user && 
     !request.nextUrl.pathname.endsWith('/sign-in') &&

@@ -17,10 +17,13 @@ import UploadAipDialog from "@/feature/aips/upload-aip-dialog";
 
 type Props = {
   records: AipRecord[];
-  roleLabel?: string; // optional if you want to show it in header area later
+  scope?: "city" | "barangay";
 };
 
-export default function AipManagementView({ records }: Props) {
+export default function AipManagementView({ 
+  records, 
+  scope = "barangay"
+}: Props) {
   const years = useMemo(() => getAipYears(records), [records]);
 
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -32,13 +35,15 @@ export default function AipManagementView({ records }: Props) {
     return records.filter((r) => r.year === y);
   }, [records, yearFilter]);
 
+  const scopeLabel = scope === "city" ? "city" : "barangay";
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900">AIP Management</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Manage, upload, review, and monitor Annual Investment Plan (AIP) documents for barangay development.
+          Manage, upload, review, and monitor Annual Investment Plan (AIP) documents for {scopeLabel} development.
         </p>
       </div>
 
@@ -74,16 +79,17 @@ export default function AipManagementView({ records }: Props) {
       {/* List */}
       <div className="space-y-4">
         {filtered.map((aip) => (
-          <AipCard key={aip.id} aip={aip} />
+          <AipCard key={aip.id} aip={aip} scope={scope} />
         ))}
       </div>
 
       <UploadAipDialog
         open={openUpload}
         onOpenChange={setOpenUpload}
+        scope={scope}
         onSubmit={({ file, year }) => {
           // mock handling for now
-          console.log("Upload payload:", { file, year });
+          console.log("Upload payload:", { file, year, scope });
           setOpenUpload(false);
 
           // later: Supabase storage upload + create aip record

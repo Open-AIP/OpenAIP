@@ -1,6 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/types";
@@ -33,21 +32,18 @@ export default function HealthProjectCard({ project }: { project: HealthProject 
     <Card className="border-slate-200 overflow-hidden">
       <CardContent className="px-6">
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
-        {/* Left image */}
-            <div className="w-full lg:w-[420px] flex items-center justify-center bg-white-100">
-                        <div className="relative w-[482px] h-[280px] overflow-hidden rounded-xl bg-white-100">
-                <Image
-                    src={project.imageUrl}
-                    alt={project.title}
-                    fill
-                    className="object-cover object-center"
-                    sizes="482px"
-                />
-                </div>
+          {/* Left image */}
+          <div className="w-full lg:w-[420px] flex items-center justify-center bg-slate-100">
++            <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">
+              <Image
+                src={project.imageUrl}
+                alt={project.title}
+                fill
+                className="object-cover object-center"
+                sizes="(max-width: 1024px) 100vw, 420px"
+              />
             </div>
-
-
-
+          </div>
 
           {/* Right details */}
           <div className="px-6 flex flex-col">
@@ -83,7 +79,7 @@ export default function HealthProjectCard({ project }: { project: HealthProject 
 
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-slate-400" />
-                <span className="text-slate-500">Date :</span>
+                <span className="text-slate-500">Date:</span>
                 <span className="font-medium">{project.month && project.year ? `${project.month} ${project.year}` : 'N/A'}</span>
               </div>
 

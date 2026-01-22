@@ -57,6 +57,4 @@ export type InfrastructureProject = {
 
   imageUrl?: string;
 
-  // ✅ ADD THIS
-  updates?: InfrastructureProjectUpdate[];
-};
+  updates?: InfrastructureProjectUpdate[];};

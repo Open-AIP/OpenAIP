@@ -24,8 +24,13 @@ export default function PostUpdateForm({
   const [progress, setProgress] = React.useState<number>(0);
   const [attendance, setAttendance] = React.useState<string>("");
   const [photos, setPhotos] = React.useState<File[]>([]);
+  const previewUrlsRef = React.useRef<string[]>([]);
 
   function onPickPhotos(files: FileList | null) {
+    // Revoke previous preview URLs when new photos are selected
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current = [];
+
     if (!files) return;
     const picked = Array.from(files).slice(0, 5);
     setPhotos(picked);
@@ -35,6 +40,10 @@ export default function PostUpdateForm({
     if (title.trim().length < 3) return;
     if (desc.trim().length < 10) return;
     if (!attendance) return;
+
+    // Create object URLs for the parent to use
+    // Parent owns these URLs and is responsible for cleanup if needed
+    const photoUrls = photos.length ? photos.map((f) => URL.createObjectURL(f)) : undefined;
 
     const next: HealthProjectUpdate = {
       id: `u-${Date.now()}`,
@@ -47,10 +56,14 @@ export default function PostUpdateForm({
       description: desc.trim(),
       attendanceCount: Number(attendance || 0),
       progressPercent: clamp01to100(progress),
-      photoUrls: photos.length ? photos.map((f) => URL.createObjectURL(f)) : undefined,
+      photoUrls,
     };
 
     onCreate(next);
+
+    // Clear preview URLs since photos are now owned by parent
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current = [];
 
     setTitle("");
     setDesc("");
@@ -138,16 +151,15 @@ export default function PostUpdateForm({
 
           {photos.length ? (
             <div className="flex flex-wrap gap-2">
-              {photos.map((f) => (
+              {photos.map((f, idx) => (
                 <div
-                  key={f.name}
+                  key={`${idx}-${f.name}-${f.size}`}
                   className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600"
                 >
                   <ImageIcon className="h-4 w-4 text-slate-400" />
                   <span className="max-w-[190px] truncate">{f.name}</span>
                 </div>
-              ))}
-            </div>
+              ))}            </div>
           ) : null}
         </div>
 

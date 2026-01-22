@@ -34,8 +34,8 @@ export default function InfrastructureProjectCard({ project }: { project: Infras
       <CardContent className="p-0">
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
           {/* fixed image + cover */}
-          <div className="w-full lg:w-[420px] flex items-center justify-center bg-white-100">
-            <div className="relative w-[482px] h-[280px] overflow-hidden rounded-xl bg-white-100">
+          <div className="w-full lg:w-[420px] flex items-center justify-center bg-slate-100">
+            <div className="relative w-full h-[280px] overflow-hidden rounded-xl bg-slate-100">
                 <Image
                     src={project.imageUrl}
                     alt={project.title}
@@ -44,9 +44,7 @@ export default function InfrastructureProjectCard({ project }: { project: Infras
                     sizes="482px"
                 />
                 </div>
-            </div>
-
-          <div className="p-6 flex flex-col gap-4">
+            </div>          <div className="p-6 flex flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-slate-900">{project.title}</h3>

@@ -49,25 +49,23 @@ export default function ProjectInformationCard({
               {project.title}
             </h3>
             <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-              {project.description || "Comprehensive vaccination drive targeting all eligible residents including children, senior citizens, and immunocompromised individuals."}
+              {project.description || "No description available."}
             </p>
-
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Target Participants:</span>
                 <span className="font-medium text-slate-900">{project.targetParticipants}</span>
+                <span className="font-medium text-slate-900">{project.targetParticipants ?? "N/A"}</span>
               </div>
 
               <div className="flex items-center gap-3 text-sm">
                 <Hash className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Total:</span>
                 <span className="font-medium text-slate-900">
-                  {project.totalTargetParticipants.toLocaleString()}
+                  {project.totalTargetParticipants?.toLocaleString() ?? "N/A"}
                 </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-sm">
+              </div>              <div className="flex items-center gap-3 text-sm">
                 <Building2 className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Office:</span>
                 <span className="font-medium text-slate-900">
@@ -84,14 +82,13 @@ export default function ProjectInformationCard({
               </div>
 
               <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-3 text-sm">
                 <DollarSign className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Budget:</span>
                 <span className="font-semibold text-[#022437]">
-                  {peso(project.budgetAllocated)}
+                  {project.budgetAllocated != null ? peso(project.budgetAllocated) : "N/A"}
                 </span>
-              </div>
-            </div>
-          </div>
+              </div>          </div>
         </div>
       </CardContent>
     </Card>

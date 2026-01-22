@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,20 +33,26 @@ function statusPill(status: AipDetail["status"]) {
   }
 }
 
-export default function AipDetailView({ aip }: { aip: AipDetail }) {
+export default function AipDetailView({ 
+  aip,
+  onEdit,
+  onResubmit,
+  onCancel,
+}: { 
+  aip: AipDetail;
+  onEdit?: () => void;
+  onResubmit?: () => void;
+  onCancel?: () => void;
+}) {
   const editable = canEditAip(aip.status);
   const showFeedback = aip.status === "For Revision";
 
-  const [sector, setSector] = useState<string>("All");
-  const [query, setQuery] = useState<string>("");
+  const [sector, setSector] = useState<string>(aip.sectors[0] ?? "All");  const [query, setQuery] = useState<string>("");
 
-  const breadcrumb = useMemo(
-    () => [
-      { label: "AIP Management", href: "/barangay/aips" },
-      { label: "Upload New AIP", href: "#" }, // rename as needed
-    ],
-    []
-  );
+  const breadcrumb = [
+    { label: "AIP Management", href: "/barangay/aips" },
+    { label: aip.title, href: "#" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -122,8 +128,8 @@ export default function AipDetailView({ aip }: { aip: AipDetail }) {
             </p>
 
             <ol className="mt-3 list-decimal pl-5 space-y-1 text-sm text-slate-600">
-              {aip.detailedBullets.map((b: string) => (
-                <li key={b}>{b}</li>
+              {aip.detailedBullets.map((b: string, index: number) => (
+                <li key={index}>{b}</li>
               ))}
             </ol>
 
@@ -243,18 +249,18 @@ export default function AipDetailView({ aip }: { aip: AipDetail }) {
       <div className="flex justify-end gap-3">
         {showFeedback && (
           <>
-            <Button variant="outline">
+            <Button variant="outline" onClick={onEdit} disabled={!onEdit}>
               <Pencil className="h-4 w-4" />
               Edit
             </Button>
-            <Button className="bg-teal-600 hover:bg-teal-700">
+            <Button className="bg-teal-600 hover:bg-teal-700" onClick={onResubmit} disabled={!onResubmit}>
               <RotateCw className="h-4 w-4" />
               Resubmit
             </Button>
           </>
         )}
         {aip.status === "Draft" && (
-          <Button variant="destructive">
+          <Button variant="destructive" onClick={onCancel} disabled={!onCancel}>
             <X className="h-4 w-4" />
             Cancel Submission
           </Button>

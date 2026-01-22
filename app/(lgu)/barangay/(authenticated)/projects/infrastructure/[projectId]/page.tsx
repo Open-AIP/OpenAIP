@@ -1,3 +1,5 @@
+import type { ProjectIdParameter } from "@/types";
+
 const BarangayInfrastructureProject = async ({params}:ProjectIdParameter) => {
   const {projectId} = await params;
  

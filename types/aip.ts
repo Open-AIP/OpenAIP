@@ -26,6 +26,5 @@ export type AipDetail = AipRecord & {
   tablePreviewUrl?: string; // image placeholder for now
   sectors: string[];
   uploader: AipUploader;
-  status: AipStatus;
   feedback?: string; // optional; provided when status is "For Revision"
 };

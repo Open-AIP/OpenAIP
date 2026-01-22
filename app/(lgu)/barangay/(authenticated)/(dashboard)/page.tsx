@@ -19,7 +19,6 @@ const BarangayDashboard = async () => {
     redirect(`/${role}/sign-in`)
   }
 
-  console.log(data.claims.user_metadata);
 
   return (
     <div>

@@ -1,3 +1,13 @@
+/**
+ * Health Projects View Component
+ * 
+ * Main listing and management interface for health projects.
+ * Provides filtering, searching, and overview of all health initiatives
+ * under the Annual Investment Program.
+ * 
+ * @module feature/projects/health/health-projects-view
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -14,6 +24,20 @@ import type { HealthProject } from "@/types";
 import { getProjectYears } from "@/mock/aips";
 import { Search } from "lucide-react";
 
+/**
+ * HealthProjectsView Component
+ * 
+ * Displays and manages the list of health projects.
+ * Features:
+ * - Year-based filtering
+ * - Full-text search (title, description, office)
+ * - Project count display
+ * - Responsive card-based layout
+ * - Breadcrumb navigation
+ * 
+ * @param projects - Array of health projects to display
+ * @param scope - Administrative scope (city or barangay)
+ */
 export default function HealthProjectsView({ 
   projects,
   scope = "barangay"

@@ -1,3 +1,13 @@
+/**
+ * Health Project Card Component
+ * 
+ * Displays a comprehensive card view for health-related projects.
+ * Shows project image, details, target participants, budget, and status.
+ * Provides navigation to detailed project view.
+ * 
+ * @module feature/projects/health/health-project-card
+ */
+
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +18,21 @@ import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/utils/formatting";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
+/**
+ * HealthProjectCard Component
+ * 
+ * Renders a detailed card for health projects including:
+ * - Project image
+ * - Title and description
+ * - Target participants and totals
+ * - Implementing office
+ * - Date and budget information
+ * - Status badge
+ * - View project button
+ * 
+ * @param project - The health project data to display
+ * @param scope - Administrative scope (city or barangay) for routing
+ */
 export default function HealthProjectCard({ 
   project,
   scope = "barangay"

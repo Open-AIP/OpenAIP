@@ -1,3 +1,13 @@
+/**
+ * Account View Component
+ * 
+ * Displays user account information and security settings.
+ * Provides a read-only view of user profile data managed by administrators,
+ * and includes password management functionality.
+ * 
+ * @module feature/account/account-view
+ */
+
 "use client";
 
 import * as React from "react";
@@ -6,13 +16,27 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {UpdatePasswordForm} from "./update-password-form";
 
+/**
+ * User account information type
+ */
 type AccountUser = {
   fullName: string;
   email: string;
   position: string;
   office: string;
+  role: string;
+  baseURL: string;
 };
 
+/**
+ * ReadOnlyField Component
+ * 
+ * Renders a disabled input field with a label indicating it's managed by admin.
+ * Used for displaying non-editable user information.
+ * 
+ * @param label - The field label
+ * @param value - The field value to display
+ */
 function ReadOnlyField({
   label,
   value,
@@ -38,6 +62,15 @@ function ReadOnlyField({
   );
 }
 
+/**
+ * AccountView Component
+ * 
+ * Main account page component that displays:
+ * - User profile information (read-only, admin-managed)
+ * - Password update form for security management
+ * 
+ * @param user - The authenticated user's account information
+ */
 export default function AccountView({ user }: { user: AccountUser }) {
   return (
     <div className="space-y-6">
@@ -64,7 +97,7 @@ export default function AccountView({ user }: { user: AccountUser }) {
       </Card>
 
       {/* Security */}
-      <UpdatePasswordForm />
+      <UpdatePasswordForm role={user.role} baseURL={user.baseURL} />
     </div>
   );
 }

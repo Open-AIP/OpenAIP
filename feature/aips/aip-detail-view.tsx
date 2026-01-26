@@ -1,3 +1,13 @@
+/**
+ * AIP Detail View Component
+ * 
+ * Comprehensive view for displaying and managing Annual Investment Plan details.
+ * Provides functionality for viewing AIP documents, project details, filtering,
+ * and performing actions based on AIP status (edit, resubmit, cancel).
+ * 
+ * @module feature/aips/aip-detail-view
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -21,6 +31,23 @@ import { canEditAip, editLockedMessage, peso } from "@/feature/aips/utils";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
+/**
+ * AipDetailView Component
+ * 
+ * Displays comprehensive AIP information including:
+ * - AIP document viewer with PDF access
+ * - Summary and detailed description
+ * - Project listing with sector and search filtering
+ * - Uploader information
+ * - Status-based action buttons (edit, resubmit, cancel)
+ * - Feedback display for revision requests
+ * 
+ * @param aip - The complete AIP details
+ * @param scope - Administrative scope (city or barangay)
+ * @param onEdit - Callback for edit action
+ * @param onResubmit - Callback for resubmit action
+ * @param onCancel - Callback for cancel action
+ */
 export default function AipDetailView({ 
   aip,
   scope = "barangay",

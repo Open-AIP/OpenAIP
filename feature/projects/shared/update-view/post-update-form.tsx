@@ -1,3 +1,13 @@
+/**
+ * Post Update Form Component
+ * 
+ * Form for creating new project updates.
+ * Collects update information including title, description, progress,
+ * attendance count, and optional photos.
+ * 
+ * @module feature/projects/shared/update-view/post-update-form
+ */
+
 "use client";
 
 import * as React from "react";
@@ -9,11 +19,36 @@ import { Label } from "@/components/ui/label";
 import type { HealthProjectUpdate } from "@/types";
 import { Upload, Image as ImageIcon } from "lucide-react";
 
+/**
+ * Clamps a number between 0 and 100
+ * @param n - Number to clamp
+ * @returns Clamped value between 0-100
+ */
 function clamp01to100(n: number) {
   if (Number.isNaN(n)) return 0;
   return Math.max(0, Math.min(100, n));
 }
 
+/**
+ * PostUpdateForm Component
+ * 
+ * Form for posting project updates.
+ * Features:
+ * - Title and description inputs
+ * - Progress percentage slider (0-100%)
+ * - Attendance count input
+ * - Photo upload (max 5 photos, PNG/JPG)
+ * - Form validation
+ * - Auto-generated date
+ * - Memory management for photo URLs
+ * 
+ * Validation rules:
+ * - Title: minimum 3 characters
+ * - Description: minimum 10 characters
+ * - Attendance: required
+ * 
+ * @param onCreate - Callback when a new update is created
+ */
 export default function PostUpdateForm({
   onCreate,
 }: {

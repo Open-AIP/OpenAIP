@@ -1,3 +1,13 @@
+/**
+ * AIP Card Component
+ * 
+ * Displays a summary card for an Annual Investment Plan (AIP) record.
+ * Shows key information including title, description, budget, year, status,
+ * and upload/publish dates. The card is clickable and navigates to the detail view.
+ * 
+ * @module feature/aips/aip-card
+ */
+
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +16,15 @@ import { CalendarDays, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/utils/formatting";
 import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
+/**
+ * AipCard Component
+ * 
+ * Renders a clickable card displaying AIP summary information.
+ * Supports both city and barangay scope for proper routing.
+ * 
+ * @param aip - The AIP record to display
+ * @param scope - The administrative scope (city or barangay) for routing
+ */
 export default function AipCard({ 
   aip, 
   scope = "barangay" 

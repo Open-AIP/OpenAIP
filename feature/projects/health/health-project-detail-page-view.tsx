@@ -1,3 +1,13 @@
+/**
+ * Health Project Detail Page View Component
+ * 
+ * Comprehensive detail page for health projects.
+ * Displays project information and integrates shared project updates functionality.
+ * Adapts health-specific update data to the shared update interface.
+ * 
+ * @module feature/projects/health/health-project-detail-page-view
+ */
+
 "use client";
 
 import * as React from "react";
@@ -8,6 +18,23 @@ import { ProjectUpdatesSection } from "../shared/update-view";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
+/**
+ * HealthProjectDetailPageView Component
+ * 
+ * Main detail view for health projects.
+ * Features:
+ * - Breadcrumb navigation
+ * - Project title and status badge
+ * - Project information card
+ * - Shared project updates section (timeline + form)
+ * 
+ * Adapts health-specific update format to shared ProjectUpdate type
+ * for compatibility with shared update components.
+ * 
+ * @param aipYear - The AIP year for context
+ * @param project - Complete health project data
+ * @param scope - Administrative scope (city or barangay)
+ */
 export default function HealthProjectDetailPageView({
   aipYear,
   project,

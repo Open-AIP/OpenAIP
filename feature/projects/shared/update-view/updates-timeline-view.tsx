@@ -1,3 +1,13 @@
+/**
+ * Updates Timeline View Component
+ * 
+ * Displays project updates in a chronological timeline format.
+ * Shows update details including title, date, description, progress,
+ * attendance (for health projects), and attached photos.
+ * 
+ * @module feature/projects/shared/update-view/updates-timeline-view
+ */
+
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,6 +15,20 @@ import { Progress } from "@/components/ui/progress";
 import type { ProjectUpdate } from "@/types";
 import { CalendarDays } from "lucide-react";
 
+/**
+ * UpdatesTimelineView Component
+ * 
+ * Renders a timeline of project updates.
+ * Features:
+ * - Numbered sequential display
+ * - Progress percentage badge
+ * - Progress bar visualization
+ * - Photo gallery (up to 5 photos)
+ * - Attendance count (when applicable)
+ * - Empty state message
+ * 
+ * @param updates - Array of project updates to display
+ */
 export default function UpdatesTimelineView({
   updates,
 }: {

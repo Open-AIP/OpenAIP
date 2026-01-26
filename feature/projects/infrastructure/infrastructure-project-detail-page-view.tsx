@@ -1,3 +1,13 @@
+/**
+ * Infrastructure Project Detail Page View Component
+ * 
+ * Comprehensive detail page for infrastructure projects.
+ * Displays project information and integrates shared project updates functionality.
+ * Adapts infrastructure-specific update data to the shared update interface.
+ * 
+ * @module feature/projects/infrastructure/infrastructure-project-detail-page-view
+ */
+
 "use client";
 
 import type { InfrastructureProject, ProjectUpdate } from "@/types";
@@ -7,6 +17,23 @@ import InfrastructureProjectInformationCard from "./project-information-card";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
+/**
+ * InfrastructureProjectDetailPageView Component
+ * 
+ * Main detail view for infrastructure projects.
+ * Features:
+ * - Breadcrumb navigation
+ * - Project title and status badge
+ * - Project information card
+ * - Shared project updates section (timeline + form)
+ * 
+ * Adapts infrastructure-specific update format to shared ProjectUpdate type
+ * for compatibility with shared update components.
+ * 
+ * @param aipYear - The AIP year for context
+ * @param project - Complete infrastructure project data
+ * @param scope - Administrative scope (city or barangay)
+ */
 export default function InfrastructureProjectDetailPageView({
   aipYear,
   project,

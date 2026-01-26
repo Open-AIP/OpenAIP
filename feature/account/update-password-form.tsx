@@ -1,3 +1,13 @@
+/**
+ * Update Password Form Component
+ * 
+ * Provides a secure form for users to reset/update their password.
+ * Uses Supabase authentication to update the user's password and
+ * redirects to the appropriate dashboard based on user role.
+ * 
+ * @module feature/account/update-password-form
+ */
+
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
@@ -15,6 +25,18 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { AuthParameters } from '@/types'
 
+/**
+ * UpdatePasswordForm Component
+ * 
+ * Allows authenticated users to change their password.
+ * Features:
+ * - Secure password input
+ * - Real-time error handling
+ * - Loading state management
+ * - Role-based redirect after successful update
+ * 
+ * @param role - User's role (citizen, barangay, city) for redirect routing
+ */
 export function UpdatePasswordForm({role}:AuthParameters) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)

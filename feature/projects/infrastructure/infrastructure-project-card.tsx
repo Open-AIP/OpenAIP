@@ -1,3 +1,13 @@
+/**
+ * Infrastructure Project Card Component
+ * 
+ * Displays a comprehensive card view for infrastructure projects.
+ * Shows project image, details, timeline, contractor information, funding, and status.
+ * Provides navigation to detailed project view.
+ * 
+ * @module feature/projects/infrastructure/infrastructure-project-card
+ */
+
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +18,21 @@ import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-
 import { formatPeso } from "@/lib/utils/formatting";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 
+/**
+ * InfrastructureProjectCard Component
+ * 
+ * Renders a detailed card for infrastructure projects including:
+ * - Project image
+ * - Title and description
+ * - Start date and target completion
+ * - Implementing office and contractor
+ * - Contract cost and funding source
+ * - Status badge
+ * - View project button
+ * 
+ * @param project - The infrastructure project data to display
+ * @param scope - Administrative scope (city or barangay) for routing
+ */
 export default function InfrastructureProjectCard({ 
   project,
   scope = "barangay"

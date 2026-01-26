@@ -1,3 +1,13 @@
+/**
+ * Infrastructure Project Information Card Component
+ * 
+ * Displays detailed information about an infrastructure project in a card format.
+ * Includes project image, description, and key metrics specific to infrastructure.
+ * Provides navigation to add additional information.
+ * 
+ * @module feature/projects/infrastructure/project-information-card
+ */
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { InfrastructureProject } from "@/types";
@@ -15,6 +25,23 @@ import {
 import { formatPeso } from "@/lib/utils/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
+/**
+ * InfrastructureProjectInformationCard Component
+ * 
+ * Displays comprehensive infrastructure project information including:
+ * - Project image
+ * - Description
+ * - Implementing office
+ * - Contractor name
+ * - Start date and target completion
+ * - Funding source
+ * - Contract cost
+ * - Add Information action button
+ * 
+ * @param aipYear - The AIP year for context
+ * @param project - Complete infrastructure project data
+ * @param scope - Administrative scope (city or barangay) for routing
+ */
 export default function InfrastructureProjectInformationCard({
   aipYear,
   project,

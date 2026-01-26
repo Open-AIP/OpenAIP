@@ -1,3 +1,13 @@
+/**
+ * Infrastructure Projects View Component
+ * 
+ * Main listing and management interface for infrastructure projects.
+ * Provides filtering, searching, and overview of all infrastructure initiatives
+ * under the Annual Investment Program.
+ * 
+ * @module feature/projects/infrastructure/infrastructure-projects-view
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -14,6 +24,20 @@ import type { InfrastructureProject } from "@/types";
 import { getProjectYears } from "@/mock/aips";
 import { Search } from "lucide-react";
 
+/**
+ * InfrastructureProjectsView Component
+ * 
+ * Displays and manages the list of infrastructure projects.
+ * Features:
+ * - Year-based filtering
+ * - Full-text search (title, description, office, contractor, funding)
+ * - Project count display
+ * - Responsive card-based layout
+ * - Breadcrumb navigation
+ * 
+ * @param projects - Array of infrastructure projects to display
+ * @param scope - Administrative scope (city or barangay)
+ */
 export default function InfrastructureProjectsView({
   projects,
   scope = "barangay"

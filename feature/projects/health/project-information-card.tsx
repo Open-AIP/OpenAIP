@@ -1,3 +1,13 @@
+/**
+ * Health Project Information Card Component
+ * 
+ * Displays detailed information about a health project in a card format.
+ * Includes project image, description, and key metrics.
+ * Provides navigation to add additional information.
+ * 
+ * @module feature/projects/health/project-information-card
+ */
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/types";
@@ -7,6 +17,22 @@ import Link from "next/link";
 import { formatPeso } from "@/lib/utils/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
+/**
+ * ProjectInformationCard Component (Health)
+ * 
+ * Displays comprehensive project information including:
+ * - Project image
+ * - Title and description
+ * - Target participants (specific and total)
+ * - Implementing office
+ * - Schedule/date information
+ * - Budget allocation
+ * - Add Information action button
+ * 
+ * @param aipYear - The AIP year for context
+ * @param project - Complete health project data
+ * @param scope - Administrative scope (city or barangay) for routing
+ */
 export default function ProjectInformationCard({
   aipYear,
   project,

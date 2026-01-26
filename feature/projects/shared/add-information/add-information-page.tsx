@@ -1,3 +1,13 @@
+/**
+ * Add Information Page Component
+ * 
+ * Shared form component for adding information to health and infrastructure projects.
+ * Provides different form fields based on project type while maintaining a consistent
+ * layout and user experience.
+ * 
+ * @module feature/projects/shared/add-information/add-information-page
+ */
+
 "use client";
 
 import * as React from "react";
@@ -17,19 +27,31 @@ import {
 import { Upload } from "lucide-react";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
+/**
+ * Project type discriminator
+ */
 type ProjectKind = "health" | "infrastructure";
 
+/**
+ * Breadcrumb navigation item
+ */
 type BreadcrumbItem = {
   label: string;
   href?: string;
 };
 
+/**
+ * Uploader information for display
+ */
 type UploaderInfo = {
   name: string;
   position: string;
   office: string;
 };
 
+/**
+ * Pre-filled project information (for disabled fields)
+ */
 type ProjectInfo = {
   month?: string;
   year?: string;
@@ -39,16 +61,43 @@ type ProjectInfo = {
   fundingSource?: string;
 };
 
+/** Available months for selection */
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
 
+/** Available years for selection */
 const YEARS = Array.from({ length: 6 }).map((_, i) => String(2024 + i));
 
+/** Health project status options */
 const HEALTH_STATUSES = ["Ongoing", "Planning", "Completed", "On Hold"] as const;
+/** Infrastructure project status options */
 const INFRA_STATUSES  = ["Ongoing", "Planning", "Completed", "On Hold"] as const;
 
+/**
+ * AddInformationPage Component
+ * 
+ * Universal form for adding project information.
+ * Features:
+ * - Dual-mode: health or infrastructure projects
+ * - Photo upload functionality
+ * - Pre-filled fields from existing project data (disabled)
+ * - Type-specific form fields
+ * - Comprehensive validation
+ * - Uploader information display
+ * 
+ * Health-specific fields:
+ * - Month/Year, Target Participants, Budget Allocated
+ * 
+ * Infrastructure-specific fields:
+ * - Start/Completion Dates, Contractor, Contract Cost
+ * 
+ * @param kind - Type of project (health or infrastructure)
+ * @param breadcrumb - Navigation breadcrumb items
+ * @param uploader - Information about the user adding the data
+ * @param projectInfo - Pre-filled project data (optional)
+ */
 export default function AddInformationPage({
   kind,
   breadcrumb,

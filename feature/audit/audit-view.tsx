@@ -1,3 +1,13 @@
+/**
+ * Audit and Accountability View Component
+ * 
+ * Displays a comprehensive audit log of system events and user actions.
+ * Provides filtering by year, event type, and search functionality.
+ * Essential for transparency, compliance tracking, and accountability.
+ * 
+ * @module feature/audit/audit-view
+ */
+
 "use client";
 
 import * as React from "react";
@@ -22,6 +32,11 @@ import type { AuditLog } from "@/types";
 import { getAuditEvents, getAuditYears } from "@/mock/audit";
 import { Search } from "lucide-react";
 
+/**
+ * Formats an ISO datetime string to a human-readable format
+ * @param iso - ISO datetime string
+ * @returns Formatted date and time string
+ */
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString("en-US", {
@@ -33,6 +48,19 @@ function formatDateTime(iso: string) {
   });
 }
 
+/**
+ * AuditView Component
+ * 
+ * Main audit log interface displaying system events and user actions.
+ * Features:
+ * - Year-based filtering
+ * - Event type filtering
+ * - Full-text search across multiple fields
+ * - Chronologically sorted display (newest first)
+ * - Detailed event information in table format
+ * 
+ * @param logs - Array of audit log entries to display
+ */
 export default function AuditView({ logs }: { logs: AuditLog[] }) {
   const years = useMemo(() => getAuditYears(logs), [logs]);
   const events = useMemo(() => getAuditEvents(logs), [logs]);

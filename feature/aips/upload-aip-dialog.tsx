@@ -1,3 +1,13 @@
+/**
+ * Upload AIP Dialog Component
+ * 
+ * Modal dialog for uploading new Annual Investment Plan documents.
+ * Validates file type (PDF only), file size (max 10MB), and required year selection.
+ * Provides user-friendly error messages and file preview.
+ * 
+ * @module feature/aips/upload-aip-dialog
+ */
+
 "use client";
 
 import * as React from "react";
@@ -21,15 +31,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/**
+ * Props for UploadAipDialog component
+ */
 type Props = {
+  /** Dialog open state */
   open: boolean;
+  /** Callback to control dialog open state */
   onOpenChange: (open: boolean) => void;
+  /** Callback when upload is submitted */
   onSubmit?: (payload: { file: File; year: number }) => void;
+  /** Administrative scope for context */
   scope?: "city" | "barangay";
 };
 
+/** Maximum allowed file size in bytes (10MB) */
 const MAX_BYTES = 10 * 1024 * 1024;
 
+/**
+ * Builds an array of years for selection
+ * @param count - Number of years to generate
+ * @returns Array of year numbers
+ */
 function buildYears(count = 7) {
   const now = new Date().getFullYear();
   // Ex: current year -2 to +4 (adjust as you want)
@@ -37,6 +60,27 @@ function buildYears(count = 7) {
   return Array.from({ length: count }, (_, i) => start + i);
 }
 
+/**
+ * UploadAipDialog Component
+ * 
+ * Provides a modal interface for uploading AIP PDF documents.
+ * Features:
+ * - PDF file validation (type and size)
+ * - Year selection
+ * - Error messaging
+ * - Form reset on close
+ * - Responsive layout
+ * 
+ * Validation rules:
+ * - File must be PDF format
+ * - File size must not exceed 10MB
+ * - Year selection is required
+ * 
+ * @param open - Controls dialog visibility
+ * @param onOpenChange - Handler for dialog state changes
+ * @param onSubmit - Handler called with file and year on successful submission
+ * @param scope - Administrative scope for display purposes
+ */
 export default function UploadAipDialog({ open, onOpenChange, onSubmit, scope = "barangay" }: Props) {
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 

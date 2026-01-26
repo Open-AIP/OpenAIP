@@ -1,3 +1,13 @@
+/**
+ * AIP Management View Component
+ * 
+ * Main management interface for Annual Investment Plans.
+ * Provides filtering, searching, and upload capabilities for AIP documents.
+ * Displays a list of AIP records with year-based filtering.
+ * 
+ * @module feature/aips/aip-management-view
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -15,11 +25,29 @@ import { getAipYears } from "@/mock/aips";
 import { Plus } from "lucide-react";
 import UploadAipDialog from "@/feature/aips/upload-aip-dialog";
 
+/**
+ * Props for AipManagementView component
+ */
 type Props = {
+  /** Array of AIP records to display */
   records: AipRecord[];
+  /** Administrative scope for routing */
   scope?: "city" | "barangay";
 };
 
+/**
+ * AipManagementView Component
+ * 
+ * Manages the display and organization of AIP documents.
+ * Features:
+ * - Year-based filtering
+ * - Upload new AIP functionality
+ * - Displays AIP count
+ * - Responsive card-based layout
+ * 
+ * @param records - Array of AIP records to manage
+ * @param scope - Administrative scope (city or barangay)
+ */
 export default function AipManagementView({ 
   records, 
   scope = "barangay"

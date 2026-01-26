@@ -12,11 +12,12 @@ interface SubmissionTableProps {
 
 const getTimeSince = (dateStr: string) => {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "Unknown";
+  
   const now = Date.now();
   const diffInMs = now - date.getTime();
   
-  if (diffInMs < 0) return "just now";
-  
+  if (diffInMs < 0) return "just now";  
   const seconds = Math.floor(diffInMs / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -73,9 +74,8 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                     {aip.barangayName || "Barangay"}
                   </td>
                   <td className="py-4 px-4 text-sm text-slate-600">
-                    {aip.uploader.uploadDate}
-                  </td>
-                  <td className="py-4 px-4">
+                    {aip.uploader?.uploadDate ?? "—"}
+                  </td>                  <td className="py-4 px-4">
                     <Badge
                       variant="outline"
                       className={`rounded-full ${getStatusBadgeVariant(aip.status)}`}

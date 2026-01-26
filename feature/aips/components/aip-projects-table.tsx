@@ -52,14 +52,14 @@ export function AipProjectsTable({
                   <SelectValue placeholder="Sectors" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
                   {aip.sectors.map((s: string) => (
                     <SelectItem key={s} value={s}>
                       {s}
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
-            </div>
+              </Select>            </div>
 
             <div className="space-y-1">
               <div className="text-[11px] text-slate-400 text-center sm:text-left">

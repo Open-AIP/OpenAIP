@@ -1,7 +1,7 @@
 import { InfrastructureProject, HealthProject } from "./project";
 
 
-export type AipStatus = "Draft" | "Under Review" | "For Revision" | "Published";
+export type AipStatus = "Draft" | "Under Review" | "For Revision" | "Published" | "Pending Review";
 
 export type AipRecord = {
   id: string;
@@ -13,6 +13,7 @@ export type AipRecord = {
   publishedAt?: string;
   status: AipStatus;
   scope: "city" | "barangay";
+  barangayName?: string;
 };
 
 export type AipUploader = {

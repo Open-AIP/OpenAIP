@@ -26,6 +26,15 @@ function isActive(pathname: string, href: string) {
   return false;
 }
 
+function isParentActive(pathname: string, href: string, hasChildren: boolean) {
+  // If has children, only highlight on exact match, not when children are active
+  if (hasChildren) {
+    return pathname === href;
+  }
+  // Otherwise use normal active logic
+  return isActive(pathname, href);
+}
+
 export default function LguSidebar({ variant }: Props) {
   const pathname = usePathname();
   const nav = variant === "barangay" ? BARANGAY_NAV : CITY_NAV;
@@ -67,8 +76,8 @@ export default function LguSidebar({ variant }: Props) {
         <ul className="space-y-2">
           {nav.map((item) => {
             const Icon = item.icon;
-            const active = isActive(pathname, item.href);
-            const hasChildren = item.children && item.children.length > 0;
+            const hasChildren = Boolean(item.children && item.children.length > 0);
+            const active = isParentActive(pathname, item.href, hasChildren);
             const isOpen = openDropdowns.includes(item.href);
 
             return (

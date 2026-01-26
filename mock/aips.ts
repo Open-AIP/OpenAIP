@@ -10,20 +10,21 @@ export type LguScope = "barangay" | "city";
  * - /barangay/projects/infrastructure (derived from this)
  * - /city equivalents later
  */
-export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
+export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: string }> = [
   // =========================
   // BARANGAY
   // =========================
   {
     scope: "barangay",
+    barangayName: "Brgy. Mamadid",
     id: "aip-2026-infra",
     title: "Annual Investment Program",
     description:
       "Development and improvement of barangay infrastructure including roads, bridges, and community facilities to support community growth.",
     year: 2026,
     budget: 5800000,
-    uploadedAt: "2026",
-    status: "For Revision",
+    uploadedAt: "2026-01-15",
+    status: "Pending Review",
     feedback:
       "Please provide more detailed cost breakdown for the Multi-purpose Community Hall Construction. Additionally, clarify the timeline for the Road Concreting project and ensure alignment with the city's infrastructure masterplan.",
 
@@ -43,7 +44,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
     uploader: {
       name: "Maria Santos",
       role: "Infrastructure Head",
-      uploadDate: "January 25, 2026",
+      uploadDate: "January 15, 2026",
       budgetAllocated: 5800000,
     },
 
@@ -118,14 +119,15 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
 
   {
     scope: "barangay",
+    barangayName: "Brgy. Pulo",
     id: "aip-2025-published",
     title: "Annual Investment Program",
     description:
       "Comprehensive program focusing on roads, community facilities, and essential services to improve daily living conditions.",
     year: 2025,
     budget: 1500000,
-    uploadedAt: "2026",
-    publishedAt: "January 15, 2026",
+    uploadedAt: "2025-12-20",
+    publishedAt: "January 10, 2026",
     status: "Published",
 
     fileName: "Annual_Investment_Plan_2025.pdf",
@@ -236,13 +238,14 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
 
   {
     scope: "barangay",
+    barangayName: "Brgy. Banaybanay",
     id: "aip-2024-under-review",
     title: "Annual Investment Program",
     description:
       "Comprehensive health program aimed at enhancing healthcare services and community wellness initiatives for all barangay residents.",
     year: 2024,
     budget: 2500000,
-    uploadedAt: "2026",
+    uploadedAt: "2024-11-30",
     status: "Under Review",
 
     fileName: "Annual_Investment_Plan_2024.pdf",
@@ -287,14 +290,15 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
 
   {
     scope: "barangay",
+    barangayName: "Brgy. San Isidro",
     id: "aip-2023-published",
     title: "Annual Investment Program",
     description:
       "Infrastructure development and social services expansion to enhance barangay facilities and resident welfare.",
     year: 2023,
     budget: 3200000,
-    uploadedAt: "2025",
-    publishedAt: "November 10, 2025",
+    uploadedAt: "2023-10-15",
+    publishedAt: "November 10, 2023",
     status: "Published",
 
     fileName: "Annual_Investment_Plan_2023.pdf",
@@ -312,7 +316,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope }> = [
     uploader: {
       name: "Roberto Cruz",
       role: "Barangay Chairman",
-      uploadDate: "October 15, 2025",
+      uploadDate: "October 15, 2023",
       budgetAllocated: 3200000,
     },
 

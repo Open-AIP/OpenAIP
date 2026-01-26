@@ -19,7 +19,7 @@ export const BARANGAY_NAV: NavItem[] = [
     icon: Folder,
     children: [
       { label: "Health Project", href: "/barangay/projects/health", icon: ClipboardList },
-      { label: "Infrastructure Projects", href: "/barangay/projects/infrastructure-projects", icon: ClipboardList },
+      { label: "Infrastructure Projects", href: "/barangay/projects/infrastructure", icon: ClipboardList },
     ],
   },
 

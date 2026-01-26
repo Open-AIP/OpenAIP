@@ -1,4 +1,4 @@
-import AipManagementView from "@/feature/aips/aip-management-view";
+import AipManagementView from "@/feature/aips/views/aip-management-view";
 import { MOCK_AIPS } from "@/mock/aips";
 
 const BarangayAIPS = () => {

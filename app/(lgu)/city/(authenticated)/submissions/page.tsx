@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { MOCK_AIPS } from "@/mock/aips";
-import { SubmissionStats } from "@/features/submissions/SubmissionStats";
-import { SubmissionFilters } from "@/features/submissions/SubmissionFilters";
-import { SubmissionTable } from "@/features/submissions/SubmissionTable";
+import { SubmissionStats } from "@/feature/submissions/SubmissionStats";
+import { SubmissionFilters } from "@/feature/submissions/SubmissionFilters";
+import { SubmissionTable } from "@/feature/submissions/SubmissionTable";
 import { AipStatus } from "@/types/aip";
 
 export default function CitySubmissionsPage() {

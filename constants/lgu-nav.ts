@@ -1,21 +1,13 @@
-import type { ComponentType } from "react";
 import {
   LayoutDashboard,
   FileText,
   Folder,
   MessageSquare,
   Bot,
-  User,
   Shield,
   ClipboardList,
 } from "lucide-react";
-
-export type NavItem = {
-  label: string;
-  href: string;
-  icon: ComponentType<{ className?: string }>;
-  children?: NavItem[];
-};
+import type { NavItem } from "@/types";
 
 export const BARANGAY_NAV: NavItem[] = [
   { label: "Dashboard", href: "/barangay", icon: LayoutDashboard },
@@ -33,7 +25,6 @@ export const BARANGAY_NAV: NavItem[] = [
 
   { label: "Comments", href: "/barangay/comments", icon: MessageSquare },
   { label: "Chatbot", href: "/barangay/chatbot", icon: Bot },
-  { label: "Account", href: "/barangay/account", icon: User },
   { label: "Audit & Accountability", href: "/barangay/audit", icon: Shield },
 ];
 
@@ -52,6 +43,5 @@ export const CITY_NAV: NavItem[] = [
       { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: ClipboardList },
     ],
    },
-  { label: "Submissions", href: "/city/submissions", icon: ClipboardList },
-  { label: "Account", href: "/city/account", icon: User },
+  { label: "Submissions", href: "/city/submissions", icon: ClipboardList }
 ];

@@ -1,4 +1,4 @@
-import HealthProjectDetailPageView from "@/feature/projects/health/health-project-detail-page-view";
+import HealthProjectDetailPageView from "@/feature/projects/health/views/health-project-detail-page-view";
 import { MOCK_AIPS } from "@/mock/aips";
 import { notFound } from "next/navigation";
 

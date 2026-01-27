@@ -12,10 +12,10 @@
 
 import type { InfrastructureProject, ProjectUpdate } from "@/types";
 import { Badge } from "@/components/ui/badge";
-import { ProjectUpdatesSection } from "../shared/update-view";
-import InfrastructureProjectInformationCard from "./project-information-card";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import InfrastructureProjectInformationCard from "../components/project-information-card";
+import { ProjectUpdatesSection } from "../../shared/update-view";
 
 /**
  * InfrastructureProjectDetailPageView Component

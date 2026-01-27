@@ -1,4 +1,4 @@
-import HealthProjectsView from "@/feature/projects/health/health-projects-view";
+import HealthProjectsView from "@/feature/projects/health/views/health-projects-view";
 import { MOCK_AIPS } from "@/mock/aips";
 
 export default function CityHealthProjects() {

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { MOCK_AIPS } from "@/mock/aips";
-import InfrastructureProjectDetailPageView from "@/feature/projects/infrastructure/infrastructure-project-detail-page-view";
+import InfrastructureProjectDetailPageView from "@/feature/projects/infrastructure/views/infrastructure-project-detail-page-view";
 
 export default async function InfrastructureProjectDetailPage({
   params,

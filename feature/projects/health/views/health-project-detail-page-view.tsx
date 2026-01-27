@@ -12,11 +12,11 @@
 
 import * as React from "react";
 import type { HealthProject, ProjectUpdate } from "@/types";
-import ProjectInformationCard from "./project-information-card";
+import ProjectInformationCard from "../components/project-information-card";
 import { Badge } from "@/components/ui/badge";
-import { ProjectUpdatesSection } from "../shared/update-view";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { ProjectUpdatesSection } from "../../shared/update-view";
 
 /**
  * HealthProjectDetailPageView Component

@@ -1,4 +1,4 @@
-import InfrastructureProjectsView from "@/feature/projects/infrastructure/infrastructure-projects-view";
+import InfrastructureProjectsView from "@/feature/projects/infrastructure/views/infrastructure-projects-view";
 import { MOCK_AIPS } from "@/mock/aips";
 
 export default function BarangayInfrastructureProjects() {

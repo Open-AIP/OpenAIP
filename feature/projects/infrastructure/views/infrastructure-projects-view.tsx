@@ -1,11 +1,11 @@
 /**
- * Health Projects View Component
+ * Infrastructure Projects View Component
  * 
- * Main listing and management interface for health projects.
- * Provides filtering, searching, and overview of all health initiatives
+ * Main listing and management interface for infrastructure projects.
+ * Provides filtering, searching, and overview of all infrastructure initiatives
  * under the Annual Investment Program.
  * 
- * @module feature/projects/health/health-projects-view
+ * @module feature/projects/infrastructure/infrastructure-projects-view
  */
 
 "use client";
@@ -19,30 +19,30 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import HealthProjectCard from "./health-project-card";
-import type { HealthProject } from "@/types";
+import InfrastructureProjectCard from "../components/infrastructure-project-card";
+import type { InfrastructureProject } from "@/types";
 import { getProjectYears } from "@/mock/aips";
 import { Search } from "lucide-react";
 
 /**
- * HealthProjectsView Component
+ * InfrastructureProjectsView Component
  * 
- * Displays and manages the list of health projects.
+ * Displays and manages the list of infrastructure projects.
  * Features:
  * - Year-based filtering
- * - Full-text search (title, description, office)
+ * - Full-text search (title, description, office, contractor, funding)
  * - Project count display
  * - Responsive card-based layout
  * - Breadcrumb navigation
  * 
- * @param projects - Array of health projects to display
+ * @param projects - Array of infrastructure projects to display
  * @param scope - Administrative scope (city or barangay)
  */
-export default function HealthProjectsView({ 
+export default function InfrastructureProjectsView({
   projects,
   scope = "barangay"
-}: { 
-  projects: HealthProject[];
+}: {
+  projects: InfrastructureProject[];
   scope?: "city" | "barangay";
 }) {
   const years = useMemo(() => getProjectYears(projects), [projects]);
@@ -55,11 +55,15 @@ export default function HealthProjectsView({
 
     return projects.filter((p) => {
       const yearOk = year === "all" ? true : p.year === Number(year);
+
       const qOk =
         !q ||
         p.title.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.office?.toLowerCase().includes(q);
+        (p.description ?? "").toLowerCase().includes(q) ||
+        (p.implementingOffice ?? "").toLowerCase().includes(q) ||
+        (p.contractorName ?? "").toLowerCase().includes(q) ||
+        (p.fundingSource ?? "").toLowerCase().includes(q);
+
       return yearOk && qOk;
     });
   }, [projects, year, query]);
@@ -68,14 +72,14 @@ export default function HealthProjectsView({
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div className="text-xs text-slate-400">
-        Projects / <span className="text-slate-600">Health Project</span>
+        Projects / <span className="text-slate-600">Infrastructure Project</span>
       </div>
 
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Health Project</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Infrastructure Project</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Manage, monitor, and update health-related programs and initiatives under the Annual Investment Program.
+          Manage, monitor, and update infrastructure programs and initiatives under the Annual Investment Program.
         </p>
       </div>
 
@@ -119,7 +123,7 @@ export default function HealthProjectsView({
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <HealthProjectCard key={p.id} project={p} scope={scope} />
+          <InfrastructureProjectCard key={p.id} project={p} scope={scope} />
         ))}
       </div>
     </div>

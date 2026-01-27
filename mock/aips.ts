@@ -51,7 +51,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     healthProjects: [
       {
-        id: "hp-2026-vaccination",
+        id: "SS-2026-001",
         year: 2026,
         month: "January",
         title: "Community Vaccination Program",
@@ -66,7 +66,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         updates: [],
       },
       {
-        id: "hp-2026-mch",
+        id: "SS-2026-002",
         year: 2026,
         month: "February",
         title: "Maternal and Child Health Program",
@@ -77,7 +77,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         implementingOffice: "Barangay Health Office",
         budgetAllocated: 180000,
         status: "Planning",
-        imageUrl: "/default/default-no-image.jpg",
+        imageUrl: "/mock/health/health1.jpg",
         updates: [],
       },
     ],
@@ -85,7 +85,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
    
     infrastructureProjects: [
       {
-        id: "ip-2026-road-rehab",
+        id: "GS-2026-001",
         year: 2026,
         startDate: "2026-01-10",
         targetCompletionDate: "2026-05-30",
@@ -97,10 +97,10 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         contractorName: "ABC Construction Services",
         contractCost: 2200000,
         status: "Ongoing",
-        imageUrl: "/default/default-no-image.jpg",
+        imageUrl: "/mock/health/health1.jpg",
       },
       {
-        id: "ip-2026-community-hall",
+        id: "GS-2026-002",
         year: 2026,
         startDate: "2026-02-05",
         targetCompletionDate: "2026-10-15",
@@ -151,7 +151,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     healthProjects: [
       {
-        id: "hp-2025-med-mission",
+        id: "SS-2025-001",
         year: 2025,
         month: "December",
         title: "Quarterly Medical Mission",
@@ -165,7 +165,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-med-1",
+            id: "SS-2025-001-U1",
             title: "Medical mission successfully completed",
             date: "December 15, 2025",
             description:
@@ -175,7 +175,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/medical-1.jpg", "/mock/updates/medical-2.jpg", "/mock/updates/medical-3.jpg"],
           },
           {
-            id: "u-med-2",
+            id: "SS-2025-001-U2",
             title: "Medical supplies and equipment prepared",
             date: "December 10, 2025",
             description:
@@ -190,7 +190,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     infrastructureProjects: [
       {
-        id: "ip-2025-drainage",
+        id: "GS-2025-001",
         year: 2025,
         startDate: "2025-08-01",
         targetCompletionDate: "2025-11-15",
@@ -205,7 +205,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-drain-1",
+            id: "GS-2025-001-U1",
             title: "Project completion and inspection",
             date: "November 15, 2025",
             description:
@@ -214,7 +214,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/drainage-complete-1.jpg", "/mock/updates/drainage-complete-2.jpg"],
           },
           {
-            id: "u-drain-2",
+            id: "GS-2025-001-U2",
             title: "Canal rehabilitation completed",
             date: "October 25, 2025",
             description:
@@ -223,7 +223,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/drainage-rehab.jpg"],
           },
           {
-            id: "u-drain-3",
+            id: "GS-2025-001-U3",
             title: "Debris clearing phase completed",
             date: "September 10, 2025",
             description:
@@ -269,7 +269,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     healthProjects: [
       {
-        id: "hp-2024-nutrition",
+        id: "SS-2024-001",
         year: 2024,
         month: "July",
         title: "Barangay Nutrition & Feeding Support",
@@ -322,7 +322,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     healthProjects: [
       {
-        id: "hp-2023-senior-wellness",
+        id: "SS-2023-001",
         year: 2023,
         month: "August",
         title: "Senior Citizen Wellness Program",
@@ -336,7 +336,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-senior-1",
+            id: "SS-2023-001-U1",
             title: "Program successfully completed with high satisfaction",
             date: "December 18, 2023",
             description:
@@ -346,7 +346,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/senior-1.jpg", "/mock/updates/senior-2.jpg"],
           },
           {
-            id: "u-senior-2",
+            id: "SS-2023-001-U2",
             title: "Weekly exercise and health monitoring sessions",
             date: "October 20, 2023",
             description:
@@ -356,7 +356,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/senior-exercise.jpg"],
           },
           {
-            id: "u-senior-3",
+            id: "SS-2023-001-U3",
             title: "Initial enrollment and health screening",
             date: "August 15, 2023",
             description:
@@ -370,7 +370,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     infrastructureProjects: [
       {
-        id: "ip-2023-basketball",
+        id: "GS-2023-001",
         year: 2023,
         startDate: "2023-03-15",
         targetCompletionDate: "2023-09-30",
@@ -385,7 +385,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-bball-1",
+            id: "GS-2023-001-U1",
             title: "Grand inauguration and turnover",
             date: "September 30, 2023",
             description:
@@ -394,7 +394,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/basketball-inaug-1.jpg", "/mock/updates/basketball-inaug-2.jpg"],
           },
           {
-            id: "u-bball-2",
+            id: "GS-2023-001-U2",
             title: "Court surfacing and line marking completed",
             date: "September 15, 2023",
             description:
@@ -403,7 +403,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/basketball-surfacing.jpg"],
           },
           {
-            id: "u-bball-3",
+            id: "GS-2023-001-U3",
             title: "Perimeter fence and lighting installed",
             date: "August 20, 2023",
             description:
@@ -412,7 +412,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/basketball-fence.jpg"],
           },
           {
-            id: "u-bball-4",
+            id: "GS-2023-001-U4",
             title: "Foundation and concrete work finished",
             date: "July 10, 2023",
             description:
@@ -461,7 +461,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
 
     healthProjects: [
       {
-        id: "hp-city-2026-hospital",
+        id: "SS-2026-003",
         year: 2026,
         month: "February",
         title: "City Hospital Emergency Room Expansion",
@@ -475,7 +475,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-hosp-1",
+            id: "SS-2026-003-U1",
             title: "Construction phase initiated",
             date: "February 10, 2026",
             description:
@@ -489,7 +489,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
     ],
     infrastructureProjects: [
       {
-        id: "ip-city-2026-road",
+        id: "GS-2026-003",
         year: 2026,
         startDate: "2026-01-20",
         targetCompletionDate: "2026-12-15",
@@ -504,7 +504,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-road-1",
+            id: "GS-2026-003-U1",
             title: "Phase 1 excavation and utility relocation",
             date: "January 22, 2026",
             description:
@@ -551,7 +551,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
     healthProjects: [],
     infrastructureProjects: [
       {
-        id: "ip-city-2025-market",
+        id: "GS-2025-002",
         year: 2025,
         startDate: "2025-04-01",
         targetCompletionDate: "2025-11-30",
@@ -566,7 +566,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
         imageUrl: "/default/default-no-image.jpg",
         updates: [
           {
-            id: "u-market-1",
+            id: "GS-2025-002-U1",
             title: "Market reopening and vendor relocation",
             date: "November 30, 2025",
             description:
@@ -575,7 +575,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/market-opening-1.jpg", "/mock/updates/market-opening-2.jpg", "/mock/updates/market-opening-3.jpg"],
           },
           {
-            id: "u-market-2",
+            id: "GS-2025-002-U2",
             title: "Final installations and testing",
             date: "November 15, 2025",
             description:
@@ -584,7 +584,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/market-systems.jpg"],
           },
           {
-            id: "u-market-3",
+            id: "GS-2025-002-U3",
             title: "Vendor stall construction completed",
             date: "October 10, 2025",
             description:
@@ -593,7 +593,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/market-stalls.jpg"],
           },
           {
-            id: "u-market-4",
+            id: "GS-2025-002-U4",
             title: "Structural renovation phase completed",
             date: "August 20, 2025",
             description:
@@ -602,7 +602,7 @@ export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: stri
             photoUrls: ["/mock/updates/market-structure.jpg"],
           },
           {
-            id: "u-market-5",
+            id: "GS-2025-002-U5",
             title: "Demolition and temporary vendor relocation",
             date: "May 5, 2025",
             description:

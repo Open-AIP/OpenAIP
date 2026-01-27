@@ -41,3 +41,28 @@ export function editLockedMessage(status: AipStatus) {
   }
   return "Editing is currently disabled.";
 }
+
+
+
+
+
+
+import type { Sector } from "@/feature/aips/types";
+
+export const SECTOR_TABS: Exclude<Sector, "Unknown">[] = [
+  "General Sector",
+  "Social Sector",
+  "Economic Sector",
+  "Other Services",
+];
+
+export function sectorFromRefCode(refCode: string): Sector {
+  const prefix = refCode.trim().toLowerCase();
+
+  if (prefix.startsWith("gs")) return "General Sector";
+  if (prefix.startsWith("ss")) return "Social Sector";
+  if (prefix.startsWith("es")) return "Economic Sector";
+  if (prefix.startsWith("os")) return "Other Services";
+
+  return "Unknown";
+}

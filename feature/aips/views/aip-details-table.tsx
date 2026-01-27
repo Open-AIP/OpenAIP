@@ -1,0 +1,103 @@
+// feature/aips/views/aip-details-table.view.tsx
+"use client";
+
+import * as React from "react";
+import type { AipProjectRepo } from "@/feature/aips/data/aip-project-repo";
+import type { AipProjectRow } from "@/feature/aips/types";
+import { sectorFromRefCode } from "@/feature/aips/utils";
+
+import { AipDetailsTableCard } from "@/feature/aips/components/aip-details-table-card";
+import { ProjectReviewModal } from "@/feature/aips/components/project-review-modal";
+
+export function AipDetailsTableView({
+  aipId,
+  year,
+  repo,
+}: {
+  aipId: string;
+  year: number;
+  repo: AipProjectRepo;
+}) {
+  const [rows, setRows] = React.useState<AipProjectRow[]>([]);
+  const [selected, setSelected] = React.useState<AipProjectRow | null>(null);
+  const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+      const data = await repo.listByAip(aipId);
+
+      // Enforce deterministic sector derivation at the boundary
+      const normalized = data.map((r) => ({
+        ...r,
+        sector: sectorFromRefCode(r.refCode),
+      }));
+
+      if (alive) {
+        setRows(normalized);
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [aipId, repo]);
+
+  async function handleSubmitReview(
+    payload: { comment: string; resolution: "disputed" | "confirmed" | "comment_only" }
+  ) {
+    if (!selected) return;
+
+    await repo.submitReview({
+      projectId: selected.id,
+      aipId: selected.aipId,
+      comment: payload.comment,
+      resolution: payload.resolution,
+    });
+
+    // Optimistic UI update
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== selected.id) return r;
+
+        if (r.reviewStatus === "ai_flagged") {
+          return {
+            ...r,
+            reviewStatus: "reviewed",
+            officialComment: payload.comment,
+          };
+        }
+
+        return { ...r, officialComment: payload.comment };
+      })
+    );
+  }
+
+  if (loading) {
+    return <div className="text-sm text-slate-500">Loading projects…</div>;
+  }
+
+  return (
+    <>
+      <AipDetailsTableCard
+        year={year}
+        rows={rows}
+        onRowClick={(row) => {
+          setSelected(row);
+          setOpen(true);
+        }}
+      />
+
+      <ProjectReviewModal
+        open={open}
+        onOpenChange={setOpen}
+        project={selected}
+        onSubmit={handleSubmitReview}
+      />
+    </>
+  );
+}

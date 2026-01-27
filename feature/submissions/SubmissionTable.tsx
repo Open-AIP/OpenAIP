@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import Link from "next/link";
-import { AipDetail, AipStatus } from "@/types/aip";
+import { AipDetail } from "@/types/aip";
 import {getStatusBadgeVariant} from "@/lib/utils/ui-helpers";
 
 interface SubmissionTableProps {
@@ -68,14 +68,15 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
               </tr>
             </thead>
             <tbody>
-              {aips.map((aip) => (
-                <tr key={aip.id} className="border-b border-slate-100 hover:bg-slate-50">
+              {aips.map((aip, index) => (
+                <tr key={aip.id ?? `aip-${index}`} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-4 px-4 text-sm text-slate-900">
                     {aip.barangayName || "Barangay"}
                   </td>
                   <td className="py-4 px-4 text-sm text-slate-600">
                     {aip.uploader?.uploadDate ?? "—"}
-                  </td>                  <td className="py-4 px-4">
+                  </td>
+                  <td className="py-4 px-4">
                     <Badge
                       variant="outline"
                       className={`rounded-full ${getStatusBadgeVariant(aip.status)}`}

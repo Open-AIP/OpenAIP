@@ -92,10 +92,9 @@ export default function InfrastructureProjectInformationCard({
                 <Building2 className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Implementing Office:</span>
                 <span className="font-medium text-slate-900">
-                  {project.implementingOffice || "Barangay Engineering Office"}
+                  {project.implementingOffice || (scope === "city" ? "City Engineering Office" : "Barangay Engineering Office")}
                 </span>
               </div>
-
               <div className="flex items-center gap-3 text-sm">
                 <User className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Contractor:</span>

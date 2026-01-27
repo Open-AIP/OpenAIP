@@ -45,7 +45,8 @@ export default function HealthProjectCard({
       <CardContent className="px-6">
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
           {/* Left image */}
-            <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">             <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">
+          <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">
+            {project.imageUrl ? (
               <Image
                 src={project.imageUrl}
                 alt={project.title}
@@ -53,9 +54,12 @@ export default function HealthProjectCard({
                 className="object-cover object-center"
                 sizes="(max-width: 1024px) 100vw, 420px"
               />
-            </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400">
+                No image available
+              </div>
+            )}
           </div>
-
           {/* Right details */}
           <div className="px-6 flex flex-col">
             <div className="flex items-start justify-between pt-2">

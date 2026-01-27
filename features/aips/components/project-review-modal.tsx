@@ -79,11 +79,14 @@ export function ProjectReviewModal({
       setSubmitting(true);
       await onSubmit({ comment: trimmed, resolution: defaultResolution });
       onOpenChange(false);
+    } catch (error) {
+      // Surface error to user (e.g., toast notification)
+      console.error("Failed to submit review:", error);
+      // Consider adding: toast.error("Failed to submit review. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">

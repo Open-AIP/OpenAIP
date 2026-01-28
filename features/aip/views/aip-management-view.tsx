@@ -19,11 +19,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import AipCard from "@/feature/aips/components/aip-card";
 import type { AipRecord } from "@/types";
 import { getAipYears } from "@/mock/aips";
 import { Plus } from "lucide-react";
-import UploadAipDialog from "@/feature/aips/dialogs/upload-aip-dialog";
+import type { AipHeader } from "../types";
+import AipCard from "../components/aip-card";
+import UploadAipDialog from "../dialogs/upload-aip-dialog";
 
 /**
  * Props for AipManagementView component

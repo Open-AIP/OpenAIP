@@ -1,5 +1,5 @@
-import { AIPS_TABLE } from "@/features/aips/mock/aips.table";
-import { AIP_PROJECT_ROWS_TABLE } from "@/features/aips/mock/aip-project-rows.table";
+import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
+import { AIP_PROJECT_ROWS_TABLE } from "@/features/aip/mock/aip-project-rows.table";
 import { PROJECTS_TABLE } from "@/features/projects/mock/projects-table";
 import { HEALTH_DETAILS_TABLE } from "@/features/projects/mock/health-details-table";
 import { INFRA_DETAILS_TABLE } from "@/features/projects/mock/infrastructure-details-table";

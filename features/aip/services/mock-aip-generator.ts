@@ -88,13 +88,14 @@ export function generateMockProjects(
       reviewStatuses[Math.floor(Math.random() * reviewStatuses.length)];
 
     const project: AipProjectRow = {
-      id: `aiprow-mock-${aipId}-${i + 1}`,
-      aipId,
-      projectRefCode: `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`,
-      sector: sectorData.sector,
-      amount: randomBudget(300000, 5000000),
-      aipDescription: description,
-      reviewStatus,
+        id: `aiprow-mock-${aipId}-${i + 1}`,
+        aipId,
+        projectRefCode: `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`,
+        sector: sectorData.sector,
+        amount: randomBudget(300000, 5000000),
+        aipDescription: description,
+        reviewStatus,
+        kind: "health"
     };
 
     // Add AI issues for flagged items

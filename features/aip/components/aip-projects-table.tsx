@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { AipDetail } from "@/types";
+import type { AipHeader } from "../types";
 import { canEditAip, editLockedMessage } from "../utils";
 
 
@@ -22,11 +22,11 @@ export function AipProjectsTable({
   aip,
   initialSector,
 }: {
-  aip: AipDetail;
+  aip: AipHeader;
   initialSector?: string;
 }) {
   const editable = canEditAip(aip.status);
-  const showFeedback = aip.status === "For Revision";
+  const showFeedback = aip.status === "for_revision";
 
   const defaultSector = useMemo(
     () => initialSector ?? aip.sectors[0] ?? "All",
@@ -61,7 +61,8 @@ export function AipProjectsTable({
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>            </div>
+              </Select>            
+              </div>
 
             <div className="space-y-1">
               <div className="text-[11px] text-slate-400 text-center sm:text-left">

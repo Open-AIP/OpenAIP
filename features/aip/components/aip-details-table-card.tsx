@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import type { AipProjectRow } from "@/feature/aips/types";
-import { SECTOR_TABS } from "@/feature/aips/utils";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AipProjectRow } from "../types";
+import { SECTOR_TABS } from "../utils";
 
 function LegendItem({ colorClass, label }: { colorClass: string; label: string }) {
   return (
@@ -22,10 +22,12 @@ export function AipDetailsTableCard({
   year,
   rows,
   onRowClick,
+  canComment = true,
 }: {
   year: number;
   rows: AipProjectRow[];
   onRowClick: (row: AipProjectRow) => void;
+  canComment?: boolean;
 }) {
   const [activeSector, setActiveSector] = React.useState<(typeof SECTOR_TABS)[number]>("General Sector");
   const [query, setQuery] = React.useState("");
@@ -37,8 +39,8 @@ export function AipDetailsTableCard({
       .filter((r) => {
         if (!q) return true;
         return (
-          r.refCode.toLowerCase().includes(q) ||
-          r.description.toLowerCase().includes(q)
+          r.projectRefCode.toLowerCase().includes(q) ||
+          r.aipDescription.toLowerCase().includes(q)
         );
       });
   }, [rows, activeSector, query]);
@@ -46,6 +48,12 @@ export function AipDetailsTableCard({
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">
+        {!canComment && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            <strong>Note:</strong> Commenting on projects is only available when the AIP status is Draft or For Revision.
+          </div>
+        )}
+        
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
@@ -53,7 +61,7 @@ export function AipDetailsTableCard({
             </h3>
 
             <div className="mt-3">
-              <Tabs value={activeSector} onValueChange={(v) => setActiveSector(v as any)}>
+              <Tabs value={activeSector} onValueChange={(v) => setActiveSector(v as typeof SECTOR_TABS[number])}>
                 <TabsList className="h-7 bg-slate-100 p-1 rounded-full">
                   {SECTOR_TABS.map((s) => (
                     <TabsTrigger
@@ -106,8 +114,8 @@ export function AipDetailsTableCard({
                     className={`cursor-pointer ${rowClass}`}
                     onClick={() => onRowClick(r)}
                   >
-                    <TableCell className="text-xs text-slate-700">{r.refCode}</TableCell>
-                    <TableCell className="text-xs text-slate-700">{r.description}</TableCell>
+                    <TableCell className="text-xs text-slate-700">{r.projectRefCode}</TableCell>
+                    <TableCell className="text-xs text-slate-700">{r.aipDescription}</TableCell>
                     <TableCell className="text-xs text-slate-700 text-right tabular-nums">
                       ₱{r.amount.toLocaleString()}
                     </TableCell>

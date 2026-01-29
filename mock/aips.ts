@@ -1,15 +1,9 @@
+/*
 import type { AipDetail } from "@/types";
 
 export type LguScope = "barangay" | "city";
 
-/**
- * SINGLE SOURCE OF TRUTH for all AIP + Projects mock data.
- * Use this for:
- * - /barangay/aips list + detail
- * - /barangay/projects/health (derived from this)
- * - /barangay/projects/infrastructure (derived from this)
- * - /city equivalents later
- */
+
 export const MOCK_AIPS: Array<AipDetail & { scope: LguScope; barangayName?: string }> = [
   // =========================
   // BARANGAY
@@ -660,3 +654,4 @@ export function getAllInfrastructureProjects(scope: LguScope = "barangay") {
     .filter((aip) => aip.scope === scope)
     .flatMap((aip) => aip.infrastructureProjects || []);
 }
+*/

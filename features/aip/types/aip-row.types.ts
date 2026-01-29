@@ -16,4 +16,10 @@ export type AipProjectRow = {
 
   // What AIP extraction says for the row
   aipDescription: string;
+  
+  // AI-detected issues (for ai_flagged status)
+  aiIssues?: string[];
+  
+  // Official comment from reviewer
+  officialComment?: string;
 };

@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pencil, RotateCw, X } from "lucide-react";
 
-import type { AipDetail } from "@/types";
+import type { AipHeader } from "../types";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
-import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { getAipStatusBadgeClass } from "../utils";
 import { AipPdfContainer } from "../components/aip-pdf-container";
 import { AipDetailsSummary } from "../components/aip-details-summary";
-import { AipProjectsTable } from "../components/aip-projects-table";
 import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { canEditAip } from "../utils";
+import { AipDetailsTableView } from "./aip-details-table";
+import { createMockAipProjectRepo } from "../services/aip-project-repo.mock";
+import { Send } from "lucide-react";
 
+const projectRepo = createMockAipProjectRepo();
 
 
 export default function AipDetailView({
@@ -23,15 +26,17 @@ export default function AipDetailView({
   onEdit,
   onResubmit,
   onCancel,
+  onSubmit,
 }: {
-  aip: AipDetail;
+  aip: AipHeader;
   scope?: "city" | "barangay";
   onEdit?: () => void;
   onResubmit?: () => void;
   onCancel?: () => void;
+  onSubmit?: () => void;
 }) {
   const editable = canEditAip(aip.status);
-  const showFeedback = aip.status === "For Revision";
+  const showFeedback = aip.status === "for_revision";
 
   const breadcrumb = [
     { label: "AIP Management", href: `/${scope}/aips` },
@@ -59,7 +64,7 @@ export default function AipDetailView({
 
       <AipDetailsSummary aip={aip} scope={scope} />
 
-      <AipProjectsTable aip={aip} />
+      <AipDetailsTableView aipId={aip.id} year={aip.year} repo={projectRepo} aipStatus={aip.status} />
 
       <AipUploaderInfo aip={aip} />
 
@@ -78,11 +83,17 @@ export default function AipDetailView({
           </>
         )}
 
-        {aip.status === "Draft" && (
-          <Button variant="destructive" onClick={onCancel} disabled={!onCancel}>
-            <X className="h-4 w-4" />
-            Cancel Submission
-          </Button>
+        {aip.status === "draft" && (
+          <>
+            <Button variant="outline" onClick={onCancel} disabled={!onCancel}>
+              <X className="h-4 w-4" />
+              Cancel Draft
+            </Button>
+            <Button className="bg-[#022437] hover:bg-[#022437]/90" onClick={onSubmit} disabled={!onSubmit}>
+              <Send className="h-4 w-4" />
+              Submit for Review
+            </Button>
+          </>
         )}
       </div>
     </div>

@@ -1,11 +1,11 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import type { AipDetail } from "@/types";
+import type { AipHeader } from "../types";
 import { peso } from "../utils";
 
 
-export function AipUploaderInfo({ aip }: { aip: AipDetail }) {
+export function AipUploaderInfo({ aip }: { aip: AipHeader }) {
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">

@@ -1,9 +1,7 @@
 import AipManagementView from "@/features/aip/views/aip-management-view";
-import { MOCK_AIPS } from "@/mock/aips";
 
 const BarangayAIPS = () => {
-  const records = MOCK_AIPS.filter((x) => x.scope === "barangay");
-  return <AipManagementView records={records} />;
+  return <AipManagementView scope="barangay" />;
 }
 
 export default BarangayAIPS

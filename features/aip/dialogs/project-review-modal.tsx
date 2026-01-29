@@ -91,7 +91,7 @@ export function ProjectReviewModal({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-7xl w-[120vw]">
         <DialogHeader>
           <DialogTitle>
             {project.reviewStatus === "ai_flagged" ? "Error Review - Project Details" : "Project Details"}
@@ -136,7 +136,7 @@ export function ProjectReviewModal({
               <div className="text-sm font-semibold text-slate-900">Official Comment</div>
               {!canComment ? (
                 <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-                  Comments can only be added when the AIP status is Draft or For Revision.
+                  Comments can only be added when the AIP status is For Revision.
                 </div>
               ) : (
                 <>

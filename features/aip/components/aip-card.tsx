@@ -11,10 +11,10 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { AipRecord } from "@/types";
+import type { AipHeader } from "../types";
 import { CalendarDays, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/utils/formatting";
-import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { getAipStatusBadgeClass } from "../utils";
 
 /**
  * AipCard Component
@@ -29,7 +29,7 @@ export default function AipCard({
   aip, 
   scope = "barangay" 
 }: { 
-  aip: AipRecord;
+  aip: AipHeader;
   scope?: "city" | "barangay";
 }) {
   return (

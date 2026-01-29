@@ -1,4 +1,4 @@
-import AccountView from "@/feature/account/account-view";
+import AccountView from "@/features/account/account-view";
 import { getUser } from "@/lib/actions/auth.actions";
 
 export default async function BarangayAccount() {

@@ -11,6 +11,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -19,11 +20,11 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import type { AipRecord } from "@/types";
-import { getAipYears } from "@/mock/aips";
+
 import { Plus } from "lucide-react";
 import type { AipHeader } from "../types";
 import { AIPS_TABLE } from "../mock/aips.table";
+import { getAipYears } from "../utils";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
 
@@ -32,7 +33,7 @@ import UploadAipDialog from "../dialogs/upload-aip-dialog";
  */
 type Props = {
   /** Array of AIP records to display */
-  records?: AipRecord[];
+  records?: AipHeader[];
   /** Administrative scope for routing */
   scope?: "city" | "barangay";
 };
@@ -54,29 +55,10 @@ export default function AipManagementView({
   records, 
   scope = "barangay"
 }: Props) {
+  const router = useRouter();
   const mockRecords = useMemo(() => {
-    const statusMap: Record<AipHeader["status"], AipRecord["status"]> = {
-      draft: "Draft",
-      pending_review: "Pending Review",
-      under_review: "Under Review",
-      for_revision: "For Revision",
-      published: "Published",
-    };
-
     return AIPS_TABLE
-      .filter((aip) => aip.scope === scope)
-      .map((aip) => ({
-        id: aip.id,
-        title: aip.title,
-        description: aip.description,
-        year: aip.year,
-        budget: aip.budget,
-        uploadedAt: aip.uploadedAt,
-        publishedAt: aip.publishedAt,
-        status: statusMap[aip.status],
-        scope: aip.scope,
-        barangayName: aip.barangayName,
-      }));
+      .filter((aip) => aip.scope === scope);
   }, [scope]);
 
   const activeRecords = records ?? mockRecords;
@@ -147,10 +129,12 @@ export default function AipManagementView({
         onSubmit={({ file, year }) => {
           // mock handling for now
           console.log("Upload payload:", { file, year, scope });
-          setOpenUpload(false);
-
-          // later: Supabase storage upload + create aip record
-        }}        
+        }}   
+        onSuccess={(aipId) => {
+          // Route to the mock AIP detail page
+          const scopePath = scope === "city" ? "city" : "barangay";
+          router.push(`/${scopePath}/aips/${aipId}`);
+        }}     
       />
     </div>
   );

@@ -3,9 +3,9 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
-import type { AipDetail } from "@/types";
+import type { AipHeader } from "../types";
 
-export function AipPdfContainer({ aip }: { aip: AipDetail }) {
+export function AipPdfContainer({ aip }: { aip: AipHeader }) {
   return (
     <Card className="border-slate-200">
       <CardHeader className="pb-0">

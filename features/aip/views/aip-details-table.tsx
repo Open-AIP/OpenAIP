@@ -3,20 +3,21 @@
 
 import * as React from "react";
 import { AipProjectRepo } from "../data/aip-project-repo";
-import { AipProjectRow } from "../types";
-import { sectorFromRefCode } from "../utils";
+import { AipProjectRow, AipStatus } from "../types";
 import { AipDetailsTableCard } from "../components/aip-details-table-card";
-import { ProjectReviewModal } from "../components/project-review-modal";
+import { ProjectReviewModal } from "../dialogs/project-review-modal";
 
 
 export function AipDetailsTableView({
   aipId,
   year,
   repo,
+  aipStatus,
 }: {
   aipId: string;
   year: number;
   repo: AipProjectRepo;
+  aipStatus: AipStatus;
 }) {
   const [rows, setRows] = React.useState<AipProjectRow[]>([]);
   const [selected, setSelected] = React.useState<AipProjectRow | null>(null);
@@ -30,14 +31,8 @@ export function AipDetailsTableView({
       setLoading(true);
       const data = await repo.listByAip(aipId);
 
-      // Enforce deterministic sector derivation at the boundary
-      const normalized = data.map((r) => ({
-        ...r,
-        sector: sectorFromRefCode(r.refCode),
-      }));
-
       if (alive) {
-        setRows(normalized);
+        setRows(data);
         setLoading(false);
       }
     })();
@@ -81,6 +76,9 @@ export function AipDetailsTableView({
     return <div className="text-sm text-slate-500">Loading projects…</div>;
   }
 
+  // Allow commenting when AIP is in draft or for_revision status
+  const canComment = aipStatus === "draft" || aipStatus === "for_revision";
+
   return (
     <>
       <AipDetailsTableCard
@@ -90,6 +88,7 @@ export function AipDetailsTableView({
           setSelected(row);
           setOpen(true);
         }}
+        canComment={canComment}
       />
 
       <ProjectReviewModal
@@ -97,6 +96,7 @@ export function AipDetailsTableView({
         onOpenChange={setOpen}
         project={selected}
         onSubmit={handleSubmitReview}
+        canComment={canComment}
       />
     </>
   );

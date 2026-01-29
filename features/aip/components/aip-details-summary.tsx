@@ -1,13 +1,13 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import type { AipDetail } from "@/types";
+import type { AipHeader } from "../types";
 
 export function AipDetailsSummary({
   aip,
   scope,
 }: {
-  aip: AipDetail;
+  aip: AipHeader;
   scope: "city" | "barangay";
 }) {
   return (
@@ -25,7 +25,7 @@ export function AipDetailsSummary({
           </p>
 
           <ol className="mt-3 list-decimal pl-5 space-y-1 text-sm text-slate-600">
-            {aip.detailedBullets.map((b: string, index: number) => (
+            {aip.detailedBullets?.map((b: string, index: number) => (
               <li key={index}>{b}</li>
             ))}
           </ol>

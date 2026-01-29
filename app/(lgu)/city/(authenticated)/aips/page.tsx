@@ -1,9 +1,7 @@
-import AipManagementView from "@/feature/aips/views/aip-management-view";
-import { MOCK_AIPS } from "@/mock/aips";
+import AipManagementView from "@/features/aip/views/aip-management-view";
 
 const CityAIPS = () => {
-  const records = MOCK_AIPS.filter((x) => x.scope === "city");
-  return <AipManagementView records={records} scope="city" />;
+  return <AipManagementView scope="city" />;
 }
 
 export default CityAIPS

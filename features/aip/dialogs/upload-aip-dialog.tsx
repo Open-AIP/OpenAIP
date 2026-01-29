@@ -12,6 +12,7 @@
 
 import * as React from "react";
 import { X, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   /** Callback when upload is submitted */
   onSubmit?: (payload: { file: File; year: number }) => void;
+  /** Callback when upload succeeds with new AIP ID */
+  onSuccess?: (aipId: string) => void;
   /** Administrative scope for context */
   scope?: "city" | "barangay";
 };
@@ -81,7 +84,13 @@ function buildYears(count = 7) {
  * @param onSubmit - Handler called with file and year on successful submission
  * @param scope - Administrative scope for display purposes
  */
-export default function UploadAipDialog({ open, onOpenChange, onSubmit, scope = "barangay" }: Props) {
+export default function UploadAipDialog({ 
+  open, 
+  onOpenChange, 
+  onSubmit, 
+  onSuccess,
+  scope = "barangay" 
+}: Props) {
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = React.useState<File | null>(null);
@@ -129,11 +138,19 @@ export default function UploadAipDialog({ open, onOpenChange, onSubmit, scope = 
       return;
     }
 
-    onSubmit?.({ file: file!, year: Number(year) });
+    // Generate mock AIP ID based on file and year
+    const mockId = `aip-${year}-${file!.name.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20)}-${Date.now()}`;
 
-    // For now, close + reset (replace later when you wire Supabase upload)
+    onSubmit?.({ file: file!, year: Number(year) });
+    
+    // Close dialog and call success callback with mock ID
     onOpenChange(false);
     reset();
+    
+    // Trigger navigation after dialog closes
+    setTimeout(() => {
+      onSuccess?.(mockId);
+    }, 100);
   }
 
   return (

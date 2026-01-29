@@ -8,6 +8,7 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     sector: "Economic Sector",
     amount: 2200000,
     aipDescription: "Concrete paving and rehabilitation of priority barangay roads...",
+    reviewStatus: "ai_flagged",
   },
   {
     id: "aiprow-002",
@@ -16,5 +17,6 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     sector: "Social Sector",
     amount: 250000,
     aipDescription: "Comprehensive vaccination drive targeting all eligible residents...",
+    reviewStatus: "reviewed",
   },
 ];

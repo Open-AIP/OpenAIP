@@ -8,6 +8,7 @@
  */
 
 import type { AipStatus } from "@/types";
+import { Sector } from "./types";
 
 // Re-export formatting utility from shared location
 export { formatPeso as peso } from "@/lib/utils/formatting";
@@ -47,7 +48,7 @@ export function editLockedMessage(status: AipStatus) {
 
 
 
-import type { Sector } from "@/feature/aips/types";
+
 
 export const SECTOR_TABS: Exclude<Sector, "Unknown">[] = [
   "General Sector",

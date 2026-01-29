@@ -23,6 +23,7 @@ import type { AipRecord } from "@/types";
 import { getAipYears } from "@/mock/aips";
 import { Plus } from "lucide-react";
 import type { AipHeader } from "../types";
+import { AIPS_TABLE } from "../mock/aips.table";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
 
@@ -31,7 +32,7 @@ import UploadAipDialog from "../dialogs/upload-aip-dialog";
  */
 type Props = {
   /** Array of AIP records to display */
-  records: AipRecord[];
+  records?: AipRecord[];
   /** Administrative scope for routing */
   scope?: "city" | "barangay";
 };
@@ -53,16 +54,43 @@ export default function AipManagementView({
   records, 
   scope = "barangay"
 }: Props) {
-  const years = useMemo(() => getAipYears(records), [records]);
+  const mockRecords = useMemo(() => {
+    const statusMap: Record<AipHeader["status"], AipRecord["status"]> = {
+      draft: "Draft",
+      pending_review: "Pending Review",
+      under_review: "Under Review",
+      for_revision: "For Revision",
+      published: "Published",
+    };
+
+    return AIPS_TABLE
+      .filter((aip) => aip.scope === scope)
+      .map((aip) => ({
+        id: aip.id,
+        title: aip.title,
+        description: aip.description,
+        year: aip.year,
+        budget: aip.budget,
+        uploadedAt: aip.uploadedAt,
+        publishedAt: aip.publishedAt,
+        status: statusMap[aip.status],
+        scope: aip.scope,
+        barangayName: aip.barangayName,
+      }));
+  }, [scope]);
+
+  const activeRecords = records ?? mockRecords;
+
+  const years = useMemo(() => getAipYears(activeRecords), [activeRecords]);
 
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [openUpload, setOpenUpload] = useState(false);
 
   const filtered = useMemo(() => {
-    if (yearFilter === "all") return records;
+    if (yearFilter === "all") return activeRecords;
     const y = Number(yearFilter);
-    return records.filter((r) => r.year === y);
-  }, [records, yearFilter]);
+    return activeRecords.filter((r) => r.year === y);
+  }, [activeRecords, yearFilter]);
 
   const scopeLabel = scope === "city" ? "city" : "barangay";
 

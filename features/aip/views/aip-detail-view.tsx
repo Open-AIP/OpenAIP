@@ -7,14 +7,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Pencil, RotateCw, X } from "lucide-react";
 
 import type { AipDetail } from "@/types";
-import { canEditAip } from "@/feature/aips/utils";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getAipStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { AipPdfContainer } from "../components/aip-pdf-container";
+import { AipDetailsSummary } from "../components/aip-details-summary";
+import { AipProjectsTable } from "../components/aip-projects-table";
+import { AipUploaderInfo } from "../components/aip-uploader-info";
+import { canEditAip } from "../utils";
 
-import { AipPdfContainer } from "@/feature/aips/components/aip-pdf-container";
-import { AipDetailsSummary } from "@/feature/aips/components/aip-details-summary";
-import { AipProjectsTable } from "@/feature/aips/components/aip-projects-table";
-import { AipUploaderInfo } from "@/feature/aips/components/aip-uploader-info";
+
 
 export default function AipDetailView({
   aip,

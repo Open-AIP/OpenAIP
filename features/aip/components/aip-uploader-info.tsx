@@ -2,7 +2,8 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import type { AipDetail } from "@/types";
-import { peso } from "@/feature/aips/utils";
+import { peso } from "../utils";
+
 
 export function AipUploaderInfo({ aip }: { aip: AipDetail }) {
   return (

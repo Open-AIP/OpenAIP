@@ -2,12 +2,12 @@
 "use client";
 
 import * as React from "react";
-import type { AipProjectRepo } from "@/feature/aips/data/aip-project-repo";
-import type { AipProjectRow } from "@/feature/aips/types";
-import { sectorFromRefCode } from "@/feature/aips/utils";
+import { AipProjectRepo } from "../data/aip-project-repo";
+import { AipProjectRow } from "../types";
+import { sectorFromRefCode } from "../utils";
+import { AipDetailsTableCard } from "../components/aip-details-table-card";
+import { ProjectReviewModal } from "../components/project-review-modal";
 
-import { AipDetailsTableCard } from "@/feature/aips/components/aip-details-table-card";
-import { ProjectReviewModal } from "@/feature/aips/components/project-review-modal";
 
 export function AipDetailsTableView({
   aipId,

@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/select";
 
 import type { AipDetail } from "@/types";
-import { canEditAip, editLockedMessage } from "@/feature/aips/utils";
+import { canEditAip, editLockedMessage } from "../utils";
+
+
 
 export function AipProjectsTable({
   aip,

@@ -1,4 +1,5 @@
-export type Sector = "Economic Sector" | "Social Sector" | "Other Sector";
+export type Sector = "General Sector"|  "Social Sector"|  "Economic Sector"|  "Other Services" | "Unknown";
+export type reviewStatus = "ai_flagged" | "reviewed" | "unreviewed";
 
 /**
  * One row inside the AIP extracted table.
@@ -11,6 +12,7 @@ export type AipProjectRow = {
 
   sector: Sector;
   amount: number;
+  reviewStatus: reviewStatus; // required property
 
   // What AIP extraction says for the row
   aipDescription: string;

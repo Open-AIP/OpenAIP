@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { MOCK_AIPS } from "@/mock/aips";
-import AipDetailView from "@/feature/aips/views/aip-detail-view";
+import AipDetailView from "@/features/aip/views/aip-detail-view";
 
 export default async function BarangayAipDetail({
   params,

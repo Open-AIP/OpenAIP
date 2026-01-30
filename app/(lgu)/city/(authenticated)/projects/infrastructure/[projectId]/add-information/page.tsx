@@ -1,15 +1,15 @@
-import AddInformationPage from "@/feature/projects/shared/add-information/add-information-page";
+import AddInformationPage from "@/features/projects/shared/add-information/add-information-page";
 import { getUser } from "@/lib/actions/auth.actions";
-import { getInfrastructureProjectById } from "@/mock/aips";
+import { projectService } from "@/features/projects/services";
 
-export default async function CityInfrastructureAddInformationRoute({
+export default async function InfrastructureAddInformationRoute({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
   const { fullName, userRole, userLocale } = await getUser();
   const { projectId } = await params;
-  const project = getInfrastructureProjectById(projectId);
+  const project = await projectService.getInfrastructureProjectById(projectId);
 
   if (!project) {
     // Handle project not found

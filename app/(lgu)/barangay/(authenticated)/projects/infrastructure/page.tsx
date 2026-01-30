@@ -1,11 +1,8 @@
-import InfrastructureProjectsView from "@/feature/projects/infrastructure/views/infrastructure-projects-view";
-import { MOCK_AIPS } from "@/mock/aips";
+import InfrastructureProjectsView from "@/features/projects/infrastructure/views/infrastructure-projects-view";
+import { projectService } from "@/features/projects/services";
 
-export default function BarangayInfrastructureProjects() {
-  // Extract all infrastructure projects from barangay AIPs
-  const infrastructureProjects = MOCK_AIPS
-    .filter((aip) => aip.scope === "barangay")
-    .flatMap((aip) => aip.infrastructureProjects || []);
+export default async function BarangayInfrastructureProjects() {
+  const infrastructureProjects = await projectService.getInfrastructureProjects();
 
   return <InfrastructureProjectsView projects={infrastructureProjects} scope="barangay" />;
 }

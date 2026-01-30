@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import InfrastructureProjectCard from "../components/infrastructure-project-card";
 import type { InfrastructureProject } from "@/types";
-import { getProjectYears } from "@/mock/aips";
+import { getProjectYears } from "@/features/projects/utils";
 import { Search } from "lucide-react";
 
 /**

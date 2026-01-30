@@ -1,6 +1,6 @@
-import AddInformationPage from "@/feature/projects/shared/add-information/add-information-page";
+import AddInformationPage from "@/features/projects/shared/add-information/add-information-page";
 import { getUser } from "@/lib/actions/auth.actions";
-import { getHealthProjectById } from "@/mock/aips";
+import { projectService } from "@/features/projects/services";
 
 export default async function HealthAddInformationRoute({
   params,
@@ -9,7 +9,7 @@ export default async function HealthAddInformationRoute({
 }) {
   const { fullName, userRole, userLocale } = await getUser();
   const { projectId } = await params;
-  const project = getHealthProjectById(projectId);
+  const project = await projectService.getHealthProjectById(projectId);
 
   if (!project) {
     // Handle project not found
@@ -33,7 +33,6 @@ export default async function HealthAddInformationRoute({
         month: project.month,
         year: String(project.year),
         name: project.title,
-        description: project.description,
         implementingOffice: project.implementingOffice,
       }}
     />

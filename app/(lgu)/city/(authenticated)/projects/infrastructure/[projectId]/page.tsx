@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { MOCK_AIPS } from "@/mock/aips";
-import InfrastructureProjectDetailPageView from "@/feature/projects/infrastructure/infrastructure-project-detail-page-view";
+import { projectService } from "@/features/projects/services";
+import InfrastructureProjectDetailPageView from "@/features/projects/infrastructure/views/infrastructure-project-detail-page-view";
 
 export default async function CityInfrastructureProjectDetailPage({
   params,
@@ -9,17 +9,9 @@ export default async function CityInfrastructureProjectDetailPage({
 }) {
   const { projectId } = await params;
 
-  // Find the city AIP that contains this infrastructure project
-  const aip = MOCK_AIPS.find(
-    (a) => a.scope === "city" && (a.infrastructureProjects ?? []).some((p) => p.id === projectId)
-  );
-
-  if (!aip) return notFound();
-
-  // Extract the project
-  const project = (aip.infrastructureProjects ?? []).find((p) => p.id === projectId);
+  const project = await projectService.getInfrastructureProjectById(projectId);
 
   if (!project) return notFound();
 
-  return <InfrastructureProjectDetailPageView aipYear={aip.year} project={project} scope="city" />;
+  return <InfrastructureProjectDetailPageView aipYear={project.year} project={project} scope="city" />;
 }

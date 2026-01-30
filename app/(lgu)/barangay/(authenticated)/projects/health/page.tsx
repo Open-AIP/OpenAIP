@@ -1,11 +1,11 @@
-import HealthProjectsView from "@/feature/projects/health/views/health-projects-view";
-import { MOCK_AIPS } from "@/mock/aips";
+import HealthProjectsView from "@/features/projects/health/views/health-projects-view";
+import { projectService } from "@/features/projects/services";
 
-export default function BarangayHealthProjects() {
-  // Extract all health projects from barangay AIPs
-  const healthProjects = MOCK_AIPS
-    .filter((aip) => aip.scope === "barangay")
-    .flatMap((aip) => aip.healthProjects || []);
+/**
+ * DATA ISOLATION: Uses Projects service only (NOT AIP)
+ */
+export default async function BarangayHealthProjects() {
+  const healthProjects = await projectService.getHealthProjects();
 
   return <HealthProjectsView projects={healthProjects} scope="barangay" />;
 }

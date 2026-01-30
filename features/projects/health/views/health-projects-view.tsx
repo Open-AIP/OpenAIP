@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import HealthProjectCard from "../components/health-project-card";
 import type { HealthProject } from "@/types";
-import { getProjectYears } from "@/mock/aips";
+import { getProjectYears } from "@/features/projects/utils";
 import { Search } from "lucide-react";
 
 /**

@@ -654,4 +654,5 @@ export function getAllInfrastructureProjects(scope: LguScope = "barangay") {
     .filter((aip) => aip.scope === scope)
     .flatMap((aip) => aip.infrastructureProjects || []);
 }
+
 */

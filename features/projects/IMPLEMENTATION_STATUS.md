@@ -2,20 +2,20 @@
 
 ## Summary
 
-All **Projects feature** pages have been successfully updated to use mock data from `features/projects/mocks.ts` with complete **data isolation from the AIP feature**.
+All **Projects feature** pages have been successfully updated to use mock data from `features/projects/mock/*` with complete **data isolation from the AIP feature**.
 
 ---
 
 ## ✅ Completed Changes
 
 ### 1. Mock Data Consolidation
-- **File**: `features/projects/mocks.ts`
-- **Contains**: 
-  - `PROJECTS_MASTER` (20 projects)
-  - `HEALTH_DETAILS` (8 records)
-  - `INFRASTRUCTURE_DETAILS` (12 records)
-  - `PROJECT_UPDATES` (13 updates)
-  - `FORM_OPTIONS`
+- **Folder**: `features/projects/mock/`
+- **Contains**:
+  - `projects-table.ts` (20 projects)
+  - `health-details-table.ts` (8 records)
+  - `infrastructure-details-table.ts` (12 records)
+  - `project-updates-table.ts` (13 updates)
+  - `form-options.ts`
 - **Status**: ✓ Created with strict AIP isolation comments
 
 ### 2. Service Layer
@@ -68,7 +68,8 @@ Fixed all typos from `@/feature/...` to `@/features/...`
 
 ```
 features/projects/
-├── mocks.ts                          ← Central mock data (20 projects)
+├── mock/                             ← Mock data tables
+├── mocks.ts                          ← Legacy barrel re-exports
 ├── types/
 │   ├── index.ts                      ← Type exports
 │   └── ui-types.ts                   ← UI-specific types
@@ -82,9 +83,9 @@ features/projects/
 
 ## 🎯 Requirements Met
 
-1. ✓ **Projects-only mock data** - All data in `features/projects/mocks.ts`
+1. ✓ **Projects-only mock data** - All data in `features/projects/mock/`
 2. ✓ **Strict boundaries from AIP** - No imports from `@/mock/aips`
-3. ✓ **Minimal files** - Consolidated into single `mocks.ts`
+3. ✓ **Minimal files** - Distributed into focused mock tables
 4. ✓ **Service layer** - Clean repository → service → UI architecture
 5. ✓ **No design changes** - Only data source updated
 6. ✓ **Documentation** - Added isolation comments in all files
@@ -101,7 +102,7 @@ grep -r "MOCK_AIPS" app/(lgu)/*/projects/
 grep -r "@/features/projects/services" app/(lgu)/*/projects/
 
 # List mock data files
-ls features/projects/mocks.ts
+ls features/projects/mock
 ```
 
 ---

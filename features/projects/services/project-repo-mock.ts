@@ -12,12 +12,10 @@
  * ============================================================================
  */
 
-import {
-  PROJECTS_MASTER,
-  HEALTH_DETAILS,
-  INFRASTRUCTURE_DETAILS,
-  PROJECT_UPDATES,
-} from "../mocks";
+import { HEALTH_DETAILS_TABLE } from "../mock/health-details-table";
+import { INFRA_DETAILS_TABLE } from "../mock/infrastructure-details-table";
+import { PROJECT_UPDATES_TABLE } from "../mock/project-updates-table";
+import { PROJECTS_TABLE } from "../mock/projects-table";
 import type { HealthProject, InfrastructureProject, ProjectBundle } from "../types";
 
 /**
@@ -26,13 +24,13 @@ import type { HealthProject, InfrastructureProject, ProjectBundle } from "../typ
 export function createMockProjectsRepo() {
   return {
     async listHealth(): Promise<HealthProject[]> {
-      const healthMasters = PROJECTS_MASTER.filter((p) => p.kind === "health");
+      const healthMasters = PROJECTS_TABLE.filter((p) => p.kind === "health");
       
       return healthMasters.map((master) => {
-        const details = HEALTH_DETAILS.find(
+        const details = HEALTH_DETAILS_TABLE.find(
           (d) => d.projectRefCode === master.projectRefCode
         );
-        const updates = PROJECT_UPDATES.filter(
+        const updates = PROJECT_UPDATES_TABLE.filter(
           (u) => u.projectRefCode === master.projectRefCode
         );
 
@@ -58,13 +56,13 @@ export function createMockProjectsRepo() {
     },
 
     async listInfrastructure(): Promise<InfrastructureProject[]> {
-      const infraMasters = PROJECTS_MASTER.filter((p) => p.kind === "infrastructure");
+      const infraMasters = PROJECTS_TABLE.filter((p) => p.kind === "infrastructure");
       
       return infraMasters.map((master) => {
-        const details = INFRASTRUCTURE_DETAILS.find(
+        const details = INFRA_DETAILS_TABLE.find(
           (d) => d.projectRefCode === master.projectRefCode
         );
-        const updates = PROJECT_UPDATES.filter(
+        const updates = PROJECT_UPDATES_TABLE.filter(
           (u) => u.projectRefCode === master.projectRefCode
         );
 
@@ -91,18 +89,18 @@ export function createMockProjectsRepo() {
     },
 
     async getByRefCode(projectRefCode: string): Promise<ProjectBundle | null> {
-      const master = PROJECTS_MASTER.find((p) => p.projectRefCode === projectRefCode);
+      const master = PROJECTS_TABLE.find((p) => p.projectRefCode === projectRefCode);
       
       if (!master) {
         return null;
       }
 
-      const updates = PROJECT_UPDATES.filter(
+      const updates = PROJECT_UPDATES_TABLE.filter(
         (u) => u.projectRefCode === projectRefCode
       );
 
       if (master.kind === "health") {
-        const details = HEALTH_DETAILS.find(
+        const details = HEALTH_DETAILS_TABLE.find(
           (d) => d.projectRefCode === projectRefCode
         );
         
@@ -125,7 +123,7 @@ export function createMockProjectsRepo() {
           updates,
         };
       } else {
-        const details = INFRASTRUCTURE_DETAILS.find(
+        const details = INFRA_DETAILS_TABLE.find(
           (d) => d.projectRefCode === projectRefCode
         );
         

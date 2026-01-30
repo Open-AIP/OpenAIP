@@ -1,14 +1,11 @@
-import Placeholder from '@/components/layout/placeholder';
+import CommentsView from "@/features/comments/views/comments-view";
 
 const BarangayComments = () => {
   return (
     <div>
-      <Placeholder 
-        title="Comments" 
-        description="View and manage community comments and feedback on barangay projects and initiatives." 
-      />
+      <CommentsView />
     </div>
-  )
+  );
 }
 
-export default BarangayComments
+export default BarangayComments;

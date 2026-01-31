@@ -100,26 +100,58 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
       ) : (
         <>
           <div className="mt-4 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "rounded-xl border border-slate-200 p-4",
-                  message.authorRole === "citizen" ? "bg-slate-50" : "bg-white"
-                )}
-              >
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-700">
-                    {ROLE_LABELS[message.authorRole] ?? message.authorRole}
-                  </span>
-                  <span className="text-slate-300">&bull;</span>
-                  <time dateTime={new Date(message.createdAt).toISOString()}>
-                    {formatCommentDate(message.createdAt)}
-                  </time>
+            {messages.map((message) => {
+              const isCitizen = message.authorRole === "citizen";
+              const roleLabel =
+                ROLE_LABELS[message.authorRole] ?? message.authorRole;
+              const displayName = isCitizen ? "Citizen" : "Official";
+              return (
+                <div
+                  key={message.id}
+                  className={cn(
+                    "rounded-2xl border border-slate-200 p-4 shadow-sm",
+                    isCitizen ? "bg-white" : "bg-slate-50"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 grid h-10 w-10 place-items-center rounded-full bg-teal-800 text-white">
+                      <span className="text-sm font-semibold">
+                        {displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {displayName}
+                        </p>
+                        {!isCitizen ? (
+                          <>
+                            <span className="text-xs text-slate-400">&bull;</span>
+                            <span className="text-xs text-slate-500">
+                              {roleLabel}
+                            </span>
+                          </>
+                        ) : null}
+                      </div>
+
+                      <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                        {message.text}
+                      </p>
+
+                      <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
+                        <time dateTime={new Date(message.createdAt).toISOString()}>
+                          {formatCommentDate(message.createdAt)}
+                        </time>
+                        <button type="button" className="font-semibold text-slate-700">
+                          Reply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-2 text-sm text-slate-700">{message.text}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="mt-6 space-y-3">

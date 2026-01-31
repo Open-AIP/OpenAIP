@@ -75,4 +75,8 @@ export const COMMENT_THREAD_IDS = {
   thread_002: "thread_002",
   thread_003: "thread_003",
   thread_004: "thread_004",
+  thread_005: "thread_005",
+  thread_006: "thread_006",
+  thread_007: "thread_007",
+  thread_008: "thread_008",
 } as const;

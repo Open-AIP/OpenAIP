@@ -115,11 +115,6 @@ export default function AipDetailView({
         </>
       ) : (
         <div className="space-y-6">
-          <CommentAipThreadList
-            aipId={aip.id}
-            scope={scope}
-            activeThreadId={threadId}
-          />
           {threadId ? <CommentThreadPanel threadId={threadId} /> : null}
         </div>
       )}

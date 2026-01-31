@@ -2,6 +2,7 @@ import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { MessageSquareText, UserRound } from "lucide-react";
 
@@ -23,6 +24,8 @@ export function CommentCard(props: CommentCardProps) {
     className,
     showActions = true,
   } = props;
+  const [isReplying, setIsReplying] = React.useState(false);
+  const [replyText, setReplyText] = React.useState("");
 
   const dateText = formatCommentDate(createdAt);
   const badge = getCommentStatusBadge(status);
@@ -124,6 +127,57 @@ export function CommentCard(props: CommentCardProps) {
             </div>
           ) : null}
 
+          {!response && isReplying ? (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-8 w-8 place-items-center rounded-full bg-teal-800 text-white">
+                  <UserRound className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Official Reply
+                    </p>
+                    <span className="text-xs text-slate-500">City Official</span>
+                  </div>
+                  <Textarea
+                    value={replyText}
+                    onChange={(event) => setReplyText(event.target.value)}
+                    placeholder="Write your response..."
+                    className="min-h-[120px] border-slate-200 bg-white"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsReplying(false);
+                        setReplyText("");
+                      }}
+                      className="rounded-xl"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={!replyText.trim()}
+                      onClick={() => {
+                        onAction?.();
+                        setIsReplying(false);
+                        setReplyText("");
+                      }}
+                      className="rounded-xl"
+                    >
+                      Send reply
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {showActions && ((actionLabel && onAction) || status === "no_response") ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {actionLabel && onAction ? (
@@ -142,6 +196,7 @@ export function CommentCard(props: CommentCardProps) {
                   variant="secondary"
                   className="rounded-xl"
                   size="sm"
+                  onClick={() => setIsReplying((prev) => !prev)}
                 >
                   <MessageSquareText className="mr-2 h-4 w-4" />
                   Reply

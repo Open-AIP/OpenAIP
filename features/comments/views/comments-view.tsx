@@ -128,113 +128,107 @@ export default function CommentsView() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-xs text-slate-500">Year</div>
-                <Select value={year} onValueChange={setYear}>
-                  <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {yearOptions.map((value) => (
-                      <SelectItem key={value} value={String(value)}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs text-slate-500">Target</div>
-                <Select value={context} onValueChange={setContext}>
-                  <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
-                    <SelectValue placeholder="All Targets" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Targets</SelectItem>
-                    {contextOptions.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs text-slate-500">Status</div>
-                <Select
-                  value={status}
-                  onValueChange={(value) =>
-                    setStatus(value as "all" | "no_response" | "responded")
-                  }
-                >
-                  <SelectTrigger className="h-11 bg-slate-50 border-slate-200">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="no_response">No response</SelectItem>
-                    <SelectItem value="responded">Responded</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs text-slate-500">Search</div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search by name, comment, or target..."
-                    className="h-11 pl-9 bg-slate-50 border-slate-200"
-                  />
-                </div>
-              </div>
-            </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-2">
+            <div className="text-xs text-slate-500">Year</div>
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger className="h-11 border-slate-200 bg-slate-50">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {yearOptions.map((value) => (
+                  <SelectItem key={value} value={String(value)}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </aside>
 
-        <div className="space-y-5">
-          {loading ? (
-            <div className="text-sm text-slate-500">Loading inbox…</div>
-          ) : error ? (
-            <div className="text-sm text-rose-600">{error}</div>
-          ) : (
-            <>
-              <div className="text-sm text-slate-500">
-                Showing {filteredItems.length} threads
-              </div>
+          <div className="space-y-2">
+            <div className="text-xs text-slate-500">Project</div>
+            <Select value={context} onValueChange={setContext}>
+              <SelectTrigger className="h-11 border-slate-200 bg-slate-50">
+                <SelectValue placeholder="All Projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Projects</SelectItem>
+                {contextOptions.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="space-y-5">
-                {filteredItems.map((item) => {
-                  const thread = threadMap.get(item.threadId);
-                  const projectLabel = `${item.contextTitle} • ${item.contextSubtitle}`;
-
-                  return (
-                    <Link key={item.threadId} href={item.href} className="block">
-                      <CommentCard
-                        commenterName={thread?.preview.authorName ?? "Citizen"}
-                        barangayName={thread?.preview.authorScopeLabel ?? null}
-                        createdAt={item.updatedAt}
-                        projectLabel={projectLabel}
-                        comment={item.snippet}
-                        status={item.status}
-                        showActions={false}
-                      />
-                    </Link>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          <div className="space-y-2">
+            <div className="text-xs text-slate-500">Status</div>
+            <Select
+              value={status}
+              onValueChange={(value) =>
+                setStatus(value as "all" | "no_response" | "responded")
+              }
+            >
+              <SelectTrigger className="h-11 border-slate-200 bg-slate-50">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="no_response">No response</SelectItem>
+                <SelectItem value="responded">Responded</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        <div className="mt-4 space-y-2">
+          <div className="text-xs text-slate-500">Search</div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by commenter name, comment, or project..."
+              className="h-11 border-slate-200 bg-slate-50 pl-9"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        {loading ? (
+          <div className="text-sm text-slate-500">Loading inbox...</div>
+        ) : error ? (
+          <div className="text-sm text-rose-600">{error}</div>
+        ) : (
+          <>
+            <div className="text-sm text-slate-500">Showing Comments</div>
+
+            <div className="space-y-5">
+              {filteredItems.map((item) => {
+                const thread = threadMap.get(item.threadId);
+                const projectLabel = `${item.contextTitle} - ${item.contextSubtitle}`;
+
+                return (
+                  <Link key={item.threadId} href={item.href} className="block">
+                    <CommentCard
+                      commenterName={thread?.preview.authorName ?? "Citizen"}
+                      barangayName={thread?.preview.authorScopeLabel ?? null}
+                      createdAt={item.updatedAt}
+                      projectLabel={projectLabel}
+                      comment={item.snippet}
+                      status={item.status}
+                      showActions={false}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

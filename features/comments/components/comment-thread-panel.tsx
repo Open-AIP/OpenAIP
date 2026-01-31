@@ -23,6 +23,7 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
   const [reply, setReply] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
+  const [showReply, setShowReply] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -143,7 +144,11 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
                         <time dateTime={new Date(message.createdAt).toISOString()}>
                           {formatCommentDate(message.createdAt)}
                         </time>
-                        <button type="button" className="font-semibold text-slate-700">
+                        <button
+                          type="button"
+                          className="font-semibold text-slate-700"
+                          onClick={() => setShowReply(true)}
+                        >
                           Reply
                         </button>
                       </div>
@@ -155,25 +160,40 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
           </div>
 
           <div className="mt-6 space-y-3">
-            <label className="text-xs font-semibold text-slate-600">
-              Reply
-            </label>
-            <Textarea
-              value={reply}
-              onChange={(event) => setReply(event.target.value)}
-              placeholder="Write your response here..."
-              className="min-h-[120px] border-slate-200 bg-white"
-            />
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={handleReply}
-                disabled={submitting || !reply.trim()}
-                className="rounded-xl"
-              >
-                {submitting ? "Sending..." : "Send reply"}
-              </Button>
-            </div>
+            {showReply ? (
+              <>
+                <label className="text-xs font-semibold text-slate-600">
+                  Reply
+                </label>
+                <Textarea
+                  value={reply}
+                  onChange={(event) => setReply(event.target.value)}
+                  placeholder="Write your response here..."
+                  className="min-h-[120px] border-slate-200 bg-white"
+                />
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowReply(false);
+                      setReply("");
+                    }}
+                    className="rounded-xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleReply}
+                    disabled={submitting || !reply.trim()}
+                    className="rounded-xl"
+                  >
+                    {submitting ? "Sending..." : "Send reply"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
           </div>
         </>
       )}

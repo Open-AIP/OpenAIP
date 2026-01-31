@@ -106,11 +106,17 @@ export default function InfrastructureProjectDetailPageView({
             });
           }}
         >
-          <TabsList className="h-10 bg-slate-100 p-1 rounded-full">
-            <TabsTrigger value="updates" className="h-8 px-4 rounded-full">
+          <TabsList className="h-10 gap-2 bg-transparent p-0">
+            <TabsTrigger
+              value="updates"
+              className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+            >
               Updates Timeline
             </TabsTrigger>
-            <TabsTrigger value="comments" className="h-8 px-4 rounded-full">
+            <TabsTrigger
+              value="comments"
+              className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+            >
               Comments
             </TabsTrigger>
           </TabsList>

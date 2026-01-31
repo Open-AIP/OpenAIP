@@ -13,11 +13,13 @@ export function AipDetailsTableView({
   year,
   repo,
   aipStatus,
+  focusedRowId,
 }: {
   aipId: string;
   year: number;
   repo: AipProjectRepo;
   aipStatus: AipStatus;
+  focusedRowId?: string;
 }) {
   const [rows, setRows] = React.useState<AipProjectRow[]>([]);
   const [selected, setSelected] = React.useState<AipProjectRow | null>(null);
@@ -89,6 +91,7 @@ export function AipDetailsTableView({
           setOpen(true);
         }}
         canComment={canComment}
+        focusedRowId={focusedRowId}
       />
 
       <ProjectReviewModal

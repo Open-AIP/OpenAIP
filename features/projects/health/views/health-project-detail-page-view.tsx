@@ -11,12 +11,15 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { HealthProject, ProjectUpdate } from "@/types";
 import ProjectInformationCard from "../components/project-information-card";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 import { ProjectUpdatesSection } from "../../shared/update-view";
+import { CommentThreadPanel } from "@/features/comments";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
  * HealthProjectDetailPageView Component
@@ -44,6 +47,13 @@ export default function HealthProjectDetailPageView({
   project: HealthProject;
   scope?: "city" | "barangay";
 }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab = searchParams.get("tab");
+  const threadId = searchParams.get("thread");
+  const activeTab = tab === "comments" ? "comments" : "updates";
+
   const breadcrumb = [
     { label: "Health Project", href: `/${scope}/projects/health` },
     { label: "Detail & Updates", href: "#" },
@@ -78,7 +88,40 @@ export default function HealthProjectDetailPageView({
       <ProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
 
       {/* ✅ Shared updates UI (timeline + form) */}
-      <ProjectUpdatesSection initialUpdates={initialUpdates} />
+      <div className="flex items-center gap-3">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            const params = new URLSearchParams(searchParams.toString());
+            if (value === "comments") {
+              params.set("tab", "comments");
+            } else {
+              params.delete("tab");
+              params.delete("thread");
+            }
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname, {
+              scroll: false,
+            });
+          }}
+        >
+          <TabsList className="h-10 bg-slate-100 p-1 rounded-full">
+            <TabsTrigger value="updates" className="h-8 px-4 rounded-full">
+              Updates Timeline
+            </TabsTrigger>
+            <TabsTrigger value="comments" className="h-8 px-4 rounded-full">
+              Comments
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {activeTab === "updates" ? (
+        <ProjectUpdatesSection initialUpdates={initialUpdates} />
+      ) : threadId ? (
+        <CommentThreadPanel threadId={threadId} />
+      ) : null}
+
     </div>
   );
 }

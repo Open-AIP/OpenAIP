@@ -23,14 +23,24 @@ export function AipDetailsTableCard({
   rows,
   onRowClick,
   canComment = true,
+  focusedRowId,
 }: {
   year: number;
   rows: AipProjectRow[];
   onRowClick: (row: AipProjectRow) => void;
   canComment?: boolean;
+  focusedRowId?: string;
 }) {
   const [activeSector, setActiveSector] = React.useState<(typeof SECTOR_TABS)[number]>("General Sector");
   const [query, setQuery] = React.useState("");
+
+  React.useEffect(() => {
+    if (!focusedRowId) return;
+    const match = rows.find((row) => row.id === focusedRowId);
+    if (match && match.sector !== activeSector) {
+      setActiveSector(match.sector);
+    }
+  }, [focusedRowId, rows, activeSector]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -111,7 +121,11 @@ export function AipDetailsTableCard({
                 return (
                   <TableRow
                     key={r.id}
-                    className={`cursor-pointer ${rowClass}`}
+                    className={`cursor-pointer ${rowClass} ${
+                      focusedRowId === r.id
+                        ? "ring-2 ring-amber-400 ring-inset"
+                        : ""
+                    }`}
                     onClick={() => onRowClick(r)}
                   >
                     <TableCell className="text-xs text-slate-700">{r.projectRefCode}</TableCell>

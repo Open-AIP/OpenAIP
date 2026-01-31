@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import { canEditAip } from "../utils";
 import { AipDetailsTableView } from "./aip-details-table";
 import { createMockAipProjectRepo } from "../services/aip-project-repo.mock";
 import { Send } from "lucide-react";
+import { CommentAipThreadList, CommentThreadPanel } from "@/features/comments";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const projectRepo = createMockAipProjectRepo();
 
@@ -37,6 +39,13 @@ export default function AipDetailView({
 }) {
   const editable = canEditAip(aip.status);
   const showFeedback = aip.status === "for_revision";
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const focusedRowId = searchParams.get("focus") ?? undefined;
+  const threadId = searchParams.get("thread");
+  const tab = searchParams.get("tab");
+  const activeTab = tab === "comments" ? "comments" : "summary";
 
   const breadcrumb = [
     { label: "AIP Management", href: `/${scope}/aips` },
@@ -62,11 +71,58 @@ export default function AipDetailView({
 
       <AipPdfContainer aip={aip} />
 
-      <AipDetailsSummary aip={aip} scope={scope} />
+      <div className="flex items-center gap-3">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            const params = new URLSearchParams(searchParams.toString());
+            if (value === "comments") {
+              params.set("tab", "comments");
+            } else {
+              params.delete("tab");
+              params.delete("thread");
+            }
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname, {
+              scroll: false,
+            });
+          }}
+        >
+          <TabsList className="h-10 bg-slate-100 p-1 rounded-full">
+            <TabsTrigger value="summary" className="h-8 px-4 rounded-full">
+              Summary
+            </TabsTrigger>
+            <TabsTrigger value="comments" className="h-8 px-4 rounded-full">
+              Comments
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-      <AipDetailsTableView aipId={aip.id} year={aip.year} repo={projectRepo} aipStatus={aip.status} />
+      {activeTab === "summary" ? (
+        <>
+          <AipDetailsSummary aip={aip} scope={scope} />
 
-      <AipUploaderInfo aip={aip} />
+          <AipDetailsTableView
+            aipId={aip.id}
+            year={aip.year}
+            repo={projectRepo}
+            aipStatus={aip.status}
+            focusedRowId={focusedRowId}
+          />
+
+          <AipUploaderInfo aip={aip} />
+        </>
+      ) : (
+        <div className="space-y-6">
+          <CommentAipThreadList
+            aipId={aip.id}
+            scope={scope}
+            activeThreadId={threadId}
+          />
+          {threadId ? <CommentThreadPanel threadId={threadId} /> : null}
+        </div>
+      )}
 
       {/* Bottom action */}
       <div className="flex justify-end gap-3">

@@ -21,6 +21,7 @@ export function CommentCard(props: CommentCardProps) {
     actionLabel,
     onAction,
     className,
+    showActions = true,
   } = props;
 
   const dateText = formatCommentDate(createdAt);
@@ -123,7 +124,7 @@ export function CommentCard(props: CommentCardProps) {
             </div>
           ) : null}
 
-          {(actionLabel && onAction) || status === "no_response" ? (
+          {showActions && ((actionLabel && onAction) || status === "no_response") ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {actionLabel && onAction ? (
                 <Button

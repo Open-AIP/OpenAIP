@@ -1,10 +1,11 @@
 import type { AipProjectRow } from "../types";
+import { AIP_IDS, AIP_ITEM_IDS } from "@/features/shared/mock/id-contract";
 
 export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
   // aip-2026-mamadid projects
   {
-    id: "aiprow-001",
-    aipId: "aip-2026-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2026_001,
+    aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "GS-2026-001",
     kind: "infrastructure",
     sector: "General Sector",
@@ -18,8 +19,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     ],
   },
   {
-    id: "aiprow-002",
-    aipId: "aip-2026-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2026_002,
+    aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "GS-2026-002",
     kind: "infrastructure",
     sector: "General Sector",
@@ -29,8 +30,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     officialComment: "Budget allocation confirmed. Construction will follow standard barangay specifications.",
   },
   {
-    id: "aiprow-003",
-    aipId: "aip-2026-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2026_003,
+    aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "SS-2026-001",
     kind: "health",
     sector: "Social Sector",
@@ -40,8 +41,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     officialComment: "Approved. Budget includes vaccine procurement, storage, and medical personnel costs.",
   },
   {
-    id: "aiprow-004",
-    aipId: "aip-2026-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2026_004,
+    aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "ES-2026-001",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -50,8 +51,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-005",
-    aipId: "aip-2026-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2026_005,
+    aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "OS-2026-001",
     kind: "infrastructure",
     sector: "Other Services",
@@ -60,8 +61,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-006",
-    aipId: "aip-2026-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2026_006,
+    aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "GS-2026-003",
     kind: "infrastructure",
     sector: "General Sector",
@@ -72,8 +73,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
 
   // aip-2026-poblacion projects
   {
-    id: "aiprow-010",
-    aipId: "aip-2026-poblacion",
+    id: AIP_ITEM_IDS.poblacion_2026_010,
+    aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "GS-2026-010",
     kind: "infrastructure",
     sector: "General Sector",
@@ -82,8 +83,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-011",
-    aipId: "aip-2026-poblacion",
+    id: AIP_ITEM_IDS.poblacion_2026_011,
+    aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "SS-2026-010",
     kind: "health",
     sector: "Social Sector",
@@ -92,8 +93,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-012",
-    aipId: "aip-2026-poblacion",
+    id: AIP_ITEM_IDS.poblacion_2026_012,
+    aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "SS-2026-011",
     kind: "health",
     sector: "Social Sector",
@@ -102,8 +103,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-013",
-    aipId: "aip-2026-poblacion",
+    id: AIP_ITEM_IDS.poblacion_2026_013,
+    aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "SS-2026-012",
     kind: "health",
     sector: "Social Sector",
@@ -112,8 +113,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-014",
-    aipId: "aip-2026-poblacion",
+    id: AIP_ITEM_IDS.poblacion_2026_014,
+    aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "OS-2026-010",
     kind: "infrastructure",
     sector: "Other Services",
@@ -124,8 +125,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
 
   // aip-2025-mamadid projects
   {
-    id: "aiprow-020",
-    aipId: "aip-2025-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2025_020,
+    aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "GS-2025-001",
     kind: "infrastructure",
     sector: "General Sector",
@@ -134,8 +135,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-021",
-    aipId: "aip-2025-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2025_021,
+    aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "ES-2025-001",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -144,8 +145,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-022",
-    aipId: "aip-2025-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2025_022,
+    aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "OS-2025-001",
     kind: "infrastructure",
     sector: "Other Services",
@@ -154,8 +155,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-023",
-    aipId: "aip-2025-mamadid",
+    id: AIP_ITEM_IDS.mamadid_2025_023,
+    aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "GS-2025-002",
     kind: "infrastructure",
     sector: "General Sector",
@@ -166,8 +167,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
 
   // aip-2026-city projects
   {
-    id: "aiprow-030",
-    aipId: "aip-2026-city",
+    id: AIP_ITEM_IDS.city_2026_030,
+    aipId: AIP_IDS.city_2026,
     projectRefCode: "GS-2026-C001",
     kind: "infrastructure",
     sector: "General Sector",
@@ -181,8 +182,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     ],
   },
   {
-    id: "aiprow-031",
-    aipId: "aip-2026-city",
+    id: AIP_ITEM_IDS.city_2026_031,
+    aipId: AIP_IDS.city_2026,
     projectRefCode: "ES-2026-C001",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -191,8 +192,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-032",
-    aipId: "aip-2026-city",
+    id: AIP_ITEM_IDS.city_2026_032,
+    aipId: AIP_IDS.city_2026,
     projectRefCode: "SS-2026-C001",
     kind: "health",
     sector: "Social Sector",
@@ -201,8 +202,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-033",
-    aipId: "aip-2026-city",
+    id: AIP_ITEM_IDS.city_2026_033,
+    aipId: AIP_IDS.city_2026,
     projectRefCode: "SS-2026-C002",
     kind: "infrastructure",
     sector: "Social Sector",
@@ -211,8 +212,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-034",
-    aipId: "aip-2026-city",
+    id: AIP_ITEM_IDS.city_2026_034,
+    aipId: AIP_IDS.city_2026,
     projectRefCode: "ES-2026-C002",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -221,8 +222,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-035",
-    aipId: "aip-2026-city",
+    id: AIP_ITEM_IDS.city_2026_035,
+    aipId: AIP_IDS.city_2026,
     projectRefCode: "OS-2026-C001",
     kind: "infrastructure",
     sector: "Other Services",
@@ -238,8 +239,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
 
   // aip-2025-city projects
   {
-    id: "aiprow-040",
-    aipId: "aip-2025-city",
+    id: AIP_ITEM_IDS.city_2025_040,
+    aipId: AIP_IDS.city_2025,
     projectRefCode: "GS-2025-C001",
     kind: "infrastructure",
     sector: "General Sector",
@@ -248,8 +249,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-041",
-    aipId: "aip-2025-city",
+    id: AIP_ITEM_IDS.city_2025_041,
+    aipId: AIP_IDS.city_2025,
     projectRefCode: "GS-2025-C002",
     kind: "infrastructure",
     sector: "General Sector",
@@ -258,8 +259,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-042",
-    aipId: "aip-2025-city",
+    id: AIP_ITEM_IDS.city_2025_042,
+    aipId: AIP_IDS.city_2025,
     projectRefCode: "OS-2025-C001",
     kind: "infrastructure",
     sector: "Other Services",
@@ -268,8 +269,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-043",
-    aipId: "aip-2025-city",
+    id: AIP_ITEM_IDS.city_2025_043,
+    aipId: AIP_IDS.city_2025,
     projectRefCode: "SS-2025-C001",
     kind: "infrastructure",
     sector: "Social Sector",
@@ -278,8 +279,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
   },
   {
-    id: "aiprow-044",
-    aipId: "aip-2025-city",
+    id: AIP_ITEM_IDS.city_2025_044,
+    aipId: AIP_IDS.city_2025,
     projectRefCode: "OS-2025-C002",
     kind: "infrastructure",
     sector: "Other Services",
@@ -290,8 +291,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
 
   // aip-2026-santamaria projects
   {
-    id: "aiprow-050",
-    aipId: "aip-2026-santamaria",
+    id: AIP_ITEM_IDS.santamaria_2026_050,
+    aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "GS-2026-SM001",
     kind: "infrastructure",
     sector: "General Sector",
@@ -300,8 +301,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-051",
-    aipId: "aip-2026-santamaria",
+    id: AIP_ITEM_IDS.santamaria_2026_051,
+    aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "ES-2026-SM001",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -310,8 +311,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-052",
-    aipId: "aip-2026-santamaria",
+    id: AIP_ITEM_IDS.santamaria_2026_052,
+    aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "ES-2026-SM002",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -320,8 +321,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-053",
-    aipId: "aip-2026-santamaria",
+    id: AIP_ITEM_IDS.santamaria_2026_053,
+    aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "ES-2026-SM003",
     kind: "infrastructure",
     sector: "Economic Sector",
@@ -330,8 +331,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-054",
-    aipId: "aip-2026-santamaria",
+    id: AIP_ITEM_IDS.santamaria_2026_054,
+    aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "OS-2026-SM001",
     kind: "infrastructure",
     sector: "Other Services",
@@ -342,8 +343,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
 
   // aip-2026-sanisidro projects
   {
-    id: "aiprow-060",
-    aipId: "aip-2026-sanisidro",
+    id: AIP_ITEM_IDS.sanisidro_2026_060,
+    aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "GS-2026-SI001",
     kind: "health",
     sector: "General Sector",
@@ -357,8 +358,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     ],
   },
   {
-    id: "aiprow-061",
-    aipId: "aip-2026-sanisidro",
+    id: AIP_ITEM_IDS.sanisidro_2026_061,
+    aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "OS-2026-SI001",
     kind: "infrastructure",
     sector: "Other Services",
@@ -367,8 +368,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-062",
-    aipId: "aip-2026-sanisidro",
+    id: AIP_ITEM_IDS.sanisidro_2026_062,
+    aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "OS-2026-SI002",
     kind: "infrastructure",
     sector: "Other Services",
@@ -377,8 +378,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
   {
-    id: "aiprow-063",
-    aipId: "aip-2026-sanisidro",
+    id: AIP_ITEM_IDS.sanisidro_2026_063,
+    aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "SS-2026-SI001",
     kind: "health",
     sector: "Social Sector",
@@ -392,8 +393,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     ],
   },
   {
-    id: "aiprow-064",
-    aipId: "aip-2026-sanisidro",
+    id: AIP_ITEM_IDS.sanisidro_2026_064,
+    aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "SS-2026-SI002",
     kind: "health",
     sector: "Social Sector",

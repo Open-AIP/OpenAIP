@@ -8,10 +8,12 @@ import type {
 } from "./comment-repo";
 import type { CommentMessage, CommentThread } from "../types";
 import { COMMENT_MESSAGES_MOCK, COMMENT_THREADS_MOCK } from "../mock";
+import { validateMockIds } from "@/features/shared/mock/validate-mock-ids";
 
 let threadStore: CommentThread[] = [...COMMENT_THREADS_MOCK];
 let messageStore: CommentMessage[] = [...COMMENT_MESSAGES_MOCK];
 let messageSequence = messageStore.length + 1;
+let mockIdsValidated = false;
 
 function sortByUpdatedAtDesc(a: CommentThread, b: CommentThread) {
   return (
@@ -25,6 +27,11 @@ function sortByCreatedAtAsc(a: CommentMessage, b: CommentMessage) {
 }
 
 export function createMockCommentRepo(): CommentRepo {
+  if (!mockIdsValidated && process.env.NODE_ENV !== "production") {
+    validateMockIds();
+    mockIdsValidated = true;
+  }
+
   return {
     async listThreadsForInbox(
       _params: ListThreadsForInboxParams

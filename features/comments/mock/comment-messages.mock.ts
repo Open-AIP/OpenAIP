@@ -1,9 +1,10 @@
 import type { CommentMessage } from "../types";
+import { COMMENT_THREAD_IDS } from "@/features/shared/mock/id-contract";
 
 export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
   {
     id: "cmsg_001",
-    threadId: "thread_001",
+    threadId: COMMENT_THREAD_IDS.thread_001,
     authorRole: "citizen",
     authorId: "citizen_rafael",
     text: "Please place warning signs near the school entrance.",
@@ -11,7 +12,7 @@ export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
   },
   {
     id: "cmsg_002",
-    threadId: "thread_002",
+    threadId: COMMENT_THREAD_IDS.thread_002,
     authorRole: "citizen",
     authorId: "citizen_liza",
     text: "Please post the weekly progress schedule for transparency.",
@@ -19,7 +20,7 @@ export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
   },
   {
     id: "cmsg_003",
-    threadId: "thread_002",
+    threadId: COMMENT_THREAD_IDS.thread_002,
     authorRole: "barangay_official",
     authorId: "official_001",
     text: "We will publish a weekly update every Friday on the barangay page.",
@@ -27,7 +28,7 @@ export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
   },
   {
     id: "cmsg_004",
-    threadId: "thread_003",
+    threadId: COMMENT_THREAD_IDS.thread_003,
     authorRole: "citizen",
     authorId: "citizen_ana",
     text: "Can you share the material breakdown for this road project?",
@@ -35,7 +36,7 @@ export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
   },
   {
     id: "cmsg_005",
-    threadId: "thread_004",
+    threadId: COMMENT_THREAD_IDS.thread_004,
     authorRole: "citizen",
     authorId: "citizen_joanna",
     text: "Will the procurement include training for staff on new equipment?",
@@ -43,7 +44,7 @@ export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
   },
   {
     id: "cmsg_006",
-    threadId: "thread_004",
+    threadId: COMMENT_THREAD_IDS.thread_004,
     authorRole: "city_official",
     authorId: "official_002",
     text: "Yes, the procurement package includes training and onboarding sessions.",

@@ -1,9 +1,10 @@
 import type { ProjectMaster } from "../types";
+import { PROJECT_IDS } from "@/features/shared/mock/id-contract";
 
 export const PROJECTS_TABLE: ProjectMaster[] = [
   // === HEALTH PROJECTS (8) ===
   {
-    projectRefCode: "PROJ-H-2026-001",
+    projectRefCode: PROJECT_IDS.health_vaccination_2026_001,
     year: 2026,
     kind: "health",
     title: "Community Vaccination Program",
@@ -11,7 +12,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2026-002",
+    projectRefCode: PROJECT_IDS.health_mobile_clinic_2026_002,
     year: 2026,
     kind: "health",
     title: "Mobile Health Clinic Services",
@@ -19,7 +20,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2026-003",
+    projectRefCode: PROJECT_IDS.health_nutrition_2026_003,
     year: 2026,
     kind: "health",
     title: "Nutrition Education and Feeding Program",
@@ -27,7 +28,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2025-001",
+    projectRefCode: PROJECT_IDS.health_maternal_2025_001,
     year: 2025,
     kind: "health",
     title: "Maternal and Child Health Enhancement",
@@ -35,7 +36,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2025-002",
+    projectRefCode: PROJECT_IDS.health_dengue_2025_002,
     year: 2025,
     kind: "health",
     title: "Dengue Prevention and Control Campaign",
@@ -43,7 +44,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2026-004",
+    projectRefCode: PROJECT_IDS.health_senior_wellness_2026_004,
     year: 2026,
     kind: "health",
     title: "Senior Citizens Wellness Program with Extended Community Outreach and Health Monitoring Services",
@@ -51,7 +52,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2026-005",
+    projectRefCode: PROJECT_IDS.health_mental_2026_005,
     year: 2026,
     kind: "health",
     title: "Mental Health Awareness Campaign",
@@ -59,7 +60,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-H-2026-006",
+    projectRefCode: PROJECT_IDS.health_covid_booster_2026_006,
     year: 2026,
     kind: "health",
     title: "COVID-19 Booster Vaccination Drive",
@@ -69,7 +70,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
 
   // === INFRASTRUCTURE PROJECTS (12) ===
   {
-    projectRefCode: "PROJ-I-2026-001",
+    projectRefCode: PROJECT_IDS.infra_road_rehab_2026_001,
     year: 2026,
     kind: "infrastructure",
     title: "Road Concreting and Rehabilitation (2.5km)",
@@ -77,7 +78,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/mock/infra/road1.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-002",
+    projectRefCode: PROJECT_IDS.infra_multi_purpose_hall_2026_002,
     year: 2026,
     kind: "infrastructure",
     title: "Barangay Multi-Purpose Hall Construction",
@@ -85,7 +86,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/mock/infra/hall1.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-003",
+    projectRefCode: PROJECT_IDS.infra_drainage_2026_003,
     year: 2026,
     kind: "infrastructure",
     title: "Drainage System Improvement Project",
@@ -93,7 +94,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2025-001",
+    projectRefCode: PROJECT_IDS.infra_basketball_2025_001,
     year: 2025,
     kind: "infrastructure",
     title: "Basketball Court Renovation",
@@ -101,7 +102,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/mock/infra/court1.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2025-002",
+    projectRefCode: PROJECT_IDS.infra_street_lighting_2025_002,
     year: 2025,
     kind: "infrastructure",
     title: "Street Lighting Installation Phase 1",
@@ -109,7 +110,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-004",
+    projectRefCode: PROJECT_IDS.infra_bridge_2026_004,
     year: 2026,
     kind: "infrastructure",
     title: "Bridge Construction over San Roque Creek",
@@ -117,7 +118,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-005",
+    projectRefCode: PROJECT_IDS.infra_flood_control_2026_005,
     year: 2026,
     kind: "infrastructure",
     title: "Flood Control and Retaining Wall Project",
@@ -125,7 +126,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/mock/infra/wall1.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-006",
+    projectRefCode: PROJECT_IDS.infra_water_upgrade_2026_006,
     year: 2026,
     kind: "infrastructure",
     title: "Water Supply System Upgrade",
@@ -133,7 +134,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-007",
+    projectRefCode: PROJECT_IDS.infra_public_market_2026_007,
     year: 2026,
     kind: "infrastructure",
     title: "Public Market Rehabilitation and Modernization",
@@ -141,7 +142,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2024-001",
+    projectRefCode: PROJECT_IDS.infra_pedestrian_path_2024_001,
     year: 2024,
     kind: "infrastructure",
     title: "Pedestrian Pathway Construction (1.2km)",
@@ -149,7 +150,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-008",
+    projectRefCode: PROJECT_IDS.infra_solar_lights_2026_008,
     year: 2026,
     kind: "infrastructure",
     title: "Solar Street Lights Installation Phase 2",
@@ -157,7 +158,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
   {
-    projectRefCode: "PROJ-I-2026-009",
+    projectRefCode: PROJECT_IDS.infra_health_center_2026_009,
     year: 2026,
     kind: "infrastructure",
     title: "Barangay Health Center Expansion",

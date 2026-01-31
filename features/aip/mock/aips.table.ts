@@ -1,8 +1,9 @@
 import type { AipHeader } from "../types";
+import { AIP_IDS } from "@/features/shared/mock/id-contract";
 
 export const AIPS_TABLE: AipHeader[] = [
   {
-    id: "aip-2026-mamadid",
+    id: AIP_IDS.barangay_mamadid_2026,
     scope: "barangay",
     barangayName: "Brgy. Mamadid",
     title: "Annual Investment Program 2026",
@@ -31,7 +32,7 @@ export const AIPS_TABLE: AipHeader[] = [
     feedback: "Please provide more detailed cost breakdown for the multi-purpose hall project.",
   },
   {
-    id: "aip-2026-poblacion",
+    id: AIP_IDS.barangay_poblacion_2026,
     scope: "barangay",
     barangayName: "Brgy. Poblacion",
     title: "Annual Investment Program 2026",
@@ -61,7 +62,7 @@ export const AIPS_TABLE: AipHeader[] = [
     },
   },
   {
-    id: "aip-2025-mamadid",
+    id: AIP_IDS.barangay_mamadid_2025,
     scope: "barangay",
     barangayName: "Brgy. Mamadid",
     title: "Annual Investment Program 2025",
@@ -89,7 +90,7 @@ export const AIPS_TABLE: AipHeader[] = [
     },
   },
   {
-    id: "aip-2026-city",
+    id: AIP_IDS.city_2026,
     scope: "city",
     title: "City-Wide Annual Investment Program 2026",
     description: "Comprehensive city development plan covering infrastructure, education, health, and economic sectors",
@@ -118,7 +119,7 @@ export const AIPS_TABLE: AipHeader[] = [
     },
   },
   {
-    id: "aip-2025-city",
+    id: AIP_IDS.city_2025,
     scope: "city",
     title: "City-Wide Annual Investment Program 2025",
     description: "Strategic development initiatives focused on infrastructure and social services",
@@ -146,7 +147,7 @@ export const AIPS_TABLE: AipHeader[] = [
     },
   },
   {
-    id: "aip-2026-santamaria",
+    id: AIP_IDS.barangay_santamaria_2026,
     scope: "barangay",
     barangayName: "Brgy. Santa Maria",
     title: "Annual Investment Program 2026",
@@ -174,7 +175,7 @@ export const AIPS_TABLE: AipHeader[] = [
     },
   },
   {
-    id: "aip-2026-sanisidro",
+    id: AIP_IDS.barangay_sanisidro_2026,
     scope: "barangay",
     barangayName: "Brgy. San Isidro",
     title: "Annual Investment Program 2026",

@@ -1,11 +1,12 @@
 import type { Comment } from "../types";
+import { PROJECT_IDS } from "@/features/shared/mock/id-contract";
 
 // No cross-feature data sourcing; this module is self-contained.
 export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_001",
     year: 2026,
-    project_id: "proj_cmt_road_2026",
+    project_id: PROJECT_IDS.infra_road_rehab_2026_001,
     project_title: "Road Concreting and Rehabilitation (2.5km)",
     commenter_name: "Rafael Santos",
     commenter_scope_label: "Brgy. San Isidro",
@@ -16,7 +17,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_002",
     year: 2026,
-    project_id: "proj_cmt_road_2026",
+    project_id: PROJECT_IDS.infra_road_rehab_2026_001,
     project_title: "Road Concreting and Rehabilitation (2.5km)",
     commenter_name: "Liza Mercado",
     commenter_scope_label: "Brgy. San Isidro",
@@ -32,7 +33,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_003",
     year: 2026,
-    project_id: "proj_cmt_road_2026",
+    project_id: PROJECT_IDS.infra_road_rehab_2026_001,
     project_title: "Road Concreting and Rehabilitation (2.5km)",
     commenter_name: "Ana Reyes",
     commenter_scope_label: "Brgy. San Isidro",
@@ -43,7 +44,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_004",
     year: 2026,
-    project_id: "proj_cmt_drain_2026",
+    project_id: PROJECT_IDS.infra_drainage_2026_003,
     project_title: "Drainage System Improvement Project",
     commenter_name: "Miguel Torres",
     commenter_scope_label: "Brgy. Mabini",
@@ -55,7 +56,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_005",
     year: 2026,
-    project_id: "proj_cmt_drain_2026",
+    project_id: PROJECT_IDS.infra_drainage_2026_003,
     project_title: "Drainage System Improvement Project",
     commenter_name: "Celia Navarro",
     commenter_scope_label: "Brgy. Mabini",
@@ -71,7 +72,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_006",
     year: 2026,
-    project_id: "proj_cmt_drain_2026",
+    project_id: PROJECT_IDS.infra_drainage_2026_003,
     project_title: "Drainage System Improvement Project",
     commenter_name: "Ana Reyes",
     commenter_scope_label: "Brgy. Mabini",
@@ -82,7 +83,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_007",
     year: 2025,
-    project_id: "proj_cmt_clinic_2025",
+    project_id: PROJECT_IDS.health_mobile_clinic_2026_002,
     project_title: "Mobile Health Clinic Services",
     commenter_name: "Joanna Lim",
     commenter_scope_label: "Brgy. Santa Rita",
@@ -98,7 +99,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_008",
     year: 2025,
-    project_id: "proj_cmt_clinic_2025",
+    project_id: PROJECT_IDS.health_mobile_clinic_2026_002,
     project_title: "Mobile Health Clinic Services",
     commenter_name: "Rosa Delgado",
     commenter_scope_label: "Brgy. Santa Rita",
@@ -109,7 +110,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_009",
     year: 2025,
-    project_id: "proj_cmt_clinic_2025",
+    project_id: PROJECT_IDS.health_mobile_clinic_2026_002,
     project_title: "Mobile Health Clinic Services",
     commenter_name: "Ana Reyes",
     commenter_scope_label: "Brgy. Santa Rita",
@@ -125,7 +126,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_010",
     year: 2025,
-    project_id: "proj_cmt_market_2025",
+    project_id: PROJECT_IDS.infra_public_market_2026_007,
     project_title: "Public Market Rehabilitation and Modernization",
     commenter_name: "Benito Cruz",
     commenter_scope_label: "Brgy. Poblacion",
@@ -136,7 +137,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_011",
     year: 2025,
-    project_id: "proj_cmt_market_2025",
+    project_id: PROJECT_IDS.infra_public_market_2026_007,
     project_title: "Public Market Rehabilitation and Modernization",
     commenter_name: "Elaine Soriano",
     commenter_scope_label: "Brgy. Poblacion",
@@ -147,7 +148,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_012",
     year: 2025,
-    project_id: "proj_cmt_market_2025",
+    project_id: PROJECT_IDS.infra_public_market_2026_007,
     project_title: "Public Market Rehabilitation and Modernization",
     commenter_name: "Marco Dizon",
     commenter_scope_label: "Brgy. Poblacion",
@@ -163,7 +164,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_013",
     year: 2026,
-    project_id: "proj_cmt_road_2026",
+    project_id: PROJECT_IDS.infra_road_rehab_2026_001,
     project_title: "Road Concreting and Rehabilitation (2.5km)",
     commenter_name: "Rafael Santos",
     commenter_scope_label: "Brgy. San Isidro",
@@ -174,7 +175,7 @@ export const COMMENTS_MOCK: Comment[] = [
   {
     id: "cmtc_014",
     year: 2026,
-    project_id: "proj_cmt_market_2025",
+    project_id: PROJECT_IDS.infra_public_market_2026_007,
     project_title: "Public Market Rehabilitation and Modernization",
     commenter_name: "Jenna Villa",
     commenter_scope_label: "Brgy. Poblacion",

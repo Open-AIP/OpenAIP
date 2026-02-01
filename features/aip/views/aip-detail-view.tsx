@@ -14,17 +14,15 @@ import { AipDetailsSummary } from "../components/aip-details-summary";
 import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { RemarksCard } from "../components/remarks-card";
 import { AipDetailsTableView } from "./aip-details-table";
-import { createMockAipProjectRepo } from "../services/aip-project-repo.mock";
+import type { AipProjectRepo } from "../data/aip-project-repo";
 import { Send } from "lucide-react";
 import { CommentThreadPanel } from "@/features/comments";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const projectRepo = createMockAipProjectRepo();
-
-
 export default function AipDetailView({
   aip,
   scope = "barangay",
+  projectRepo,
   onEdit,
   onResubmit,
   onCancel,
@@ -33,6 +31,7 @@ export default function AipDetailView({
 }: {
   aip: AipHeader;
   scope?: "city" | "barangay";
+  projectRepo: AipProjectRepo;
   onEdit?: () => void;
   onResubmit?: () => void;
   onCancel?: () => void;

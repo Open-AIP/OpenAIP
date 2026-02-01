@@ -1,4 +1,4 @@
-import type { AipProjectRow } from "@/feature/aips/types";
+import type { AipProjectRow } from "@/features/aip/types";
 
 export type SubmitReviewInput = {
   projectId: string;

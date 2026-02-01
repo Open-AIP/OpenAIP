@@ -23,7 +23,6 @@ import {
 
 import { Plus } from "lucide-react";
 import type { AipHeader } from "../types";
-import { AIPS_TABLE } from "../mock/aips.table";
 import { getAipYears } from "../utils";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
@@ -33,7 +32,7 @@ import UploadAipDialog from "../dialogs/upload-aip-dialog";
  */
 type Props = {
   /** Array of AIP records to display */
-  records?: AipHeader[];
+  records: AipHeader[];
   /** Administrative scope for routing */
   scope?: "city" | "barangay";
 };
@@ -56,12 +55,7 @@ export default function AipManagementView({
   scope = "barangay"
 }: Props) {
   const router = useRouter();
-  const mockRecords = useMemo(() => {
-    return AIPS_TABLE
-      .filter((aip) => aip.scope === scope);
-  }, [scope]);
-
-  const activeRecords = records ?? mockRecords;
+  const activeRecords = records;
 
   const years = useMemo(() => getAipYears(activeRecords), [activeRecords]);
 

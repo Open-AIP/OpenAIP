@@ -5,6 +5,7 @@ import * as React from "react";
 import { AipProjectRepo } from "../data/aip-project-repo";
 import { AipProjectRow, AipStatus } from "../types";
 import { AipDetailsTableCard } from "../components/aip-details-table-card";
+import { BudgetAllocationTable, buildBudgetAllocation } from "../components/budget-allocation-table";
 import { ProjectReviewModal } from "../dialogs/project-review-modal";
 
 
@@ -74,6 +75,8 @@ export function AipDetailsTableView({
     );
   }
 
+  const allocation = React.useMemo(() => buildBudgetAllocation(rows), [rows]);
+
   if (loading) {
     return <div className="text-sm text-slate-500">Loading projects…</div>;
   }
@@ -83,6 +86,12 @@ export function AipDetailsTableView({
 
   return (
     <>
+      <BudgetAllocationTable
+        rows={allocation.rows}
+        totalBudget={allocation.totalBudget}
+        totalProjects={allocation.totalProjects}
+      />
+
       <AipDetailsTableCard
         year={year}
         rows={rows}

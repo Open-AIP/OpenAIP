@@ -33,8 +33,11 @@ export function canEditAip(status: AipStatus) {
  * @returns User-friendly message explaining the edit restriction
  */
 export function editLockedMessage(status: AipStatus) {
-  if (status === "under_review" || status === "pending_review") {
+  if (status === "pending_review") {
     return "Editing is not allowed while the AIP is pending review. Please wait for the review process to complete.";
+  }
+  if (status === "under_review") {
+    return "Editing is not allowed while the AIP is under review. Please wait for the review process to complete.";
   }
   if (status === "published") {
     return "Editing is not allowed for a published AIP.";

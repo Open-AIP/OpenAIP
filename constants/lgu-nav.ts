@@ -23,7 +23,7 @@ export const BARANGAY_NAV: NavItem[] = [
     ],
   },
 
-  { label: "Comments", href: "/barangay/comments", icon: MessageSquare },
+  { label: "Feedback", href: "/barangay/comments", icon: MessageSquare },
   { label: "Chatbot", href: "/barangay/chatbot", icon: Bot },
   { label: "Audit & Accountability", href: "/barangay/audit", icon: Shield },
 ];

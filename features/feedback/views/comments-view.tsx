@@ -56,7 +56,7 @@ export default function CommentsView() {
       } catch (err) {
         if (!isActive) return;
         setError(
-          err instanceof Error ? err.message : "Failed to load comments."
+          err instanceof Error ? err.message : "Failed to load feedback."
         );
       } finally {
         if (isActive) setLoading(false);
@@ -121,9 +121,9 @@ export default function CommentsView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Comments</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Feedback</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Review citizen feedback and respond to comments related to published
+          Review citizen feedback and respond to feedback related to published
           AIPs and projects.
         </p>
       </div>
@@ -205,7 +205,7 @@ export default function CommentsView() {
           <div className="text-sm text-rose-600">{error}</div>
         ) : (
           <>
-            <div className="text-sm text-slate-500">Showing Comments</div>
+            <div className="text-sm text-slate-500">Showing Feedback</div>
 
             <div className="space-y-5">
               {filteredItems.map((item) => {

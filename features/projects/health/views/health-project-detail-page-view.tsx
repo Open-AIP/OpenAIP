@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
 import { ProjectUpdatesSection } from "../../shared/update-view";
-import { CommentThreadPanel } from "@/features/comments";
+import { CommentThreadPanel } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
@@ -116,7 +116,7 @@ export default function HealthProjectDetailPageView({
               value="comments"
               className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
             >
-              Comments
+              Feedback
             </TabsTrigger>
           </TabsList>
         </Tabs>

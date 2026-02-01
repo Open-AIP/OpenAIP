@@ -1,8 +1,8 @@
 import { PROJECTS_TABLE } from "@/features/projects/mock/projects-table";
 import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
 import { AIP_PROJECT_ROWS_TABLE } from "@/features/aip/mock/aip-project-rows.table";
-import { COMMENT_THREADS_MOCK } from "@/features/comments/mock/comment-threads.mock";
-import { COMMENT_MESSAGES_MOCK } from "@/features/comments/mock/comment-messages.mock";
+import { COMMENT_THREADS_MOCK } from "@/features/feedback/mock/comment-threads.mock";
+import { COMMENT_MESSAGES_MOCK } from "@/features/feedback/mock/comment-messages.mock";
 
 type ValidationIssue = {
   message: string;

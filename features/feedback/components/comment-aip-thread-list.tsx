@@ -53,7 +53,7 @@ export function CommentAipThreadList({
       } catch (err) {
         if (!active) return;
         setError(
-          err instanceof Error ? err.message : "Failed to load comments."
+          err instanceof Error ? err.message : "Failed to load feedback."
         );
       } finally {
         if (active) setLoading(false);
@@ -73,7 +73,7 @@ export function CommentAipThreadList({
   );
 
   if (loading) {
-    return <div className="text-sm text-slate-500">Loading comments…</div>;
+    return <div className="text-sm text-slate-500">Loading feedback…</div>;
   }
 
   if (error) {
@@ -83,7 +83,7 @@ export function CommentAipThreadList({
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
-        No comments for this AIP yet.
+        No feedback for this AIP yet.
       </div>
     );
   }

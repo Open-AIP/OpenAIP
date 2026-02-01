@@ -16,7 +16,7 @@ import { RemarksCard } from "../components/remarks-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import type { AipProjectRepo } from "../data/aip-project-repo";
 import { Send } from "lucide-react";
-import { CommentThreadPanel } from "@/features/comments";
+import { CommentThreadPanel } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AipDetailView({
@@ -102,7 +102,7 @@ export default function AipDetailView({
                   value="comments"
                   className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
                 >
-                  Comments
+                  Feedback
                 </TabsTrigger>
               </TabsList>
             </Tabs>

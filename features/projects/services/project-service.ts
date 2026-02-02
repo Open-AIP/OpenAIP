@@ -8,31 +8,32 @@
  * ============================================================================
  */
 
-import { createMockProjectsRepo } from "./project-repo-mock";
+import { getProjectsRepo } from "../data/projectsRepo";
 import type { HealthProject, InfrastructureProject } from "../types";
-
-const projectRepository = createMockProjectsRepo();
 
 export const projectService = {
   /**
    * Get all health projects
    */
   async getHealthProjects(): Promise<HealthProject[]> {
-    return projectRepository.listHealth();
+    const repo = getProjectsRepo();
+    return repo.listHealth();
   },
 
   /**
    * Get all infrastructure projects
    */
   async getInfrastructureProjects(): Promise<InfrastructureProject[]> {
-    return projectRepository.listInfrastructure();
+    const repo = getProjectsRepo();
+    return repo.listInfrastructure();
   },
 
   /**
    * Get a specific health project by ID (reference code)
    */
   async getHealthProjectById(projectRefCode: string): Promise<HealthProject | null> {
-    const project = await projectRepository.getByRefCode(projectRefCode);
+    const repo = getProjectsRepo();
+    const project = await repo.getByRefCode(projectRefCode);
     if (!project || project.kind !== "health") {
       return null;
     }
@@ -45,7 +46,8 @@ export const projectService = {
   async getInfrastructureProjectById(
     projectRefCode: string
   ): Promise<InfrastructureProject | null> {
-    const project = await projectRepository.getByRefCode(projectRefCode);
+    const repo = getProjectsRepo();
+    const project = await repo.getByRefCode(projectRefCode);
     if (!project || project.kind !== "infrastructure") {
       return null;
     }
@@ -56,16 +58,18 @@ export const projectService = {
    * Get a project bundle (master + details + updates) by reference code
    */
   async getProjectBundle(projectRefCode: string): Promise<HealthProject | InfrastructureProject | null> {
-    return projectRepository.getByRefCode(projectRefCode);
+    const repo = getProjectsRepo();
+    return repo.getByRefCode(projectRefCode);
   },
 
   /**
    * Search projects by title
    */
   async searchProjects(query: string): Promise<(HealthProject | InfrastructureProject)[]> {
+    const repo = getProjectsRepo();
     const allProjects = [
-      ...(await projectRepository.listHealth()),
-      ...(await projectRepository.listInfrastructure()),
+      ...(await repo.listHealth()),
+      ...(await repo.listInfrastructure()),
     ];
     
     const lowerQuery = query.toLowerCase();
@@ -80,9 +84,10 @@ export const projectService = {
   async getProjectsByStatus(
     status: "planning" | "ongoing" | "completed" | "on_hold"
   ): Promise<(HealthProject | InfrastructureProject)[]> {
+    const repo = getProjectsRepo();
     const allProjects = [
-      ...(await projectRepository.listHealth()),
-      ...(await projectRepository.listInfrastructure()),
+      ...(await repo.listHealth()),
+      ...(await repo.listInfrastructure()),
     ];
     
     return allProjects.filter((project) => project.status === status);
@@ -92,9 +97,10 @@ export const projectService = {
    * Get projects by year
    */
   async getProjectsByYear(year: number): Promise<(HealthProject | InfrastructureProject)[]> {
+    const repo = getProjectsRepo();
     const allProjects = [
-      ...(await projectRepository.listHealth()),
-      ...(await projectRepository.listInfrastructure()),
+      ...(await repo.listHealth()),
+      ...(await repo.listInfrastructure()),
     ];
     
     return allProjects.filter((project) => project.year === year);

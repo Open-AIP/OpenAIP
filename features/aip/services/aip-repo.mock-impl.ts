@@ -12,7 +12,8 @@ export function createMockAipRepoImpl({
 }: CreateMockAipRepoOptions = {}): AipRepo {
   return {
     async listVisibleAips(
-      { visibility = "my", scope }: { visibility?: "public" | "my"; scope?: LguScope } = {}
+      { visibility = "my", scope }: { visibility?: "public" | "my"; scope?: LguScope } = {},
+      _actor?: import("@/lib/domain/actor-context").ActorContext
     ) {
       const effectiveScope = scope ?? defaultScope;
       const filtered = AIPS_TABLE.filter((aip) => aip.scope === effectiveScope);
@@ -21,7 +22,10 @@ export function createMockAipRepoImpl({
       }
       return filtered;
     },
-    async getAipDetail(aipId: string) {
+    async getAipDetail(
+      aipId: string,
+      _actor?: import("@/lib/domain/actor-context").ActorContext
+    ) {
       const found = AIPS_TABLE.find((aip) => aip.id === aipId);
       if (found) return found;
 
@@ -34,7 +38,11 @@ export function createMockAipRepoImpl({
 
       return null;
     },
-    async updateAipStatus(aipId: string, next: AipStatus) {
+    async updateAipStatus(
+      aipId: string,
+      next: AipStatus,
+      _actor?: import("@/lib/domain/actor-context").ActorContext
+    ) {
       const index = AIPS_TABLE.findIndex((aip) => aip.id === aipId);
       if (index === -1) return;
       AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: next };

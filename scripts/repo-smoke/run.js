@@ -37,6 +37,7 @@ const { createMockFeedbackRepo } = require("@/features/feedback/data");
 const { createMockChatRepo } = require("@/features/chat/data");
 const { projectService } = require("@/features/projects/services/project-service");
 const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selector");
+const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 
 function assert(condition, message) {
   if (!condition) {
@@ -157,6 +158,48 @@ const tests = [
       } finally {
         process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
       }
+    },
+  },
+  {
+    name: "mapUserToActorContext barangay_official maps barangay scope",
+    async run() {
+      const user = {
+        userId: "user_001",
+        userRole: "barangay_official",
+        userLocale: { barangay_id: "uuid" },
+      };
+      const result = mapUserToActorContext(user);
+      assert(result?.scope.kind === "barangay", "Expected barangay scope");
+      assert(result?.scope.id === "uuid", "Expected barangay id to match");
+    },
+  },
+  {
+    name: "mapUserToActorContext admin maps none scope",
+    async run() {
+      const user = { userId: "admin_001", userRole: "admin" };
+      const result = mapUserToActorContext(user);
+      assert(result?.scope.kind === "none", "Expected none scope for admin");
+    },
+  },
+  {
+    name: "mapUserToActorContext city_official maps city scope",
+    async run() {
+      const user = {
+        userId: "user_002",
+        userRole: "city_official",
+        userLocale: { city_id: "city-123" },
+      };
+      const result = mapUserToActorContext(user);
+      assert(result?.scope.kind === "city", "Expected city scope");
+      assert(result?.scope.id === "city-123", "Expected city id to match");
+    },
+  },
+  {
+    name: "mapUserToActorContext missing required id returns null",
+    async run() {
+      const user = { userId: "user_003", userRole: "city_official" };
+      const result = mapUserToActorContext(user);
+      assert(result === null, "Expected null when required id is missing");
     },
   },
 ];

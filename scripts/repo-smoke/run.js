@@ -40,6 +40,10 @@ const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selec
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 const { createMockFeedbackRepo } = require("@/features/feedback/data/feedback.repo.mock");
 const { listComments } = require("@/features/feedback/services/comments.service");
+const {
+  inferKind,
+  mapProjectRowToUiModel,
+} = require("@/features/projects/data/mappers/project.mapper");
 
 function assert(condition, message) {
   if (!condition) {
@@ -257,6 +261,84 @@ const tests = [
           "Expected comments sorted newest to oldest"
         );
       }
+    },
+  },
+  {
+    name: "inferKind maps categories",
+    async run() {
+      assert(
+        inferKind({ category: "health" }) === "health",
+        "Expected health category"
+      );
+      assert(
+        inferKind({ category: "infrastructure" }) === "infrastructure",
+        "Expected infrastructure category"
+      );
+      assert(
+        inferKind({ category: "other" }) === "other",
+        "Expected other category"
+      );
+    },
+  },
+  {
+    name: "mapProjectRowToUiModel produces health kind",
+    async run() {
+      const project = mapProjectRowToUiModel(
+        {
+          id: "PROJ-H-1",
+          aip_id: null,
+          aip_ref_code: "PROJ-H-1",
+          program_project_description: "Test Health",
+          implementing_agency: "Health Office",
+          start_date: "2026-01-01",
+          completion_date: null,
+          expected_output: null,
+          source_of_funds: null,
+          personal_services: null,
+          maintenance_and_other_operating_expenses: null,
+          capital_outlay: null,
+          total: 123,
+          climate_change_adaptation: null,
+          climate_change_mitigation: null,
+          climate_change_adaptation_amount: null,
+          climate_change_mitigation_amount: null,
+          errors: null,
+          category: "health",
+          sector_code: null,
+          is_human_edited: null,
+          created_at: "2026-01-01",
+          updated_at: "2026-01-01",
+          created_by: null,
+          updated_by: null,
+        },
+        {
+          project_id: "PROJ-H-1",
+          program_name: "January",
+          description: null,
+          target_participants: "Residents",
+          total_target_participants: 100,
+          created_at: "2026-01-01",
+          updated_at: "2026-01-01",
+          created_by: null,
+          updated_by: null,
+        },
+        null
+      );
+
+      assert(project.kind === "health", "Expected health kind");
+    },
+  },
+  {
+    name: "ProjectsRepo.getById returns expected kind",
+    async run() {
+      const repo = getProjectsRepo();
+      const health = await repo.getById("PROJ-H-2026-001");
+      const infra = await repo.getById("PROJ-I-2026-001");
+      assert(health?.kind === "health", "Expected health kind for PROJ-H-2026-001");
+      assert(
+        infra?.kind === "infrastructure",
+        "Expected infrastructure kind for PROJ-I-2026-001"
+      );
     },
   },
 ];

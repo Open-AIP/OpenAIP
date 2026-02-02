@@ -38,6 +38,8 @@ const { createMockChatRepo } = require("@/features/chat/data");
 const { projectService } = require("@/features/projects/services/project-service");
 const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selector");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
+const { createMockFeedbackRepo } = require("@/features/feedback/data/feedback.repo.mock");
+const { listComments } = require("@/features/feedback/services/comments.service");
 
 function assert(condition, message) {
   if (!condition) {
@@ -200,6 +202,61 @@ const tests = [
       const user = { userId: "user_003", userRole: "city_official" };
       const result = mapUserToActorContext(user);
       assert(result === null, "Expected null when required id is missing");
+    },
+  },
+  {
+    name: "FeedbackRepo.createReply enforces parent target invariant",
+    async run() {
+      const repo = createMockFeedbackRepo();
+      const root = await repo.createRoot({
+        target: { target_type: "aip", aip_id: "A1" },
+        body: "root",
+        authorId: "user_1",
+      });
+
+      let threw = false;
+      try {
+        await repo.createReply({
+          parentId: root.id,
+          body: "reply",
+          authorId: "user_2",
+          target: { target_type: "aip", aip_id: "A2" },
+        });
+      } catch (error) {
+        threw = /reply feedback must match parent target/i.test(
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+      assert(threw, "Expected reply target mismatch to throw");
+    },
+  },
+  {
+    name: "FeedbackRepo.listThreadMessages preserves chronological order",
+    async run() {
+      const repo = createMockFeedbackRepo();
+      const messages = await repo.listThreadMessages("cmtc_002");
+      assert(messages.length >= 2, "Expected seeded replies for cmtc_002");
+      for (let i = 1; i < messages.length; i += 1) {
+        assert(
+          new Date(messages[i - 1].created_at).getTime() <=
+            new Date(messages[i].created_at).getTime(),
+          "Expected messages sorted oldest to newest"
+        );
+      }
+    },
+  },
+  {
+    name: "comments.service listComments preserves latest-first ordering",
+    async run() {
+      const result = await listComments();
+      const items = result.items;
+      for (let i = 1; i < items.length; i += 1) {
+        assert(
+          new Date(items[i - 1].created_at).getTime() >=
+            new Date(items[i].created_at).getTime(),
+          "Expected comments sorted newest to oldest"
+        );
+      }
     },
   },
 ];

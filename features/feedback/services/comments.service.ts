@@ -1,4 +1,5 @@
-import { COMMENTS_MOCK } from "../mock";
+import { createMockFeedbackRepo, getMockFeedbackMetadata } from "../data/feedback.repo.mock";
+import { mapFeedbackThreadToComment } from "../data/feedback.mapper";
 import type {
   Comment,
   CommentProjectOption,
@@ -8,7 +9,28 @@ import type {
   RespondToCommentInput,
 } from "../types";
 
-let commentsStore: Comment[] = [...COMMENTS_MOCK];
+const feedbackRepo = createMockFeedbackRepo();
+const feedbackMetadata = getMockFeedbackMetadata();
+let commentsStore: Comment[] = [];
+let seeded = false;
+
+async function ensureSeeded() {
+  if (seeded) return;
+  const roots = await feedbackRepo.listThreadRootsByTarget({
+    target_type: "project",
+    project_id: null,
+  });
+
+  const comments = await Promise.all(
+    roots.map(async (root) => {
+      const thread = await feedbackRepo.listThreadMessages(root.id);
+      return mapFeedbackThreadToComment(root, thread, feedbackMetadata);
+    })
+  );
+
+  commentsStore = comments;
+  seeded = true;
+}
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
@@ -19,6 +41,7 @@ function sortByCreatedAtDesc(a: Comment, b: Comment) {
 }
 
 export async function getCommentsFilterOptions(): Promise<CommentsFilterOptions> {
+  await ensureSeeded();
   const yearsSet = new Set<number>();
   const projectsMap = new Map<string, CommentProjectOption>();
 
@@ -43,6 +66,7 @@ export async function getCommentsFilterOptions(): Promise<CommentsFilterOptions>
 export async function listComments(
   params: ListCommentsParams = {}
 ): Promise<ListCommentsResult> {
+  await ensureSeeded();
   const year = params.year ?? "all";
   const projectId = params.projectId ?? "all";
   const status = params.status ?? "all";
@@ -78,7 +102,13 @@ export async function listComments(
 export async function respondToComment(
   input: RespondToCommentInput
 ): Promise<Comment> {
+  await ensureSeeded();
   const responseTimestamp = "2026-01-30T09:00:00.000Z";
+  await feedbackRepo.createReply({
+    parentId: input.commentId,
+    body: input.message,
+    authorId: input.responderName,
+  });
   const index = commentsStore.findIndex((c) => c.id === input.commentId);
 
   if (index === -1) {

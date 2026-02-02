@@ -3,6 +3,8 @@ import type { AipStatus, LguScope } from "../types";
 import { AIPS_TABLE } from "../mock/aips.table";
 import { generateMockAIP } from "./mock-aip-generator";
 
+const aipDetailPromiseCache = new Map<string, ReturnType<AipRepo["getAipDetail"]>>();
+
 export type CreateMockAipRepoOptions = {
   defaultScope?: LguScope;
 };
@@ -26,17 +28,26 @@ export function createMockAipRepoImpl({
       aipId: string,
       _actor?: import("@/lib/domain/actor-context").ActorContext
     ) {
-      const found = AIPS_TABLE.find((aip) => aip.id === aipId);
-      if (found) return found;
+      const cacheKey = `${defaultScope}:${aipId}`;
+      const cached = aipDetailPromiseCache.get(cacheKey);
+      if (cached) return cached;
 
-      if (aipId.startsWith("aip-")) {
-        const yearMatch = aipId.match(/aip-(\d{4})/);
-        const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
-        const fileName = `${aipId.split("-").slice(2, -1).join("-")}.pdf`;
-        return generateMockAIP(aipId, fileName, year, defaultScope);
-      }
+      const promise = (async () => {
+        const found = AIPS_TABLE.find((aip) => aip.id === aipId);
+        if (found) return found;
 
-      return null;
+        if (aipId.startsWith("aip-")) {
+          const yearMatch = aipId.match(/aip-(\d{4})/);
+          const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
+          const fileName = `${aipId.split("-").slice(2, -1).join("-")}.pdf`;
+          return generateMockAIP(aipId, fileName, year, defaultScope);
+        }
+
+        return null;
+      })();
+
+      aipDetailPromiseCache.set(cacheKey, promise);
+      return promise;
     },
     async updateAipStatus(
       aipId: string,

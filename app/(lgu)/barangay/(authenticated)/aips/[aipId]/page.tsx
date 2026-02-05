@@ -1,21 +1,18 @@
-"use client";
-
 import { notFound } from "next/navigation";
-import { use } from "react";
 import AipDetailView from "@/features/aip/views/aip-detail-view";
 import { createMockAipRepo } from "@/features/aip/services/aip-repo.mock";
 import { createMockAipProjectRepo } from "@/features/aip/services/aip-project-repo.mock";
 
-export default function BarangayAipDetail({
+export default async function BarangayAipDetail({
   params,
 }: {
-  params: Promise<{ aipId: string }>;
+  params: { aipId: string };
 }) {
-  const { aipId } = use(params);
+  const { aipId } = params;
 
   const aipRepo = createMockAipRepo({ defaultScope: "barangay" });
   const projectRepo = createMockAipProjectRepo();
-  const aip = use(aipRepo.getAipDetail(aipId));
+  const aip = await aipRepo.getAipDetail(aipId);
 
   if (!aip || aip.scope !== "barangay") return notFound();
 

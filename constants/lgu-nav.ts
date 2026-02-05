@@ -31,10 +31,8 @@ export const BARANGAY_NAV: NavItem[] = [
 export const CITY_NAV: NavItem[] = [
   { label: "Dashboard", href: "/city", icon: LayoutDashboard },
   { label: "AIPs", href: "/city/aips", icon: FileText },
-
-  // If you have submissions/review queues in city:
-  { label: "Submittals", href: "/city/submittals", icon: ClipboardList },
-
+  { label: "Submissions", href: "/city/submissions", icon: ClipboardList },
+  
   { label: "Audit", href: "/city/audit", icon: Shield },
   { label: "Chatbot", href: "/city/chatbot", icon: Bot },
   { label: "Projects", href: "/city/projects", icon: Folder,
@@ -43,5 +41,5 @@ export const CITY_NAV: NavItem[] = [
       { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: ClipboardList },
     ],
    },
-  { label: "Submissions", href: "/city/submissions", icon: ClipboardList }
+
 ];

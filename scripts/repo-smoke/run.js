@@ -46,6 +46,9 @@ const {
 const {
   runProjectRepoTests,
 } = require("@/features/projects/data/repos/__tests__/project.repo.mock.test");
+const {
+  runChatRepoTests,
+} = require("@/features/chat/repo/mock/createMockChatRepo.test");
 
 function assert(condition, message) {
   if (!condition) {
@@ -275,6 +278,12 @@ const tests = [
     name: "project.repo.mock tests",
     async run() {
       await runProjectRepoTests();
+    },
+  },
+  {
+    name: "chat.repo.mock tests",
+    async run() {
+      await runChatRepoTests();
     },
   },
 ];

@@ -38,7 +38,9 @@ const { createMockChatRepo } = require("@/features/chat/data");
 const { projectService } = require("@/features/projects/services/project-service");
 const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selector");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
-const { createMockFeedbackRepo } = require("@/features/feedback/data/feedback.repo.mock");
+const {
+  createMockFeedbackRepo: createMockFeedbackThreadRepo,
+} = require("@/features/feedback/data/feedback.repo.mock");
 const { listComments } = require("@/features/feedback/services/comments.service");
 const {
   runProjectMapperTests,
@@ -49,6 +51,12 @@ const {
 const {
   runChatRepoTests,
 } = require("@/features/chat/repo/mock/createMockChatRepo.test");
+const {
+  runAuditServiceTests,
+} = require("@/features/audit/services/__tests__/auditService.test");
+const {
+  runSubmissionsServiceTests,
+} = require("@/features/submissions/services/__tests__/submissionsService.test");
 
 function assert(condition, message) {
   if (!condition) {
@@ -216,7 +224,7 @@ const tests = [
   {
     name: "FeedbackRepo.createReply enforces parent target invariant",
     async run() {
-      const repo = createMockFeedbackRepo();
+      const repo = createMockFeedbackThreadRepo();
       const root = await repo.createRoot({
         target: { target_type: "aip", aip_id: "A1" },
         body: "root",
@@ -242,7 +250,7 @@ const tests = [
   {
     name: "FeedbackRepo.listThreadMessages preserves chronological order",
     async run() {
-      const repo = createMockFeedbackRepo();
+      const repo = createMockFeedbackThreadRepo();
       const messages = await repo.listThreadMessages("cmtc_002");
       assert(messages.length >= 2, "Expected seeded replies for cmtc_002");
       for (let i = 1; i < messages.length; i += 1) {
@@ -284,6 +292,18 @@ const tests = [
     name: "chat.repo.mock tests",
     async run() {
       await runChatRepoTests();
+    },
+  },
+  {
+    name: "auditService role gating",
+    async run() {
+      await runAuditServiceTests();
+    },
+  },
+  {
+    name: "submissionsService role gating",
+    async run() {
+      await runSubmissionsServiceTests();
     },
   },
 ];

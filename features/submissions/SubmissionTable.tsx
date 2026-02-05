@@ -3,11 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import Link from "next/link";
-import { AipDetail } from "@/types/aip";
-import {getStatusBadgeVariant} from "@/lib/utils/ui-helpers";
+import type { AipSubmissionItem } from "./types/submissions.types";
+import {
+  getAipStatusBadgeClass,
+  getAipStatusLabel,
+} from "./presentation/submissions.presentation";
 
 interface SubmissionTableProps {
-  aips: AipDetail[];
+  aips: AipSubmissionItem[];
 }
 
 const getTimeSince = (dateStr: string) => {
@@ -36,6 +39,16 @@ const getTimeSince = (dateStr: string) => {
   
   return "just now";
 };
+
+function formatDateSubmitted(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 export function SubmissionTable({ aips }: SubmissionTableProps) {
   return (
@@ -74,18 +87,18 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                     {aip.barangayName || "Barangay"}
                   </td>
                   <td className="py-4 px-4 text-sm text-slate-600">
-                    {aip.uploader?.uploadDate ?? "—"}
+                    {formatDateSubmitted(aip.uploadedAt)}
                   </td>
                   <td className="py-4 px-4">
                     <Badge
                       variant="outline"
-                      className={`rounded-full ${getStatusBadgeVariant(aip.status)}`}
+                      className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
                     >
-                      {aip.status}
+                      {getAipStatusLabel(aip.status)}
                     </Badge>
                   </td>
                   <td className="py-4 px-4 text-sm text-slate-600">
-                    {aip.status === "Published" ? "City Official" : "Not yet assigned"}
+                    {aip.reviewerName ?? "Not yet assigned"}
                   </td>
                   <td className="py-4 px-4 text-sm text-slate-600">
                     {getTimeSince(aip.uploadedAt)}
@@ -99,7 +112,7 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                     >
                       <Link href={`/city/submissions/${aip.id}`}>
                         <Eye className="h-4 w-4" />
-                        {aip.status === "Pending Review" ? "Review" : "View"}
+                        {aip.status === "pending_review" ? "Review" : "View"}
                       </Link>
                     </Button>
                   </td>

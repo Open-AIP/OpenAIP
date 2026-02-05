@@ -1,7 +1,7 @@
-import AuditView from "@/feature/audit/audit-view";
-import { MOCK_AUDIT_LOGS } from "@/mock/audit";
+import AuditView from "@/features/audit/audit-view";
+import { getAuditFeed } from "@/features/audit/services/auditService";
 
-export default function BarangayAudit() {
-  const logs = MOCK_AUDIT_LOGS.filter((x) => x.scope === "barangay");
+export default async function BarangayAudit() {
+  const logs = await getAuditFeed();
   return <AuditView logs={logs} />;
 }

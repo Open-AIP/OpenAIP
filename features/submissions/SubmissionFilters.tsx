@@ -6,10 +6,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AipDetail, AipStatus } from "@/types/aip";
+import type { AipSubmissionItem } from "./types/submissions.types";
+import { getAipStatusLabel } from "./presentation/submissions.presentation";
 
 interface SubmissionFiltersProps {
-  aips: AipDetail[];
+  aips: AipSubmissionItem[];
   yearFilter: string;
   statusFilter: string;
   barangayFilter: string;
@@ -66,7 +67,7 @@ export function SubmissionFilters({
               <SelectItem value="all">All Status</SelectItem>
               {statuses.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status}
+                  {getAipStatusLabel(status)}
                 </SelectItem>
               ))}
             </SelectContent>

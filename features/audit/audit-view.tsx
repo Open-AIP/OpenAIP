@@ -28,8 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AuditLog } from "@/types";
-import { getAuditEvents, getAuditYears } from "@/mock/audit";
+import type { ActivityLogRow } from "./types/audit.types";
+import { getAuditActionLabel, getAuditRoleLabel } from "@/shared/presentation/audit";
 import { Search } from "lucide-react";
 
 /**
@@ -61,9 +61,44 @@ function formatDateTime(iso: string) {
  * 
  * @param logs - Array of audit log entries to display
  */
-export default function AuditView({ logs }: { logs: AuditLog[] }) {
-  const years = useMemo(() => getAuditYears(logs), [logs]);
-  const events = useMemo(() => getAuditEvents(logs), [logs]);
+function getMetadataString(
+  metadata: ActivityLogRow["metadata"],
+  key: string
+): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "string" && value ? value : null;
+}
+
+export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
+  const displayRows = useMemo(() => {
+    return logs.map((row) => {
+      const createdAt = new Date(row.createdAt);
+      const year = Number.isFinite(createdAt.getTime()) ? createdAt.getFullYear() : null;
+      const name = getMetadataString(row.metadata, "actor_name") ?? row.actorId;
+      const position =
+        getMetadataString(row.metadata, "actor_position") ?? getAuditRoleLabel(row.actorRole ?? null);
+      const event = getAuditActionLabel(row.action);
+      const details =
+        getMetadataString(row.metadata, "details") ?? `${event} (${row.entityType})`;
+
+      return { row, year, name, position, event, details };
+    });
+  }, [logs]);
+
+  const years = useMemo(() => {
+    const yearSet = new Set<number>();
+    for (const item of displayRows) {
+      if (typeof item.year === "number") yearSet.add(item.year);
+    }
+    return Array.from(yearSet).sort((a, b) => b - a);
+  }, [displayRows]);
+
+  const events = useMemo(() => {
+    const eventSet = new Set<string>();
+    for (const item of displayRows) eventSet.add(item.event);
+    return Array.from(eventSet).sort((a, b) => a.localeCompare(b));
+  }, [displayRows]);
 
   const [year, setYear] = useState<string>(String(years[0] ?? "all"));
   const [event, setEvent] = useState<string>("all");
@@ -72,7 +107,7 @@ export default function AuditView({ logs }: { logs: AuditLog[] }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    return logs
+    return displayRows
       .filter((x) => (year === "all" ? true : x.year === Number(year)))
       .filter((x) => (event === "all" ? true : x.event === event))
       .filter((x) => {
@@ -84,8 +119,8 @@ export default function AuditView({ logs }: { logs: AuditLog[] }) {
           x.details.toLowerCase().includes(q)
         );
       })
-      .sort((a, b) => (a.dateTimeISO < b.dateTimeISO ? 1 : -1));
-  }, [logs, year, event, query]);
+      .sort((a, b) => (a.row.createdAt < b.row.createdAt ? 1 : -1));
+  }, [displayRows, year, event, query]);
 
   return (
     <div className="space-y-6">
@@ -165,17 +200,17 @@ export default function AuditView({ logs }: { logs: AuditLog[] }) {
           </TableHeader>
 
           <TableBody>
-            {filtered.map((row) => (
+            {filtered.map(({ row, name, position, event: eventLabel, details }) => (
               <TableRow key={row.id} className="border-slate-200">
                 <TableCell className="font-medium text-slate-900 p-4">
-                  {row.name}
+                  {name}
                 </TableCell>
-                <TableCell className="text-slate-600">{row.position}</TableCell>
-                <TableCell className="text-slate-900">{row.event}</TableCell>
+                <TableCell className="text-slate-600">{position}</TableCell>
+                <TableCell className="text-slate-900">{eventLabel}</TableCell>
                 <TableCell className="text-slate-600">
-                  {formatDateTime(row.dateTimeISO)}
+                  {formatDateTime(row.createdAt)}
                 </TableCell>
-                <TableCell className="text-slate-600">{row.details}</TableCell>
+                <TableCell className="text-slate-600">{details}</TableCell>
               </TableRow>
             ))}
 

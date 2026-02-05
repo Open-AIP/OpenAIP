@@ -28,6 +28,7 @@ export function createMockAipRepoImpl({
       aipId: string,
       _actor?: import("@/lib/domain/actor-context").ActorContext
     ) {
+      if (!aipId) return null;
       const cacheKey = `${defaultScope}:${aipId}`;
       const cached = aipDetailPromiseCache.get(cacheKey);
       if (cached) return cached;

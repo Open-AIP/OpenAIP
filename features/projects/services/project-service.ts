@@ -33,7 +33,7 @@ export const projectService = {
    */
   async getHealthProjectById(projectRefCode: string): Promise<HealthProject | null> {
     const repo = getProjectsRepo();
-    const project = await repo.getByRefCode(projectRefCode);
+    const project = await repo.getById(projectRefCode);
     if (!project || project.kind !== "health") {
       return null;
     }
@@ -47,7 +47,7 @@ export const projectService = {
     projectRefCode: string
   ): Promise<InfrastructureProject | null> {
     const repo = getProjectsRepo();
-    const project = await repo.getByRefCode(projectRefCode);
+    const project = await repo.getById(projectRefCode);
     if (!project || project.kind !== "infrastructure") {
       return null;
     }
@@ -60,6 +60,17 @@ export const projectService = {
   async getProjectBundle(projectRefCode: string): Promise<HealthProject | InfrastructureProject | null> {
     const repo = getProjectsRepo();
     return repo.getByRefCode(projectRefCode);
+  },
+
+  async getProjectsByAip(
+    aipId: string
+  ): Promise<(HealthProject | InfrastructureProject)[]> {
+    const repo = getProjectsRepo();
+    const projects = await repo.listByAip(aipId);
+    return projects.filter(
+      (project) =>
+        project.kind === "health" || project.kind === "infrastructure"
+    ) as (HealthProject | InfrastructureProject)[];
   },
 
   /**

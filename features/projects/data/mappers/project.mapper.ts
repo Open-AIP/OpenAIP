@@ -8,6 +8,7 @@ import type {
   InfrastructureProjectDetailsRowDTO,
   ProjectRowDTO,
 } from "../dtos/project.dto";
+import type { OtherProject, UiProject } from "../types";
 
 export function inferKind(
   projectRow: ProjectRowDTO
@@ -29,7 +30,7 @@ export function mapProjectRowToUiModel(
   projectRow: ProjectRowDTO,
   healthDetails?: HealthProjectDetailsRowDTO | null,
   infraDetails?: InfrastructureProjectDetailsRowDTO | null
-): ProjectBundle {
+): UiProject {
   const kind = inferKind(projectRow);
   const projectRefCode = projectRow.aip_ref_code ?? projectRow.id;
   const title =
@@ -64,28 +65,43 @@ export function mapProjectRowToUiModel(
     return project;
   }
 
-  const startDate = infraDetails?.start_date ?? projectRow.start_date ?? "";
-  const targetCompletionDate =
-    infraDetails?.target_completion_date ?? projectRow.completion_date ?? "";
-  const implementingOffice = projectRow.implementing_agency ?? "";
-  const fundingSource = projectRow.source_of_funds ?? "";
-  const contractorName = infraDetails?.contractor_name ?? "";
-  const contractCost = infraDetails?.contract_cost ?? 0;
+  if (kind === "infrastructure") {
+    const startDate = infraDetails?.start_date ?? projectRow.start_date ?? "";
+    const targetCompletionDate =
+      infraDetails?.target_completion_date ?? projectRow.completion_date ?? "";
+    const implementingOffice = projectRow.implementing_agency ?? "";
+    const fundingSource = projectRow.source_of_funds ?? "";
+    const contractorName = infraDetails?.contractor_name ?? "";
+    const contractCost = infraDetails?.contract_cost ?? 0;
 
-  const project: InfrastructureProject = {
+    const project: InfrastructureProject = {
+      id: projectRefCode,
+      kind: "infrastructure",
+      projectRefCode,
+      year,
+      title,
+      status,
+      imageUrl,
+      startDate,
+      targetCompletionDate,
+      implementingOffice,
+      fundingSource,
+      contractorName,
+      contractCost,
+      updates: [],
+    };
+
+    return project;
+  }
+
+  const project: OtherProject = {
     id: projectRefCode,
-    kind: "infrastructure",
+    kind: "other",
     projectRefCode,
     year,
     title,
     status,
     imageUrl,
-    startDate,
-    targetCompletionDate,
-    implementingOffice,
-    fundingSource,
-    contractorName,
-    contractCost,
     updates: [],
   };
 

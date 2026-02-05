@@ -1,7 +1,7 @@
 import { getAppEnv } from "@/shared/config/appEnv";
 import { NotImplementedError } from "@/shared/errors/notImplemented";
 import type { ProjectsRepo } from "./types";
-import { createMockProjectsRepoImpl } from "./projectsRepo.mockImpl";
+import { createMockProjectsRepoImpl } from "./repos/project.repo.mock";
 
 export function getProjectsRepo(): ProjectsRepo {
   const env = getAppEnv();

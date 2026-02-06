@@ -1,7 +1,8 @@
 import { InfrastructureProject, HealthProject } from "./project";
 
+import type { AipStatus } from "@/lib/contracts/databasev2";
 
-export type AipStatus = "Draft" | "Under Review" | "For Revision" | "Published" | "Pending Review";
+export type { AipStatus } from "@/lib/contracts/databasev2";
 
 export type AipRecord = {
   id: string;

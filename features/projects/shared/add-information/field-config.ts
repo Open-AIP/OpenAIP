@@ -1,3 +1,5 @@
+import { PROJECT_STATUS_VALUES } from "@/features/projects/types";
+
 export type FieldType = "text" | "textarea" | "select" | "date" | "file";
 
 export type FieldConfig = {
@@ -97,7 +99,7 @@ export const healthFieldConfig: FieldConfig[] = [
     type: "select",
     required: true,
     gridColumn: "half",
-    options: ["Ongoing", "Planning", "Completed", "On Hold"],
+    options: PROJECT_STATUS_VALUES,
   },
 ];
 
@@ -182,6 +184,6 @@ export const infraFieldConfig: FieldConfig[] = [
     type: "select",
     required: true,
     gridColumn: "half",
-    options: ["Ongoing", "Planning", "Completed", "On Hold"],
+    options: PROJECT_STATUS_VALUES,
   },
 ];

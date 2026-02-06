@@ -1,4 +1,6 @@
-export type ProjectStatus = "Ongoing" | "Planning" | "Completed" | "On Hold";
+import type { ProjectStatus } from "@/features/projects/types";
+
+export type { ProjectStatus } from "@/features/projects/types";
 
 export type HealthProjectUpdate = {
   id: string;

@@ -1,7 +1,8 @@
 /**
  * UI helper utilities for consistent styling and behavior
  */
-import type { ProjectStatus, AipStatus } from "@/types";
+import type { AipStatus } from "@/lib/contracts/databasev2";
+import type { ProjectStatus } from "@/features/projects/types";
 
 /**
  * Get the appropriate CSS classes for a status badge
@@ -10,13 +11,13 @@ import type { ProjectStatus, AipStatus } from "@/types";
  */
 export function getProjectStatusBadgeClass(status: ProjectStatus): string {
   switch (status) {
-    case "Ongoing":
+    case "ongoing":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "Planning":
+    case "planning":
       return "bg-sky-50 text-sky-700 border-sky-200";
-    case "Completed":
+    case "completed":
       return "bg-slate-50 text-slate-700 border-slate-200";
-    case "On Hold":
+    case "on_hold":
     default:
       return "bg-amber-50 text-amber-800 border-amber-200";
   }
@@ -29,13 +30,13 @@ export function getProjectStatusBadgeClass(status: ProjectStatus): string {
  */
 export function getAipStatusBadgeClass(status: AipStatus): string {
   switch (status) {
-    case "Published":
+    case "published":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "For Revision":
+    case "for_revision":
       return "bg-amber-50 text-amber-800 border-amber-200";
-    case "Under Review":
+    case "under_review":
       return "bg-sky-50 text-sky-700 border-sky-200";
-    case "Draft":
+    case "draft":
     default:
       return "bg-slate-50 text-slate-700 border-slate-200";
   }
@@ -44,15 +45,15 @@ export function getAipStatusBadgeClass(status: AipStatus): string {
 
 export function getStatusBadgeVariant(status: AipStatus): string {
   switch (status) {
-    case "Published":
+    case "published":
       return "bg-green-100 text-green-700 border-green-200";
-    case "Under Review":
+    case "under_review":
       return "bg-blue-100 text-blue-700 border-blue-200";
-    case "For Revision":
+    case "for_revision":
       return "bg-orange-100 text-orange-700 border-orange-200";
-    case "Pending Review":
+    case "pending_review":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "Draft":
+    case "draft":
       return "bg-slate-100 text-slate-700 border-slate-200";
     default:
       return "bg-slate-100 text-slate-700 border-slate-200";

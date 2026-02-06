@@ -1,11 +1,8 @@
-export type LguScope = "barangay" | "city";
+import type { AipStatus } from "@/lib/contracts/databasev2";
 
-export type AipStatus =
-  | "draft"
-  | "pending_review"
-  | "under_review"
-  | "for_revision"
-  | "published";
+export type { AipStatus } from "@/lib/contracts/databasev2";
+
+export type LguScope = "barangay" | "city";
 
 export type AipHeader = {
   id: string; // aipId

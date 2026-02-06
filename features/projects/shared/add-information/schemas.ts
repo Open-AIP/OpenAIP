@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROJECT_STATUS_VALUES } from "@/features/projects/types";
 
 // Shared validation rules
 const MONTHS = [
@@ -7,8 +8,6 @@ const MONTHS = [
 ] as const;
 
 const YEARS = Array.from({ length: 6 }, (_, i) => String(2024 + i));
-
-const STATUSES = ["Ongoing", "Planning", "Completed", "On Hold"] as const;
 
 // Health project schema
 export const healthAddInfoSchema = z.object({
@@ -26,7 +25,7 @@ export const healthAddInfoSchema = z.object({
   totalTargetParticipants: z.string().min(1, "Total target participants is required"),
   targetParticipants: z.string().min(1, "Target participants is required"),
   budgetAllocated: z.string().min(1, "Budget is required"),
-  status: z.enum(STATUSES),
+  status: z.enum(PROJECT_STATUS_VALUES),
 });
 
 // Infrastructure project schema
@@ -45,7 +44,7 @@ export const infraAddInfoSchema = z.object({
   targetCompletionDate: z.string().min(1, "Completion date is required"),
   contractorName: z.string().min(1, "Contractor name is required"),
   contractCost: z.string().min(1, "Contract cost is required"),
-  status: z.enum(STATUSES),
+  status: z.enum(PROJECT_STATUS_VALUES),
 });
 
 export type HealthAddInfoFormData = z.infer<typeof healthAddInfoSchema>;

@@ -20,6 +20,15 @@ type FormFieldProps<T extends FieldValues> = {
   onChange?: (value: string) => void;
 };
 
+function formatSelectOptionLabel(option: string): string {
+  if (!/^[a-z_]+$/.test(option)) return option;
+
+  return option
+    .split("_")
+    .map((word) => (word ? word[0]!.toUpperCase() + word.slice(1) : word))
+    .join(" ");
+}
+
 export function FormField<T extends FieldValues>({
   config,
   register,
@@ -71,7 +80,7 @@ export function FormField<T extends FieldValues>({
           <SelectContent>
             {config.options.map((option) => (
               <SelectItem key={option} value={option}>
-                {option}
+                {formatSelectOptionLabel(option)}
               </SelectItem>
             ))}
           </SelectContent>

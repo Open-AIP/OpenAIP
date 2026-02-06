@@ -1,5 +1,13 @@
 export type ProjectKind = "health" | "infrastructure";
-export type ProjectStatus = "planning" | "ongoing" | "completed" | "on_hold";
+
+export const PROJECT_STATUS_VALUES = [
+  "planning",
+  "ongoing",
+  "completed",
+  "on_hold",
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
 
 export type ProjectMaster = {
   projectRefCode: string; // ✅ single join key

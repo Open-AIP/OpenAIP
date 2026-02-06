@@ -43,10 +43,13 @@ export default function AipDetailView({
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const focusedRowId = searchParams.get("focus") ?? undefined;
   const threadId = searchParams.get("thread");
   const tab = searchParams.get("tab");
   const activeTab = tab === "comments" ? "comments" : "summary";
+  // `focus` is only meaningful in the context of the feedback/comments UI.
+  // Avoid showing a "focused row" outline in the AIP details table (Summary tab).
+  const focusedRowId =
+    activeTab === "comments" ? searchParams.get("focus") ?? undefined : undefined;
   const handleCancelDraft =
     onCancel ?? (() => console.log("Canceling AIP draft:", aip.id));
   const handleSubmitForReview =
@@ -89,6 +92,7 @@ export default function AipDetailView({
                 } else {
                   params.delete("tab");
                   params.delete("thread");
+                  params.delete("focus");
                 }
                 const query = params.toString();
                 router.replace(query ? `${pathname}?${query}` : pathname, {

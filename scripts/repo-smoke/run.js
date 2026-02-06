@@ -57,6 +57,12 @@ const {
   runAuditServiceTests,
 } = require("@/features/audit/services/__tests__/auditService.test");
 const {
+  getAuditFeedForActor,
+} = require("@/features/audit/services/auditService");
+const {
+  ACTIVITY_LOG_MOCK,
+} = require("@/features/audit/mock/activity-log.mock");
+const {
   runSubmissionsServiceTests,
 } = require("@/features/submissions/services/__tests__/submissionsService.test");
 const {
@@ -324,6 +330,30 @@ const tests = [
     name: "auditService role gating",
     async run() {
       await runAuditServiceTests();
+    },
+  },
+  {
+    name: "auditService dev fallback shows scoped logs",
+    async run() {
+      const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      process.env.NEXT_PUBLIC_APP_ENV = "dev";
+      try {
+        const actor = {
+          userId: "uuid-not-in-mock",
+          role: "city_official",
+          scope: { kind: "city", id: "cabuyao" },
+        };
+        const result = await getAuditFeedForActor(actor);
+        const expected = ACTIVITY_LOG_MOCK.filter(
+          (row) => row.scope?.scope_type === "city"
+        ).length;
+        assert(
+          result.length === expected,
+          "Expected dev fallback to return city-scoped activity logs"
+        );
+      } finally {
+        process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+      }
     },
   },
   {

@@ -19,7 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function CommentsView() {
+export default function CommentsView({
+  scope = "barangay",
+  lguId = "lgu_barangay_001",
+}: {
+  scope?: "city" | "barangay";
+  lguId?: string;
+} = {}) {
   const repo = useMemo(() => getCommentRepo(), []);
   const [threads, setThreads] = useState<CommentThread[]>([]);
   const [items, setItems] = useState<CommentSidebarItem[]>([]);
@@ -41,12 +47,12 @@ export default function CommentsView() {
 
       try {
         const threadList = await repo.listThreadsForInbox({
-          lguId: "lgu_barangay_001",
+          lguId,
         });
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({
           threads: threadList,
-          scope: "barangay",
+          scope,
           ...lookup,
         });
 
@@ -68,7 +74,7 @@ export default function CommentsView() {
     return () => {
       isActive = false;
     };
-  }, [repo]);
+  }, [repo, lguId, scope]);
 
   const threadMap = useMemo(
     () => new Map(threads.map((thread) => [thread.id, thread])),

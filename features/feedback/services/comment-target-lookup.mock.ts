@@ -39,5 +39,18 @@ export function createMockCommentTargetLookup(): CommentTargetLookup {
         aipDescription: item.aipDescription,
       };
     },
+
+    async findAipItemByProjectRefCode(projectRefCode) {
+      const item = AIP_PROJECT_ROWS_TABLE.find(
+        (row) => row.projectRefCode === projectRefCode
+      );
+      if (!item) return null;
+      return {
+        id: item.id,
+        aipId: item.aipId,
+        projectRefCode: item.projectRefCode,
+        aipDescription: item.aipDescription,
+      };
+    },
   };
 }

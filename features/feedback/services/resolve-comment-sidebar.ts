@@ -28,6 +28,9 @@ export type CommentTargetLookup = {
     aipId: string,
     aipItemId: string
   ) => Promise<CommentTargetAipItemSummary | null>;
+  findAipItemByProjectRefCode?: (
+    projectRefCode: string
+  ) => Promise<CommentTargetAipItemSummary | null>;
 };
 
 export async function resolveCommentSidebar({
@@ -35,6 +38,7 @@ export async function resolveCommentSidebar({
   getProject,
   getAip,
   getAipItem,
+  findAipItemByProjectRefCode,
   scope = "barangay",
 }: {
   threads: CommentThread[];
@@ -44,6 +48,37 @@ export async function resolveCommentSidebar({
     threads.map(async (thread) => {
       if (thread.target.targetKind === "project") {
         const project = await getProject(thread.target.projectId);
+        if (!project?.kind) {
+          const aipItem = await findAipItemByProjectRefCode?.(
+            thread.target.projectId
+          );
+
+          if (aipItem) {
+            const aip = await getAip(aipItem.aipId);
+
+            const contextTitle = aip?.title ?? "AIP Detail";
+            const contextSubtitleParts = [
+              aip?.barangayName,
+              aipItem.projectRefCode,
+              aipItem.aipDescription,
+            ].filter(Boolean) as string[];
+            const contextSubtitle =
+              contextSubtitleParts.length > 0
+                ? contextSubtitleParts.join(" • ")
+                : `${aipItem.aipId} / ${aipItem.id}`;
+
+            return {
+              threadId: thread.id,
+              snippet: thread.preview.text,
+              updatedAt: thread.preview.updatedAt,
+              status: thread.preview.status,
+              contextTitle,
+              contextSubtitle,
+              href: `/${scope}/aips/${aipItem.aipId}?focus=${aipItem.id}&tab=comments&thread=${thread.id}`,
+            } satisfies CommentSidebarItem;
+          }
+        }
+
         const contextTitle = project?.title ?? "Project";
         const contextSubtitle = project?.year
           ? `AIP ${project.year}`

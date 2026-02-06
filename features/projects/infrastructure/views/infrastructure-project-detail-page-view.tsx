@@ -11,7 +11,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { InfrastructureProject, ProjectUpdate } from "@/types";
+import type { InfrastructureProject, ProjectUpdateUi } from "@/features/projects/types";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
@@ -59,13 +59,13 @@ export default function InfrastructureProjectDetailPageView({
   ];
 
   // ✅ Adapt Infrastructure updates to shared ProjectUpdate (only fields needed by shared UI)
-  const initialUpdates: ProjectUpdate[] = (project.updates ?? []).map(
-    (u: NonNullable<InfrastructureProject["updates"]>[number]): ProjectUpdate => ({
+  const initialUpdates: ProjectUpdateUi[] = (project.updates ?? []).map(
+    (u: NonNullable<InfrastructureProject["updates"]>[number]): ProjectUpdateUi => ({
       id: u.id,
       title: u.title,
       date: u.date,
       description: u.description,
-      progressPercent: u.progressPercent,
+      progressPercent: u.progressPercent ?? 0,
       photoUrls: u.photoUrls,
     })
   );

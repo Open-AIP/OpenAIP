@@ -12,7 +12,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { HealthProject, ProjectUpdate } from "@/types";
+import type { HealthProject, ProjectUpdateUi } from "@/features/projects/types";
 import ProjectInformationCard from "../components/project-information-card";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
@@ -60,13 +60,14 @@ export default function HealthProjectDetailPageView({
   ];
 
   // ✅ Adapt Health updates to shared ProjectUpdate (only fields needed by shared UI)
-  const initialUpdates: ProjectUpdate[] = (project.updates ?? []).map((u: HealthProject['updates'][number]): ProjectUpdate => ({
+  const initialUpdates: ProjectUpdateUi[] = (project.updates ?? []).map((u: HealthProject["updates"][number]): ProjectUpdateUi => ({
     id: u.id,
     title: u.title,
     date: u.date,
     description: u.description,
-    progressPercent: u.progressPercent,
+    progressPercent: u.progressPercent ?? 0,
     photoUrls: u.photoUrls,
+    attendanceCount: u.attendanceCount,
   }));
 
   return (

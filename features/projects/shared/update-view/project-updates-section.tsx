@@ -11,7 +11,7 @@
 "use client";
 
 import * as React from "react";
-import type { ProjectUpdate } from "@/types";
+import type { ProjectUpdateUi } from "@/features/projects/types";
 import UpdatesTimelineView from "./updates-timeline-view";
 import PostUpdateForm from "./post-update-form";
 
@@ -32,9 +32,9 @@ import PostUpdateForm from "./post-update-form";
 export default function ProjectUpdatesSection({
   initialUpdates,
 }: {
-  initialUpdates: ProjectUpdate[];
+  initialUpdates: ProjectUpdateUi[];
 }) {
-  const [updates, setUpdates] = React.useState<ProjectUpdate[]>(initialUpdates);
+  const [updates, setUpdates] = React.useState<ProjectUpdateUi[]>(initialUpdates);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">

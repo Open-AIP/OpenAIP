@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import type { HealthProjectUpdate } from "@/types";
+import type { ProjectUpdateUi } from "@/features/projects/types";
 import { Upload, Image as ImageIcon } from "lucide-react";
 
 /**
@@ -52,7 +52,7 @@ function clamp01to100(n: number) {
 export default function PostUpdateForm({
   onCreate,
 }: {
-  onCreate: (update: HealthProjectUpdate) => void;
+  onCreate: (update: ProjectUpdateUi) => void;
 }) {
   const [title, setTitle] = React.useState("");
   const [desc, setDesc] = React.useState("");
@@ -80,7 +80,7 @@ export default function PostUpdateForm({
     // Parent owns these URLs and is responsible for cleanup if needed
     const photoUrls = photos.length ? photos.map((f) => URL.createObjectURL(f)) : undefined;
 
-    const next: HealthProjectUpdate = {
+    const next: ProjectUpdateUi = {
       id: `u-${Date.now()}`,
       title: title.trim(),
       date: new Date().toLocaleDateString("en-PH", {

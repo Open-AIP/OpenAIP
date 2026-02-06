@@ -13,7 +13,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { InfrastructureProject } from "@/types";
+import type { InfrastructureProject } from "@/features/projects/types";
 import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-react";
 import { formatPeso } from "@/lib/utils/formatting";
 import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";

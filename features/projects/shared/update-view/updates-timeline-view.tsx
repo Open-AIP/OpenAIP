@@ -12,7 +12,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import type { ProjectUpdate } from "@/types";
+import type { ProjectUpdateUi } from "@/features/projects/types";
 import { CalendarDays } from "lucide-react";
 
 /**
@@ -32,7 +32,7 @@ import { CalendarDays } from "lucide-react";
 export default function UpdatesTimelineView({
   updates,
 }: {
-  updates: ProjectUpdate[];
+  updates: ProjectUpdateUi[];
 }) {
   return (
     <div className="space-y-4">
@@ -67,11 +67,11 @@ export default function UpdatesTimelineView({
 
                   <p className="mt-3 text-sm text-slate-600">{u.description}</p>
 
-                  {(u as ProjectUpdate & { attendanceCount?: number }).attendanceCount !== undefined && (
+                  {u.attendanceCount !== undefined && (
                     <div className="mt-3 text-xs text-slate-500">
                       Attendance:{" "}
                       <span className="text-slate-700 font-medium">
-                        {(u as ProjectUpdate & { attendanceCount?: number }).attendanceCount!.toLocaleString()}
+                        {u.attendanceCount.toLocaleString()}
                       </span>{" "}
                       participants
                     </div>

@@ -10,7 +10,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { HealthProject } from "@/types";
+import type { HealthProject } from "@/features/projects/types";
 import Image from "next/image";
 import { Users, Hash, Building2, Calendar, DollarSign, Plus } from "lucide-react";
 import Link from "next/link";

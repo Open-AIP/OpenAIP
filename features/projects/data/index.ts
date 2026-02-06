@@ -1,3 +1,2 @@
-export * from "./ProjectRepo";
-export { createMockProjectRepo } from "./projects.mock";
-export { createSupabaseProjectRepo } from "./projects.supabase";
+export * from "./projectsRepo";
+export * from "./types";

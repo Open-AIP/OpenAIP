@@ -32,7 +32,6 @@ function registerTypeScriptExtension(ext) {
 registerTypeScriptExtension(".ts");
 registerTypeScriptExtension(".tsx");
 
-const { createMockProjectRepo } = require("@/features/projects/data");
 const { createMockFeedbackRepo } = require("@/features/feedback/data");
 const { createMockChatRepo } = require("@/features/chat/data");
 const { projectService } = require("@/features/projects/services/project-service");
@@ -85,19 +84,31 @@ async function runTests(testCases) {
 
 const tests = [
   {
-    name: "ProjectRepo.listByAipId returns array",
+    name: "ProjectsRepo.listByAip returns array",
     async run() {
-      const repo = createMockProjectRepo();
-      const result = await repo.listByAipId("unknown");
-      assert(Array.isArray(result), "Expected array result");
+      const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      process.env.NEXT_PUBLIC_APP_ENV = "dev";
+      try {
+        const repo = getProjectsRepo();
+        const result = await repo.listByAip("unknown");
+        assert(Array.isArray(result), "Expected array result");
+      } finally {
+        process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+      }
     },
   },
   {
-    name: "ProjectRepo.getById unknown returns null",
+    name: "ProjectsRepo.getById unknown returns null",
     async run() {
-      const repo = createMockProjectRepo();
-      const result = await repo.getById("unknown");
-      assert(result === null, "Expected null for unknown project id");
+      const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      process.env.NEXT_PUBLIC_APP_ENV = "dev";
+      try {
+        const repo = getProjectsRepo();
+        const result = await repo.getById("unknown");
+        assert(result === null, "Expected null for unknown project id");
+      } finally {
+        process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+      }
     },
   },
   {

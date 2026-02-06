@@ -18,8 +18,8 @@ export async function runChatRepoTests() {
   }
   assert(threw, "Expected INVALID_ROLE when adding non-user role");
 
-  await repo.addUserMessage(session.id, "first");
-  await repo.addUserMessage(session.id, "second");
+  await repo.appendUserMessage(session.id, "first");
+  await repo.appendUserMessage(session.id, "second");
   const messages = await repo.listMessages(session.id);
   assert(messages.length === 2, "Expected 2 messages");
   assert(messages[0].content === "first", "Expected insertion order preserved");

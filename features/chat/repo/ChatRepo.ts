@@ -1,15 +1,9 @@
-import type { ChatMessage, ChatSession } from "../types";
-
-export interface ChatRepo {
-  listSessions(userId: string): Promise<ChatSession[]>;
-  createSession(
-    userId: string,
-    title?: string | null,
-    context?: Record<string, any>
-  ): Promise<ChatSession>;
-  listMessages(sessionId: string): Promise<ChatMessage[]>;
-  addUserMessage(sessionId: string, content: string): Promise<ChatMessage>;
-}
+export type {
+  ChatMessage,
+  ChatMessageRole,
+  ChatRepo,
+  ChatSession,
+} from "../data/ChatRepo";
 
 export const ChatRepoErrors = {
   FORBIDDEN: "FORBIDDEN",

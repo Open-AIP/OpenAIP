@@ -16,6 +16,7 @@ export type HealthProject =
 
     // health-specific display fields
     month: HealthProjectDetails["month"];
+    description: string;
     totalTargetParticipants: HealthProjectDetails["totalTargetParticipants"];
     targetParticipants: HealthProjectDetails["targetParticipants"];
     implementingOffice: HealthProjectDetails["implementingOffice"];
@@ -35,6 +36,7 @@ export type InfrastructureProject =
     kind: "infrastructure";
 
     // infra-specific display fields
+    description: string;
     startDate: InfrastructureProjectDetails["startDate"];
     targetCompletionDate: InfrastructureProjectDetails["targetCompletionDate"];
     implementingOffice: InfrastructureProjectDetails["implementingOffice"];

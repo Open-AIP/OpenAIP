@@ -35,6 +35,11 @@ export function mapProjectRowToUiModel(
   const projectRefCode = projectRow.aip_ref_code ?? projectRow.id;
   const title =
     projectRow.program_project_description ?? projectRow.expected_output ?? "Untitled Project";
+  const description =
+    healthDetails?.description ??
+    projectRow.expected_output ??
+    projectRow.program_project_description ??
+    "";
   const year = getYearFromDates(projectRow);
   const status = (projectRow.status as HealthProject["status"]) ?? "planning";
   const imageUrl = projectRow.image_url ?? undefined;
@@ -55,6 +60,7 @@ export function mapProjectRowToUiModel(
       status,
       imageUrl,
       month,
+      description,
       totalTargetParticipants,
       targetParticipants,
       implementingOffice,
@@ -82,6 +88,7 @@ export function mapProjectRowToUiModel(
       title,
       status,
       imageUrl,
+      description,
       startDate,
       targetCompletionDate,
       implementingOffice,

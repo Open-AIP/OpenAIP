@@ -33,6 +33,7 @@ export default async function HealthAddInformationRoute({
         month: project.month,
         year: String(project.year),
         name: project.title,
+        description: project.description,
         implementingOffice: project.implementingOffice,
       }}
     />

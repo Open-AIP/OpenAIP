@@ -39,6 +39,16 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
         ? health?.budgetAllocated ?? null
         : infra?.contractCost ?? null;
 
+    const expectedOutput = (() => {
+      if (project.kind === "health") {
+        return `Program overview: ${project.title}. This initiative is designed to improve community health outcomes through targeted services and outreach.`;
+      }
+      if (project.kind === "infrastructure") {
+        return `Project overview: ${project.title}. This project focuses on improving public infrastructure to enhance safety, access, and community services.`;
+      }
+      return `Overview: ${project.title}.`;
+    })();
+
     return {
       id: project.projectRefCode,
       aip_id: null,
@@ -47,7 +57,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
       implementing_agency: implementingAgency,
       start_date: startDate,
       completion_date: completionDate,
-      expected_output: null,
+      expected_output: expectedOutput,
       source_of_funds: sourceOfFunds,
       personal_services: null,
       maintenance_and_other_operating_expenses: null,
@@ -104,7 +114,8 @@ export const MOCK_HEALTH_DETAILS_ROWS: HealthProjectDetailsRowDTO[] =
   HEALTH_DETAILS_TABLE.map((detail) => ({
     project_id: detail.projectRefCode,
     program_name: detail.month,
-    description: null,
+    description:
+      `Detailed description for ${detail.projectRefCode}: This program outlines key activities, target coverage, and expected health benefits for the community.`,
     target_participants: detail.targetParticipants,
     total_target_participants: detail.totalTargetParticipants,
     created_at: now,

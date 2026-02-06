@@ -73,6 +73,7 @@ export async function runProjectMapperTests() {
   assert(mappedHealth.title === "Health Project", "health title should map");
   assert(mappedHealth.year === 2026, "health year should map");
   assert(mappedHealth.kind === "health", "health kind should map");
+  assert(mappedHealth.description === "Output", "health description should map");
   assert(
     mappedHealth.budgetAllocated === 5000,
     "health budget should map"
@@ -103,5 +104,6 @@ export async function runProjectMapperTests() {
   assert(mappedInfra.kind === "infrastructure", "infra kind should map");
   assert(mappedInfra.id === "PROJ-I-TEST", "infra id should map");
   assert(mappedInfra.title === "Infra Project", "infra title should map");
+  assert(mappedInfra.description === "Output", "infra description should map");
   assert(mappedInfra.contractCost === 9000, "infra cost should map");
 }

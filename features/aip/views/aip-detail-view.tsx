@@ -16,7 +16,7 @@ import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { RemarksCard } from "../components/remarks-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import { Send } from "lucide-react";
-import { CommentThreadPanel } from "@/features/feedback";
+import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAipProjectRepo } from "../services/aip-project-repo.selector";
 
@@ -85,6 +85,7 @@ export default function AipDetailView({
                 const params = new URLSearchParams(searchParams.toString());
                 if (value === "comments") {
                   params.set("tab", "comments");
+                  params.delete("thread");
                 } else {
                   params.delete("tab");
                   params.delete("thread");
@@ -105,6 +106,16 @@ export default function AipDetailView({
                 <TabsTrigger
                   value="comments"
                   className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                  onClick={() => {
+                    if (activeTab !== "comments") return;
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", "comments");
+                    params.delete("thread");
+                    const query = params.toString();
+                    router.replace(query ? `${pathname}?${query}` : pathname, {
+                      scroll: false,
+                    });
+                  }}
                 >
                   Feedback
                 </TabsTrigger>
@@ -128,7 +139,11 @@ export default function AipDetailView({
             </>
           ) : (
             <div className="space-y-6">
-              {threadId ? <CommentThreadPanel threadId={threadId} /> : null}
+              <CommentThreadsSplitView
+                scope={scope}
+                target={{ kind: "aip", aipId: aip.id }}
+                selectedThreadId={threadId}
+              />
             </div>
           )}
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { CommentCard } from "../components/comment-card";
+import { CommentThreadListCard } from "../components/comment-thread-list-card";
 import {
   getCommentTargetLookup,
   getCommentRepo,
@@ -214,26 +214,27 @@ export default function CommentsView({
             <div className="text-sm text-slate-500">Showing Feedback</div>
 
             <div className="space-y-5">
-              {filteredItems.map((item) => {
-                const thread = threadMap.get(item.threadId);
-                const projectLabel = `${item.contextTitle} - ${item.contextSubtitle}`;
+                {filteredItems.map((item) => {
+                  const thread = threadMap.get(item.threadId);
+                  const authorName = thread?.preview.authorName ?? "Citizen";
+                  const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
 
-                return (
-                  <Link key={item.threadId} href={item.href} className="block">
-                    <CommentCard
-                      commenterName={thread?.preview.authorName ?? "Citizen"}
-                      barangayName={thread?.preview.authorScopeLabel ?? null}
-                      createdAt={item.updatedAt}
-                      projectLabel={projectLabel}
-                      comment={item.snippet}
-                      status={item.status}
-                      showActions={false}
-                    />
-                  </Link>
-                );
-              })}
-            </div>
-          </>
+                  return (
+                    <Link key={item.threadId} href={item.href} className="block">
+                      <CommentThreadListCard
+                        authorName={authorName}
+                        authorScopeLabel={authorScopeLabel}
+                        updatedAt={item.updatedAt}
+                        contextTitle={item.contextTitle}
+                        contextSubtitle={item.contextSubtitle}
+                        snippet={item.snippet}
+                        status={item.status}
+                      />
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
         )}
       </div>
     </div>

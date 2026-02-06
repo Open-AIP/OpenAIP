@@ -4,9 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-import { CommentCard } from "./comment-card";
 import { CommentThreadPanel } from "./comment-thread-panel";
 import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
+import { CommentThreadListCard } from "./comment-thread-list-card";
 import { getCommentRepo } from "../services/comment-repo";
 import { getCommentTargetLookup } from "../services/comment-target-lookup";
 import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
@@ -15,21 +15,6 @@ import type { CommentSidebarItem, CommentThread } from "../types";
 type Target =
   | { kind: "aip"; aipId: string }
   | { kind: "project"; projectId: string };
-
-function filterThreadsForTarget(threads: CommentThread[], target: Target) {
-  if (target.kind === "aip") {
-    return threads.filter(
-      (thread) =>
-        thread.target.targetKind === "aip_item" && thread.target.aipId === target.aipId
-    );
-  }
-
-  return threads.filter(
-    (thread) =>
-      thread.target.targetKind === "project" &&
-      thread.target.projectId === target.projectId
-  );
-}
 
 export function CommentThreadsSplitView({
   scope,
@@ -41,8 +26,9 @@ export function CommentThreadsSplitView({
   selectedThreadId?: string | null;
 }) {
   const repo = React.useMemo(() => getCommentRepo(), []);
-  const targetKey =
-    target.kind === "aip" ? `aip:${target.aipId}` : `project:${target.projectId}`;
+  const targetKind = target.kind;
+  const targetAipId = target.kind === "aip" ? target.aipId : null;
+  const targetProjectId = target.kind === "project" ? target.projectId : null;
   const [items, setItems] = React.useState<CommentSidebarItem[]>([]);
   const [threads, setThreads] = React.useState<CommentThread[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -59,7 +45,19 @@ export function CommentThreadsSplitView({
         const allThreads = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
         });
-        const filtered = filterThreadsForTarget(allThreads, target);
+        const filtered = allThreads.filter((thread) => {
+          if (targetKind === "aip") {
+            return (
+              thread.target.targetKind === "aip_item" &&
+              thread.target.aipId === targetAipId
+            );
+          }
+
+          return (
+            thread.target.targetKind === "project" &&
+            thread.target.projectId === targetProjectId
+          );
+        });
 
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({
@@ -86,7 +84,7 @@ export function CommentThreadsSplitView({
     return () => {
       active = false;
     };
-  }, [repo, scope, targetKey]);
+  }, [repo, scope, targetKind, targetAipId, targetProjectId]);
 
   const threadMap = React.useMemo(
     () => new Map(threads.map((thread) => [thread.id, thread])),
@@ -136,23 +134,24 @@ export function CommentThreadsSplitView({
       <div className="space-y-4">
         {items.map((item) => {
           const thread = threadMap.get(item.threadId);
-          const projectLabel = `${item.contextTitle} • ${item.contextSubtitle}`;
           const highlightClass = getCommentThreadHighlightClassName({
             threadId: item.threadId,
             selectedThreadId: effectiveSelectedThreadId,
           });
+          const authorName = thread?.preview.authorName ?? "Citizen";
+          const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
 
           return (
             <div key={item.threadId} ref={setRowRef(item.threadId)}>
               <Link href={item.href} className="block">
-                <CommentCard
-                  commenterName={thread?.preview.authorName ?? "Citizen"}
-                  barangayName={thread?.preview.authorScopeLabel ?? null}
-                  createdAt={item.updatedAt}
-                  projectLabel={projectLabel}
-                  comment={item.snippet}
+                <CommentThreadListCard
+                  authorName={authorName}
+                  authorScopeLabel={authorScopeLabel}
+                  updatedAt={item.updatedAt}
                   status={item.status}
-                  showActions={false}
+                  contextTitle={item.contextTitle}
+                  contextSubtitle={item.contextSubtitle}
+                  snippet={item.snippet}
                   className={cn(highlightClass)}
                 />
               </Link>
@@ -164,11 +163,7 @@ export function CommentThreadsSplitView({
       <div className="min-w-0">
         {effectiveSelectedThreadId ? (
           <CommentThreadPanel threadId={effectiveSelectedThreadId} />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
-            Select a thread to view the conversation.
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

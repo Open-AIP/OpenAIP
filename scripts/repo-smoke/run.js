@@ -45,6 +45,9 @@ const {
   runCommentRepoSelectorTests,
 } = require("@/features/feedback/services/__tests__/commentRepo.selector.test");
 const {
+  runCommentThreadHighlightTests,
+} = require("@/features/feedback/services/__tests__/commentThread.highlight.test");
+const {
   runProjectMapperTests,
 } = require("@/features/projects/data/mappers/__tests__/project.mapper.test");
 const {
@@ -306,6 +309,12 @@ const tests = [
     name: "getCommentRepo uses supabase outside dev",
     async run() {
       await runCommentRepoSelectorTests();
+    },
+  },
+  {
+    name: "comment thread highlight applies only once",
+    async run() {
+      await runCommentThreadHighlightTests();
     },
   },
   {

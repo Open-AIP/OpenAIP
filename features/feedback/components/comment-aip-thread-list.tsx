@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CommentCard } from "./comment-card";
+import { cn } from "@/lib/utils";
+
+import { CommentThreadListCard } from "./comment-thread-list-card";
+import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
 import { getCommentRepo } from "../services/comment-repo";
 import { getCommentTargetLookup } from "../services/comment-target-lookup";
 import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
@@ -36,8 +39,7 @@ export function CommentAipThreadList({
         });
         const aipThreads = allThreads.filter(
           (thread) =>
-            thread.target.targetKind === "aip_item" &&
-            thread.target.aipId === aipId
+            thread.target.targetKind === "aip_item" && thread.target.aipId === aipId
         );
 
         const lookup = getCommentTargetLookup();
@@ -52,9 +54,7 @@ export function CommentAipThreadList({
         setItems(resolved);
       } catch (err) {
         if (!active) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load feedback."
-        );
+        setError(err instanceof Error ? err.message : "Failed to load feedback.");
       } finally {
         if (active) setLoading(false);
       }
@@ -92,20 +92,22 @@ export function CommentAipThreadList({
     <div className="space-y-4">
       {items.map((item) => {
         const thread = threadMap.get(item.threadId);
-        const projectLabel = `${item.contextTitle} • ${item.contextSubtitle}`;
-        const isActive = activeThreadId === item.threadId;
+        const highlightClass = getCommentThreadHighlightClassName({
+          threadId: item.threadId,
+          selectedThreadId: activeThreadId,
+        });
 
         return (
           <Link key={item.threadId} href={item.href} className="block">
-            <CommentCard
-              commenterName={thread?.preview.authorName ?? "Citizen"}
-              barangayName={thread?.preview.authorScopeLabel ?? null}
-              createdAt={item.updatedAt}
-              projectLabel={projectLabel}
-              comment={item.snippet}
+            <CommentThreadListCard
+              authorName={thread?.preview.authorName ?? "Citizen"}
+              authorScopeLabel={thread?.preview.authorScopeLabel ?? null}
+              updatedAt={item.updatedAt}
+              contextTitle={item.contextTitle}
+              contextSubtitle={item.contextSubtitle}
+              snippet={item.snippet}
               status={item.status}
-              showActions={false}
-              className={isActive ? "ring-2 ring-amber-400 ring-inset" : ""}
+              className={cn(highlightClass)}
             />
           </Link>
         );
@@ -113,3 +115,4 @@ export function CommentAipThreadList({
     </div>
   );
 }
+

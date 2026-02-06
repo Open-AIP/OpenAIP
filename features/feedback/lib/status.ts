@@ -1,7 +1,7 @@
-import type { CommentStatus } from "../types";
+import type { CommentThreadStatus } from "../types";
 import { COMMENT_STATUS_LABEL } from "../constants";
 
-export function getCommentStatusBadge(status: CommentStatus) {
+export function getCommentStatusBadge(status: CommentThreadStatus) {
   if (status === "responded") {
     return {
       label: COMMENT_STATUS_LABEL.responded,

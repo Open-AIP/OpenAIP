@@ -5,7 +5,7 @@ import type {
   ProjectRowDTO,
 } from "../../dtos/project.dto";
 
-function assert(condition: boolean, message: string) {
+function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
     throw new Error(message);
   }
@@ -72,6 +72,7 @@ export async function runProjectMapperTests() {
   assert(mappedHealth.id === "PROJ-H-TEST", "health id should map");
   assert(mappedHealth.title === "Health Project", "health title should map");
   assert(mappedHealth.year === 2026, "health year should map");
+  assert(mappedHealth.kind === "health", "health kind should map");
   assert(
     mappedHealth.budgetAllocated === 5000,
     "health budget should map"
@@ -99,6 +100,7 @@ export async function runProjectMapperTests() {
   };
 
   const mappedInfra = mapProjectRowToUiModel(infraRow, null, infraDetails);
+  assert(mappedInfra.kind === "infrastructure", "infra kind should map");
   assert(mappedInfra.id === "PROJ-I-TEST", "infra id should map");
   assert(mappedInfra.title === "Infra Project", "infra title should map");
   assert(mappedInfra.contractCost === 9000, "infra cost should map");

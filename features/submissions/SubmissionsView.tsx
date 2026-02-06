@@ -5,8 +5,10 @@ import type { AipSubmissionItem } from "./types/submissions.types";
 import { SubmissionStats } from "./SubmissionStats";
 import { SubmissionFilters } from "./SubmissionFilters";
 import { SubmissionTable } from "./SubmissionTable";
+import type { ListSubmissionsResult } from "./submissionsReview.contracts";
 
-export default function SubmissionsView({ aips }: { aips: AipSubmissionItem[] }) {
+export default function SubmissionsView({ data }: { data: ListSubmissionsResult }) {
+  const aips: AipSubmissionItem[] = data.rows;
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [barangayFilter, setBarangayFilter] = useState<string>("all");
@@ -21,17 +23,6 @@ export default function SubmissionsView({ aips }: { aips: AipSubmissionItem[] })
     });
   }, [aips, barangayFilter, statusFilter, yearFilter]);
 
-  const stats = useMemo(
-    () => ({
-      total: aips.length,
-      published: aips.filter((a) => a.status === "published").length,
-      underReview: aips.filter((a) => a.status === "under_review").length,
-      pendingReview: aips.filter((a) => a.status === "pending_review").length,
-      forRevision: aips.filter((a) => a.status === "for_revision").length,
-    }),
-    [aips]
-  );
-
   return (
     <div className="space-y-6">
       <div>
@@ -41,7 +32,7 @@ export default function SubmissionsView({ aips }: { aips: AipSubmissionItem[] })
         </p>
       </div>
 
-      <SubmissionStats stats={stats} />
+      <SubmissionStats stats={data.counts} />
 
       <SubmissionFilters
         aips={aips}

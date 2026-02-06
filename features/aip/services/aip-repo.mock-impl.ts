@@ -2,8 +2,7 @@ import type { AipRepo } from "../data/aip-repo";
 import type { AipStatus, LguScope } from "../types";
 import { AIPS_TABLE } from "../mock/aips.table";
 import { generateMockAIP } from "./mock-aip-generator";
-
-const aipDetailPromiseCache = new Map<string, ReturnType<AipRepo["getAipDetail"]>>();
+import { getLatestMockAipRevisionNote } from "@/features/submissions/submissionsReview.repo.mock";
 
 export type CreateMockAipRepoOptions = {
   defaultScope?: LguScope;
@@ -29,26 +28,24 @@ export function createMockAipRepoImpl({
       _actor?: import("@/lib/domain/actor-context").ActorContext
     ) {
       if (!aipId) return null;
-      const cacheKey = `${defaultScope}:${aipId}`;
-      const cached = aipDetailPromiseCache.get(cacheKey);
-      if (cached) return cached;
 
-      const promise = (async () => {
-        const found = AIPS_TABLE.find((aip) => aip.id === aipId);
-        if (found) return found;
-
-        if (aipId.startsWith("aip-")) {
-          const yearMatch = aipId.match(/aip-(\d{4})/);
-          const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
-          const fileName = `${aipId.split("-").slice(2, -1).join("-")}.pdf`;
-          return generateMockAIP(aipId, fileName, year, defaultScope);
+      const found = AIPS_TABLE.find((aip) => aip.id === aipId);
+      if (found) {
+        if (found.status === "for_revision" && found.scope === "barangay") {
+          const note = getLatestMockAipRevisionNote(found.id);
+          return note ? { ...found, feedback: note } : { ...found, feedback: undefined };
         }
+        return found;
+      }
 
-        return null;
-      })();
+      if (aipId.startsWith("aip-")) {
+        const yearMatch = aipId.match(/aip-(\d{4})/);
+        const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
+        const fileName = `${aipId.split("-").slice(2, -1).join("-")}.pdf`;
+        return generateMockAIP(aipId, fileName, year, defaultScope);
+      }
 
-      aipDetailPromiseCache.set(cacheKey, promise);
-      return promise;
+      return null;
     },
     async updateAipStatus(
       aipId: string,

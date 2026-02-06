@@ -75,11 +75,12 @@ const {
   runSubmissionsServiceTests,
 } = require("@/features/submissions/services/__tests__/submissionsService.test");
 const {
+  runSubmissionsReviewRepoTests,
+} = require("@/features/submissions/services/__tests__/submissionsReviewRepo.mock.test");
+const {
   getCitySubmissionsFeedForActor,
 } = require("@/features/submissions/services/submissionsService");
-const {
-  AIP_SUBMISSIONS_MOCK,
-} = require("@/features/submissions/mock/aip-submissions.mock");
+const { AIPS_TABLE } = require("@/features/aip/mock/aips.table");
 
 function assert(condition, message) {
   if (!condition) {
@@ -390,17 +391,23 @@ const tests = [
     },
   },
   {
+    name: "submissionsReview.repo.mock tests",
+    async run() {
+      await runSubmissionsReviewRepoTests();
+    },
+  },
+  {
     name: "submissionsService dev fallback for null actor",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
       process.env.NEXT_PUBLIC_APP_ENV = "dev";
       try {
         const result = await getCitySubmissionsFeedForActor(null);
-        const expected = AIP_SUBMISSIONS_MOCK.filter(
-          (row) => row.scope === "barangay"
+        const expected = AIPS_TABLE.filter(
+          (row) => row.scope === "barangay" && row.status !== "draft"
         ).length;
         assert(
-          result.length === expected,
+          result.rows.length === expected,
           "Expected null-actor dev feed to return mock submissions"
         );
       } finally {

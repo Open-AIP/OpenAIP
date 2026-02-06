@@ -104,17 +104,36 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                     {getTimeSince(aip.uploadedAt)}
                   </td>
                   <td className="py-4 px-4">
+                    {(() => {
+                      const isPending = aip.status === "pending_review";
+                      const isUnderReview = aip.status === "under_review";
+                      const href = isPending || isUnderReview
+                        ? `/city/submissions/aips/${aip.id}?mode=review`
+                        : `/city/submissions/aips/${aip.id}`;
+                      const label = isPending
+                        ? "Review"
+                        : isUnderReview
+                          ? "Continue Review"
+                          : "View";
+
+                      return (
                     <Button
-                      variant="outline"
+                      variant={isPending ? "default" : "outline"}
                       size="sm"
-                      className="gap-2"
+                      className={
+                        isPending
+                          ? "gap-2 bg-teal-600 hover:bg-teal-700 text-white"
+                          : "gap-2"
+                      }
                       asChild
                     >
-                      <Link href={`/city/submissions/${aip.id}`}>
+                      <Link href={href}>
                         <Eye className="h-4 w-4" />
-                        {aip.status === "pending_review" ? "Review" : "View"}
+                        {label}
                       </Link>
                     </Button>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

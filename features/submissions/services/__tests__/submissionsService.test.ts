@@ -1,5 +1,5 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
-import { AIP_SUBMISSIONS_MOCK } from "../../mock/aip-submissions.mock";
+import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
 import { getCitySubmissionsFeedForActor } from "../submissionsService";
 
 function assert(condition: boolean, message: string) {
@@ -21,19 +21,26 @@ export async function runSubmissionsServiceTests() {
     scope: { kind: "barangay", id: "brgy_mamadid" },
   };
 
+  const expectedCount = AIPS_TABLE.filter(
+    (row) => row.scope === "barangay" && row.status !== "draft"
+  ).length;
+
   const adminFeed = await getCitySubmissionsFeedForActor(admin);
   assert(
-    adminFeed.length === AIP_SUBMISSIONS_MOCK.filter((row) => row.scope === "barangay").length,
+    adminFeed.rows.length === expectedCount,
     "Expected admin to receive city submissions feed"
   );
 
   const cityFeed = await getCitySubmissionsFeedForActor(cityOfficial);
   assert(
-    cityFeed.length === AIP_SUBMISSIONS_MOCK.filter((row) => row.scope === "barangay").length,
+    cityFeed.rows.length === expectedCount,
     "Expected city official to receive barangay submissions"
   );
 
   const barangayFeed = await getCitySubmissionsFeedForActor(barangayOfficial);
-  assert(barangayFeed.length === 0, "Expected barangay official to receive no city submissions");
+  assert(
+    barangayFeed.rows.length === 0,
+    "Expected barangay official to receive no city submissions"
+  );
 }
 

@@ -1,32 +1,54 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import type { AipSubmissionItem } from "../types/submissions.types";
-import { getSubmissionsRepo } from "../data/submissionsRepo.selector";
 import { getAppEnv } from "@/shared/config/appEnv";
+import type { ListSubmissionsResult } from "../submissionsReview.contracts";
+import { getAipSubmissionsReviewRepo } from "../submissionsReview.repo.selector";
 
-export async function getCitySubmissionsFeed(): Promise<AipSubmissionItem[]> {
+function emptyResult(): ListSubmissionsResult {
+  return {
+    rows: [],
+    counts: {
+      total: 0,
+      published: 0,
+      underReview: 0,
+      pendingReview: 0,
+      forRevision: 0,
+    },
+  };
+}
+
+export async function getCitySubmissionsFeed(): Promise<ListSubmissionsResult> {
   const actor = await getActorContext();
   return getCitySubmissionsFeedForActor(actor);
 }
 
 export async function getCitySubmissionsFeedForActor(
   actor: ActorContext | null
-): Promise<AipSubmissionItem[]> {
+): Promise<ListSubmissionsResult> {
   if (!actor) {
     // Dev UX: allow viewing mock submissions even if auth context is missing.
     // This keeps the page usable while auth/session wiring is in flux.
     if (getAppEnv() === "dev") {
-      const repo = getSubmissionsRepo();
-      return repo.listBarangaySubmissions();
+      const repo = getAipSubmissionsReviewRepo();
+      return repo.listSubmissionsForCity({ cityId: "city_001", actor: null });
     }
-    return [];
+    return emptyResult();
   }
 
   if (actor.role !== "admin" && actor.role !== "city_official") {
-    return [];
+    return emptyResult();
   }
 
-  const repo = getSubmissionsRepo();
-  return repo.listBarangaySubmissions();
+  const cityId =
+    actor.role === "city_official" && actor.scope.kind === "city"
+      ? actor.scope.id
+      : "city_001";
+
+  if (!cityId) {
+    return emptyResult();
+  }
+
+  const repo = getAipSubmissionsReviewRepo();
+  return repo.listSubmissionsForCity({ cityId, actor });
 }
 

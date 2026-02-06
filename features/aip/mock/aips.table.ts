@@ -28,7 +28,6 @@ export const AIPS_TABLE: AipHeader[] = [
       uploadDate: "January 15, 2026",
       budgetAllocated: 5800000,
     },
-    feedback: "Please provide more detailed cost breakdown for the multi-purpose hall project.",
   },
   {
     id: AIP_IDS.barangay_poblacion_2026,
@@ -198,6 +197,5 @@ export const AIPS_TABLE: AipHeader[] = [
       uploadDate: "January 18, 2026",
       budgetAllocated: 3900000,
     },
-    feedback: "Budget allocation for medical equipment needs to be itemized. Please provide detailed specifications for the vaccination storage facility.",
   },
 ];

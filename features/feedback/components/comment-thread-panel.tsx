@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,7 +15,13 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
 };
 
-export function CommentThreadPanel({ threadId }: { threadId: string }) {
+export function CommentThreadPanel({
+  threadId,
+  variant = "card",
+}: {
+  threadId: string;
+  variant?: "card" | "embedded";
+}) {
   const repo = React.useMemo(() => getCommentRepo(), []);
   const [thread, setThread] = React.useState<CommentThread | null>(null);
   const [messages, setMessages] = React.useState<CommentMessage[]>([]);
@@ -25,6 +30,9 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
   const [submitting, setSubmitting] = React.useState(false);
   const [showReply, setShowReply] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const isEmbedded = variant === "embedded";
+  const messagesToRender = isEmbedded ? messages.slice(1) : messages;
 
   React.useEffect(() => {
     let active = true;
@@ -78,30 +86,39 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
   if (!threadId) return null;
 
   return (
-    <Card className="border-slate-200 bg-white p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900">Feedback</h3>
-          {thread ? (
-            <p className="text-xs text-slate-500">
-              Thread ID: {thread.id}
-            </p>
-          ) : null}
+    <div
+      className={cn(
+        "rounded-2xl border border-slate-200",
+        isEmbedded ? "bg-slate-50 p-4" : "bg-white p-6"
+      )}
+    >
+      {!isEmbedded ? (
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">Feedback</h3>
+            {thread ? (
+              <p className="text-xs text-slate-500">Thread ID: {thread.id}</p>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {loading ? (
-        <div className="mt-4 text-sm text-slate-500">Loading thread…</div>
+        <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-slate-500")}>
+          Loading thread…
+        </div>
       ) : error ? (
-        <div className="mt-4 text-sm text-rose-600">{error}</div>
+        <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-rose-600")}>
+          {error}
+        </div>
       ) : !thread ? (
-        <div className="mt-4 text-sm text-slate-500">
+        <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-slate-500")}>
           Thread not found.
         </div>
       ) : (
         <>
-          <div className="mt-4 space-y-4">
-            {messages.map((message) => {
+          <div className={cn(isEmbedded ? "space-y-4" : "mt-4 space-y-4")}>
+            {messagesToRender.map((message) => {
               const isCitizen = message.authorRole === "citizen";
               const roleLabel =
                 ROLE_LABELS[message.authorRole] ?? message.authorRole;
@@ -128,7 +145,7 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
                         </p>
                         {!isCitizen ? (
                           <>
-                            <span className="text-xs text-slate-400">&bull;</span>
+                            <span className="text-xs text-slate-400">•</span>
                             <span className="text-xs text-slate-500">
                               {roleLabel}
                             </span>
@@ -159,7 +176,17 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
             })}
           </div>
 
-          <div className="mt-6 space-y-3">
+          <div className={cn(isEmbedded ? "mt-4 space-y-3" : "mt-6 space-y-3")}>
+            {isEmbedded && !showReply && messagesToRender.length === 0 ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-slate-700"
+                onClick={() => setShowReply(true)}
+              >
+                Reply
+              </button>
+            ) : null}
+
             {showReply ? (
               <>
                 <label className="text-xs font-semibold text-slate-600">
@@ -197,6 +224,7 @@ export function CommentThreadPanel({ threadId }: { threadId: string }) {
           </div>
         </>
       )}
-    </Card>
+    </div>
   );
 }
+

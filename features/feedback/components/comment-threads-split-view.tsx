@@ -130,41 +130,55 @@ export function CommentThreadsSplitView({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-      <div className="space-y-4">
-        {items.map((item) => {
-          const thread = threadMap.get(item.threadId);
-          const highlightClass = getCommentThreadHighlightClassName({
-            threadId: item.threadId,
-            selectedThreadId: effectiveSelectedThreadId,
-          });
-          const authorName = thread?.preview.authorName ?? "Citizen";
-          const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
+    <div className="space-y-4">
+      {items.map((item) => {
+        const thread = threadMap.get(item.threadId);
+        const highlightClass = getCommentThreadHighlightClassName({
+          threadId: item.threadId,
+          selectedThreadId: effectiveSelectedThreadId,
+        });
+        const authorName = thread?.preview.authorName ?? "Citizen";
+        const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
+        const isSelected = item.threadId === effectiveSelectedThreadId;
 
-          return (
-            <div key={item.threadId} ref={setRowRef(item.threadId)}>
+        const cardProps = {
+          authorName,
+          authorScopeLabel,
+          updatedAt: item.updatedAt,
+          status: item.status,
+          contextTitle: item.contextTitle,
+          contextSubtitle: item.contextSubtitle,
+          snippet: item.snippet,
+        } as const;
+
+        return (
+          <div key={item.threadId} ref={setRowRef(item.threadId)}>
+            {isSelected ? (
+              <div
+                className={cn(
+                  "rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm",
+                  highlightClass
+                )}
+              >
+                <Link href={item.href} className="block">
+                  <CommentThreadListCard {...cardProps} variant="embedded" />
+                </Link>
+
+                <div className="mt-4 min-w-0">
+                  <CommentThreadPanel
+                    threadId={effectiveSelectedThreadId}
+                    variant="embedded"
+                  />
+                </div>
+              </div>
+            ) : (
               <Link href={item.href} className="block">
-                <CommentThreadListCard
-                  authorName={authorName}
-                  authorScopeLabel={authorScopeLabel}
-                  updatedAt={item.updatedAt}
-                  status={item.status}
-                  contextTitle={item.contextTitle}
-                  contextSubtitle={item.contextSubtitle}
-                  snippet={item.snippet}
-                  className={cn(highlightClass)}
-                />
+                <CommentThreadListCard {...cardProps} className={cn(highlightClass)} />
               </Link>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="min-w-0">
-        {effectiveSelectedThreadId ? (
-          <CommentThreadPanel threadId={effectiveSelectedThreadId} />
-        ) : null}
-      </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

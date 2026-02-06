@@ -1,4 +1,6 @@
 import type { CommentSidebarItem, CommentThread } from "../types";
+import { dedupeByKey, findDuplicateKeys } from "./dedupe";
+import { feedbackDebugLog } from "../lib/debug";
 
 export type CommentTargetProjectSummary = {
   id: string;
@@ -44,8 +46,16 @@ export async function resolveCommentSidebar({
   threads: CommentThread[];
   scope?: "city" | "barangay";
 } & CommentTargetLookup): Promise<CommentSidebarItem[]> {
+  const threadDuplicates = findDuplicateKeys(threads, (thread) => thread.id);
+  if (threadDuplicates.length > 0) {
+    feedbackDebugLog("resolveCommentSidebar input duplicates", {
+      count: threadDuplicates.length,
+      ids: threadDuplicates,
+    });
+  }
+
   const items = await Promise.all(
-    threads.map(async (thread) => {
+    dedupeByKey(threads, (thread) => thread.id).map(async (thread) => {
       if (thread.target.targetKind === "project") {
         const project = await getProject(thread.target.projectId);
         if (!project?.kind) {

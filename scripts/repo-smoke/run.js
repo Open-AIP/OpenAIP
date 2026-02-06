@@ -48,6 +48,9 @@ const {
   runCommentThreadHighlightTests,
 } = require("@/features/feedback/services/__tests__/commentThread.highlight.test");
 const {
+  runFeedbackDedupeTests,
+} = require("@/features/feedback/services/__tests__/dedupe.test");
+const {
   runProjectMapperTests,
 } = require("@/features/projects/data/mappers/__tests__/project.mapper.test");
 const {
@@ -315,6 +318,12 @@ const tests = [
     name: "comment thread highlight applies only once",
     async run() {
       await runCommentThreadHighlightTests();
+    },
+  },
+  {
+    name: "feedback dedupe keeps unique ids",
+    async run() {
+      await runFeedbackDedupeTests();
     },
   },
   {

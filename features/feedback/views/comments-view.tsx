@@ -4,11 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { CommentThreadListCard } from "../components/comment-thread-list-card";
-import {
-  getCommentTargetLookup,
-  getCommentRepo,
-  resolveCommentSidebar,
-} from "../services";
+import { getCommentTargetLookup } from "../services/comment-target-lookup";
+import { getCommentRepo } from "../services/comment-repo";
+import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
 import type { CommentSidebarItem, CommentThread } from "../types";
 import { Input } from "@/components/ui/input";
 import {

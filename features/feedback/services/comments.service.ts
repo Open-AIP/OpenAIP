@@ -8,6 +8,7 @@ import type {
   ListCommentsResult,
   RespondToCommentInput,
 } from "../types";
+import { feedbackDebugLog } from "../lib/debug";
 
 const feedbackRepo = createMockFeedbackThreadsRepo();
 let commentsStore: Comment[] = [];
@@ -15,6 +16,7 @@ let seeded = false;
 
 async function ensureSeeded() {
   if (seeded) return;
+  feedbackDebugLog("legacy.comments.service.ensureSeeded", {});
   const roots = await feedbackRepo.listThreadRootsByTarget({
     target_type: "project",
     project_id: null,
@@ -40,6 +42,7 @@ function sortByCreatedAtDesc(a: Comment, b: Comment) {
 }
 
 export async function getCommentsFilterOptions(): Promise<CommentsFilterOptions> {
+  feedbackDebugLog("legacy.comments.service.getCommentsFilterOptions", {});
   await ensureSeeded();
   const yearsSet = new Set<number>();
   const projectsMap = new Map<string, CommentProjectOption>();
@@ -65,6 +68,7 @@ export async function getCommentsFilterOptions(): Promise<CommentsFilterOptions>
 export async function listComments(
   params: ListCommentsParams = {}
 ): Promise<ListCommentsResult> {
+  feedbackDebugLog("legacy.comments.service.listComments", { params });
   await ensureSeeded();
   const year = params.year ?? "all";
   const projectId = params.projectId ?? "all";
@@ -101,6 +105,9 @@ export async function listComments(
 export async function respondToComment(
   input: RespondToCommentInput
 ): Promise<Comment> {
+  feedbackDebugLog("legacy.comments.service.respondToComment", {
+    commentId: input.commentId,
+  });
   await ensureSeeded();
   const responseTimestamp = "2026-01-30T09:00:00.000Z";
   await feedbackRepo.createReply({

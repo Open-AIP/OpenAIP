@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,15 +15,14 @@ import { AipDetailsSummary } from "../components/aip-details-summary";
 import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { RemarksCard } from "../components/remarks-card";
 import { AipDetailsTableView } from "./aip-details-table";
-import type { AipProjectRepo } from "../data/aip-project-repo";
 import { Send } from "lucide-react";
 import { CommentThreadPanel } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getAipProjectRepo } from "../services/aip-project-repo.selector";
 
 export default function AipDetailView({
   aip,
   scope = "barangay",
-  projectRepo,
   onEdit,
   onResubmit,
   onCancel,
@@ -31,13 +31,13 @@ export default function AipDetailView({
 }: {
   aip: AipHeader;
   scope?: "city" | "barangay";
-  projectRepo: AipProjectRepo;
   onEdit?: () => void;
   onResubmit?: () => void;
   onCancel?: () => void;
   onCancelSubmission?: () => void;
   onSubmit?: () => void;
 }) {
+  const projectRepo = useMemo(() => getAipProjectRepo(), []);
   const showFeedback = aip.status === "for_revision";
   const showRemarks = aip.status !== "draft";
   const searchParams = useSearchParams();
@@ -47,6 +47,10 @@ export default function AipDetailView({
   const threadId = searchParams.get("thread");
   const tab = searchParams.get("tab");
   const activeTab = tab === "comments" ? "comments" : "summary";
+  const handleCancelDraft =
+    onCancel ?? (() => console.log("Canceling AIP draft:", aip.id));
+  const handleSubmitForReview =
+    onSubmit ?? (() => console.log("Submitting AIP for review:", aip.id));
 
   const breadcrumb = [
     { label: "AIP Management", href: `/${scope}/aips` },
@@ -145,11 +149,14 @@ export default function AipDetailView({
 
             {aip.status === "draft" && (
               <>
-                <Button variant="outline" onClick={onCancel} disabled={!onCancel}>
+                <Button variant="outline" onClick={handleCancelDraft}>
                   <X className="h-4 w-4" />
                   Cancel Draft
                 </Button>
-                <Button className="bg-[#022437] hover:bg-[#022437]/90" onClick={onSubmit} disabled={!onSubmit}>
+                <Button
+                  className="bg-[#022437] hover:bg-[#022437]/90"
+                  onClick={handleSubmitForReview}
+                >
                   <Send className="h-4 w-4" />
                   Submit for Review
                 </Button>

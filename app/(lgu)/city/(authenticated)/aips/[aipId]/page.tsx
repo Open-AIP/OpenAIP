@@ -3,8 +3,8 @@
 import { notFound } from "next/navigation";
 import { use } from "react";
 import AipDetailView from "@/features/aip/views/aip-detail-view";
-import { createMockAipRepo } from "@/features/aip/services/aip-repo.mock";
-import { createMockAipProjectRepo } from "@/features/aip/services/aip-project-repo.mock";
+import { getAipRepo } from "@/features/aip/services/aip-repo.selector";
+import { getAipProjectRepo } from "@/features/aip/services/aip-project-repo.selector";
 
 export default function CityAipDetailPage({
   params,
@@ -13,8 +13,8 @@ export default function CityAipDetailPage({
 }) {
   const { aipId } = use(params);
 
-  const aipRepo = createMockAipRepo({ defaultScope: "city" });
-  const projectRepo = createMockAipProjectRepo();
+  const aipRepo = getAipRepo({ defaultScope: "city" });
+  const projectRepo = getAipProjectRepo();
   const aip = use(aipRepo.getAipDetail(aipId));
 
   if (!aip || aip.scope !== "city") return notFound();

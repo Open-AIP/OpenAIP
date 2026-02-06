@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { CommentCard } from "./comment-card";
 import { getCommentRepo } from "../services/comment-repo";
-import { createMockCommentTargetLookup } from "../services/comment-target-lookup.mock";
+import { getCommentTargetLookup } from "../services/comment-target-lookup";
 import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
@@ -40,7 +40,7 @@ export function CommentAipThreadList({
             thread.target.aipId === aipId
         );
 
-        const lookup = createMockCommentTargetLookup();
+        const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({
           threads: aipThreads,
           scope,

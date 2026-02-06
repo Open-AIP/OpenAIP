@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { CommentCard } from "../components/comment-card";
 import {
-  createMockCommentTargetLookup,
+  getCommentTargetLookup,
   getCommentRepo,
   resolveCommentSidebar,
 } from "../services";
@@ -43,7 +43,7 @@ export default function CommentsView() {
         const threadList = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
         });
-        const lookup = createMockCommentTargetLookup();
+        const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({
           threads: threadList,
           scope: "barangay",

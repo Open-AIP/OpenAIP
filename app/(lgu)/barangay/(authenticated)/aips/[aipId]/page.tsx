@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import AipDetailView from "@/features/aip/views/aip-detail-view";
-import { createMockAipRepo } from "@/features/aip/services/aip-repo.mock";
-import { createMockAipProjectRepo } from "@/features/aip/services/aip-project-repo.mock";
+import { getAipRepo } from "@/features/aip/services/aip-repo.selector";
+import { getAipProjectRepo } from "@/features/aip/services/aip-project-repo.selector";
 
 export default async function BarangayAipDetail({
   params,
@@ -10,8 +10,8 @@ export default async function BarangayAipDetail({
 }) {
   const { aipId } = params;
 
-  const aipRepo = createMockAipRepo({ defaultScope: "barangay" });
-  const projectRepo = createMockAipProjectRepo();
+  const aipRepo = getAipRepo({ defaultScope: "barangay" });
+  const projectRepo = getAipProjectRepo();
   const aip = await aipRepo.getAipDetail(aipId);
 
   if (!aip || aip.scope !== "barangay") return notFound();

@@ -141,8 +141,7 @@ export function generateMockAIP(
     uploadedAt: currentDate,
     status: "draft",
     fileName,
-    pdfUrl: `/mock/${fileName}`,
-    tablePreviewUrl: "/mock/aip-table.png",
+    pdfUrl: "",
     summaryText: `Comprehensive development plan for ${year} covering infrastructure improvements, social services enhancement, and economic development initiatives.`,
     detailedBullets: [
       "Infrastructure development and rehabilitation projects",

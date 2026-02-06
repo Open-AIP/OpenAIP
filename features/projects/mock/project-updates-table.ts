@@ -10,7 +10,7 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     description: "Successfully vaccinated priority groups including healthcare workers and elderly residents. Mobile teams deployed to remote sitios.",
     progressPercent: 40,
     attendanceCount: 2000,
-    photoUrls: ["/mock/health/vax1.jpg", "/mock/health/vax2.jpg"],
+    photoUrls: ["/mock/health/health1.jpg", "/mock/health/health2.jpg"],
   },
   {
     id: "UPD-H-001-2",
@@ -29,7 +29,7 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     description: "First mobile health clinic deployed to upland barangays. Services include basic consultation, dental check-up, and medicine distribution.",
     progressPercent: 30,
     attendanceCount: 450,
-    photoUrls: ["/mock/health/clinic1.jpg"],
+    photoUrls: ["/mock/health/health3.jpg"],
   },
   {
     id: "UPD-H-005-1",
@@ -49,7 +49,6 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     date: "2026-01-10",
     description: "Official groundbreaking ceremony held with barangay officials and community members. Contractor mobilized equipment and materials.",
     progressPercent: 5,
-    photoUrls: ["/mock/infra/ground1.jpg", "/mock/infra/ground2.jpg"],
   },
   {
     id: "UPD-I-001-2",
@@ -66,7 +65,6 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     date: "2026-03-10",
     description: "First phase concrete pouring completed covering 1.2km stretch. Weather conditions favorable.",
     progressPercent: 58,
-    photoUrls: ["/mock/infra/concrete1.jpg"],
   },
   {
     id: "UPD-I-002-1",
@@ -107,7 +105,6 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     date: "2025-08-15",
     description: "Final inspection completed. All punch list items addressed. Court officially turned over to barangay.",
     progressPercent: 100,
-    photoUrls: ["/mock/infra/court-final.jpg"],
   },
   {
     id: "UPD-H-004-1",

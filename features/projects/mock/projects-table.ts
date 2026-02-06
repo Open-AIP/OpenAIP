@@ -75,7 +75,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     kind: "infrastructure",
     title: "Road Concreting and Rehabilitation (2.5km)",
     status: "ongoing",
-    imageUrl: "/mock/infra/road1.jpg",
+    imageUrl: "/default/default-no-image.jpg",
   },
   {
     projectRefCode: PROJECT_IDS.infra_multi_purpose_hall_2026_002,
@@ -83,7 +83,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     kind: "infrastructure",
     title: "Barangay Multi-Purpose Hall Construction",
     status: "ongoing",
-    imageUrl: "/mock/infra/hall1.jpg",
+    imageUrl: "/default/default-no-image.jpg",
   },
   {
     projectRefCode: PROJECT_IDS.infra_drainage_2026_003,
@@ -99,7 +99,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     kind: "infrastructure",
     title: "Basketball Court Renovation",
     status: "completed",
-    imageUrl: "/mock/infra/court1.jpg",
+    imageUrl: "/default/default-no-image.jpg",
   },
   {
     projectRefCode: PROJECT_IDS.infra_street_lighting_2025_002,
@@ -123,7 +123,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     kind: "infrastructure",
     title: "Flood Control and Retaining Wall Project",
     status: "ongoing",
-    imageUrl: "/mock/infra/wall1.jpg",
+    imageUrl: "/default/default-no-image.jpg",
   },
   {
     projectRefCode: PROJECT_IDS.infra_water_upgrade_2026_006,

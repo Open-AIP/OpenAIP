@@ -4,6 +4,7 @@ import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
 import { formatCommentDate } from "../lib/format";
 import { getCommentRepo } from "../services/comment-repo";
 import type { CommentMessage, CommentThread } from "../types";
@@ -85,145 +86,135 @@ export function CommentThreadPanel({
 
   if (!threadId) return null;
 
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-slate-200",
-        isEmbedded ? "bg-slate-50 p-4" : "bg-white p-6"
-      )}
-    >
-      {!isEmbedded ? (
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h3 className="text-base font-semibold text-slate-900">Feedback</h3>
-            {thread ? (
-              <p className="text-xs text-slate-500">Thread ID: {thread.id}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+  const content = loading ? (
+    <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-slate-500")}>
+      Loading thread...
+    </div>
+  ) : error ? (
+    <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-rose-600")}>
+      {error}
+    </div>
+  ) : !thread ? (
+    <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-slate-500")}>
+      Thread not found.
+    </div>
+  ) : (
+    <>
+      <div
+        className={cn(
+          isEmbedded ? "space-y-4 pl-14" : "mt-4 space-y-4"
+        )}
+      >
+        {messagesToRender.map((message) => {
+          const isCitizen = message.authorRole === "citizen";
+          const roleLabel = ROLE_LABELS[message.authorRole] ?? message.authorRole;
+          const displayName = isCitizen ? "Citizen" : "Official";
 
-      {loading ? (
-        <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-slate-500")}>
-          Loading thread…
-        </div>
-      ) : error ? (
-        <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-rose-600")}>
-          {error}
-        </div>
-      ) : !thread ? (
-        <div className={cn(isEmbedded ? "text-sm" : "mt-4 text-sm", "text-slate-500")}>
-          Thread not found.
-        </div>
-      ) : (
-        <>
-          <div className={cn(isEmbedded ? "space-y-4" : "mt-4 space-y-4")}>
-            {messagesToRender.map((message) => {
-              const isCitizen = message.authorRole === "citizen";
-              const roleLabel =
-                ROLE_LABELS[message.authorRole] ?? message.authorRole;
-              const displayName = isCitizen ? "Citizen" : "Official";
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "rounded-2xl border border-slate-200 p-4 shadow-sm",
-                    isCitizen ? "bg-white" : "bg-slate-50"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 grid h-10 w-10 place-items-center rounded-full bg-teal-800 text-white">
-                      <span className="text-sm font-semibold">
-                        {displayName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+          return (
+            <div
+              key={message.id}
+              className={cn(
+                "rounded-2xl border border-slate-200 p-4 shadow-sm",
+                isCitizen ? "bg-white" : "bg-slate-50"
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 grid h-10 w-10 place-items-center rounded-full bg-teal-800 text-white">
+                  <span className="text-sm font-semibold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {displayName}
-                        </p>
-                        {!isCitizen ? (
-                          <>
-                            <span className="text-xs text-slate-400">•</span>
-                            <span className="text-xs text-slate-500">
-                              {roleLabel}
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {displayName}
+                    </p>
+                    {!isCitizen ? (
+                      <>
+                        <span className="text-xs text-slate-400">•</span>
+                        <span className="text-xs text-slate-500">{roleLabel}</span>
+                      </>
+                    ) : null}
+                  </div>
 
-                      <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                        {message.text}
-                      </p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                    {message.text}
+                  </p>
 
-                      <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
-                        <time dateTime={new Date(message.createdAt).toISOString()}>
-                          {formatCommentDate(message.createdAt)}
-                        </time>
-                        <button
-                          type="button"
-                          className="font-semibold text-slate-700"
-                          onClick={() => setShowReply(true)}
-                        >
-                          Reply
-                        </button>
-                      </div>
-                    </div>
+                  <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
+                    <time dateTime={new Date(message.createdAt).toISOString()}>
+                      {formatCommentDate(message.createdAt)}
+                    </time>
+                    <button
+                      type="button"
+                      className="font-semibold text-slate-700"
+                      onClick={() => setShowReply(true)}
+                    >
+                      Reply
+                    </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-          <div className={cn(isEmbedded ? "mt-4 space-y-3" : "mt-6 space-y-3")}>
-            {isEmbedded && !showReply && messagesToRender.length === 0 ? (
-              <button
+      <div className={cn(isEmbedded ? "mt-4 space-y-3" : "mt-6 space-y-3")}>
+        {isEmbedded && !showReply ? (
+          <button
+            type="button"
+            className="text-xs font-semibold text-slate-700"
+            onClick={() => setShowReply(true)}
+          >
+            Reply
+          </button>
+        ) : null}
+
+        {showReply ? (
+          <>
+            <label className="text-xs font-semibold text-slate-600">Reply</label>
+            <Textarea
+              value={reply}
+              onChange={(event) => setReply(event.target.value)}
+              placeholder="Write your response here..."
+              className="min-h-[120px] border-slate-200 bg-white"
+            />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
                 type="button"
-                className="text-xs font-semibold text-slate-700"
-                onClick={() => setShowReply(true)}
+                variant="ghost"
+                onClick={() => {
+                  setShowReply(false);
+                  setReply("");
+                }}
+                className="rounded-xl"
               >
-                Reply
-              </button>
-            ) : null}
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleReply}
+                disabled={submitting || !reply.trim()}
+                className="rounded-xl"
+              >
+                {submitting ? "Sending..." : "Send reply"}
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </>
+  );
 
-            {showReply ? (
-              <>
-                <label className="text-xs font-semibold text-slate-600">
-                  Reply
-                </label>
-                <Textarea
-                  value={reply}
-                  onChange={(event) => setReply(event.target.value)}
-                  placeholder="Write your response here..."
-                  className="min-h-[120px] border-slate-200 bg-white"
-                />
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setShowReply(false);
-                      setReply("");
-                    }}
-                    className="rounded-xl"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleReply}
-                    disabled={submitting || !reply.trim()}
-                    className="rounded-xl"
-                  >
-                    {submitting ? "Sending..." : "Send reply"}
-                  </Button>
-                </div>
-              </>
-            ) : null}
-          </div>
-        </>
-      )}
+  if (isEmbedded) {
+    return <div className="space-y-4">{content}</div>;
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      {content}
     </div>
   );
 }

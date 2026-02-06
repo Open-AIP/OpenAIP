@@ -3,6 +3,7 @@ export type { UUID, ISODateTime, Json } from "./primitives";
 export type {
   RoleType,
   AipStatus,
+  ReviewAction,
   FeedbackTargetType,
   FeedbackSource,
   FeedbackKind,

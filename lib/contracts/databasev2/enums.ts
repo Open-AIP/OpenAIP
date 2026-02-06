@@ -19,6 +19,11 @@ export type AipStatus =
   | "published";
 
 /**
+ * Mirrors: public.review_action enum
+ */
+export type ReviewAction = "approve" | "request_revision";
+
+/**
  * Mirrors: public.feedback_target_type enum
  */
 export type FeedbackTargetType = "aip" | "project";

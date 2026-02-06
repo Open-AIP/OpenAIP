@@ -48,6 +48,9 @@ const {
   runCommentThreadHighlightTests,
 } = require("@/features/feedback/services/__tests__/commentThread.highlight.test");
 const {
+  runCommentThreadAccordionListTests,
+} = require("@/features/feedback/services/__tests__/commentThreadAccordionList.test");
+const {
   runFeedbackDedupeTests,
 } = require("@/features/feedback/services/__tests__/dedupe.test");
 const {
@@ -318,6 +321,12 @@ const tests = [
     name: "comment thread highlight applies only once",
     async run() {
       await runCommentThreadHighlightTests();
+    },
+  },
+  {
+    name: "comment thread accordion expands only selected",
+    async run() {
+      await runCommentThreadAccordionListTests();
     },
   },
   {

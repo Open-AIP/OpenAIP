@@ -1,12 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { CommentThreadPanel } from "./comment-thread-panel";
-import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
-import { CommentThreadListCard } from "./comment-thread-list-card";
+import { CommentThreadAccordionList } from "./comment-thread-accordion-list";
 import { getCommentRepo } from "../services/comment-repo";
 import { getCommentTargetLookup } from "../services/comment-target-lookup";
 import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
@@ -26,9 +23,14 @@ export function CommentThreadsSplitView({
   selectedThreadId?: string | null;
 }) {
   const repo = React.useMemo(() => getCommentRepo(), []);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const targetKind = target.kind;
   const targetAipId = target.kind === "aip" ? target.aipId : null;
   const targetProjectId = target.kind === "project" ? target.projectId : null;
+
   const [items, setItems] = React.useState<CommentSidebarItem[]>([]);
   const [threads, setThreads] = React.useState<CommentThread[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -71,9 +73,7 @@ export function CommentThreadsSplitView({
         setItems(resolved);
       } catch (err) {
         if (!active) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load feedback."
-        );
+        setError(err instanceof Error ? err.message : "Failed to load feedback.");
       } finally {
         if (active) setLoading(false);
       }
@@ -96,25 +96,42 @@ export function CommentThreadsSplitView({
     return threadMap.has(selectedThreadId) ? selectedThreadId : null;
   }, [selectedThreadId, threadMap]);
 
-  const rowRefs = React.useRef(new Map<string, HTMLDivElement | null>());
-  const setRowRef = React.useCallback(
-    (threadId: string) => (node: HTMLDivElement | null) => {
-      rowRefs.current.set(threadId, node);
+  const accordionItems = React.useMemo(() => {
+    return items.map((item) => {
+      const thread = threadMap.get(item.threadId);
+      return {
+        threadId: item.threadId,
+        href: item.href,
+        card: {
+          authorName: thread?.preview.authorName ?? "Citizen",
+          authorScopeLabel: thread?.preview.authorScopeLabel ?? null,
+          updatedAt: item.updatedAt,
+          status: item.status,
+          contextTitle: item.contextTitle,
+          contextSubtitle: item.contextSubtitle,
+          snippet: item.snippet,
+        },
+      };
+    });
+  }, [items, threadMap]);
+
+  const handleNavigate = React.useCallback(
+    (href: string) => {
+      router.push(href, { scroll: false });
     },
-    []
+    [router]
   );
 
-  React.useEffect(() => {
-    if (!effectiveSelectedThreadId) return;
-    const node = rowRefs.current.get(effectiveSelectedThreadId);
-    if (!node) return;
-    requestAnimationFrame(() => {
-      node.scrollIntoView({ block: "center" });
-    });
-  }, [effectiveSelectedThreadId]);
+  const handleClearSelection = React.useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "comments");
+    params.delete("thread");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   if (loading) {
-    return <div className="text-sm text-slate-500">Loading feedback…</div>;
+    return <div className="text-sm text-slate-500">Loading feedback...</div>;
   }
 
   if (error) {
@@ -130,55 +147,12 @@ export function CommentThreadsSplitView({
   }
 
   return (
-    <div className="space-y-4">
-      {items.map((item) => {
-        const thread = threadMap.get(item.threadId);
-        const highlightClass = getCommentThreadHighlightClassName({
-          threadId: item.threadId,
-          selectedThreadId: effectiveSelectedThreadId,
-        });
-        const authorName = thread?.preview.authorName ?? "Citizen";
-        const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
-        const isSelected = item.threadId === effectiveSelectedThreadId;
-
-        const cardProps = {
-          authorName,
-          authorScopeLabel,
-          updatedAt: item.updatedAt,
-          status: item.status,
-          contextTitle: item.contextTitle,
-          contextSubtitle: item.contextSubtitle,
-          snippet: item.snippet,
-        } as const;
-
-        return (
-          <div key={item.threadId} ref={setRowRef(item.threadId)}>
-            {isSelected ? (
-              <div
-                className={cn(
-                  "rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm",
-                  highlightClass
-                )}
-              >
-                <Link href={item.href} className="block">
-                  <CommentThreadListCard {...cardProps} variant="embedded" />
-                </Link>
-
-                <div className="mt-4 min-w-0">
-                  <CommentThreadPanel
-                    threadId={effectiveSelectedThreadId}
-                    variant="embedded"
-                  />
-                </div>
-              </div>
-            ) : (
-              <Link href={item.href} className="block">
-                <CommentThreadListCard {...cardProps} className={cn(highlightClass)} />
-              </Link>
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <CommentThreadAccordionList
+      items={accordionItems}
+      selectedThreadId={effectiveSelectedThreadId}
+      onNavigate={handleNavigate}
+      onClearSelection={handleClearSelection}
+    />
   );
 }
+

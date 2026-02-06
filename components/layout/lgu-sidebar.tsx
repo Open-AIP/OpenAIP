@@ -146,7 +146,7 @@ export default function LguSidebar({ variant }: Props) {
 
       {/* Footer / Logout */}
       <div className="p-4 mt-auto">
-        <div className="opacity-40 text-xs mb-3"> </div>
+        <div className="text-xs mb-3"> </div>
         <div className="rounded-xl bg-[#022437] p-2">
           <LogoutButton role={variant} baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
         </div>

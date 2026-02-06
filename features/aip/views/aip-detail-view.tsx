@@ -65,7 +65,7 @@ export default function AipDetailView({
       <Card className="border-slate-200">
         <CardContent className="p-6 flex items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-slate-900">
-            {aip.title} <span className="ml-2">{aip.year}</span>
+            {aip.title}
           </h1>
 
           <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}>

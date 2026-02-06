@@ -42,6 +42,9 @@ const {
 } = require("@/features/feedback/data/feedback.repo.mock");
 const { listComments } = require("@/features/feedback/services/comments.service");
 const {
+  runCommentRepoSelectorTests,
+} = require("@/features/feedback/services/__tests__/commentRepo.selector.test");
+const {
   runProjectMapperTests,
 } = require("@/features/projects/data/mappers/__tests__/project.mapper.test");
 const {
@@ -285,6 +288,12 @@ const tests = [
           "Expected comments sorted newest to oldest"
         );
       }
+    },
+  },
+  {
+    name: "getCommentRepo uses supabase outside dev",
+    async run() {
+      await runCommentRepoSelectorTests();
     },
   },
   {

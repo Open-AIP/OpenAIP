@@ -1,6 +1,7 @@
 import type { CommentMessage, CommentThread } from "../types";
 import { createMockCommentRepo } from "./comment-repo.mock";
 import { createSupabaseCommentRepo } from "./comment-repo.supabase";
+import { getAppEnv } from "@/shared/config/appEnv";
 
 export type ListThreadsForInboxParams = {
   lguId: string;
@@ -36,9 +37,6 @@ export type CommentRepo = {
 };
 
 export function getCommentRepo(): CommentRepo {
-  const runtimeEnv =
-    process.env.NEXT_PUBLIC_APP_ENV ?? process.env.NODE_ENV ?? "development";
-  const useSupabase = runtimeEnv === "staging" || runtimeEnv === "production";
-
-  return useSupabase ? createSupabaseCommentRepo() : createMockCommentRepo();
+  const env = getAppEnv();
+  return env === "dev" ? createMockCommentRepo() : createSupabaseCommentRepo();
 }

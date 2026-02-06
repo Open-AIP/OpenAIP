@@ -1,4 +1,3 @@
-import { AIP_PROJECT_ROWS_TABLE } from "@/features/aip/mock/aip-project-rows.table";
 import type {
   HealthProjectDetailsRowDTO,
   InfrastructureProjectDetailsRowDTO,
@@ -9,13 +8,6 @@ import { INFRA_DETAILS_TABLE } from "../../mock/infrastructure-details-table";
 import { PROJECTS_TABLE } from "../../mock/projects-table";
 
 const now = new Date().toISOString();
-
-const aipByProjectRef = new Map<string, string>();
-for (const row of AIP_PROJECT_ROWS_TABLE) {
-  if (!aipByProjectRef.has(row.projectRefCode)) {
-    aipByProjectRef.set(row.projectRefCode, row.aipId);
-  }
-}
 
 const healthByRef = new Map(
   HEALTH_DETAILS_TABLE.map((detail) => [detail.projectRefCode, detail])
@@ -49,7 +41,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
 
     return {
       id: project.projectRefCode,
-      aip_id: aipByProjectRef.get(project.projectRefCode) ?? null,
+      aip_id: null,
       aip_ref_code: project.projectRefCode,
       program_project_description: project.title,
       implementing_agency: implementingAgency,

@@ -73,7 +73,10 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
           throw new Error(`Health details not found for ${row.id}`);
         }
         const mapped = mapProjectRowToUiModel(row, details, null);
-        return attachUpdates(mapped as any);
+        if (mapped.kind !== "health") {
+          throw new Error(`Expected health project mapping for ${row.id}`);
+        }
+        return attachUpdates(mapped);
       });
     },
 
@@ -87,7 +90,10 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
           throw new Error(`Infrastructure details not found for ${row.id}`);
         }
         const mapped = mapProjectRowToUiModel(row, null, details);
-        return attachUpdates(mapped as any);
+        if (mapped.kind !== "infrastructure") {
+          throw new Error(`Expected infrastructure project mapping for ${row.id}`);
+        }
+        return attachUpdates(mapped);
       });
     },
 

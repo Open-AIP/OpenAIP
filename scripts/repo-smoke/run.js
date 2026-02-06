@@ -38,7 +38,7 @@ const { projectService } = require("@/features/projects/services/project-service
 const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selector");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 const {
-  createMockFeedbackRepo: createMockFeedbackThreadRepo,
+  createMockFeedbackThreadsRepo: createMockFeedbackThreadRepo,
 } = require("@/features/feedback/data/feedback.repo.mock");
 const { listComments } = require("@/features/feedback/services/comments.service");
 const {
@@ -262,8 +262,8 @@ const tests = [
     name: "FeedbackRepo.listThreadMessages preserves chronological order",
     async run() {
       const repo = createMockFeedbackThreadRepo();
-      const messages = await repo.listThreadMessages("cmtc_002");
-      assert(messages.length >= 2, "Expected seeded replies for cmtc_002");
+      const messages = await repo.listThreadMessages("thread_002");
+      assert(messages.length >= 2, "Expected seeded replies for thread_002");
       for (let i = 1; i < messages.length; i += 1) {
         assert(
           new Date(messages[i - 1].created_at).getTime() <=

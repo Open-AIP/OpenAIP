@@ -19,7 +19,7 @@ export type CreateReplyInput = {
   target?: FeedbackTarget;
 };
 
-export interface FeedbackRepo {
+export interface FeedbackThreadsRepo {
   listThreadRootsByTarget(target: FeedbackTarget): Promise<FeedbackRow[]>;
   listThreadMessages(rootId: string): Promise<FeedbackRow[]>;
   createRoot(input: CreateRootInput): Promise<FeedbackRow>;

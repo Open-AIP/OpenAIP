@@ -1,10 +1,9 @@
-import { COMMENTS_MOCK } from "../mock";
-import type { Comment } from "../types";
+import { COMMENT_MESSAGES_MOCK, COMMENT_THREADS_MOCK } from "../mock";
 import type { FeedbackRow } from "./feedback.types";
 import type {
   CreateReplyInput,
   CreateRootInput,
-  FeedbackRepo,
+  FeedbackThreadsRepo,
   FeedbackTarget,
 } from "./feedback.repo";
 
@@ -17,31 +16,79 @@ function sortByCreatedAtAsc(a: { created_at: string }, b: { created_at: string }
   return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
 }
 
-function buildSeedRows(comments: Comment[]): FeedbackRow[] {
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+function sortByCreatedAtAscThenId(
+  a: { createdAt: string; id: string },
+  b: { createdAt: string; id: string }
+) {
+  const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  if (diff !== 0) return diff;
+  return a.id.localeCompare(b.id);
+}
+
+function buildSeedRows(): FeedbackRow[] {
   const rows: FeedbackRow[] = [];
 
-  for (const comment of comments) {
+  const threadsById = new Map(COMMENT_THREADS_MOCK.map((t) => [t.id, t]));
+  assert(threadsById.size === COMMENT_THREADS_MOCK.length, "Expected unique thread ids in COMMENT_THREADS_MOCK");
+
+  for (const message of COMMENT_MESSAGES_MOCK) {
+    assert(
+      threadsById.has(message.threadId),
+      `Comment message references unknown threadId="${message.threadId}" (message id="${message.id}")`
+    );
+  }
+
+  const messagesByThreadId = new Map<string, typeof COMMENT_MESSAGES_MOCK>();
+  for (const thread of COMMENT_THREADS_MOCK) {
+    const messages = COMMENT_MESSAGES_MOCK
+      .filter((m) => m.threadId === thread.id)
+      .slice()
+      .sort(sortByCreatedAtAscThenId);
+
+    assert(messages.length > 0, `Expected at least 1 message for threadId="${thread.id}"`);
+    messagesByThreadId.set(thread.id, messages);
+  }
+
+  for (const thread of COMMENT_THREADS_MOCK) {
+    const messages = messagesByThreadId.get(thread.id);
+    assert(messages, `Expected message store for threadId="${thread.id}"`);
+
+    const rootMessage = messages[0];
+
+    const targetType: FeedbackRow["target_type"] =
+      thread.target.targetKind === "project" ? "project" : "aip";
+    const aipId =
+      thread.target.targetKind === "aip_item" ? thread.target.aipId : null;
+    const projectId =
+      thread.target.targetKind === "project" ? thread.target.projectId : null;
+
     rows.push({
-      id: comment.id,
-      target_type: "project",
-      project_id: comment.project_id,
-      aip_id: null,
+      id: thread.id,
+      target_type: targetType,
+      project_id: projectId,
+      aip_id: aipId,
       parent_feedback_id: null,
-      body: comment.message,
-      author_id: comment.commenter_name,
-      created_at: comment.created_at,
+      body: rootMessage.text,
+      author_id: rootMessage.authorId,
+      created_at: rootMessage.createdAt,
     });
 
-    if (comment.response?.message) {
+    for (const message of messages.slice(1)) {
       rows.push({
-        id: `reply_${comment.id}`,
-        target_type: "project",
-        project_id: comment.project_id,
-        aip_id: null,
-        parent_feedback_id: comment.id,
-        body: comment.response.message,
-        author_id: comment.response.responder_name,
-        created_at: comment.response.created_at,
+        id: message.id,
+        target_type: targetType,
+        project_id: projectId,
+        aip_id: aipId,
+        parent_feedback_id: thread.id,
+        body: message.text,
+        author_id: message.authorId,
+        created_at: message.createdAt,
       });
     }
   }
@@ -50,7 +97,7 @@ function buildSeedRows(comments: Comment[]): FeedbackRow[] {
 }
 
 function createStore(): FeedbackStore {
-  const rows = buildSeedRows(COMMENTS_MOCK);
+  const rows = buildSeedRows();
   return { rows, sequence: rows.length + 1 };
 }
 
@@ -76,11 +123,7 @@ function matchTarget(row: FeedbackRow, target: FeedbackTarget) {
   );
 }
 
-export function getMockFeedbackMetadata() {
-  return new Map(COMMENTS_MOCK.map((comment) => [comment.id, comment]));
-}
-
-export function createMockFeedbackRepo(): FeedbackRepo {
+export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
   const store = createStore();
 
   return {

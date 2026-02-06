@@ -1,4 +1,4 @@
-import { createMockFeedbackRepo, getMockFeedbackMetadata } from "../data/feedback.repo.mock";
+import { createMockFeedbackThreadsRepo } from "../data/feedback.repo.mock";
 import { mapFeedbackThreadToComment } from "../data/feedback.mapper";
 import type {
   Comment,
@@ -9,8 +9,7 @@ import type {
   RespondToCommentInput,
 } from "../types";
 
-const feedbackRepo = createMockFeedbackRepo();
-const feedbackMetadata = getMockFeedbackMetadata();
+const feedbackRepo = createMockFeedbackThreadsRepo();
 let commentsStore: Comment[] = [];
 let seeded = false;
 
@@ -24,7 +23,7 @@ async function ensureSeeded() {
   const comments = await Promise.all(
     roots.map(async (root) => {
       const thread = await feedbackRepo.listThreadMessages(root.id);
-      return mapFeedbackThreadToComment(root, thread, feedbackMetadata);
+      return mapFeedbackThreadToComment(root, thread);
     })
   );
 

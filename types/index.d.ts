@@ -18,14 +18,4 @@ export type AuthParameters = {
   baseURL: string;
 }
 
-// Re-export all shared types from a single entry point
-
 export type { NavItem, LguVariant } from "./navigation";
-
-export type { AipStatus, AipRecord, AipUploader, AipDetail } from "./aip";
-
-export type { ProjectStatus, HealthProject, HealthProjectUpdate, InfrastructureProject, InfrastructureProjectUpdate } from "./project";
-
-export type { ProjectUpdate, ProjectHeaderModel } from "./project-updates";
-
-export type {AuditEventType, AuditLog } from "./audit";

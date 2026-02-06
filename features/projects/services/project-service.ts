@@ -8,6 +8,9 @@
  * ============================================================================
  */
 
+// [DATAFLOW] Page/server components → `projectService` → `ProjectsRepo` → adapter (mock now; Supabase later).
+// [DBV2] When backed by Supabase, the repo must enforce `can_read_project`/`can_edit_project` semantics (via RLS + explicit filters for UX).
+
 import { getProjectsRepo } from "../data/projectsRepo";
 import type { HealthProject, InfrastructureProject } from "../types";
 

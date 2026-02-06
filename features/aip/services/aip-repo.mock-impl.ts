@@ -8,6 +8,9 @@ export type CreateMockAipRepoOptions = {
   defaultScope?: LguScope;
 };
 
+// [DATAFLOW] Mock adapter for `AipRepo` used in `dev` via `getAipRepo()`.
+// [DBV2] Mirrors the baseline visibility rule: public listings must exclude `draft` AIPs.
+// [SUPABASE-SWAP] Replace this adapter with a Supabase-backed one that queries `public.aips` and relies on RLS for draft access.
 export function createMockAipRepoImpl({
   defaultScope = "barangay",
 }: CreateMockAipRepoOptions = {}): AipRepo {

@@ -77,6 +77,8 @@ function removeWithReplies(items: FeedbackItem[], feedbackId: string) {
   return items.filter((item) => !toRemove.has(item.id));
 }
 
+// [DATAFLOW] Mock implementation of `FeedbackRepo` backed by an in-memory array.
+// [DBV2] Supabase adapter should map `FeedbackItem` → `public.feedback` row and rely on RLS for published-only visibility and role/kind gates.
 export function createMockFeedbackRepo(): FeedbackRepo {
   return {
     async listForAip(aipId: string): Promise<FeedbackItem[]> {

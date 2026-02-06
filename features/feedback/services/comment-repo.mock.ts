@@ -28,6 +28,8 @@ function sortByCreatedAtAsc(a: CommentMessage, b: CommentMessage) {
   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }
 
+// [DATAFLOW] Mock implementation for the threaded feedback UI. This is NOT a DBV2 adapter; it simulates threads in memory.
+// [DBV2] When swapping to Supabase, map thread roots + replies to `public.feedback` rows (parent/child via `parent_feedback_id`).
 export function createMockCommentRepo(): CommentRepo {
   if (!mockIdsValidated && process.env.NODE_ENV !== "production") {
     validateMockIds();

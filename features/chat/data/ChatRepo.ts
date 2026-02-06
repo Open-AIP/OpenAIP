@@ -20,6 +20,10 @@ export type ChatMessage = {
   retrievalMeta?: unknown | null;
 };
 
+// [DATAFLOW] UI should depend on this interface; adapters handle storage (mock now; Supabase later).
+// [DBV2] Tables: `public.chat_sessions` + `public.chat_messages`.
+// [SECURITY] DBV2 is append-only for messages; client inserts are restricted to `role='user'` (assistant/system messages must be server-side).
+// [SUPABASE-SWAP] Implement `chat.supabase.ts` using those tables and RLS (`can_access_chat_session`).
 export interface ChatRepo {
   listSessions(userId: string): Promise<ChatSession[]>;
   getSession(sessionId: string): Promise<ChatSession | null>;

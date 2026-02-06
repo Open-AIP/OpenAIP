@@ -4,6 +4,8 @@ import { getAppEnv } from "@/shared/config/appEnv";
 import type { ListSubmissionsResult } from "../submissionsReview.contracts";
 import { getAipSubmissionsReviewRepo } from "../submissionsReview.repo.selector";
 
+// [DATAFLOW] Page → service → `AipSubmissionsReviewRepo` → adapter (mock now; Supabase later).
+// [SECURITY] Only city_official/admin should see a review feed; return empty results for other roles (defense-in-depth vs RLS).
 function emptyResult(): ListSubmissionsResult {
   return {
     rows: [],

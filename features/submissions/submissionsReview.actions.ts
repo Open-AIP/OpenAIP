@@ -4,6 +4,12 @@ import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAppEnv } from "@/shared/config/appEnv";
 import { getAipSubmissionsReviewRepo } from "./submissionsReview.repo.selector";
 
+// [DATAFLOW] UI → server action → repo adapter (mock now; Supabase later).
+// [SECURITY] This is the orchestration boundary for reviewer-only actions (request revision / publish).
+// [DBV2] Writes should translate to:
+//   - insert into `public.aip_reviews` (action + note, reviewer_id = actor.userId)
+//   - update `public.aips.status` (under_review → for_revision | published)
+// [SUPABASE-SWAP] Keep these checks even after Supabase: RLS enforces, but server-side validation gives clearer UX errors.
 export async function requestRevisionAction(input: {
   aipId: string;
   note: string;
@@ -64,4 +70,3 @@ export async function publishAipAction(input: {
     };
   }
 }
-

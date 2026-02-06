@@ -12,6 +12,9 @@
  * ============================================================================
  */
 
+// [DATAFLOW] Mock adapter implementing `ProjectsRepo` (dev only).
+// [DBV2] Supabase adapter should query `public.projects` + detail tables and respect visibility via `can_read_aip` / `can_edit_aip` (RLS).
+
 import { PROJECT_UPDATES_TABLE } from "../mock/project-updates-table";
 import type { ProjectBundle } from "../types";
 import { inferKind, mapProjectRowToUiModel } from "./mappers/project.mapper";

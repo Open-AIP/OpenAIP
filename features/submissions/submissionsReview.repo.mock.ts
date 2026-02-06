@@ -9,6 +9,9 @@ import type {
   ListSubmissionsResult,
 } from "./submissionsReview.contracts";
 
+// [DATAFLOW] Mock implementation of the DBV2 review workflow:
+//   AIP status changes live in `AIPS_TABLE`, while reviewer decisions are appended to `reviewStore` below.
+// [DBV2] In Supabase, `reviewStore` maps to `public.aip_reviews` (append-only) and AIP status maps to `public.aips.status`.
 type MockAipReviewRow = {
   id: string;
   aipId: string;

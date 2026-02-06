@@ -39,6 +39,10 @@ export type GetLatestReviewParams = {
   aipId: string;
 };
 
+// [DATAFLOW] Server actions/services depend on this contract; adapters implement DBV2 review + status transitions.
+// [DBV2] Backing tables are `public.aips` (status) + `public.aip_reviews` (append-only reviewer log).
+// [SECURITY] Reviewer actions are jurisdiction-gated (city/municipal) and require AIP non-draft; DBV2 allows reviewers to update barangay AIPs under scope.
+// [SUPABASE-SWAP] Supabase adapter should update `public.aips.status` + insert into `public.aip_reviews`, relying on RLS policies for enforcement.
 export type AipSubmissionsReviewRepo = {
   listSubmissionsForCity: (
     params: ListSubmissionsForCityParams
@@ -51,4 +55,3 @@ export type AipSubmissionsReviewRepo = {
   publishAip: (params: PublishAipParams) => Promise<AipStatus>;
   getLatestReview: (params: GetLatestReviewParams) => Promise<LatestReview>;
 };
-

@@ -7,6 +7,7 @@ import { createMockAipProjectRepo } from "./aip-project-repo.mock";
  * Central selector: decide which repo to use.
  * - dev => mock
  * - staging/prod => throw until Supabase repo exists
+ * - [SUPABASE-SWAP] Implement a Supabase adapter for `AipProjectRepo` and switch here without touching UI/pages.
  */
 export function getAipProjectRepo(): AipProjectRepo {
   const env = getAppEnv();
@@ -19,4 +20,3 @@ export function getAipProjectRepo(): AipProjectRepo {
     `AipProjectRepo not implemented for env="${env}". Expected until Supabase repo is added.`
   );
 }
-

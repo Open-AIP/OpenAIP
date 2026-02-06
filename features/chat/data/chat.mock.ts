@@ -1,5 +1,8 @@
 import type { ChatMessage, ChatRepo, ChatSession } from "./ChatRepo";
 
+// [DATAFLOW] Mock `ChatRepo` implementation backed by in-memory arrays.
+// [DBV2] Supabase adapter should map sessions/messages to `public.chat_sessions`/`public.chat_messages` and keep messages append-only.
+
 let sessionSequence = 1;
 let messageSequence = 1;
 

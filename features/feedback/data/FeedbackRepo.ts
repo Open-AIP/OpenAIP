@@ -23,6 +23,12 @@ export type CreateFeedbackInput = {
   isPublic?: boolean;
 };
 
+// [DATAFLOW] DBV2-aligned repository shape: one `FeedbackItem` maps to one row in `public.feedback`.
+// [DBV2] Constraints include:
+//   - public read only when parent AIP is `published`
+//   - reply rows must match parent target (`parent_feedback_id` trigger)
+//   - role-based kind restrictions (citizen vs official/reviewer vs admin)
+// [SUPABASE-SWAP] Implement the Supabase adapter using `public.feedback` and rely on RLS for enforcement.
 export interface FeedbackRepo {
   listForAip(aipId: string): Promise<FeedbackItem[]>;
   listForProject(projectId: string): Promise<FeedbackItem[]>;

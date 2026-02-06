@@ -10,6 +10,7 @@ export function getProjectsRepo(): ProjectsRepo {
     return createMockProjectsRepoImpl();
   }
 
+  // [SUPABASE-SWAP] Add a `ProjectsRepo` Supabase adapter and switch here; keep UI/services unchanged.
   throw new NotImplementedError(
     `ProjectsRepo not implemented for env="${env}". Expected until Supabase repo is added.`
   );

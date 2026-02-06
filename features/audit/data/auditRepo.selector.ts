@@ -10,8 +10,8 @@ export function getAuditRepo(): AuditRepo {
     return createMockAuditRepo();
   }
 
+  // [SUPABASE-SWAP] Add an `AuditRepo` Supabase adapter (read-only from UI) and switch here.
   throw new NotImplementedError(
     `AuditRepo not implemented for env="${env}". Expected until Supabase repo is added.`
   );
 }
-

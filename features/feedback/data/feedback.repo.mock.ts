@@ -123,6 +123,8 @@ function matchTarget(row: FeedbackRow, target: FeedbackTarget) {
   );
 }
 
+// [DATAFLOW] Mock implementation of `FeedbackThreadsRepo` that produces DBV2-shaped rows (root + replies).
+// [DBV2] This mirrors `public.feedback` with `parent_feedback_id` and target columns; Supabase adapter should keep the same invariants.
 export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
   const store = createStore();
 

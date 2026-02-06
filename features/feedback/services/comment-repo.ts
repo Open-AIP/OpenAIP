@@ -25,6 +25,9 @@ export type ResolveThreadParams = {
   threadId: string;
 };
 
+// [DATAFLOW] UI components call this repo to list threads/messages and post replies.
+// [DBV2] Canonical persistence is `public.feedback` (thread root + replies via `parent_feedback_id`), with public visibility only when parent AIP is `published`.
+// [SECURITY] DBV2 restricts write kinds: citizens can write limited kinds (published-only); officials/reviewers write `kind='lgu_note'` only.
 export type CommentRepo = {
   listThreadsForInbox: (
     params: ListThreadsForInboxParams

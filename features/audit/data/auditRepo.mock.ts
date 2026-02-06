@@ -6,6 +6,8 @@ function sortNewestFirst(rows: ActivityLogRow[]): ActivityLogRow[] {
   return [...rows].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
+// [DATAFLOW] Mock `AuditRepo` adapter backed by a local table (`ACTIVITY_LOG_MOCK`).
+// [SUPABASE-SWAP] Replace with a Supabase adapter querying `public.activity_log` (read-only from the UI).
 export function createMockAuditRepo(): AuditRepo {
   return {
     async listMyActivity(actorId: string) {
@@ -16,4 +18,3 @@ export function createMockAuditRepo(): AuditRepo {
     },
   };
 }
-

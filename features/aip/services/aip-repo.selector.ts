@@ -10,6 +10,7 @@ import {
  * Central selector: decide which repo to use.
  * - dev => mock
  * - staging/prod => throw until Supabase repo exists
+ * - [SUPABASE-SWAP] Implement a Supabase adapter for `AipRepo` and switch here without touching UI/pages.
  */
 export function getAipRepo(
   options: CreateMockAipRepoOptions = {}

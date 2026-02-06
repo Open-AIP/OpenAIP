@@ -4,6 +4,12 @@ import type {
   FeedbackRepo,
 } from "./FeedbackRepo";
 
+// [SUPABASE-SWAP] Future Supabase adapter for `FeedbackRepo`.
+// [DBV2] Table mapping: `FeedbackItem` ↔ `public.feedback` row (target_type, aip_id/project_id, parent_feedback_id, kind, body, is_public, author_id).
+// [SECURITY] RLS enforces:
+//   - published-only public reads
+//   - citizens: limited kinds + published-only
+//   - officials/reviewers: `kind='lgu_note'` only (+ reviewer jurisdiction on AIP targets)
 export function createSupabaseFeedbackRepo(): FeedbackRepo {
   return {
     async listForAip(_aipId: string): Promise<FeedbackItem[]> {

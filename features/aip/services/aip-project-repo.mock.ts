@@ -2,6 +2,9 @@ import { AIP_PROJECT_ROWS_TABLE } from "../mock/aip-project-rows.table";
 import type { AipProjectRepo } from "../data/aip-project-repo";
 import { generateMockProjects } from "./mock-aip-generator";
 
+// [DATAFLOW] Mock adapter for `AipProjectRepo` used in `dev` via `getAipProjectRepo()`.
+// [DBV2] In Supabase, `listByAip()` should query `public.projects` by `aip_id` (plus detail joins) and be gated by `can_read_aip`.
+// [SUPABASE-SWAP] `submitReview()` should become an insert into `public.feedback` (lgu_note), not a no-op.
 export function createMockAipProjectRepo(): AipProjectRepo {
   return {
     async listByAip(aipId: string) {

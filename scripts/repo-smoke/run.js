@@ -59,6 +59,12 @@ const {
 const {
   runSubmissionsServiceTests,
 } = require("@/features/submissions/services/__tests__/submissionsService.test");
+const {
+  getCitySubmissionsFeedForActor,
+} = require("@/features/submissions/services/submissionsService");
+const {
+  AIP_SUBMISSIONS_MOCK,
+} = require("@/features/submissions/mock/aip-submissions.mock");
 
 function assert(condition, message) {
   if (!condition) {
@@ -324,6 +330,25 @@ const tests = [
     name: "submissionsService role gating",
     async run() {
       await runSubmissionsServiceTests();
+    },
+  },
+  {
+    name: "submissionsService dev fallback for null actor",
+    async run() {
+      const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      process.env.NEXT_PUBLIC_APP_ENV = "dev";
+      try {
+        const result = await getCitySubmissionsFeedForActor(null);
+        const expected = AIP_SUBMISSIONS_MOCK.filter(
+          (row) => row.scope === "barangay"
+        ).length;
+        assert(
+          result.length === expected,
+          "Expected null-actor dev feed to return mock submissions"
+        );
+      } finally {
+        process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+      }
     },
   },
 ];

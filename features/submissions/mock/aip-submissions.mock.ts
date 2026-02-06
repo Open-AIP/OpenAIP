@@ -5,7 +5,7 @@ export const AIP_SUBMISSIONS_MOCK: AipSubmissionItem[] = [
   {
     id: AIP_IDS.barangay_mamadid_2026,
     scope: "barangay",
-    barangayName: "Brgy. Mamadid",
+    barangayName: "Brgy. Banlic",
     title: "Annual Investment Program 2026",
     year: 2026,
     status: "pending_review",
@@ -15,11 +15,11 @@ export const AIP_SUBMISSIONS_MOCK: AipSubmissionItem[] = [
   {
     id: AIP_IDS.barangay_poblacion_2026,
     scope: "barangay",
-    barangayName: "Brgy. Poblacion",
+    barangayName: "Brgy. Banay-Banay",
     title: "Annual Investment Program 2026",
     year: 2026,
     status: "published",
-    reviewerName: "City Official",
+    reviewerName: "Computer P. Engineers",
     uploadedAt: "2026-01-10T10:30:00.000Z",
   },
   {
@@ -29,13 +29,13 @@ export const AIP_SUBMISSIONS_MOCK: AipSubmissionItem[] = [
     title: "Annual Investment Program 2026",
     year: 2026,
     status: "for_revision",
-    reviewerName: "City Official",
+    reviewerName: "Computer P. Engineers",
     uploadedAt: "2026-01-18T13:05:00.000Z",
   },
   {
     id: AIP_IDS.barangay_santamaria_2026,
     scope: "barangay",
-    barangayName: "Brgy. Santa Maria",
+    barangayName: "Brgy. Pulo",
     title: "Annual Investment Program 2026",
     year: 2026,
     status: "draft",
@@ -45,12 +45,11 @@ export const AIP_SUBMISSIONS_MOCK: AipSubmissionItem[] = [
   {
     id: AIP_IDS.barangay_mamadid_2025,
     scope: "barangay",
-    barangayName: "Brgy. Mamadid",
+    barangayName: "Brgy. Banlic",
     title: "Annual Investment Program 2025",
     year: 2025,
     status: "published",
-    reviewerName: "City Official",
+    reviewerName: "Computer P. Engineers",
     uploadedAt: "2025-01-20T11:42:00.000Z",
   },
 ];
-

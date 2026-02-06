@@ -23,8 +23,19 @@ export const getUser = async () => {
   const email = data?.claims?.user_metadata?.email;
   const userRole = data?.claims?.user_metadata?.access?.role;
   const userLocale = data?.claims?.user_metadata?.access?.locale;
+  const claims = data?.claims as unknown as Record<string, unknown> | undefined;
+  const userId =
+    claims && typeof claims.sub === "string"
+      ? claims.sub
+      : claims && typeof claims.user_id === "string"
+      ? claims.user_id
+      : claims && typeof claims.id === "string"
+      ? claims.id
+      : undefined;
 
   return {
+    userId,
+    id: userId,
     fullName,
     email,
     userRole,

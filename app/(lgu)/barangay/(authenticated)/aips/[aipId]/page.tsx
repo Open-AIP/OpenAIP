@@ -6,9 +6,9 @@ import { getAipProjectRepo } from "@/features/aip/services/aip-project-repo.sele
 export default async function BarangayAipDetail({
   params,
 }: {
-  params: { aipId: string };
+  params: Promise<{ aipId: string }>;
 }) {
-  const { aipId } = params;
+  const { aipId } = await params;
 
   const aipRepo = getAipRepo({ defaultScope: "barangay" });
   const projectRepo = getAipProjectRepo();

@@ -1,4 +1,4 @@
-import { createMockChatRepo, __unsafeAddMessage } from "./createMockChatRepo";
+import { __resetMockChatState, __unsafeAddMessage, createMockChatRepo } from "../repo.mock";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -7,6 +7,8 @@ function assert(condition: boolean, message: string) {
 }
 
 export async function runChatRepoTests() {
+  __resetMockChatState();
+
   const repo = createMockChatRepo();
   const session = await repo.createSession("u1");
 
@@ -36,3 +38,4 @@ export async function runChatRepoTests() {
   );
   assert(sessions.some((s) => s.id === s1.id), "Expected u1 session returned");
 }
+

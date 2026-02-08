@@ -34,7 +34,7 @@ registerTypeScriptExtension(".ts");
 registerTypeScriptExtension(".tsx");
 
 const { createMockFeedbackRepo } = require("@/lib/repos/feedback/repo.mock");
-const { createMockChatRepo } = require("@/features/chat/data");
+const { createMockChatRepo } = require("@/lib/repos/chat/repo.mock");
 const { projectService } = require("@/lib/repos/projects/queries");
 const { getProjectsRepo } = require("@/lib/repos/projects/selector");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
@@ -62,7 +62,7 @@ const {
 } = require("@/lib/repos/projects/__tests__/projects.repo.mock.test");
 const {
   runChatRepoTests,
-} = require("@/features/chat/repo/mock/createMockChatRepo.test");
+} = require("@/lib/repos/chat/__tests__/chat.repo.mock.test");
 const {
   runAuditServiceTests,
 } = require("@/lib/repos/audit/__tests__/audit.queries.test");

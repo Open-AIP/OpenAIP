@@ -1,4 +1,4 @@
-import { PROJECTS_TABLE } from "@/features/projects/mock/projects-table";
+import { PROJECTS_TABLE } from "@/lib/fixtures/projects/projects-table.fixture";
 import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/lib/fixtures/aip/aip-project-rows.table.fixture";
 import { COMMENT_THREADS_MOCK } from "@/features/feedback/mock/comment-threads.mock";

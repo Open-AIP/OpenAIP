@@ -1,4 +1,4 @@
-import type { HealthProjectDetails } from "../types";
+import type { HealthProjectDetails } from "@/lib/repos/projects/repo";
 
 export const HEALTH_DETAILS_TABLE: HealthProjectDetails[] = [
   {
@@ -66,3 +66,4 @@ export const HEALTH_DETAILS_TABLE: HealthProjectDetails[] = [
     budgetAllocated: 200000,
   },
 ];
+

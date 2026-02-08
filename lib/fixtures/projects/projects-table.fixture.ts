@@ -1,5 +1,5 @@
-import type { ProjectMaster } from "../types";
-import { PROJECT_IDS } from "@/features/shared/mock/id-contract";
+import type { ProjectMaster } from "@/lib/repos/projects/repo";
+import { PROJECT_IDS } from "@/lib/fixtures/shared/id-contract.fixture";
 
 export const PROJECTS_TABLE: ProjectMaster[] = [
   // === HEALTH PROJECTS (8) ===
@@ -47,7 +47,8 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     projectRefCode: PROJECT_IDS.health_senior_wellness_2026_004,
     year: 2026,
     kind: "health",
-    title: "Senior Citizens Wellness Program with Extended Community Outreach and Health Monitoring Services",
+    title:
+      "Senior Citizens Wellness Program with Extended Community Outreach and Health Monitoring Services",
     status: "on_hold",
     imageUrl: "/default/default-no-image.jpg",
   },
@@ -166,3 +167,4 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     imageUrl: "/default/default-no-image.jpg",
   },
 ];
+

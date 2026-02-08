@@ -1,12 +1,1 @@
-export type ProjectUpdate = {
-  id: string;
-  projectRefCode: string;
-
-  title: string;
-  date: string;
-  description: string;
-
-  progressPercent?: number;
-  attendanceCount?: number;
-  photoUrls?: string[];
-};
+export type { ProjectUpdate } from "@/lib/repos/projects/repo";

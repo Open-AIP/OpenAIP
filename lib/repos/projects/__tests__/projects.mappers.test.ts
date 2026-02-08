@@ -1,9 +1,9 @@
-import { inferKind, mapProjectRowToUiModel } from "../project.mapper";
+import { inferKind, mapProjectRowToUiModel } from "@/lib/repos/projects/mappers";
 import type {
   HealthProjectDetailsRowDTO,
   InfrastructureProjectDetailsRowDTO,
   ProjectRowDTO,
-} from "../../dtos/project.dto";
+} from "@/lib/repos/projects/dtos";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -17,8 +17,7 @@ export async function runProjectMapperTests() {
     "inferKind should map health"
   );
   assert(
-    inferKind({ category: "infrastructure" } as ProjectRowDTO) ===
-      "infrastructure",
+    inferKind({ category: "infrastructure" } as ProjectRowDTO) === "infrastructure",
     "inferKind should map infrastructure"
   );
   assert(
@@ -74,10 +73,7 @@ export async function runProjectMapperTests() {
   assert(mappedHealth.year === 2026, "health year should map");
   assert(mappedHealth.kind === "health", "health kind should map");
   assert(mappedHealth.description === "Output", "health description should map");
-  assert(
-    mappedHealth.budgetAllocated === 5000,
-    "health budget should map"
-  );
+  assert(mappedHealth.budgetAllocated === 5000, "health budget should map");
 
   const infraRow: ProjectRowDTO = {
     ...projectRow,
@@ -107,3 +103,4 @@ export async function runProjectMapperTests() {
   assert(mappedInfra.description === "Output", "infra description should map");
   assert(mappedInfra.contractCost === 9000, "infra cost should map");
 }
+

@@ -52,3 +52,4 @@ export type InfrastructureProjectDetailsRowDTO = {
   created_by: string | null;
   updated_by: string | null;
 };
+

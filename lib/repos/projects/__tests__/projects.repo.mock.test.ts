@@ -1,4 +1,4 @@
-import { createMockProjectsRepoImpl } from "../project.repo.mock";
+import { createMockProjectsRepoImpl } from "@/lib/repos/projects/repo.mock";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -18,3 +18,4 @@ export async function runProjectRepoTests() {
   const other = await repo.getById("PROJ-O-2026-001");
   assert(other?.kind === "other", "Expected other project kind");
 }
+

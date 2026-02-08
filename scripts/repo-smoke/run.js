@@ -35,8 +35,8 @@ registerTypeScriptExtension(".tsx");
 
 const { createMockFeedbackRepo } = require("@/features/feedback/data");
 const { createMockChatRepo } = require("@/features/chat/data");
-const { projectService } = require("@/features/projects/services/project-service");
-const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selector");
+const { projectService } = require("@/lib/repos/projects/queries");
+const { getProjectsRepo } = require("@/lib/repos/projects/selector");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 const {
   createMockFeedbackThreadsRepo: createMockFeedbackThreadRepo,
@@ -56,10 +56,10 @@ const {
 } = require("@/features/feedback/services/__tests__/dedupe.test");
 const {
   runProjectMapperTests,
-} = require("@/features/projects/data/mappers/__tests__/project.mapper.test");
+} = require("@/lib/repos/projects/__tests__/projects.mappers.test");
 const {
   runProjectRepoTests,
-} = require("@/features/projects/data/repos/__tests__/project.repo.mock.test");
+} = require("@/lib/repos/projects/__tests__/projects.repo.mock.test");
 const {
   runChatRepoTests,
 } = require("@/features/chat/repo/mock/createMockChatRepo.test");

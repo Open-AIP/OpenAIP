@@ -1,5 +1,5 @@
-import InfrastructureProjectsView from "@/features/projects/infrastructure/views/infrastructure-projects-view";
-import { projectService } from "@/features/projects/services";
+import { InfrastructureProjectsView } from "@/features/projects";
+import { projectService } from "@/lib/repos/projects/queries";
 
 export default async function BarangayInfrastructureProjects() {
   const infrastructureProjects = await projectService.getInfrastructureProjects();

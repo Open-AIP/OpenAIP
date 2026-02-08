@@ -1,4 +1,4 @@
-import type { ProjectUpdate } from "../types";
+import type { ProjectUpdate } from "@/lib/repos/projects/repo";
 
 export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
   // Health Project Updates
@@ -7,7 +7,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-H-2026-001",
     title: "Vaccination Day 1 Completed",
     date: "2026-01-12",
-    description: "Successfully vaccinated priority groups including healthcare workers and elderly residents. Mobile teams deployed to remote sitios.",
+    description:
+      "Successfully vaccinated priority groups including healthcare workers and elderly residents. Mobile teams deployed to remote sitios.",
     progressPercent: 40,
     attendanceCount: 2000,
     photoUrls: ["/mock/health/health1.jpg", "/mock/health/health2.jpg"],
@@ -17,7 +18,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-H-2026-001",
     title: "Mid-Program Assessment",
     date: "2026-01-20",
-    description: "Conducted mid-program evaluation. Vaccination coverage exceeded initial targets. Planning additional outreach for underserved areas.",
+    description:
+      "Conducted mid-program evaluation. Vaccination coverage exceeded initial targets. Planning additional outreach for underserved areas.",
     progressPercent: 65,
     attendanceCount: 3250,
   },
@@ -26,7 +28,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-H-2026-002",
     title: "Mobile Clinic Launch",
     date: "2026-02-05",
-    description: "First mobile health clinic deployed to upland barangays. Services include basic consultation, dental check-up, and medicine distribution.",
+    description:
+      "First mobile health clinic deployed to upland barangays. Services include basic consultation, dental check-up, and medicine distribution.",
     progressPercent: 30,
     attendanceCount: 450,
     photoUrls: ["/mock/health/health3.jpg"],
@@ -36,7 +39,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-H-2026-005",
     title: "Mental Health Seminar Series Kickoff",
     date: "2026-07-10",
-    description: "Launched mental health awareness seminar series with trained psychologists. Topics cover stress management and emotional well-being.",
+    description:
+      "Launched mental health awareness seminar series with trained psychologists. Topics cover stress management and emotional well-being.",
     progressPercent: 20,
     attendanceCount: 850,
   },
@@ -47,7 +51,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-001",
     title: "Groundbreaking Ceremony",
     date: "2026-01-10",
-    description: "Official groundbreaking ceremony held with barangay officials and community members. Contractor mobilized equipment and materials.",
+    description:
+      "Official groundbreaking ceremony held with barangay officials and community members. Contractor mobilized equipment and materials.",
     progressPercent: 5,
   },
   {
@@ -55,7 +60,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-001",
     title: "Base Course Completion - Segment 1",
     date: "2026-02-15",
-    description: "Completed base course installation for first 800 meters. Compaction testing passed quality standards.",
+    description:
+      "Completed base course installation for first 800 meters. Compaction testing passed quality standards.",
     progressPercent: 32,
   },
   {
@@ -63,7 +69,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-001",
     title: "Concrete Pouring Phase 1",
     date: "2026-03-10",
-    description: "First phase concrete pouring completed covering 1.2km stretch. Weather conditions favorable.",
+    description:
+      "First phase concrete pouring completed covering 1.2km stretch. Weather conditions favorable.",
     progressPercent: 58,
   },
   {
@@ -71,7 +78,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-002",
     title: "Foundation Work Completed",
     date: "2026-02-28",
-    description: "Foundation and column installation completed. Structural integrity verified by project engineer.",
+    description:
+      "Foundation and column installation completed. Structural integrity verified by project engineer.",
     progressPercent: 35,
   },
   {
@@ -79,7 +87,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-002",
     title: "Roofing Installation In Progress",
     date: "2026-04-15",
-    description: "Steel truss and roofing installation underway. Wall finishing ongoing.",
+    description:
+      "Steel truss and roofing installation underway. Wall finishing ongoing.",
     progressPercent: 62,
   },
   {
@@ -87,7 +96,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-005",
     title: "Retaining Wall Construction Started",
     date: "2026-02-01",
-    description: "Excavation completed for retaining wall foundation. Formwork and rebar installation in progress.",
+    description:
+      "Excavation completed for retaining wall foundation. Formwork and rebar installation in progress.",
     progressPercent: 25,
   },
   {
@@ -95,7 +105,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2026-004",
     title: "Environmental Clearance Pending",
     date: "2026-01-25",
-    description: "Project on hold pending environmental compliance certificate from DENR.",
+    description:
+      "Project on hold pending environmental compliance certificate from DENR.",
     progressPercent: 0,
   },
   {
@@ -103,7 +114,8 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     projectRefCode: "PROJ-I-2025-001",
     title: "Final Inspection and Turnover",
     date: "2025-08-15",
-    description: "Final inspection completed. All punch list items addressed. Court officially turned over to barangay.",
+    description:
+      "Final inspection completed. All punch list items addressed. Court officially turned over to barangay.",
     progressPercent: 100,
   },
   {
@@ -116,3 +128,4 @@ export const PROJECT_UPDATES_TABLE: ProjectUpdate[] = [
     attendanceCount: 2000,
   },
 ];
+

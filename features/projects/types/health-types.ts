@@ -1,10 +1,1 @@
-export type HealthProjectDetails = {
-  projectRefCode: string;
-  month: string;
-
-  totalTargetParticipants: number;
-  targetParticipants: string;
-
-  implementingOffice: string;
-  budgetAllocated: number;
-};
+export type { HealthProjectDetails } from "@/lib/repos/projects/repo";

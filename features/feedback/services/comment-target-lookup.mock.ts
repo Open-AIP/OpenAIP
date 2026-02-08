@@ -1,4 +1,4 @@
-import { projectRepository } from "@/features/projects/services";
+import { getProjectsRepo } from "@/lib/repos/projects/selector";
 import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/lib/fixtures/aip/aip-project-rows.table.fixture";
 import type { CommentTargetLookup } from "./resolve-comment-sidebar";
@@ -6,7 +6,8 @@ import type { CommentTargetLookup } from "./resolve-comment-sidebar";
 export function createMockCommentTargetLookup(): CommentTargetLookup {
   return {
     async getProject(id) {
-      const project = await projectRepository.getByRefCode(id);
+      const repo = getProjectsRepo();
+      const project = await repo.getByRefCode(id);
       if (!project) return null;
       return {
         id: project.id,

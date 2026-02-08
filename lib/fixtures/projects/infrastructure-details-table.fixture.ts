@@ -1,4 +1,4 @@
-import type { InfrastructureProjectDetails } from "../types";
+import type { InfrastructureProjectDetails } from "@/lib/repos/projects/repo";
 
 export const INFRA_DETAILS_TABLE: InfrastructureProjectDetails[] = [
   {
@@ -110,3 +110,4 @@ export const INFRA_DETAILS_TABLE: InfrastructureProjectDetails[] = [
     contractCost: 1750000,
   },
 ];
+

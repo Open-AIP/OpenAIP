@@ -1,6 +1,6 @@
-import AddInformationPage from "@/features/projects/shared/add-information/add-information-page";
+import { AddInformationPage } from "@/features/projects";
 import { getUser } from "@/lib/actions/auth.actions";
-import { projectService } from "@/features/projects/services";
+import { projectService } from "@/lib/repos/projects/queries";
 
 export default async function HealthAddInformationRoute({
   params,

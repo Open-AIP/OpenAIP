@@ -1,5 +1,5 @@
-import HealthProjectDetailPageView from "@/features/projects/health/views/health-project-detail-page-view";
-import { projectService } from "@/features/projects/services";
+import { HealthProjectDetailPageView } from "@/features/projects";
+import { projectService } from "@/lib/repos/projects/queries";
 import { notFound } from "next/navigation";
 
 export default async function CityHealthProject({

@@ -2,10 +2,10 @@ import type {
   HealthProjectDetailsRowDTO,
   InfrastructureProjectDetailsRowDTO,
   ProjectRowDTO,
-} from "../dtos/project.dto";
-import { HEALTH_DETAILS_TABLE } from "../../mock/health-details-table";
-import { INFRA_DETAILS_TABLE } from "../../mock/infrastructure-details-table";
-import { PROJECTS_TABLE } from "../../mock/projects-table";
+} from "@/lib/repos/projects/dtos";
+import { HEALTH_DETAILS_TABLE } from "@/lib/fixtures/projects/health-details-table.fixture";
+import { INFRA_DETAILS_TABLE } from "@/lib/fixtures/projects/infrastructure-details-table.fixture";
+import { PROJECTS_TABLE } from "@/lib/fixtures/projects/projects-table.fixture";
 
 const now = new Date().toISOString();
 
@@ -25,9 +25,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
         ? infra.startDate
         : `${project.year}-01-01`;
     const completionDate =
-      project.kind === "infrastructure" && infra
-        ? infra.targetCompletionDate
-        : null;
+      project.kind === "infrastructure" && infra ? infra.targetCompletionDate : null;
     const implementingAgency =
       project.kind === "health"
         ? health?.implementingOffice ?? null
@@ -114,8 +112,7 @@ export const MOCK_HEALTH_DETAILS_ROWS: HealthProjectDetailsRowDTO[] =
   HEALTH_DETAILS_TABLE.map((detail) => ({
     project_id: detail.projectRefCode,
     program_name: detail.month,
-    description:
-      `Detailed description for ${detail.projectRefCode}: This program outlines key activities, target coverage, and expected health benefits for the community.`,
+    description: `Detailed description for ${detail.projectRefCode}: This program outlines key activities, target coverage, and expected health benefits for the community.`,
     target_participants: detail.targetParticipants,
     total_target_participants: detail.totalTargetParticipants,
     created_at: now,
@@ -137,3 +134,4 @@ export const MOCK_INFRA_DETAILS_ROWS: InfrastructureProjectDetailsRowDTO[] =
     created_by: null,
     updated_by: null,
   }));
+

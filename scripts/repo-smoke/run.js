@@ -74,13 +74,13 @@ const {
 } = require("@/lib/fixtures/audit/activity-log.fixture");
 const {
   runSubmissionsServiceTests,
-} = require("@/features/submissions/services/__tests__/submissionsService.test");
+} = require("@/lib/repos/submissions/__tests__/submissions.queries.test");
 const {
   runSubmissionsReviewRepoTests,
-} = require("@/features/submissions/services/__tests__/submissionsReviewRepo.mock.test");
+} = require("@/lib/repos/submissions/__tests__/submissions.repo.mock.test");
 const {
   getCitySubmissionsFeedForActor,
-} = require("@/features/submissions/services/submissionsService");
+} = require("@/lib/repos/submissions/queries");
 const { AIPS_TABLE } = require("@/lib/fixtures/aip/aips.table.fixture");
 
 function assert(condition, message) {

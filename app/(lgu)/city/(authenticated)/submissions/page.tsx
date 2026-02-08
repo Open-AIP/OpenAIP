@@ -1,5 +1,5 @@
-import SubmissionsView from "@/features/submissions/views/SubmissionsView";
-import { getCitySubmissionsFeed } from "@/features/submissions/services/submissionsService";
+import { SubmissionsView } from "@/features/submissions";
+import { getCitySubmissionsFeed } from "@/lib/repos/submissions/queries";
 
 export default async function CitySubmissionsPage() {
   const data = await getCitySubmissionsFeed();

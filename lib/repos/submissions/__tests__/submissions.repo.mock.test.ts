@@ -1,10 +1,10 @@
-import { AIP_IDS } from "@/features/shared/mock/id-contract";
 import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
+import { AIP_IDS } from "@/lib/fixtures/shared/id-contract.fixture";
 import {
   __getMockAipReviewsForAipId,
   __resetMockAipSubmissionsReviewState,
   createMockAipSubmissionsReviewRepo,
-} from "../../data/submissionsReview.repo.mock";
+} from "../repo.mock";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -89,3 +89,4 @@ export async function runSubmissionsReviewRepoTests() {
   resetAipsTable();
   __resetMockAipSubmissionsReviewState();
 }
+

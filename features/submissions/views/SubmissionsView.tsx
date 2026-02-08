@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { SubmissionStats } from "../components/SubmissionStats";
 import { SubmissionFilters } from "../components/SubmissionFilters";
 import { SubmissionTable } from "../components/SubmissionTable";
-import type { ListSubmissionsResult } from "../data/submissionsReview.contracts";
+import type { ListSubmissionsResult } from "@/lib/repos/submissions/repo";
 
 export default function SubmissionsView({ data }: { data: ListSubmissionsResult }) {
   const aips = data.rows;

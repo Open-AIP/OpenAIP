@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import Link from "next/link";
-import type { AipSubmissionRow } from "../data/submissionsReview.contracts";
+import type { AipSubmissionRow } from "@/lib/repos/submissions/repo";
 import {
   getAipStatusBadgeClass,
   getAipStatusLabel,

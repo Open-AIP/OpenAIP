@@ -14,24 +14,25 @@ Routes:
 - `app/(lgu)/city/(authenticated)/submissions/aip/page.tsx` (currently an empty placeholder file)
 
 Feature components/services:
+- `features/submissions/index.ts` (public boundary exports)
 - `features/submissions/views/SubmissionsView.tsx`
 - `features/submissions/views/city-submission-review-detail.tsx`
-- `features/submissions/services/submissionsService.ts`
 - Server actions: `features/submissions/actions/submissionsReview.actions.ts`
 
 Repo contract + adapters:
-- `features/submissions/data/submissionsReview.repo.ts`
-- `features/submissions/data/submissionsReview.repo.mock.ts`
-- `features/submissions/data/submissionsReview.repo.supabase.ts` (stub)
-- `features/submissions/data/submissionsReview.repo.selector.ts`
+- `lib/repos/submissions/repo.ts`
+- `lib/repos/submissions/repo.mock.ts`
+- `lib/repos/submissions/repo.supabase.ts` (stub)
+- `lib/repos/submissions/selector.ts`
+- `lib/repos/submissions/queries.ts`
 
 ## C. Data Flow (diagram in text)
 Feed page
-→ `getCitySubmissionsFeed()` (`features/submissions/services/submissionsService.ts`)
-→ `getAipSubmissionsReviewRepo()` (`features/submissions/data/submissionsReview.repo.selector.ts`)
+→ `getCitySubmissionsFeed()` (`lib/repos/submissions/queries.ts`)
+→ `getAipSubmissionsReviewRepo()` (`lib/repos/submissions/selector.ts`)
 → adapter:
-  - today: `createMockAipSubmissionsReviewRepo()` (`features/submissions/data/submissionsReview.repo.mock.ts`)
-  - future: Supabase adapter (`features/submissions/data/submissionsReview.repo.supabase.ts`)
+  - today: `createMockAipSubmissionsReviewRepo()` (`lib/repos/submissions/repo.mock.ts`)
+  - future: Supabase adapter (`lib/repos/submissions/repo.supabase.ts`)
 → `SubmissionsView` (`features/submissions/views/SubmissionsView.tsx`)
 
 Detail/review page
@@ -40,7 +41,7 @@ Detail/review page
 → server actions:
   - `publishAipAction()` / `requestRevisionAction()` (`features/submissions/actions/submissionsReview.actions.ts`)
 → repo methods:
-  - `publishAip()` / `requestRevision()` (`features/submissions/data/submissionsReview.repo.ts`)
+  - `publishAip()` / `requestRevision()` (`lib/repos/submissions/repo.ts`)
 
 ## D. databasev2 Alignment
 Relevant DBV2 tables/enums/helpers:
@@ -66,11 +67,11 @@ How those rules should be enforced:
 
 ## E. Current Implementation (Mock)
 - AIP source is `lib/fixtures/aip/aips.table.fixture.ts` (shared mock table).
-- Reviewer decisions are stored in-memory in `features/submissions/data/submissionsReview.repo.mock.ts` (`reviewStore`).
+- Reviewer decisions are stored in-memory in `lib/repos/submissions/repo.mock.ts` (`reviewStore`).
 - Actor enforcement exists in mock (`requireCityReviewer()` + `assertInJurisdiction()`), but is relaxed in dev when actor is null.
 
 ## F. Supabase Swap Plan (Future-only)
-Implement `features/submissions/data/submissionsReview.repo.supabase.ts` (do not change UI):
+Implement `lib/repos/submissions/repo.supabase.ts` (do not change UI):
 1) Replace the `NotImplementedError` with a real adapter implementing `AipSubmissionsReviewRepo`.
 2) Query mapping:
 - `listSubmissionsForCity({ cityId, filters })`
@@ -101,8 +102,8 @@ Manual:
 
 Automated:
 - Existing tests:
-  - `features/submissions/services/__tests__/submissionsService.test.ts`
-  - `features/submissions/services/__tests__/submissionsReviewRepo.mock.test.ts`
+  - `lib/repos/submissions/__tests__/submissions.queries.test.ts`
+  - `lib/repos/submissions/__tests__/submissions.repo.mock.test.ts`
 - Add Supabase adapter tests once implemented (jurisdiction + status transitions).
 
 ## H. Gotchas / Pitfalls

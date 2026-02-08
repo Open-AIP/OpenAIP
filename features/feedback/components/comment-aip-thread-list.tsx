@@ -6,9 +6,8 @@ import { cn } from "@/lib/utils";
 
 import { CommentThreadListCard } from "./comment-thread-list-card";
 import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
-import { getCommentRepo } from "../services/comment-repo";
-import { getCommentTargetLookup } from "../services/comment-target-lookup";
-import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
+import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/selector";
+import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
 export function CommentAipThreadList({
@@ -115,4 +114,3 @@ export function CommentAipThreadList({
     </div>
   );
 }
-

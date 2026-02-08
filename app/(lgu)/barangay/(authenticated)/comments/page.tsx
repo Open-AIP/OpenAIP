@@ -1,4 +1,4 @@
-import CommentsView from "@/features/feedback/views/comments-view";
+import { CommentsView } from "@/features/feedback";
 
 const BarangayComments = () => {
   return (

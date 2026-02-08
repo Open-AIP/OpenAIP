@@ -1,12 +1,12 @@
-import type { CommentThread } from "../types";
+import type { CommentThread } from "@/lib/repos/feedback/types";
 import {
   AIP_IDS,
   AIP_ITEM_IDS,
   COMMENT_THREAD_IDS,
   PROJECT_IDS,
-} from "@/features/shared/mock/id-contract";
+} from "@/lib/fixtures/shared/id-contract.fixture";
 
-export const COMMENT_THREADS_MOCK: CommentThread[] = [
+export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
   {
     id: COMMENT_THREAD_IDS.thread_001,
     createdAt: "2026-01-18T02:05:00.000Z",
@@ -140,3 +140,4 @@ export const COMMENT_THREADS_MOCK: CommentThread[] = [
     },
   },
 ];
+

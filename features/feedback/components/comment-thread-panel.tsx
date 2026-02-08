@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { formatCommentDate } from "../lib/format";
-import { getCommentRepo } from "../services/comment-repo";
+import { getCommentRepo } from "@/lib/repos/feedback/selector";
 import type { CommentMessage, CommentThread } from "../types";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -218,4 +218,3 @@ export function CommentThreadPanel({
     </div>
   );
 }
-

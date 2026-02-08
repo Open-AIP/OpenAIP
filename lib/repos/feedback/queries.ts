@@ -1,39 +1,7 @@
-import type { CommentSidebarItem, CommentThread } from "../types";
-import { dedupeByKey, findDuplicateKeys } from "./dedupe";
-import { feedbackDebugLog } from "../lib/debug";
-
-export type CommentTargetProjectSummary = {
-  id: string;
-  title: string;
-  year?: number;
-  kind?: "health" | "infrastructure";
-};
-
-export type CommentTargetAipSummary = {
-  id: string;
-  title: string;
-  year?: number;
-  barangayName?: string | null;
-};
-
-export type CommentTargetAipItemSummary = {
-  id: string;
-  aipId: string;
-  projectRefCode?: string;
-  aipDescription: string;
-};
-
-export type CommentTargetLookup = {
-  getProject: (id: string) => Promise<CommentTargetProjectSummary | null>;
-  getAip: (id: string) => Promise<CommentTargetAipSummary | null>;
-  getAipItem: (
-    aipId: string,
-    aipItemId: string
-  ) => Promise<CommentTargetAipItemSummary | null>;
-  findAipItemByProjectRefCode?: (
-    projectRefCode: string
-  ) => Promise<CommentTargetAipItemSummary | null>;
-};
+import type { CommentSidebarItem, CommentThread } from "./types";
+import type { CommentTargetLookup } from "./repo";
+import { dedupeByKey, findDuplicateKeys } from "./mappers";
+import { feedbackDebugLog } from "./debug";
 
 export async function resolveCommentSidebar({
   threads,
@@ -59,9 +27,7 @@ export async function resolveCommentSidebar({
       if (thread.target.targetKind === "project") {
         const project = await getProject(thread.target.projectId);
         if (!project?.kind) {
-          const aipItem = await findAipItemByProjectRefCode?.(
-            thread.target.projectId
-          );
+          const aipItem = await findAipItemByProjectRefCode?.(thread.target.projectId);
 
           if (aipItem) {
             const aip = await getAip(aipItem.aipId);
@@ -90,12 +56,9 @@ export async function resolveCommentSidebar({
         }
 
         const contextTitle = project?.title ?? "Project";
-        const contextSubtitle = project?.year
-          ? `AIP ${project.year}`
-          : thread.target.projectId;
+        const contextSubtitle = project?.year ? `AIP ${project.year}` : thread.target.projectId;
         const projectKind = project?.kind ?? "infrastructure";
-        const projectPath =
-          projectKind === "health" ? "health" : "infrastructure";
+        const projectPath = projectKind === "health" ? "health" : "infrastructure";
 
         return {
           threadId: thread.id,
@@ -109,10 +72,7 @@ export async function resolveCommentSidebar({
       }
 
       const aip = await getAip(thread.target.aipId);
-      const aipItem = await getAipItem(
-        thread.target.aipId,
-        thread.target.aipItemId
-      );
+      const aipItem = await getAipItem(thread.target.aipId, thread.target.aipItemId);
 
       const contextTitle = aip?.title ?? "AIP Detail";
       const contextSubtitleParts = [
@@ -137,8 +97,6 @@ export async function resolveCommentSidebar({
     })
   );
 
-  return items.sort(
-    (a, b) =>
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
+  return items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
+

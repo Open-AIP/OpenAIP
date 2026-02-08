@@ -33,27 +33,27 @@ function registerTypeScriptExtension(ext) {
 registerTypeScriptExtension(".ts");
 registerTypeScriptExtension(".tsx");
 
-const { createMockFeedbackRepo } = require("@/features/feedback/data");
+const { createMockFeedbackRepo } = require("@/lib/repos/feedback/repo.mock");
 const { createMockChatRepo } = require("@/features/chat/data");
 const { projectService } = require("@/lib/repos/projects/queries");
 const { getProjectsRepo } = require("@/lib/repos/projects/selector");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 const {
   createMockFeedbackThreadsRepo: createMockFeedbackThreadRepo,
-} = require("@/features/feedback/data/feedback.repo.mock");
-const { listComments } = require("@/features/feedback/services/comments.service");
+} = require("@/lib/repos/feedback/repo.mock");
+const { listComments } = require("@/lib/repos/feedback/legacy");
 const {
   runCommentRepoSelectorTests,
-} = require("@/features/feedback/services/__tests__/commentRepo.selector.test");
+} = require("@/lib/repos/feedback/__tests__/commentRepo.selector.test");
 const {
   runCommentThreadHighlightTests,
-} = require("@/features/feedback/services/__tests__/commentThread.highlight.test");
+} = require("@/lib/repos/feedback/__tests__/commentThread.highlight.test");
 const {
   runCommentThreadAccordionListTests,
-} = require("@/features/feedback/services/__tests__/commentThreadAccordionList.test");
+} = require("@/lib/repos/feedback/__tests__/commentThreadAccordionList.test");
 const {
   runFeedbackDedupeTests,
-} = require("@/features/feedback/services/__tests__/dedupe.test");
+} = require("@/lib/repos/feedback/__tests__/dedupe.test");
 const {
   runProjectMapperTests,
 } = require("@/lib/repos/projects/__tests__/projects.mappers.test");

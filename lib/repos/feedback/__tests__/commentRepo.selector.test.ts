@@ -1,4 +1,4 @@
-import { getCommentRepo } from "../comment-repo";
+import { getCommentRepo } from "@/lib/repos/feedback/selector";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {

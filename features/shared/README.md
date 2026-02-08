@@ -35,7 +35,7 @@ Enforcement boundary:
   - `lib/fixtures/shared/id-contract.fixture.ts` (canonical ids)
   - `lib/fixtures/aip/*` (migrated)
   - `lib/fixtures/projects/*` (migrated)
-  - `features/feedback/mock/*` (not migrated yet)
+  - `lib/fixtures/feedback/*` (migrated)
 - Audit mocks were migrated to `lib/fixtures/audit/*` and no longer depend on the shared id contract.
 - `validate-mock-ids.ts` checks cross-feature mock integrity and throws in dev if broken.
 

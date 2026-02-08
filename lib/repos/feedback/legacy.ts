@@ -1,5 +1,5 @@
-import { createMockFeedbackThreadsRepo } from "../data/feedback.repo.mock";
-import { mapFeedbackThreadToComment } from "../data/feedback.mapper";
+import { createMockFeedbackThreadsRepo } from "./repo.mock";
+import { mapFeedbackThreadToComment } from "./mappers";
 import type {
   Comment,
   CommentProjectOption,
@@ -7,8 +7,8 @@ import type {
   ListCommentsParams,
   ListCommentsResult,
   RespondToCommentInput,
-} from "../types";
-import { feedbackDebugLog } from "../lib/debug";
+} from "./types";
+import { feedbackDebugLog } from "./debug";
 
 const feedbackRepo = createMockFeedbackThreadsRepo();
 let commentsStore: Comment[] = [];
@@ -65,9 +65,7 @@ export async function getCommentsFilterOptions(): Promise<CommentsFilterOptions>
   return { years, projects };
 }
 
-export async function listComments(
-  params: ListCommentsParams = {}
-): Promise<ListCommentsResult> {
+export async function listComments(params: ListCommentsParams = {}): Promise<ListCommentsResult> {
   feedbackDebugLog("legacy.comments.service.listComments", { params });
   await ensureSeeded();
   const year = params.year ?? "all";
@@ -78,20 +76,14 @@ export async function listComments(
   const items = commentsStore
     .filter((comment) => {
       const yearOk = year === "all" ? true : comment.year === year;
-      const projectOk =
-        projectId === "all" ? true : comment.project_id === projectId;
-      const statusOk =
-        status === "all" ? true : comment.response_status === status;
+      const projectOk = projectId === "all" ? true : comment.project_id === projectId;
+      const statusOk = status === "all" ? true : comment.response_status === status;
 
       if (!yearOk || !projectOk || !statusOk) return false;
 
       if (!q) return true;
 
-      const haystack = [
-        comment.commenter_name,
-        comment.message,
-        comment.project_title,
-      ]
+      const haystack = [comment.commenter_name, comment.message, comment.project_title]
         .join(" ")
         .toLowerCase();
 
@@ -102,12 +94,8 @@ export async function listComments(
   return { items, total: items.length };
 }
 
-export async function respondToComment(
-  input: RespondToCommentInput
-): Promise<Comment> {
-  feedbackDebugLog("legacy.comments.service.respondToComment", {
-    commentId: input.commentId,
-  });
+export async function respondToComment(input: RespondToCommentInput): Promise<Comment> {
+  feedbackDebugLog("legacy.comments.service.respondToComment", { commentId: input.commentId });
   await ensureSeeded();
   const responseTimestamp = "2026-01-30T09:00:00.000Z";
   await feedbackRepo.createReply({
@@ -131,11 +119,8 @@ export async function respondToComment(
     },
   };
 
-  commentsStore = [
-    ...commentsStore.slice(0, index),
-    updated,
-    ...commentsStore.slice(index + 1),
-  ];
+  commentsStore = [...commentsStore.slice(0, index), updated, ...commentsStore.slice(index + 1)];
 
   return updated;
 }
+

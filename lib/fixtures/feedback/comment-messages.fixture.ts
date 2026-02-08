@@ -1,7 +1,7 @@
-import type { CommentMessage } from "../types";
-import { COMMENT_THREAD_IDS } from "@/features/shared/mock/id-contract";
+import type { CommentMessage } from "@/lib/repos/feedback/types";
+import { COMMENT_THREAD_IDS } from "@/lib/fixtures/shared/id-contract.fixture";
 
-export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
+export const COMMENT_MESSAGES_FIXTURE: CommentMessage[] = [
   {
     id: "cmsg_001",
     threadId: COMMENT_THREAD_IDS.thread_001,
@@ -99,3 +99,4 @@ export const COMMENT_MESSAGES_MOCK: CommentMessage[] = [
     createdAt: "2026-01-27T03:00:00.000Z",
   },
 ];
+

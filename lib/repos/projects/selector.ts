@@ -1,5 +1,5 @@
-import { getAppEnv } from "@/shared/config/appEnv";
-import { NotImplementedError } from "@/shared/errors/notImplemented";
+import { getAppEnv } from "@/lib/config/appEnv";
+import { NotImplementedError } from "@/lib/errors/notImplemented";
 import type { ProjectsRepo } from "./repo";
 import { createMockProjectsRepoImpl } from "./repo.mock";
 
@@ -15,4 +15,3 @@ export function getProjectsRepo(): ProjectsRepo {
     `ProjectsRepo not implemented for env="${env}". Expected until Supabase repo is added.`
   );
 }
-

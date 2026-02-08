@@ -54,4 +54,3 @@ export function getAuditRoleLabel(role: string | null | undefined): string {
       return "Unknown";
   }
 }
-

@@ -1,4 +1,4 @@
-import { getAppEnv } from "@/shared/config/appEnv";
+import { getAppEnv } from "@/lib/config/appEnv";
 import type { AipSubmissionsReviewRepo } from "./repo";
 import { createMockAipSubmissionsReviewRepo } from "./repo.mock";
 import { createSupabaseAipSubmissionsReviewRepo } from "./repo.supabase";

@@ -1,4 +1,4 @@
-import { NotImplementedError } from "@/shared/errors/notImplemented";
+import { NotImplementedError } from "@/lib/errors/notImplemented";
 import type { ProjectsRepo } from "./repo";
 
 export function createSupabaseProjectsRepo(): ProjectsRepo {
@@ -6,4 +6,3 @@ export function createSupabaseProjectsRepo(): ProjectsRepo {
     "lib/repos/projects/repo.supabase.ts not implemented (Supabase swap deferred)."
   );
 }
-

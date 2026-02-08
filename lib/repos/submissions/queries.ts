@@ -1,6 +1,6 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import { getAppEnv } from "@/shared/config/appEnv";
+import { getAppEnv } from "@/lib/config/appEnv";
 import type { ListSubmissionsResult } from "./repo";
 import { getAipSubmissionsReviewRepo } from "./selector";
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import { getAppEnv } from "@/shared/config/appEnv";
+import { getAppEnv } from "@/lib/config/appEnv";
 import { getAipSubmissionsReviewRepo } from "@/lib/repos/submissions/selector";
 
 // [DATAFLOW] UI → server action → repo adapter (mock now; Supabase later).

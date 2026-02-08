@@ -1,7 +1,5 @@
-import type { AIPIdParameter } from "@/types";
-
-const AIP = async ({params}:AIPIdParameter) => {
-  const {aipId} = await params;
+const AIP = async ({ params }: { params: Promise<{ aipId: string }> }) => {
+  const { aipId } = await params;
  
   return (
     <div>AIP {aipId}</div>

@@ -1,4 +1,4 @@
-import { NotImplementedError } from "@/shared/errors/notImplemented";
+import { NotImplementedError } from "@/lib/errors/notImplemented";
 import type { AuditRepo } from "./repo";
 
 export function createSupabaseAuditRepo(): AuditRepo {
@@ -6,4 +6,3 @@ export function createSupabaseAuditRepo(): AuditRepo {
     "AuditRepo.supabase not implemented. This feature is currently DISPLAY ONLY."
   );
 }
-

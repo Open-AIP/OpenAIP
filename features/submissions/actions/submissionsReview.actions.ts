@@ -2,7 +2,7 @@
 
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAppEnv } from "@/shared/config/appEnv";
-import { getAipSubmissionsReviewRepo } from "./submissionsReview.repo.selector";
+import { getAipSubmissionsReviewRepo } from "../data/submissionsReview.repo.selector";
 
 // [DATAFLOW] UI → server action → repo adapter (mock now; Supabase later).
 // [SECURITY] This is the orchestration boundary for reviewer-only actions (request revision / publish).

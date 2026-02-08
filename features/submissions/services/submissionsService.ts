@@ -1,8 +1,8 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAppEnv } from "@/shared/config/appEnv";
-import type { ListSubmissionsResult } from "../submissionsReview.contracts";
-import { getAipSubmissionsReviewRepo } from "../submissionsReview.repo.selector";
+import type { ListSubmissionsResult } from "../data/submissionsReview.contracts";
+import { getAipSubmissionsReviewRepo } from "../data/submissionsReview.repo.selector";
 
 // [DATAFLOW] Page → service → `AipSubmissionsReviewRepo` → adapter (mock now; Supabase later).
 // [SECURITY] Only city_official/admin should see a review feed; return empty results for other roles (defense-in-depth vs RLS).

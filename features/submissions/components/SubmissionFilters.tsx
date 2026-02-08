@@ -6,11 +6,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AipSubmissionItem } from "./types/submissions.types";
-import { getAipStatusLabel } from "./presentation/submissions.presentation";
+import type { AipSubmissionRow } from "../data/submissionsReview.contracts";
+import { getAipStatusLabel } from "../presentation/submissions.presentation";
 
 interface SubmissionFiltersProps {
-  aips: AipSubmissionItem[];
+  aips: AipSubmissionRow[];
   yearFilter: string;
   statusFilter: string;
   barangayFilter: string;

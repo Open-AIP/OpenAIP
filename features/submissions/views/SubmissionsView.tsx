@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { AipSubmissionItem } from "./types/submissions.types";
-import { SubmissionStats } from "./SubmissionStats";
-import { SubmissionFilters } from "./SubmissionFilters";
-import { SubmissionTable } from "./SubmissionTable";
-import type { ListSubmissionsResult } from "./submissionsReview.contracts";
+import { SubmissionStats } from "../components/SubmissionStats";
+import { SubmissionFilters } from "../components/SubmissionFilters";
+import { SubmissionTable } from "../components/SubmissionTable";
+import type { ListSubmissionsResult } from "../data/submissionsReview.contracts";
 
 export default function SubmissionsView({ data }: { data: ListSubmissionsResult }) {
-  const aips: AipSubmissionItem[] = data.rows;
+  const aips = data.rows;
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [barangayFilter, setBarangayFilter] = useState<string>("all");

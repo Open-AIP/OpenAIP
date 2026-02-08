@@ -1,4 +1,4 @@
-import SubmissionsView from "@/features/submissions/SubmissionsView";
+import SubmissionsView from "@/features/submissions/views/SubmissionsView";
 import { getCitySubmissionsFeed } from "@/features/submissions/services/submissionsService";
 
 export default async function CitySubmissionsPage() {

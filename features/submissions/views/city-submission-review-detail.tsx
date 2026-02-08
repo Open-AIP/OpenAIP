@@ -19,9 +19,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { LatestReview } from "./submissionsReview.contracts";
-import { getAipStatusLabel } from "./presentation/submissions.presentation";
-import { publishAipAction, requestRevisionAction } from "./submissionsReview.actions";
+import type { LatestReview } from "../data/submissionsReview.contracts";
+import { getAipStatusLabel } from "../presentation/submissions.presentation";
+import { publishAipAction, requestRevisionAction } from "../actions/submissionsReview.actions";
 
 export default function CitySubmissionReviewDetail({
   aip,
@@ -57,13 +57,13 @@ export default function CitySubmissionReviewDetail({
   }
 
   function goToViewMode() {
-    router.replace(`/city/submissions/aips/${aip.id}`);
+    router.replace(`/city/submissions/aip/${aip.id}`);
     router.refresh();
   }
 
   function goToPublishedSuccess() {
     router.replace(
-      `/city/submissions/aips/${aip.id}?mode=review&result=published`
+      `/city/submissions/aip/${aip.id}?mode=review&result=published`
     );
     router.refresh();
   }
@@ -315,4 +315,3 @@ export default function CitySubmissionReviewDetail({
     </div>
   );
 }
-

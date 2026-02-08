@@ -2,7 +2,7 @@ import type { AipRepo } from "../data/aip-repo";
 import type { AipStatus, LguScope } from "../types";
 import { AIPS_TABLE } from "../mock/aips.table";
 import { generateMockAIP } from "./mock-aip-generator";
-import { getLatestMockAipRevisionNote } from "@/features/submissions/submissionsReview.repo.mock";
+import { getLatestMockAipRevisionNote } from "@/features/submissions/data/submissionsReview.repo.mock";
 
 export type CreateMockAipRepoOptions = {
   defaultScope?: LguScope;

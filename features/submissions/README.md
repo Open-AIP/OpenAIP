@@ -14,33 +14,33 @@ Routes:
 - `app/(lgu)/city/(authenticated)/submissions/aip/page.tsx` (currently an empty placeholder file)
 
 Feature components/services:
-- `features/submissions/SubmissionsView.tsx`
-- `features/submissions/city-submission-review-detail.tsx`
+- `features/submissions/views/SubmissionsView.tsx`
+- `features/submissions/views/city-submission-review-detail.tsx`
 - `features/submissions/services/submissionsService.ts`
-- Server actions: `features/submissions/submissionsReview.actions.ts`
+- Server actions: `features/submissions/actions/submissionsReview.actions.ts`
 
 Repo contract + adapters:
-- `features/submissions/submissionsReview.repo.ts`
-- `features/submissions/submissionsReview.repo.mock.ts`
-- `features/submissions/submissionsReview.repo.supabase.ts` (stub)
-- `features/submissions/submissionsReview.repo.selector.ts`
+- `features/submissions/data/submissionsReview.repo.ts`
+- `features/submissions/data/submissionsReview.repo.mock.ts`
+- `features/submissions/data/submissionsReview.repo.supabase.ts` (stub)
+- `features/submissions/data/submissionsReview.repo.selector.ts`
 
 ## C. Data Flow (diagram in text)
 Feed page
 → `getCitySubmissionsFeed()` (`features/submissions/services/submissionsService.ts`)
-→ `getAipSubmissionsReviewRepo()` (`features/submissions/submissionsReview.repo.selector.ts`)
+→ `getAipSubmissionsReviewRepo()` (`features/submissions/data/submissionsReview.repo.selector.ts`)
 → adapter:
-  - today: `createMockAipSubmissionsReviewRepo()` (`features/submissions/submissionsReview.repo.mock.ts`)
-  - future: Supabase adapter (`features/submissions/submissionsReview.repo.supabase.ts`)
-→ `SubmissionsView` (`features/submissions/SubmissionsView.tsx`)
+  - today: `createMockAipSubmissionsReviewRepo()` (`features/submissions/data/submissionsReview.repo.mock.ts`)
+  - future: Supabase adapter (`features/submissions/data/submissionsReview.repo.supabase.ts`)
+→ `SubmissionsView` (`features/submissions/views/SubmissionsView.tsx`)
 
 Detail/review page
 → (server component) `getAipSubmissionsReviewRepo()` and `startReviewIfNeeded()` (`app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx`)
-→ `CitySubmissionReviewDetail` (`features/submissions/city-submission-review-detail.tsx`)
+→ `CitySubmissionReviewDetail` (`features/submissions/views/city-submission-review-detail.tsx`)
 → server actions:
-  - `publishAipAction()` / `requestRevisionAction()` (`features/submissions/submissionsReview.actions.ts`)
+  - `publishAipAction()` / `requestRevisionAction()` (`features/submissions/actions/submissionsReview.actions.ts`)
 → repo methods:
-  - `publishAip()` / `requestRevision()` (`features/submissions/submissionsReview.repo.ts`)
+  - `publishAip()` / `requestRevision()` (`features/submissions/data/submissionsReview.repo.ts`)
 
 ## D. databasev2 Alignment
 Relevant DBV2 tables/enums/helpers:
@@ -66,11 +66,11 @@ How those rules should be enforced:
 
 ## E. Current Implementation (Mock)
 - AIP source is `features/aip/mock/aips.table.ts` (shared mock table).
-- Reviewer decisions are stored in-memory in `features/submissions/submissionsReview.repo.mock.ts` (`reviewStore`).
+- Reviewer decisions are stored in-memory in `features/submissions/data/submissionsReview.repo.mock.ts` (`reviewStore`).
 - Actor enforcement exists in mock (`requireCityReviewer()` + `assertInJurisdiction()`), but is relaxed in dev when actor is null.
 
 ## F. Supabase Swap Plan (Future-only)
-Implement `features/submissions/submissionsReview.repo.supabase.ts` (do not change UI):
+Implement `features/submissions/data/submissionsReview.repo.supabase.ts` (do not change UI):
 1) Replace the `NotImplementedError` with a real adapter implementing `AipSubmissionsReviewRepo`.
 2) Query mapping:
 - `listSubmissionsForCity({ cityId, filters })`
@@ -109,4 +109,3 @@ Automated:
 - Do not allow reviewers to act on `draft` AIPs (DBV2 reviewer policies require non-draft).
 - Avoid “cross-draft visibility”: city/municipal officials must not see drafts they do not own.
 - Keep the review log append-only: in DBV2, `aip_reviews` is insert-only for non-admin; updates/deletes are admin-only.
-

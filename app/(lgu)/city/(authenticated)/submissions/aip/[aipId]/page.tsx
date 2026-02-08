@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import CitySubmissionReviewDetail from "@/features/submissions/city-submission-review-detail";
+import CitySubmissionReviewDetail from "@/features/submissions/views/city-submission-review-detail";
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import { getAipSubmissionsReviewRepo } from "@/features/submissions/submissionsReview.repo.selector";
+import { getAipSubmissionsReviewRepo } from "@/features/submissions/data/submissionsReview.repo.selector";
 
 export default async function CitySubmissionAipReviewPage({
   params,

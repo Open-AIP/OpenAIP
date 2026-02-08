@@ -3,14 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import Link from "next/link";
-import type { AipSubmissionItem } from "./types/submissions.types";
+import type { AipSubmissionRow } from "../data/submissionsReview.contracts";
 import {
   getAipStatusBadgeClass,
   getAipStatusLabel,
-} from "./presentation/submissions.presentation";
+} from "../presentation/submissions.presentation";
 
 interface SubmissionTableProps {
-  aips: AipSubmissionItem[];
+  aips: AipSubmissionRow[];
 }
 
 const getTimeSince = (dateStr: string) => {
@@ -108,8 +108,8 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                       const isPending = aip.status === "pending_review";
                       const isUnderReview = aip.status === "under_review";
                       const href = isPending || isUnderReview
-                        ? `/city/submissions/aips/${aip.id}?mode=review`
-                        : `/city/submissions/aips/${aip.id}`;
+                        ? `/city/submissions/aip/${aip.id}?mode=review`
+                        : `/city/submissions/aip/${aip.id}`;
                       const label = isPending
                         ? "Review"
                         : isUnderReview

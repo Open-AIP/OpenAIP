@@ -73,7 +73,7 @@ DBV2 explicitly expects some operations to be server-managed:
 ## 6) Adapter implementation recipe (repeat per feature)
 
 1) Identify the contract file (interface/type).
-   - Example: `features/submissions/submissionsReview.repo.ts`
+   - Example: `features/submissions/data/submissionsReview.repo.ts`
 
 2) Create `*.supabase.ts` adapter implementing the contract.
    - Keep method names and return types identical.
@@ -83,8 +83,7 @@ DBV2 explicitly expects some operations to be server-managed:
    - Keep the mock adapter as-is for dev/test iteration.
 
 4) Keep orchestration in the service/server-action layer.
-   - Example: Submissions uses `features/submissions/submissionsReview.actions.ts` to validate inputs and coordinate writes.
+   - Example: Submissions uses `features/submissions/actions/submissionsReview.actions.ts` to validate inputs and coordinate writes.
 
 5) Validate against DBV2 invariants.
    - Draft visibility, role/scope binding, status transitions, published-only public feedback, append-only tables.
-

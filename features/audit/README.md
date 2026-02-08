@@ -9,24 +9,25 @@ Routes:
 - `app/(lgu)/city/(authenticated)/audit/page.tsx`
 
 View:
-- `features/audit/audit-view.tsx`
+- `features/audit/views/AuditView.tsx`
 
-Service:
-- `features/audit/services/auditService.ts`
+Queries:
+- `lib/repos/audit/queries.ts`
 
 Repo:
-- `features/audit/data/AuditRepo.ts`
-- `features/audit/data/auditRepo.selector.ts`
-- `features/audit/data/auditRepo.mock.ts`
+- `lib/repos/audit/repo.ts`
+- `lib/repos/audit/selector.ts`
+- `lib/repos/audit/repo.mock.ts`
+- `lib/repos/audit/repo.supabase.ts` (stub)
 
 ## C. Data Flow (diagram in text)
 `app/(lgu)/.../audit/page.tsx`
-→ `getAuditFeed()` (`features/audit/services/auditService.ts`)
-→ `getAuditRepo()` (`features/audit/data/auditRepo.selector.ts`)
+→ `getAuditFeed()` (`lib/repos/audit/queries.ts`)
+→ `getAuditRepo()` (`lib/repos/audit/selector.ts`)
 → adapter:
-  - today: `createMockAuditRepo()` (`features/audit/data/auditRepo.mock.ts`) → `features/audit/mock/activity-log.mock.ts`
+  - today: `createMockAuditRepo()` (`lib/repos/audit/repo.mock.ts`) → `lib/fixtures/audit/activity-log.fixture.ts`
   - future: Supabase adapter → `public.activity_log`
-→ `features/audit/audit-view.tsx`
+→ `features/audit/views/AuditView.tsx`
 
 ## D. databasev2 Alignment
 Relevant DBV2 table/policies:
@@ -46,15 +47,15 @@ How those rules should be enforced:
 - Repository reads should use RLS for enforcement; the service layer can still apply additional UX-friendly filtering.
 
 ## E. Current Implementation (Mock)
-- Mock data lives in `features/audit/mock/activity-log.mock.ts`.
-- Repo selector returns mock repo in `dev` and throws for non-dev (`features/audit/data/auditRepo.selector.ts`).
+- Mock data lives in `lib/fixtures/audit/activity-log.fixture.ts`.
+- Repo selector returns mock repo in `dev` and throws for non-dev (`lib/repos/audit/selector.ts`).
 - `getAuditFeedForActor()` intentionally includes a dev-only fallback to keep the page usable when mock actor ids do not match.
 
 ## F. Supabase Swap Plan (Future-only)
 1) Add a Supabase adapter:
-- Create `features/audit/data/auditRepo.supabase.ts` implementing `AuditRepo`.
+- Implement `lib/repos/audit/repo.supabase.ts` implementing `AuditRepo`.
 2) Update selector:
-- Update `features/audit/data/auditRepo.selector.ts` to return the Supabase adapter for non-dev environments.
+- Update `lib/repos/audit/selector.ts` to return the Supabase adapter for non-dev environments.
 3) Query mapping:
 - `listMyActivity(actorId)` → select from `public.activity_log` filtered by `actor_id = actorId` (RLS should already enforce; keep explicit filter for clarity).
 - `listAllActivity()` → select all rows (admin-only via RLS).
@@ -75,4 +76,3 @@ Automated:
 ## H. Gotchas / Pitfalls
 - Do not log sensitive content into `metadata` that should not be exposed to officials.
 - Do not build features that depend on `activity_log` writes from the client; DBV2 explicitly forbids it.
-

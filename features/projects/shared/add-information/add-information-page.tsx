@@ -11,7 +11,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type Resolver, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,12 @@ export default function AddInformationPage({
   // Select schema and config based on project type
   const schema = kind === "health" ? healthAddInfoSchema : infraAddInfoSchema;
   const fieldConfig = kind === "health" ? healthFieldConfig : infraFieldConfig;
+  const schemaForResolver =
+    schema as unknown as Parameters<typeof zodResolver>[0];
+  const resolver =
+    zodResolver(schemaForResolver) as unknown as Resolver<
+      HealthAddInfoFormData | InfraAddInfoFormData
+    >;
 
   // Single form controller - replaces all individual useState calls
   const {
@@ -103,7 +109,7 @@ export default function AddInformationPage({
     watch,
     formState: { errors, isValid },
   } = useForm<HealthAddInfoFormData | InfraAddInfoFormData>({
-    resolver: zodResolver(schema),
+    resolver,
     mode: "onChange",
     defaultValues: {
       // Pre-fill disabled fields from projectInfo
@@ -125,7 +131,7 @@ export default function AddInformationPage({
    * 
    * Future: Replace console.log with Supabase insert/update
    */
-  const onSubmit = (data: HealthAddInfoFormData | InfraAddInfoFormData) => {
+  const onSubmit: SubmitHandler<HealthAddInfoFormData | InfraAddInfoFormData> = (data) => {
     // Clean payload for submission
     const payload = {
       kind,

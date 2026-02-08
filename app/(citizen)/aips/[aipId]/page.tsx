@@ -1,3 +1,5 @@
+import type { AIPIdParameter } from "@/types";
+
 const AIP = async ({params}:AIPIdParameter) => {
   const {aipId} = await params;
  

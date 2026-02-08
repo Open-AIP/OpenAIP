@@ -35,7 +35,7 @@ Enforcement boundary:
   - `features/aip/mock/*`
   - `features/projects/mock/*`
   - `features/feedback/mock/*`
-  - `features/audit/mock/*`
+- Audit mocks were migrated to `lib/fixtures/audit/*` and no longer depend on the shared id contract.
 - `validate-mock-ids.ts` checks cross-feature mock integrity and throws in dev if broken.
 
 ## F. Supabase Swap Plan (Future-only)
@@ -55,4 +55,3 @@ Automated:
 ## H. Gotchas / Pitfalls
 - Do not import feature modules into `features/shared` beyond mock-only helpers; keep dependencies one-way (shared → none).
 - When moving to Supabase, avoid reusing mock ids as if they were DB UUIDs.
-

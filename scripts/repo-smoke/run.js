@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require("fs");
 const path = require("path");
 const Module = require("module");
@@ -64,13 +65,13 @@ const {
 } = require("@/features/chat/repo/mock/createMockChatRepo.test");
 const {
   runAuditServiceTests,
-} = require("@/features/audit/services/__tests__/auditService.test");
+} = require("@/lib/repos/audit/__tests__/audit.queries.test");
 const {
   getAuditFeedForActor,
-} = require("@/features/audit/services/auditService");
+} = require("@/lib/repos/audit/queries");
 const {
-  ACTIVITY_LOG_MOCK,
-} = require("@/features/audit/mock/activity-log.mock");
+  ACTIVITY_LOG_FIXTURE,
+} = require("@/lib/fixtures/audit/activity-log.fixture");
 const {
   runSubmissionsServiceTests,
 } = require("@/features/submissions/services/__tests__/submissionsService.test");
@@ -372,7 +373,7 @@ const tests = [
           scope: { kind: "city", id: "cabuyao" },
         };
         const result = await getAuditFeedForActor(actor);
-        const expected = ACTIVITY_LOG_MOCK.filter(
+        const expected = ACTIVITY_LOG_FIXTURE.filter(
           (row) => row.scope?.scope_type === "city"
         ).length;
         assert(

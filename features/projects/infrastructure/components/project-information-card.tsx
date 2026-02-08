@@ -70,7 +70,7 @@ export default function InfrastructureProjectInformationCard({
           <div className="lg:w-96 flex-shrink-0">
             <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-slate-100">
               <Image
-                src={project.imageUrl}
+                src={project.imageUrl || "/default/default-no-image.jpg"}
                 alt={project.title}
                 fill
                 className="object-cover object-center"

@@ -1,4 +1,6 @@
-export type ChatMessageRole = "user" | "assistant" | "system";
+import type { ChatMessageRole } from "@/lib/contracts/databasev2";
+
+export type { ChatMessageRole };
 
 export type ChatSession = {
   id: string;

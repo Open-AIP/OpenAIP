@@ -95,7 +95,7 @@ export default function ProjectInformationCard({
                 <Building2 className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Office:</span>
                 <span className="font-medium text-slate-900">
-                  {project.office || "Barangay Health Office"}
+                  {project.implementingOffice || "Barangay Health Office"}
                 </span>
               </div>
 
@@ -103,7 +103,7 @@ export default function ProjectInformationCard({
                 <Calendar className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Date:</span>
                 <span className="font-medium text-slate-900">
-                  {project.date || `January ${aipYear}`}
+                  {project.month || `January ${aipYear}`}
                 </span>
               </div>
 

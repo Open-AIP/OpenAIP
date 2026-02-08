@@ -1,9 +1,10 @@
 import type { FeedbackRow } from "./feedback.types";
+import type { Comment } from "../types";
 
 export function mapFeedbackThreadToComment(
   root: FeedbackRow,
   threadMessages: FeedbackRow[]
-) {
+): Comment {
   const replies = threadMessages.filter((row) => row.parent_feedback_id === root.id);
   const oldestReply = replies.sort((a, b) =>
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()

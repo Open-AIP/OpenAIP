@@ -48,7 +48,7 @@ export default function InfrastructureProjectCard({
           <div className="w-full lg:w-[420px] flex items-center justify-center bg-slate-100">
             <div className="relative w-full h-[280px] overflow-hidden rounded-xl bg-slate-100">
                 <Image
-                    src={project.imageUrl}
+                    src={project.imageUrl || "/default/default-no-image.jpg"}
                     alt={project.title}
                     fill
                     className="object-cover object-center"

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import type { AuthParameters } from '@/types'
 
 export function LogoutButton({role}:AuthParameters) {
   const router = useRouter()

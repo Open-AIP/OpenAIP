@@ -54,7 +54,6 @@ export function mapProjectRowToUiModel(
     const project: HealthProject = {
       id: projectRefCode,
       kind: "health",
-      projectRefCode,
       year,
       title,
       status,
@@ -83,7 +82,6 @@ export function mapProjectRowToUiModel(
     const project: InfrastructureProject = {
       id: projectRefCode,
       kind: "infrastructure",
-      projectRefCode,
       year,
       title,
       status,

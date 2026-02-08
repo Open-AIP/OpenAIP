@@ -1,5 +1,5 @@
 import { NotImplementedError } from "@/shared/errors/notImplemented";
-import type { AuditRepo } from "./AuditRepo";
+import type { AuditRepo } from "./repo";
 
 export function createSupabaseAuditRepo(): AuditRepo {
   throw new NotImplementedError(

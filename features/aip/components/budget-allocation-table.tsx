@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPeso } from "@/lib/utils/formatting";
-import type { AipProjectRow, Sector } from "../types";
+import type { AipProjectRow } from "../types";
 import { SECTOR_TABS } from "../utils";
 
 export type BudgetAllocationRow = {
@@ -14,8 +14,12 @@ export type BudgetAllocationRow = {
 };
 
 function orderSectors(sectors: string[]) {
+  function isSectorTab(value: string): value is (typeof SECTOR_TABS)[number] {
+    return (SECTOR_TABS as readonly string[]).includes(value);
+  }
+
   const ordered = SECTOR_TABS.filter((s) => sectors.includes(s));
-  const rest = sectors.filter((s) => !SECTOR_TABS.includes(s as Sector));
+  const rest = sectors.filter((s) => !isSectorTab(s));
   return [...ordered, ...rest];
 }
 

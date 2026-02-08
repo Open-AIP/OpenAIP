@@ -22,6 +22,8 @@ export default async function BarangayAccount() {
         email,
         position,
         office,
+        role: "barangay",
+        baseURL: "/barangay",
       }}
     />
   );

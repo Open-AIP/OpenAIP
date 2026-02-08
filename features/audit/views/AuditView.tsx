@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ActivityLogRow } from "./types/audit.types";
+import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 import { getAuditActionLabel, getAuditRoleLabel } from "@/shared/presentation/audit";
 import { Search } from "lucide-react";
 

@@ -40,3 +40,10 @@ export type ActivityLogRow = {
   createdAt: ISODateTime;
 };
 
+// [DATAFLOW] Page/service depends on this interface; swap adapters without touching UI/pages.
+// [DBV2] Backing table is `public.activity_log` (server-only writes; RLS restricts reads).
+export interface AuditRepo {
+  listMyActivity(actorId: string): Promise<ActivityLogRow[]>;
+  listAllActivity(): Promise<ActivityLogRow[]>;
+}
+

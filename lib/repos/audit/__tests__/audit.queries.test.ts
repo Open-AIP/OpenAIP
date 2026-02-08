@@ -1,6 +1,6 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
-import { ACTIVITY_LOG_MOCK } from "../../mock/activity-log.mock";
-import { getAuditFeedForActor } from "../auditService";
+import { ACTIVITY_LOG_FIXTURE } from "@/lib/fixtures/audit/activity-log.fixture";
+import { getAuditFeedForActor } from "../queries";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -9,7 +9,11 @@ function assert(condition: boolean, message: string) {
 }
 
 export async function runAuditServiceTests() {
-  const admin: ActorContext = { userId: "admin_001", role: "admin", scope: { kind: "none" } };
+  const admin: ActorContext = {
+    userId: "admin_001",
+    role: "admin",
+    scope: { kind: "none" },
+  };
   const barangayOfficial: ActorContext = {
     userId: "user_001",
     role: "barangay_official",
@@ -23,12 +27,14 @@ export async function runAuditServiceTests() {
 
   const adminFeed = await getAuditFeedForActor(admin);
   assert(
-    adminFeed.length === ACTIVITY_LOG_MOCK.length,
+    adminFeed.length === ACTIVITY_LOG_FIXTURE.length,
     "Expected admin to receive all activity logs"
   );
 
   const myFeed = await getAuditFeedForActor(barangayOfficial);
-  const expectedMine = ACTIVITY_LOG_MOCK.filter((row) => row.actorId === barangayOfficial.userId);
+  const expectedMine = ACTIVITY_LOG_FIXTURE.filter(
+    (row) => row.actorId === barangayOfficial.userId
+  );
   assert(
     myFeed.length === expectedMine.length,
     "Expected official to receive only own activity logs"

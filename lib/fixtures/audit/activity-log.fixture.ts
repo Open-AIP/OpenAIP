@@ -1,14 +1,14 @@
-import type { ActivityLogRow } from "../types/audit.types";
-import { AIP_IDS, PROJECT_IDS } from "@/features/shared/mock/id-contract";
+import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 
-export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
+// TODO(P1-next): centralize shared mock ids in `lib/fixtures/shared/*` when migrating AIP/Projects/Feedback.
+export const ACTIVITY_LOG_FIXTURE = [
   {
     id: "log_001",
     actorId: "user_001",
     actorRole: "barangay_official",
     action: "draft_created",
     entityType: "aip",
-    entityId: AIP_IDS.barangay_mamadid_2026,
+    entityId: "aip-2026-mamadid",
     scope: {
       scope_type: "barangay",
       barangay_id: "brgy_mamadid",
@@ -19,7 +19,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
       actor_name: "Maria Santos",
       actor_position: "Barangay Captain",
       details:
-        "Created new AIP draft document for Q1 2026. Initial budget allocation set at ₱5,800,000.",
+        "Created new AIP draft document for Q1 2026. Initial budget allocation set at â‚±5,800,000.",
     },
     createdAt: "2026-01-20T14:30:00.000Z",
   },
@@ -29,7 +29,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "barangay_official",
     action: "project_updated",
     entityType: "project",
-    entityId: PROJECT_IDS.infra_road_rehab_2026_001,
+    entityId: "PROJ-I-2026-001",
     scope: {
       scope_type: "barangay",
       barangay_id: "brgy_poblacion",
@@ -92,7 +92,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "barangay_official",
     action: "project_updated",
     entityType: "project",
-    entityId: PROJECT_IDS.infra_road_rehab_2026_001,
+    entityId: "PROJ-I-2026-001",
     scope: {
       scope_type: "barangay",
       barangay_id: "brgy_poblacion",
@@ -134,7 +134,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "barangay_official",
     action: "cancelled",
     entityType: "aip",
-    entityId: AIP_IDS.barangay_mamadid_2025,
+    entityId: "aip-2025-mamadid",
     scope: {
       scope_type: "barangay",
       barangay_id: "brgy_mamadid",
@@ -155,7 +155,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "barangay_official",
     action: "draft_created",
     entityType: "project",
-    entityId: PROJECT_IDS.health_vaccination_2026_001,
+    entityId: "PROJ-H-2026-001",
     scope: {
       scope_type: "barangay",
       barangay_id: "brgy_santisidro",
@@ -166,7 +166,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
       actor_name: "Pedro Garcia",
       actor_position: "Barangay Councilor",
       details:
-        'Created new health project draft: "Community Vaccination Drive 2026". Budget allocated: ₱1,200,000.',
+        'Created new health project draft: "Community Vaccination Drive 2026". Budget allocated: â‚±1,200,000.',
     },
     createdAt: "2026-01-17T10:30:00.000Z",
   },
@@ -176,7 +176,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "city_official",
     action: "project_updated",
     entityType: "project",
-    entityId: PROJECT_IDS.infra_multi_purpose_hall_2026_002,
+    entityId: "PROJ-I-2026-002",
     scope: {
       scope_type: "city",
       barangay_id: null,
@@ -197,7 +197,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "barangay_official",
     action: "submission_created",
     entityType: "aip",
-    entityId: AIP_IDS.barangay_mamadid_2026,
+    entityId: "aip-2026-mamadid",
     scope: {
       scope_type: "barangay",
       barangay_id: "brgy_mamadid",
@@ -208,7 +208,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
       actor_name: "Maria Santos",
       actor_position: "Barangay Captain",
       details:
-        "Submitted infrastructure project proposal for drainage system improvement. Total contract: ₱2,300,000.",
+        "Submitted infrastructure project proposal for drainage system improvement. Total contract: â‚±2,300,000.",
     },
     createdAt: "2026-01-16T13:00:00.000Z",
   },
@@ -218,7 +218,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "admin",
     action: "revision_requested",
     entityType: "aip",
-    entityId: AIP_IDS.city_2026,
+    entityId: "aip-2026-city",
     scope: {
       scope_type: "none",
       barangay_id: null,
@@ -239,7 +239,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "admin",
     action: "approval_granted",
     entityType: "aip",
-    entityId: AIP_IDS.barangay_poblacion_2026,
+    entityId: "aip-2026-poblacion",
     scope: {
       scope_type: "none",
       barangay_id: null,
@@ -260,7 +260,7 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     actorRole: "city_official",
     action: "published",
     entityType: "aip",
-    entityId: AIP_IDS.city_2025,
+    entityId: "aip-2025-city",
     scope: {
       scope_type: "city",
       barangay_id: null,
@@ -275,5 +275,5 @@ export const ACTIVITY_LOG_MOCK: ActivityLogRow[] = [
     },
     createdAt: "2026-01-13T08:05:00.000Z",
   },
-];
+] satisfies ActivityLogRow[];
 

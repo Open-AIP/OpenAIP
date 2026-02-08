@@ -1,5 +1,5 @@
-import AuditView from "@/features/audit/audit-view";
-import { getAuditFeed } from "@/features/audit/services/auditService";
+import { AuditView } from "@/features/audit";
+import { getAuditFeed } from "@/lib/repos/audit/queries";
 
 export default async function BarangayAudit() {
   const logs = await getAuditFeed();

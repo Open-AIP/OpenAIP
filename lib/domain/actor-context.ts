@@ -1,11 +1,8 @@
-export type RoleType =
-  | "citizen"
-  | "barangay_official"
-  | "city_official"
-  | "municipal_official"
-  | "admin";
+import type { AipScopeRef, RoleType } from "@/lib/contracts/databasev2";
 
-export type ScopeKind = "barangay" | "city" | "municipality" | "none";
+export type { RoleType } from "@/lib/contracts/databasev2";
+
+export type ScopeKind = AipScopeRef["scope_type"] | "none";
 
 export type ActorScope = {
   kind: ScopeKind;

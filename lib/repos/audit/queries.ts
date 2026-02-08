@@ -1,11 +1,11 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import { getAuditRepo } from "../data/auditRepo.selector";
-import type { ActivityLogRow } from "../types/audit.types";
 import { getAppEnv } from "@/shared/config/appEnv";
+import type { ActivityLogRow } from "./repo";
+import { getAuditRepo } from "./selector";
 
 // [DATAFLOW] Page → `getAuditFeed()` → `AuditRepo` adapter (mock now; Supabase later).
-// [SECURITY] DBV2 forbids client writes to `public.activity_log`; this service should remain read-only.
+// [SECURITY] DBV2 forbids client writes to `public.activity_log`; this module remains read-only.
 export async function getAuditFeed(): Promise<ActivityLogRow[]> {
   const actor = await getActorContext();
   return getAuditFeedForActor(actor);

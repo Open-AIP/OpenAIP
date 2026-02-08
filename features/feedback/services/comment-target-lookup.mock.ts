@@ -1,6 +1,6 @@
 import { projectRepository } from "@/features/projects/services";
-import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
-import { AIP_PROJECT_ROWS_TABLE } from "@/features/aip/mock/aip-project-rows.table";
+import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
+import { AIP_PROJECT_ROWS_TABLE } from "@/lib/fixtures/aip/aip-project-rows.table.fixture";
 import type { CommentTargetLookup } from "./resolve-comment-sidebar";
 
 export function createMockCommentTargetLookup(): CommentTargetLookup {

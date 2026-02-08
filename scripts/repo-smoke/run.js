@@ -81,7 +81,7 @@ const {
 const {
   getCitySubmissionsFeedForActor,
 } = require("@/features/submissions/services/submissionsService");
-const { AIPS_TABLE } = require("@/features/aip/mock/aips.table");
+const { AIPS_TABLE } = require("@/lib/fixtures/aip/aips.table.fixture");
 
 function assert(condition, message) {
   if (!condition) {

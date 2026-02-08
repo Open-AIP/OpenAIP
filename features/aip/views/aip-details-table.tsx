@@ -2,8 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { AipProjectRepo } from "../data/aip-project-repo";
-import { AipProjectRow, AipStatus } from "../types";
+import type { AipProjectRepo } from "@/lib/repos/aip/repo";
+import type { AipProjectRow, AipStatus } from "../types";
 import { AipDetailsTableCard } from "../components/aip-details-table-card";
 import { BudgetAllocationTable, buildBudgetAllocation } from "../components/budget-allocation-table";
 import { ProjectReviewModal } from "../dialogs/project-review-modal";

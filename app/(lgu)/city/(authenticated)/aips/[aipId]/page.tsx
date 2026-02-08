@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import AipDetailView from "@/features/aip/views/aip-detail-view";
-import { getAipRepo } from "@/features/aip/services/aip-repo.selector";
+import { AipDetailView } from "@/features/aip";
+import { getAipRepo } from "@/lib/repos/aip/selector";
 
 export default async function CityAipDetailPage({
   params,

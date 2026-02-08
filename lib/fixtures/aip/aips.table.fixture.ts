@@ -1,5 +1,5 @@
-import type { AipHeader } from "../types";
-import { AIP_IDS } from "@/features/shared/mock/id-contract";
+import type { AipHeader } from "@/lib/repos/aip/repo";
+import { AIP_IDS } from "@/lib/fixtures/shared/id-contract.fixture";
 
 export const AIPS_TABLE: AipHeader[] = [
   {
@@ -7,19 +7,21 @@ export const AIPS_TABLE: AipHeader[] = [
     scope: "barangay",
     barangayName: "Brgy. Mamadid",
     title: "Annual Investment Program 2026",
-    description: "Development and improvement of barangay infrastructure including roads, bridges, and community facilities",
+    description:
+      "Development and improvement of barangay infrastructure including roads, bridges, and community facilities",
     year: 2026,
     budget: 5800000,
     uploadedAt: "2026-01-15",
     status: "pending_review",
     fileName: "AIP_2026_Mamadid.pdf",
     pdfUrl: "",
-    summaryText: "Development and improvement of barangay infrastructure including roads, bridges, and community facilities",
+    summaryText:
+      "Development and improvement of barangay infrastructure including roads, bridges, and community facilities",
     detailedBullets: [
       "Road Concreting and Rehabilitation - 2.5km",
       "Drainage System Improvements",
       "Multi-purpose Hall Construction",
-      "Street Lighting Installation"
+      "Street Lighting Installation",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -34,7 +36,8 @@ export const AIPS_TABLE: AipHeader[] = [
     scope: "barangay",
     barangayName: "Brgy. Poblacion",
     title: "Annual Investment Program 2026",
-    description: "Comprehensive development plan focusing on health, education, and social services",
+    description:
+      "Comprehensive development plan focusing on health, education, and social services",
     year: 2026,
     budget: 8500000,
     uploadedAt: "2026-01-10",
@@ -42,13 +45,14 @@ export const AIPS_TABLE: AipHeader[] = [
     fileName: "AIP_2026_Poblacion.pdf",
     pdfUrl: "",
     publishedAt: "2026-01-20",
-    summaryText: "Comprehensive development plan focusing on health, education, and social services to improve quality of life for all residents",
+    summaryText:
+      "Comprehensive development plan focusing on health, education, and social services to improve quality of life for all residents",
     detailedBullets: [
       "Health Center Expansion and Equipment Upgrade",
       "Day Care Center Construction",
       "Senior Citizens Facility Improvement",
       "Sports Complex Development",
-      "Community Library Setup"
+      "Community Library Setup",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -71,12 +75,13 @@ export const AIPS_TABLE: AipHeader[] = [
     fileName: "AIP_2025_Mamadid.pdf",
     pdfUrl: "",
     publishedAt: "2025-02-01",
-    summaryText: "Infrastructure and livelihood development projects aimed at improving community facilities and economic opportunities",
+    summaryText:
+      "Infrastructure and livelihood development projects aimed at improving community facilities and economic opportunities",
     detailedBullets: [
       "Barangay Road Repairs - 1.8km",
       "Livelihood Training Programs",
       "Water System Improvement",
-      "Basketball Court Rehabilitation"
+      "Basketball Court Rehabilitation",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -90,21 +95,23 @@ export const AIPS_TABLE: AipHeader[] = [
     id: AIP_IDS.city_2026,
     scope: "city",
     title: "City-Wide Annual Investment Program 2026",
-    description: "Comprehensive city development plan covering infrastructure, education, health, and economic sectors",
+    description:
+      "Comprehensive city development plan covering infrastructure, education, health, and economic sectors",
     year: 2026,
     budget: 45000000,
     uploadedAt: "2026-01-05",
     status: "under_review",
     fileName: "City_AIP_2026.pdf",
     pdfUrl: "",
-    summaryText: "Comprehensive city development plan covering infrastructure, education, health, and economic sectors to promote sustainable growth",
+    summaryText:
+      "Comprehensive city development plan covering infrastructure, education, health, and economic sectors to promote sustainable growth",
     detailedBullets: [
       "Major Road Network Expansion - 15km",
       "Public Market Modernization",
       "City Hospital Equipment Upgrade",
       "Public School Building Construction",
       "Business Development Center Establishment",
-      "Waste Management Facility Construction"
+      "Waste Management Facility Construction",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -126,13 +133,14 @@ export const AIPS_TABLE: AipHeader[] = [
     fileName: "City_AIP_2025.pdf",
     pdfUrl: "",
     publishedAt: "2025-02-15",
-    summaryText: "Strategic development initiatives focused on infrastructure and social services to enhance urban living standards",
+    summaryText:
+      "Strategic development initiatives focused on infrastructure and social services to enhance urban living standards",
     detailedBullets: [
       "City Hall Annex Construction",
       "Flood Control System Phase 2",
       "Public Transportation Terminal Upgrade",
       "Youth Sports Complex Development",
-      "Environmental Protection Programs"
+      "Environmental Protection Programs",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -147,20 +155,22 @@ export const AIPS_TABLE: AipHeader[] = [
     scope: "barangay",
     barangayName: "Brgy. Santa Maria",
     title: "Annual Investment Program 2026",
-    description: "Community development focusing on agricultural support and rural infrastructure",
+    description:
+      "Community development focusing on agricultural support and rural infrastructure",
     year: 2026,
     budget: 6200000,
     uploadedAt: "2026-01-12",
     status: "draft",
     fileName: "AIP_2026_SantaMaria.pdf",
     pdfUrl: "",
-    summaryText: "Community development focusing on agricultural support and rural infrastructure to boost local economy",
+    summaryText:
+      "Community development focusing on agricultural support and rural infrastructure to boost local economy",
     detailedBullets: [
       "Farm-to-Market Road Construction - 3km",
       "Irrigation System Extension",
       "Agricultural Training Center",
       "Farmers Cooperative Building",
-      "Solar Street Light Installation"
+      "Solar Street Light Installation",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -182,13 +192,14 @@ export const AIPS_TABLE: AipHeader[] = [
     status: "for_revision",
     fileName: "AIP_2026_SanIsidro.pdf",
     pdfUrl: "",
-    summaryText: "Health and sanitation improvement projects for community wellness and disease prevention",
+    summaryText:
+      "Health and sanitation improvement projects for community wellness and disease prevention",
     detailedBullets: [
       "Barangay Health Station Renovation",
       "Water Refilling Station Setup",
       "Sanitation Facilities Construction",
       "Medical Equipment Procurement",
-      "Vaccination Storage Facility"
+      "Vaccination Storage Facility",
     ],
     sectors: ["General Sector", "Social Sector", "Economic Sector", "Other Services"],
     uploader: {
@@ -197,5 +208,9 @@ export const AIPS_TABLE: AipHeader[] = [
       uploadDate: "January 18, 2026",
       budgetAllocated: 3900000,
     },
+    // Seeded reviewer note used by mock UI for for_revision state.
+    feedback:
+      "Budget allocation for medical equipment needs to be itemized. Please provide detailed specifications for the vaccination storage facility.",
   },
 ];
+

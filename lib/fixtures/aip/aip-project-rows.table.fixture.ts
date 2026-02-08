@@ -1,5 +1,5 @@
-import type { AipProjectRow } from "../types";
-import { AIP_IDS, AIP_ITEM_IDS } from "@/features/shared/mock/id-contract";
+import type { AipProjectRow } from "@/lib/repos/aip/repo";
+import { AIP_IDS, AIP_ITEM_IDS } from "@/lib/fixtures/shared/id-contract.fixture";
 
 export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
   // aip-2026-mamadid projects
@@ -15,7 +15,7 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     aiIssues: [
       "Budget amount appears unusually high for specified road length (2.5km)",
       "Missing breakdown of material costs and labor allocation",
-      "No mention of drainage considerations alongside road work"
+      "No mention of drainage considerations alongside road work",
     ],
   },
   {
@@ -27,7 +27,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 1500000,
     aipDescription: "Construction of multi-purpose hall for community events",
     reviewStatus: "reviewed",
-    officialComment: "Budget allocation confirmed. Construction will follow standard barangay specifications.",
+    officialComment:
+      "Budget allocation confirmed. Construction will follow standard barangay specifications.",
   },
   {
     id: AIP_ITEM_IDS.mamadid_2026_003,
@@ -38,7 +39,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 250000,
     aipDescription: "Comprehensive vaccination drive targeting all eligible residents",
     reviewStatus: "reviewed",
-    officialComment: "Approved. Budget includes vaccine procurement, storage, and medical personnel costs.",
+    officialComment:
+      "Approved. Budget includes vaccine procurement, storage, and medical personnel costs.",
   },
   {
     id: AIP_ITEM_IDS.mamadid_2026_004,
@@ -150,18 +152,18 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     projectRefCode: "OS-2025-001",
     kind: "infrastructure",
     sector: "Other Services",
-    amount: 1100000,
-    aipDescription: "Water system improvement and distribution network upgrade",
+    amount: 800000,
+    aipDescription: "Water system improvement project for better access",
     reviewStatus: "reviewed",
   },
   {
     id: AIP_ITEM_IDS.mamadid_2025_023,
     aipId: AIP_IDS.barangay_mamadid_2025,
-    projectRefCode: "GS-2025-002",
+    projectRefCode: "SS-2025-001",
     kind: "infrastructure",
-    sector: "General Sector",
-    amount: 400000,
-    aipDescription: "Basketball court rehabilitation with new flooring and backboards",
+    sector: "Social Sector",
+    amount: 700000,
+    aipDescription: "Basketball court rehabilitation and facility upgrade",
     reviewStatus: "reviewed",
   },
 
@@ -172,14 +174,9 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     projectRefCode: "GS-2026-C001",
     kind: "infrastructure",
     sector: "General Sector",
-    amount: 18000000,
+    amount: 20000000,
     aipDescription: "Major road network expansion covering 15km of city roads",
-    reviewStatus: "ai_flagged",
-    aiIssues: [
-      "Budget per kilometer (₱1.2M/km) is below industry standard for urban road construction",
-      "No environmental impact assessment mentioned for expansion project",
-      "Insufficient detail on traffic management during construction phase"
-    ],
+    reviewStatus: "reviewed",
   },
   {
     id: AIP_ITEM_IDS.city_2026_031,
@@ -188,8 +185,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     kind: "infrastructure",
     sector: "Economic Sector",
     amount: 8000000,
-    aipDescription: "Public market modernization with improved stalls and facilities",
-    reviewStatus: "unreviewed",
+    aipDescription: "Public market modernization and expansion project",
+    reviewStatus: "reviewed",
   },
   {
     id: AIP_ITEM_IDS.city_2026_032,
@@ -198,7 +195,7 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     kind: "health",
     sector: "Social Sector",
     amount: 6000000,
-    aipDescription: "City hospital equipment upgrade including modern medical devices",
+    aipDescription: "City hospital equipment upgrade and procurement",
     reviewStatus: "reviewed",
   },
   {
@@ -207,9 +204,9 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     projectRefCode: "SS-2026-C002",
     kind: "infrastructure",
     sector: "Social Sector",
-    amount: 7000000,
-    aipDescription: "Public school building construction for additional classrooms",
-    reviewStatus: "unreviewed",
+    amount: 5000000,
+    aipDescription: "Public school building construction and renovation",
+    reviewStatus: "reviewed",
   },
   {
     id: AIP_ITEM_IDS.city_2026_034,
@@ -218,7 +215,7 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     kind: "infrastructure",
     sector: "Economic Sector",
     amount: 3000000,
-    aipDescription: "Business development center establishment for entrepreneurs",
+    aipDescription: "Business development center establishment and support program",
     reviewStatus: "reviewed",
   },
   {
@@ -228,13 +225,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     kind: "infrastructure",
     sector: "Other Services",
     amount: 3000000,
-    aipDescription: "Waste management facility construction with segregation area",
-    reviewStatus: "ai_flagged",
-    aiIssues: [
-      "Missing operational cost projections for facility maintenance",
-      "No mention of waste processing equipment in budget allocation",
-      "Land acquisition costs not included in budget breakdown"
-    ],
+    aipDescription: "Waste management facility construction and operations",
+    reviewStatus: "reviewed",
   },
 
   // aip-2025-city projects
@@ -354,7 +346,7 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     aiIssues: [
       "Categorized under General Sector instead of Social Sector for health facility",
       "Expansion area specifications not clearly defined",
-      "Accessibility compliance for persons with disability not mentioned"
+      "Accessibility compliance for persons with disability not mentioned",
     ],
   },
   {
@@ -389,7 +381,7 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     aiIssues: [
       "No itemized list of medical equipment to be procured",
       "Missing warranty and maintenance cost considerations",
-      "Training costs for medical staff on new equipment not budgeted"
+      "Training costs for medical staff on new equipment not budgeted",
     ],
   },
   {
@@ -403,3 +395,4 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "unreviewed",
   },
 ];
+

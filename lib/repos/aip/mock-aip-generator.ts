@@ -1,11 +1,10 @@
 /**
  * Mock AIP Generator Service
- * 
- * Generates mock AIP data for uploaded files to simulate the upload process
+ *
+ * Generates mock AIP data for uploaded files to simulate the upload process.
  */
 
-import type { AipHeader } from "../types";
-import type { AipProjectRow } from "../types";
+import type { AipHeader, AipProjectRow } from "./repo";
 
 const SAMPLE_PROJECTS = [
   {
@@ -48,18 +47,12 @@ const SAMPLE_PROJECTS = [
       "Solar Street Light Installation",
     ],
   },
-];
+] as const;
 
-/**
- * Generate a random budget amount within a range
- */
 function randomBudget(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
-/**
- * Generate mock projects for an AIP
- */
 export function generateMockProjects(
   aipId: string,
   year: number,
@@ -88,17 +81,16 @@ export function generateMockProjects(
       reviewStatuses[Math.floor(Math.random() * reviewStatuses.length)];
 
     const project: AipProjectRow = {
-        id: `aiprow-mock-${aipId}-${i + 1}`,
-        aipId,
-        projectRefCode: `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`,
-        sector: sectorData.sector,
-        amount: randomBudget(300000, 5000000),
-        aipDescription: description,
-        reviewStatus,
-        kind: "health"
+      id: `aiprow-mock-${aipId}-${i + 1}`,
+      aipId,
+      projectRefCode: `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`,
+      sector: sectorData.sector,
+      amount: randomBudget(300000, 5000000),
+      aipDescription: description,
+      reviewStatus,
+      kind: "health",
     };
 
-    // Add AI issues for flagged items
     if (reviewStatus === "ai_flagged") {
       project.aiIssues = [
         "Budget allocation needs verification against market rates",
@@ -106,7 +98,6 @@ export function generateMockProjects(
       ];
     }
 
-    // Add official comments for reviewed items
     if (reviewStatus === "reviewed") {
       project.officialComment =
         "Reviewed and approved. Budget allocation is within acceptable range.";
@@ -118,9 +109,6 @@ export function generateMockProjects(
   return projects;
 }
 
-/**
- * Generate a mock AIP header from uploaded file info
- */
 export function generateMockAIP(
   aipId: string,
   fileName: string,
@@ -129,7 +117,7 @@ export function generateMockAIP(
   barangayName?: string
 ): AipHeader {
   const currentDate = new Date().toISOString().split("T")[0];
-  
+
   return {
     id: aipId,
     scope,
@@ -163,3 +151,4 @@ export function generateMockAIP(
     },
   };
 }
+

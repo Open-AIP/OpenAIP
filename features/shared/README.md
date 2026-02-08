@@ -32,9 +32,10 @@ Enforcement boundary:
 
 ## E. Current Implementation (Mock)
 - `id-contract.ts` centralizes ids used across:
-  - `features/aip/mock/*`
-  - `features/projects/mock/*`
-  - `features/feedback/mock/*`
+  - `lib/fixtures/shared/id-contract.fixture.ts` (canonical ids)
+  - `lib/fixtures/aip/*` (migrated)
+  - `features/projects/mock/*` (not migrated yet)
+  - `features/feedback/mock/*` (not migrated yet)
 - Audit mocks were migrated to `lib/fixtures/audit/*` and no longer depend on the shared id contract.
 - `validate-mock-ids.ts` checks cross-feature mock integrity and throws in dev if broken.
 

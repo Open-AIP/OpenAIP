@@ -1,5 +1,5 @@
 import { AIP_IDS } from "@/features/shared/mock/id-contract";
-import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
+import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
 import {
   __getMockAipReviewsForAipId,
   __resetMockAipSubmissionsReviewState,

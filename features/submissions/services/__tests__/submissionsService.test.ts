@@ -1,5 +1,5 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
-import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
+import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
 import { getCitySubmissionsFeedForActor } from "../submissionsService";
 
 function assert(condition: boolean, message: string) {

@@ -65,7 +65,7 @@ How those rules should be enforced:
 - Repo adapter should rely on RLS, but also include explicit filters by status/scope for predictable UX.
 
 ## E. Current Implementation (Mock)
-- AIP source is `features/aip/mock/aips.table.ts` (shared mock table).
+- AIP source is `lib/fixtures/aip/aips.table.fixture.ts` (shared mock table).
 - Reviewer decisions are stored in-memory in `features/submissions/data/submissionsReview.repo.mock.ts` (`reviewStore`).
 - Actor enforcement exists in mock (`requireCityReviewer()` + `assertInJurisdiction()`), but is relaxed in dev when actor is null.
 

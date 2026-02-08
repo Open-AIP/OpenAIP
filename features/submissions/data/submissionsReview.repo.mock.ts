@@ -1,7 +1,7 @@
 import type { AipStatus, ReviewAction } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import type { AipHeader } from "@/features/aip/types";
-import { AIPS_TABLE } from "@/features/aip/mock/aips.table";
+import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
 import type { AipSubmissionsReviewRepo } from "./submissionsReview.repo";
 import type {
   AipSubmissionRow,

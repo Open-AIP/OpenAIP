@@ -42,12 +42,15 @@ export async function updateSession(request: NextRequest) {
 
   const pathRole = pathArray.indexOf('barangay') > 0 ? 
     'barangay' : 
+    pathArray.indexOf('municipality') > 0 ? 
+    'municipality' : 
     pathArray.indexOf('city') > 0 ? 
     'city' : 
+    pathArray.indexOf('admin') > 0 ? 
+    'admin' : 
     'citizen';
 
   const userRole = user?.user_metadata?.access?.role;
-  
 
   if (
     !user && 

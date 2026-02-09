@@ -1,4 +1,4 @@
-import { createClient } from "../supabase/server";
+import { supabaseServer } from "../supabase/server";
 
 export const getUser = async () => {
 
@@ -8,7 +8,7 @@ export const getUser = async () => {
     throw new Error('BASE_URL environment variable is not set');
   }
 
-  const supabase = await createClient();
+  const supabase = await supabaseServer();
 
   const { data, error } = await supabase.auth.getClaims();
 

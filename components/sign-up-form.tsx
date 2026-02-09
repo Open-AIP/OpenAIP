@@ -1,6 +1,6 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import type { AuthParameters } from "@/types";
 
@@ -54,7 +54,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const supabase = createClient()
+    const supabase = supabaseBrowser()
 
     setIsLoading(true)
     setError(null)

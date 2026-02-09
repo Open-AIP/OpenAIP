@@ -1,14 +1,15 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { AuthParameters } from '@/types'
 
 export function LogoutButton({role}:AuthParameters) {
   const router = useRouter()
 
   const logout = async () => {
-    const supabase = createClient()
+    const supabase = supabaseBrowser()
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error('Logout failed:', error.message)

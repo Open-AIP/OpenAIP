@@ -1,10 +1,5 @@
-import Placeholder from "@/components/layout/placeholder";
+import { AccountAdministrationView } from "@/features/admin";
 
 export default function AccountAdministrationPage() {
-  return (
-    <Placeholder
-      title="Account Administration"
-      description="This module is under development."
-    />
-  );
+  return <AccountAdministrationView />;
 }

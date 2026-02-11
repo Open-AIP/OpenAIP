@@ -25,17 +25,17 @@ Cross-feature composition:
 
 ## C. Data Flow (diagram in text)
 Server components (pages)
-→ `getAipRepo()` (`lib/repos/aip/selector.ts`)
+→ `getAipRepo()` (`lib/repos/aip/repo.server.ts`)
 → `AipRepo` contract (`lib/repos/aip/repo.ts`)
 → adapter:
-  - today: `createMockAipRepoImpl()` (`lib/repos/aip/repo.mock.ts`) → `lib/fixtures/aip/aips.table.fixture.ts`
+  - today: `createMockAipRepoImpl()` (`lib/repos/aip/repo.mock.ts`) → `mocks/fixtures/aip/aips.table.fixture.ts`
   - future: `createSupabaseAipRepo()` (`lib/repos/aip/repo.supabase.ts`) → `public.aips` (+ joins for scope names)
 
 AIP extracted rows table
-→ `getAipProjectRepo()` (`lib/repos/aip/selector.ts`)
+→ `getAipProjectRepo()` (`lib/repos/aip/repo.server.ts`)
 → `AipProjectRepo` contract (`lib/repos/aip/repo.ts`)
 → adapter:
-  - today: `createMockAipProjectRepo()` (`lib/repos/aip/repo.mock.ts`) → `lib/fixtures/aip/aip-project-rows.table.fixture.ts`
+  - today: `createMockAipProjectRepo()` (`lib/repos/aip/repo.mock.ts`) → `mocks/fixtures/aip/aip-project-rows.table.fixture.ts`
   - future: Supabase adapter → `public.projects` (+ `health_project_details` / `infrastructure_project_details`)
 
 ## D. databasev2 Alignment
@@ -61,9 +61,9 @@ How these rules should be enforced:
 - Service/usecase layer should validate lifecycle transitions (DBV2 explicitly notes state-machine tightening can be added later).
 
 ## E. Current Implementation (Mock)
-- AIP list/detail data: `lib/fixtures/aip/aips.table.fixture.ts` (in-memory table)
-- AIP rows data: `lib/fixtures/aip/aip-project-rows.table.fixture.ts` + generator `lib/repos/aip/mock-aip-generator.ts`
-- Repo selector: `lib/repos/aip/selector.ts` (dev uses mock; non-dev throws `NotImplementedError`)
+- AIP list/detail data: `mocks/fixtures/aip/aips.table.fixture.ts` (in-memory table)
+- AIP rows data: `mocks/fixtures/aip/aip-project-rows.table.fixture.ts` + generator `lib/repos/aip/mock-aip-generator.ts`
+- Server repo entrypoint: `lib/repos/aip/repo.server.ts` (dev uses mock; non-dev selects Supabase stub)
 
 ## F. Supabase Swap Plan (Future-only)
 Goal: keep all pages/components unchanged; only swap repo adapters.
@@ -72,7 +72,7 @@ Goal: keep all pages/components unchanged; only swap repo adapters.
 - `lib/repos/aip/repo.supabase.ts` implementing `AipRepo` + `AipProjectRepo`
 
 2) Update selectors:
-- `lib/repos/aip/selector.ts` to return Supabase adapter in non-dev
+- `lib/repos/aip/repo.server.ts` to return Supabase adapter in non-dev
 
 3) Method → table/query mapping (minimum viable):
 - `AipRepo.listVisibleAips({ visibility: "public" })`

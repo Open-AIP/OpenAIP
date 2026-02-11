@@ -4,7 +4,7 @@ import {
   __getMockAipReviewsForAipId,
   __resetMockAipSubmissionsReviewState,
   createMockAipSubmissionsReviewRepo,
-} from "../repo.mock";
+} from "@/lib/repos/submissions/repo.mock";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -89,3 +89,4 @@ export async function runSubmissionsReviewRepoTests() {
   resetAipsTable();
   __resetMockAipSubmissionsReviewState();
 }
+

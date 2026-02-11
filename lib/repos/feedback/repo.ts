@@ -1,7 +1,17 @@
 import type { FeedbackKind, FeedbackTargetType } from "@/lib/contracts/databasev2";
+import type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 import type { CommentMessage, CommentThread } from "./types";
+import { NotImplementedError } from "@/lib/core/errors";
+import { selectRepo } from "@/lib/repos/_shared/selector";
+import {
+  createMockCommentRepo,
+  createMockCommentTargetLookup,
+  createMockFeedbackRepo,
+  createMockFeedbackThreadsRepo,
+} from "./repo.mock";
 
 export type { Comment, CommentMessage, CommentSidebarItem, CommentThread } from "./types";
+export type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 
 export type ListThreadsForInboxParams = {
   lguId: string;
@@ -102,40 +112,58 @@ export interface FeedbackRepo {
   remove(feedbackId: string): Promise<boolean>;
 }
 
-export type FeedbackThreadRow = {
-  id: string;
-  target_type: FeedbackTargetType;
-  aip_id?: string | null;
-  project_id?: string | null;
-  parent_feedback_id?: string | null;
-  body: string;
-  author_id: string;
-  created_at: string;
-};
-
-export type FeedbackTarget = {
-  target_type: FeedbackTargetType;
-  aip_id?: string | null;
-  project_id?: string | null;
-};
-
-export type CreateRootInput = {
-  target: FeedbackTarget;
-  body: string;
-  authorId: string;
-};
-
-export type CreateReplyInput = {
-  parentId: string;
-  body: string;
-  authorId: string;
-  target?: FeedbackTarget;
-};
-
 // [DATAFLOW] Threaded repository interface that mirrors DBV2 `public.feedback` rows (root + replies).
 export interface FeedbackThreadsRepo {
   listThreadRootsByTarget(target: FeedbackTarget): Promise<FeedbackThreadRow[]>;
   listThreadMessages(rootId: string): Promise<FeedbackThreadRow[]>;
   createRoot(input: CreateRootInput): Promise<FeedbackThreadRow>;
   createReply(input: CreateReplyInput): Promise<FeedbackThreadRow>;
+}
+
+export function getCommentRepo(): CommentRepo {
+  return selectRepo({
+    label: "CommentRepo",
+    mock: () => createMockCommentRepo(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "CommentRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
+      );
+    },
+  });
+}
+
+export function getCommentTargetLookup(): CommentTargetLookup {
+  return selectRepo({
+    label: "CommentTargetLookup",
+    mock: () => createMockCommentTargetLookup(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "CommentTargetLookup is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
+      );
+    },
+  });
+}
+
+export function getFeedbackRepo(): FeedbackRepo {
+  return selectRepo({
+    label: "FeedbackRepo",
+    mock: () => createMockFeedbackRepo(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "FeedbackRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
+      );
+    },
+  });
+}
+
+export function getFeedbackThreadsRepo(): FeedbackThreadsRepo {
+  return selectRepo({
+    label: "FeedbackThreadsRepo",
+    mock: () => createMockFeedbackThreadsRepo(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "FeedbackThreadsRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
+      );
+    },
+  });
 }

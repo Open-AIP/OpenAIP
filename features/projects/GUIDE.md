@@ -19,7 +19,7 @@ Service entrypoints:
 
 Repo entrypoints:
 - `lib/repos/projects/repo.ts` (`ProjectsRepo`)
-- `lib/repos/projects/selector.ts` (`getProjectsRepo()`)
+- `lib/repos/projects/repo.server.ts` (`getProjectsRepo()` for server-only callers)
 - mock adapter: `lib/repos/projects/repo.mock.ts`
 
 Embedded feedback:
@@ -28,12 +28,12 @@ Embedded feedback:
 ## C. Data Flow (diagram in text)
 `app/(lgu)/.../projects/*` pages
 → `projectService` (`lib/repos/projects/queries.ts`)
-→ `getProjectsRepo()` (`lib/repos/projects/selector.ts`)
+→ `getProjectsRepo()` (`lib/repos/projects/repo.server.ts`)
 → `ProjectsRepo` contract (`lib/repos/projects/repo.ts`)
 → adapter:
   - today: `createMockProjectsRepoImpl()` (`lib/repos/projects/repo.mock.ts`)
-    → `lib/fixtures/projects/projects.mock.fixture.ts` (normalized mock rows)
-    → `lib/fixtures/projects/*` (tables like updates)
+    → `mocks/fixtures/projects/projects.mock.fixture.ts` (normalized mock rows)
+    → `mocks/fixtures/projects/*` (tables like updates)
   - future: Supabase adapter (to be created) → `public.projects` + detail tables
 
 ## D. databasev2 Alignment
@@ -56,17 +56,17 @@ How those rules should be enforced:
 - Service layer should avoid exposing “edit” entrypoints when status is not editable.
 
 ## E. Current Implementation (Mock)
-- Mock tables are under `lib/fixtures/projects/*`.
+- Mock tables are under `mocks/fixtures/projects/*`.
 - Repository mock implementation joins normalized mock rows into UI types:
   - `lib/repos/projects/repo.mock.ts`
   - mapper: `lib/repos/projects/mappers.ts`
-- Selector: `lib/repos/projects/selector.ts` uses mock in `dev` and throws in non-dev.
+- Server repo entrypoint: `lib/repos/projects/repo.server.ts` uses mock in `dev` and selects the Supabase adapter in non-dev (currently stubbed).
 
 ## F. Supabase Swap Plan (Future-only)
 1) Add adapter file:
 - Implement `lib/repos/projects/repo.supabase.ts` implementing `ProjectsRepo`.
 2) Update selector:
-- Update `lib/repos/projects/selector.ts` to use the Supabase adapter for non-dev.
+- Update `lib/repos/projects/repo.server.ts` to use the Supabase adapter for non-dev.
 3) Method → table mapping:
 - `listByAip(aipId)` → `public.projects` where `aip_id = $1`
 - `getById(projectId)` → `public.projects` where `id = $1` (or by `aip_ref_code` if you use that as the UI id)

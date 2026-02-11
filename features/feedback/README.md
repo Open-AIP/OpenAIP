@@ -23,13 +23,13 @@ Embedded by other features:
 
 ## C. Data Flow (diagram in text)
 Inbox / thread UI (today)
-→ `getCommentRepo()` (`lib/repos/feedback/selector.ts`)
+→ `getCommentRepo()` (`lib/repos/feedback/repo.ts`)
 → `CommentRepo` contract (`lib/repos/feedback/repo.ts`)
 → adapter:
   - today: `createMockCommentRepo()` (`lib/repos/feedback/repo.mock.ts`)
   - future: `createSupabaseCommentRepo()` (`lib/repos/feedback/repo.supabase.ts`)
 → resolve sidebar context:
-  - `getCommentTargetLookup()` (`lib/repos/feedback/selector.ts`)
+  - `getCommentTargetLookup()` (`lib/repos/feedback/repo.ts`)
   - `resolveCommentSidebar()` (`lib/repos/feedback/queries.ts`)
 
 DBV2-aligned repo (future-facing; not the primary UI path yet)
@@ -59,7 +59,7 @@ How those rules should be enforced:
 
 ## E. Current Implementation (Mock)
 Thread UI mocks:
-- Threads/messages live in `lib/fixtures/feedback/comment-threads.fixture.ts` and `lib/fixtures/feedback/comment-messages.fixture.ts`.
+- Threads/messages live in `mocks/fixtures/feedback/comment-threads.fixture.ts` and `mocks/fixtures/feedback/comment-messages.fixture.ts`.
 - `createMockCommentRepo()` is in `lib/repos/feedback/repo.mock.ts`.
 
 DBV2-aligned mock store:
@@ -93,8 +93,8 @@ Manual:
 
 Automated:
 - Existing tests:
-  - `lib/repos/feedback/__tests__/commentThread.highlight.test.ts`
-  - `lib/repos/feedback/__tests__/commentThreadAccordionList.test.tsx`
+  - `tests/repo-smoke/feedback/commentThread.highlight.test.ts`
+  - `tests/repo-smoke/feedback/commentThreadAccordionList.test.tsx`
 - Add adapter tests for:
   - published-only public visibility
   - reply target enforcement (parent/child match)

@@ -10,7 +10,7 @@ import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
 import { RemarksCard } from "@/features/aip/components/remarks-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
-import { getAipProjectRepo } from "@/lib/repos/aip/selector";
+import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

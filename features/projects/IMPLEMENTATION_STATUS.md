@@ -3,14 +3,14 @@
 ## Summary
 
 All **Projects feature** pages have been successfully updated to use mock data from `features/projects/mock/*` with complete **data isolation from the AIP feature**.
-All **Projects feature** pages now read data via the global repo layer (`lib/repos/projects/*`) backed by fixtures (`lib/fixtures/projects/*`).
+All **Projects feature** pages now read data via the global repo layer (`lib/repos/projects/*`) backed by fixtures (`mocks/fixtures/projects/*`).
 
 ---
 
 ## ✅ Completed Changes
 
 ### 1. Mock Data Consolidation
-- **Folder**: `lib/fixtures/projects/`
+- **Folder**: `mocks/fixtures/projects/`
 - **Contains**:
   - `projects-table.ts` (20 projects)
   - `health-details-table.ts` (8 records)
@@ -23,7 +23,7 @@ All **Projects feature** pages now read data via the global repo layer (`lib/rep
 - **Files**:
   - `lib/repos/projects/repo.ts` - Repo contract + types
   - `lib/repos/projects/repo.mock.ts` - Mock adapter
-  - `lib/repos/projects/selector.ts` - Selector (dev uses mock; non-dev throws)
+  - `lib/repos/projects/repo.server.ts` - Server repo entrypoint (dev uses mock; non-dev selects Supabase stub)
   - `lib/repos/projects/queries.ts` - `projectService` (business logic)
 
 ### 3. Updated Pages (10 total)
@@ -101,7 +101,7 @@ grep -r "MOCK_AIPS" app/(lgu)/*/projects/
 grep -r "@/features/projects/services" app/(lgu)/*/projects/
 
 # List mock fixture files
-ls lib/fixtures/projects
+ls mocks/fixtures/projects
 ```
 
 ---

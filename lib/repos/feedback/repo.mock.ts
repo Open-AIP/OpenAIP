@@ -21,7 +21,7 @@ import { COMMENT_THREADS_FIXTURE } from "@/mocks/fixtures/feedback/comment-threa
 import { validateMockIds } from "@/mocks/fixtures/shared/validate-mock-ids";
 import { feedbackDebugLog } from "./debug";
 import { dedupeByKey, findDuplicateKeys } from "./mappers";
-import { getProjectsRepo } from "@/lib/repos/projects/selector";
+import { getProjectsRepo } from "@/lib/repos/projects/repo";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 

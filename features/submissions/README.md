@@ -21,15 +21,15 @@ Feature components/services:
 
 Repo contract + adapters:
 - `lib/repos/submissions/repo.ts`
+- `lib/repos/submissions/repo.server.ts`
 - `lib/repos/submissions/repo.mock.ts`
 - `lib/repos/submissions/repo.supabase.ts` (stub)
-- `lib/repos/submissions/selector.ts`
 - `lib/repos/submissions/queries.ts`
 
 ## C. Data Flow (diagram in text)
 Feed page
 → `getCitySubmissionsFeed()` (`lib/repos/submissions/queries.ts`)
-→ `getAipSubmissionsReviewRepo()` (`lib/repos/submissions/selector.ts`)
+→ `getAipSubmissionsReviewRepo()` (`lib/repos/submissions/repo.server.ts`)
 → adapter:
   - today: `createMockAipSubmissionsReviewRepo()` (`lib/repos/submissions/repo.mock.ts`)
   - future: Supabase adapter (`lib/repos/submissions/repo.supabase.ts`)
@@ -66,7 +66,7 @@ How those rules should be enforced:
 - Repo adapter should rely on RLS, but also include explicit filters by status/scope for predictable UX.
 
 ## E. Current Implementation (Mock)
-- AIP source is `lib/fixtures/aip/aips.table.fixture.ts` (shared mock table).
+- AIP source is `mocks/fixtures/aip/aips.table.fixture.ts` (shared mock table).
 - Reviewer decisions are stored in-memory in `lib/repos/submissions/repo.mock.ts` (`reviewStore`).
 - Actor enforcement exists in mock (`requireCityReviewer()` + `assertInJurisdiction()`), but is relaxed in dev when actor is null.
 
@@ -102,8 +102,8 @@ Manual:
 
 Automated:
 - Existing tests:
-  - `lib/repos/submissions/__tests__/submissions.queries.test.ts`
-  - `lib/repos/submissions/__tests__/submissions.repo.mock.test.ts`
+  - `tests/repo-smoke/submissions/submissions.queries.test.ts`
+  - `tests/repo-smoke/submissions/submissions.repo.mock.test.ts`
 - Add Supabase adapter tests once implemented (jurisdiction + status transitions).
 
 ## H. Gotchas / Pitfalls

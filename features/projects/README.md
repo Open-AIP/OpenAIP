@@ -8,7 +8,7 @@ The **Projects feature** manages health and infrastructure projects with complet
 
 **CRITICAL**: Projects data is self-contained and NOT sourced from AIP feature.
 
-- ✅ **DO**: Use Projects fixtures from `lib/fixtures/projects/*`
+- ✅ **DO**: Use Projects fixtures from `mocks/fixtures/projects/*`
 - ✅ **DO**: Use Projects repo/service from `lib/repos/projects/*`
 - ❌ **DON'T**: Import anything from AIP feature
 - ❌ **DON'T**: Share Projects mock data with other features
@@ -24,8 +24,10 @@ features/projects/
 ├── infrastructure/       # Infrastructure project components
 └── shared/               # Shared components
 
+mocks/
+└── fixtures/projects/     # Mock data tables (single source)
+
 lib/
-├── fixtures/projects/     # Mock data tables (single source)
 └── repos/projects/        # Repo contract + adapters + queries
 ```
 
@@ -55,7 +57,7 @@ const project = await projectService.getHealthProjectById("PROJ-H-2026-001");
 
 ### Mock Data
 
-All fixtures in `lib/fixtures/projects/*`:
+All fixtures in `mocks/fixtures/projects/*`:
 - `projects-table.fixture.ts` - 20 projects (8 health, 12 infrastructure)
 - `health-details-table.fixture.ts` - Health-specific information
 - `infrastructure-details-table.fixture.ts` - Infrastructure-specific information
@@ -94,12 +96,12 @@ getProjectsRepo() (repo selector)
     ↓
 repo.mock.ts (mock adapter)
     ↓
-lib/fixtures/projects/* (mock data tables)
+mocks/fixtures/projects/* (mock data tables)
 ```
 
 ## Adding New Projects
 
-Edit files in `lib/fixtures/projects/`:
+Edit files in `mocks/fixtures/projects/`:
 
 1. Add to `projects-table.fixture.ts` with unique `projectRefCode`
 2. Add details to `health-details-table.fixture.ts` or `infrastructure-details-table.fixture.ts`

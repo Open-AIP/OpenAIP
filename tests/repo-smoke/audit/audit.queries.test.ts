@@ -1,6 +1,6 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { ACTIVITY_LOG_FIXTURE } from "@/mocks/fixtures/audit/activity-log.fixture";
-import { getAuditFeedForActor } from "../queries";
+import { getAuditFeedForActor } from "@/lib/repos/audit/queries";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -43,3 +43,4 @@ export async function runAuditServiceTests() {
   const citizenFeed = await getAuditFeedForActor(citizen);
   assert(citizenFeed.length === 0, "Expected citizen to receive no activity logs");
 }
+

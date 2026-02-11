@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getLguRepo } from "@/lib/repos/lgu/selector";
+import { getLguRepo } from "@/lib/repos/lgu/repo";
 import type {
   CreateLguInput,
   LguRecord,
@@ -143,4 +143,3 @@ export function useLguManagement() {
     setStatus,
   };
 }
-

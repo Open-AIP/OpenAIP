@@ -1,5 +1,5 @@
 import { AipManagementView } from "@/features/aip";
-import { getAipRepo } from "@/lib/repos/aip/selector";
+import { getAipRepo } from "@/lib/repos/aip/repo.server";
 
 const CityAIPS = async () => {
   const aipRepo = getAipRepo({ defaultScope: "city" });

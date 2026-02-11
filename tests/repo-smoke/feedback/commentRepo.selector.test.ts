@@ -1,4 +1,4 @@
-import { getCommentRepo } from "@/lib/repos/feedback/selector";
+import { getCommentRepo } from "@/lib/repos/feedback/repo";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -16,16 +16,15 @@ export async function runCommentRepoSelectorTests() {
     assert(Array.isArray(threads), "Expected mock repo to return threads in dev");
 
     process.env.NEXT_PUBLIC_APP_ENV = "staging";
-    const stagingRepo = getCommentRepo();
     let threw = false;
     try {
-      await stagingRepo.listThreadsForInbox({ lguId: "lgu_001" });
+      getCommentRepo();
     } catch (error) {
-      threw = /not implemented/i.test(
+      threw = /server-only|not implemented/i.test(
         error instanceof Error ? error.message : String(error)
       );
     }
-    assert(threw, "Expected Supabase repo in staging");
+    assert(threw, "Expected client-safe repo getter to throw outside mock mode");
   } finally {
     process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
   }

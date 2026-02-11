@@ -1,11 +1,8 @@
 import type { AipProjectRepo, AipRepo, AipStatus, LguScope } from "./repo";
+import type { CreateMockAipRepoOptions } from "./types";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 import { generateMockAIP, generateMockProjects } from "./mock-aip-generator";
-
-export type CreateMockAipRepoOptions = {
-  defaultScope?: LguScope;
-};
 
 export function createMockAipRepoImpl({
   defaultScope = "barangay",

@@ -6,7 +6,7 @@ import { cn } from "@/ui/utils";
 
 import { CommentThreadListCard } from "./comment-thread-list-card";
 import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
-import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/selector";
+import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
 

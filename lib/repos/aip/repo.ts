@@ -1,80 +1,24 @@
-import type { AipStatus } from "@/lib/contracts/databasev2";
+import { NotImplementedError } from "@/lib/core/errors";
+import { selectRepo } from "@/lib/repos/_shared/selector";
+import { createMockAipProjectRepo, createMockAipRepoImpl } from "./repo.mock";
 
-export type { AipStatus } from "@/lib/contracts/databasev2";
+export type {
+  AipDetail,
+  AipHeader,
+  AipListItem,
+  AipProjectRow,
+  AipStatus,
+  CreateMockAipRepoOptions,
+  LguScope,
+  ListVisibleAipsInput,
+  ProjectKind,
+  ReviewStatus,
+  Sector,
+  SubmitReviewInput,
+} from "./types";
 
-export type LguScope = "barangay" | "city";
-
-export type AipHeader = {
-  id: string; // aipId
-  scope: LguScope;
-  barangayName?: string;
-
-  title: string;
-  description: string;
-  year: number;
-  budget: number;
-
-  uploadedAt: string;
-  publishedAt?: string;
-
-  status: AipStatus;
-
-  fileName: string;
-  pdfUrl: string;
-  tablePreviewUrl?: string;
-
-  summaryText?: string;
-  detailedBullets?: string[];
-
-  sectors: string[];
-
-  uploader: {
-    name: string;
-    role: string;
-    uploadDate: string;
-    budgetAllocated: number;
-  };
-
-  feedback?: string;
-};
-
-export type Sector =
-  | "General Sector"
-  | "Social Sector"
-  | "Economic Sector"
-  | "Other Services"
-  | "Unknown";
-
-export type reviewStatus = "ai_flagged" | "reviewed" | "unreviewed";
-export type ProjectKind = "health" | "infrastructure";
-
-/**
- * One row inside the AIP extracted table.
- * Connects to a project via projectRefCode.
- */
-export type AipProjectRow = {
-  id: string; // row id
-  aipId: string; // fk → AipHeader.id
-  projectRefCode: string; // fk → ProjectMaster.projectRefCode
-  kind: ProjectKind;
-
-  sector: Sector;
-  amount: number;
-  reviewStatus: reviewStatus;
-
-  aipDescription: string;
-
-  aiIssues?: string[];
-  officialComment?: string;
-};
-
-export type AipListItem = AipHeader;
-export type AipDetail = AipHeader;
-
-export type ListVisibleAipsInput = {
-  visibility?: "public" | "my";
-  scope?: LguScope;
-};
+import type { AipDetail, AipListItem, AipProjectRow, AipStatus, LguScope, ListVisibleAipsInput, SubmitReviewInput } from "./types";
+import type { CreateMockAipRepoOptions } from "./types";
 
 // [DATAFLOW] UI/pages should depend on this interface, not on a concrete adapter.
 // [DBV2] Backing table is `public.aips` (enum `public.aip_status`).
@@ -94,16 +38,33 @@ export interface AipRepo {
   ): Promise<void>;
 }
 
-export type SubmitReviewInput = {
-  projectId: string;
-  aipId: string;
-  comment: string;
-  resolution?: "disputed" | "confirmed" | "comment_only";
-};
-
 // [DATAFLOW] Used by AIP detail views to list rows/projects under an AIP and submit review notes.
 export interface AipProjectRepo {
   listByAip(aipId: string): Promise<AipProjectRow[]>;
   submitReview(input: SubmitReviewInput): Promise<void>;
+}
+
+export function getAipRepo(options: CreateMockAipRepoOptions = {}): AipRepo {
+  return selectRepo({
+    label: "AipRepo",
+    mock: () => createMockAipRepoImpl(options),
+    supabase: () => {
+      throw new NotImplementedError(
+        "AipRepo is server-only outside mock mode. Import from `@/lib/repos/aip/repo.server`."
+      );
+    },
+  });
+}
+
+export function getAipProjectRepo(_scope?: LguScope): AipProjectRepo {
+  return selectRepo({
+    label: "AipProjectRepo",
+    mock: () => createMockAipProjectRepo(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "AipProjectRepo is server-only outside mock mode. Import from `@/lib/repos/aip/repo.server`."
+      );
+    },
+  });
 }
 

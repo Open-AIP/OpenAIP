@@ -49,3 +49,8 @@ export type FeedbackKind =
  * role in ('user','assistant','system')
  */
 export type ChatMessageRole = "user" | "assistant" | "system";
+
+/**
+ * Mirrors: public.project_category enum
+ */
+export type ProjectCategory = "health" | "infrastructure" | "other";

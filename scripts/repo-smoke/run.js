@@ -36,7 +36,7 @@ registerTypeScriptExtension(".tsx");
 const { createMockFeedbackRepo } = require("@/lib/repos/feedback/repo.mock");
 const { createMockChatRepo } = require("@/lib/repos/chat/repo.mock");
 const { projectService } = require("@/lib/repos/projects/queries");
-const { getProjectsRepo } = require("@/lib/repos/projects/selector");
+const { getProjectsRepo } = require("@/lib/repos/projects/repo.server");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 const {
   createMockFeedbackThreadsRepo: createMockFeedbackThreadRepo,
@@ -44,28 +44,28 @@ const {
 const { listComments } = require("@/lib/repos/feedback/legacy");
 const {
   runCommentRepoSelectorTests,
-} = require("@/lib/repos/feedback/__tests__/commentRepo.selector.test");
+} = require("@/tests/repo-smoke/feedback/commentRepo.selector.test");
 const {
   runCommentThreadHighlightTests,
-} = require("@/lib/repos/feedback/__tests__/commentThread.highlight.test");
+} = require("@/tests/repo-smoke/feedback/commentThread.highlight.test");
 const {
   runCommentThreadAccordionListTests,
-} = require("@/lib/repos/feedback/__tests__/commentThreadAccordionList.test");
+} = require("@/tests/repo-smoke/feedback/commentThreadAccordionList.test");
 const {
   runFeedbackDedupeTests,
-} = require("@/lib/repos/feedback/__tests__/dedupe.test");
+} = require("@/tests/repo-smoke/feedback/dedupe.test");
 const {
   runProjectMapperTests,
-} = require("@/lib/repos/projects/__tests__/projects.mappers.test");
+} = require("@/tests/repo-smoke/projects/projects.mappers.test");
 const {
   runProjectRepoTests,
-} = require("@/lib/repos/projects/__tests__/projects.repo.mock.test");
+} = require("@/tests/repo-smoke/projects/projects.repo.mock.test");
 const {
   runChatRepoTests,
-} = require("@/lib/repos/chat/__tests__/chat.repo.mock.test");
+} = require("@/tests/repo-smoke/chat/chat.repo.mock.test");
 const {
   runAuditServiceTests,
-} = require("@/lib/repos/audit/__tests__/audit.queries.test");
+} = require("@/tests/repo-smoke/audit/audit.queries.test");
 const {
   getAuditFeedForActor,
 } = require("@/lib/repos/audit/queries");
@@ -74,14 +74,17 @@ const {
 } = require("@/mocks/fixtures/audit/activity-log.fixture");
 const {
   runSubmissionsServiceTests,
-} = require("@/lib/repos/submissions/__tests__/submissions.queries.test");
+} = require("@/tests/repo-smoke/submissions/submissions.queries.test");
 const {
   runSubmissionsReviewRepoTests,
-} = require("@/lib/repos/submissions/__tests__/submissions.repo.mock.test");
+} = require("@/tests/repo-smoke/submissions/submissions.repo.mock.test");
 const {
   getCitySubmissionsFeedForActor,
 } = require("@/lib/repos/submissions/queries");
 const { AIPS_TABLE } = require("@/mocks/fixtures/aip/aips.table.fixture");
+const {
+  runRepoSelectorOverrideTests,
+} = require("@/tests/repo-smoke/shared/selector.override.test");
 
 function assert(condition, message) {
   if (!condition) {
@@ -314,9 +317,15 @@ const tests = [
     },
   },
   {
-    name: "getCommentRepo uses supabase outside dev",
+    name: "getCommentRepo throws outside mock mode",
     async run() {
       await runCommentRepoSelectorTests();
+    },
+  },
+  {
+    name: "shared selector override forces mocks",
+    async run() {
+      await runRepoSelectorOverrideTests();
     },
   },
   {

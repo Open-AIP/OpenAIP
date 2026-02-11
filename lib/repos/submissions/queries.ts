@@ -1,8 +1,10 @@
+import "server-only";
+
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAppEnv } from "@/lib/config/appEnv";
 import type { ListSubmissionsResult } from "./repo";
-import { getAipSubmissionsReviewRepo } from "./selector";
+import { getAipSubmissionsReviewRepo } from "./repo.server";
 
 // [DATAFLOW] Page → query → `AipSubmissionsReviewRepo` → adapter (mock now; Supabase later).
 // [SECURITY] Only city_official/admin should see a review feed; return empty results for other roles (defense-in-depth vs RLS).

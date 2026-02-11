@@ -18,7 +18,7 @@ import { AipDetailsTableView } from "./aip-details-table";
 import { Send } from "lucide-react";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAipProjectRepo } from "@/lib/repos/aip/selector";
+import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 
 export default function AipDetailView({
   aip,

@@ -29,9 +29,6 @@ export async function runCommentThreadHighlightTests() {
   const none = threadIds.map((threadId) =>
     getCommentThreadHighlightClassName({ threadId, selectedThreadId: undefined })
   );
-  assert(
-    none.every((c) => c === ""),
-    "Expected no highlighted thread when selectedThreadId is undefined"
-  );
+  assert(none.every((c) => c === ""), "Expected no highlighted thread when selectedThreadId is undefined");
 }
 

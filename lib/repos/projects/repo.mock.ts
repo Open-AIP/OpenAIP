@@ -28,7 +28,10 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         const kind = inferKind(row);
         const health = kind === "health" ? getHealthDetails(row.id) : null;
         const infra = kind === "infrastructure" ? getInfraDetails(row.id) : null;
-        const mapped = mapProjectRowToUiModel(row, health, infra);
+        const mapped = mapProjectRowToUiModel(row, health, infra, {
+          status: row.status ?? null,
+          imageUrl: row.image_url ?? null,
+        });
         return attachUpdates(mapped);
       });
     },
@@ -39,7 +42,10 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
       const kind = inferKind(row);
       const health = kind === "health" ? getHealthDetails(row.id) : null;
       const infra = kind === "infrastructure" ? getInfraDetails(row.id) : null;
-      const mapped = mapProjectRowToUiModel(row, health, infra);
+      const mapped = mapProjectRowToUiModel(row, health, infra, {
+        status: row.status ?? null,
+        imageUrl: row.image_url ?? null,
+      });
       return attachUpdates(mapped);
     },
 
@@ -50,7 +56,10 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         if (!details) {
           throw new Error(`Health details not found for ${row.id}`);
         }
-        const mapped = mapProjectRowToUiModel(row, details, null);
+        const mapped = mapProjectRowToUiModel(row, details, null, {
+          status: row.status ?? null,
+          imageUrl: row.image_url ?? null,
+        });
         if (mapped.kind !== "health") {
           throw new Error(`Expected health project mapping for ${row.id}`);
         }
@@ -67,7 +76,10 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         if (!details) {
           throw new Error(`Infrastructure details not found for ${row.id}`);
         }
-        const mapped = mapProjectRowToUiModel(row, null, details);
+        const mapped = mapProjectRowToUiModel(row, null, details, {
+          status: row.status ?? null,
+          imageUrl: row.image_url ?? null,
+        });
         if (mapped.kind !== "infrastructure") {
           throw new Error(`Expected infrastructure project mapping for ${row.id}`);
         }

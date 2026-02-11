@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAccountsRepo } from "@/lib/repos/accounts/selector";
+import { getAccountsRepo } from "@/lib/repos/accounts/repo";
 import type {
   AccountRecord,
   AccountRole,
@@ -256,4 +256,3 @@ export function useAccountAdministration() {
     forceLogoutSelected,
   };
 }
-

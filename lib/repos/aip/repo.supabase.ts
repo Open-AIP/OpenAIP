@@ -1,3 +1,5 @@
+import "server-only";
+
 import { NotImplementedError } from "@/lib/core/errors";
 import type { AipProjectRepo, AipRepo } from "./repo";
 

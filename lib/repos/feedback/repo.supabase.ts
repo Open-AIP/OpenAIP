@@ -1,22 +1,26 @@
+import "server-only";
+
+import { NotImplementedError } from "@/lib/core/errors";
 import type { CommentRepo, FeedbackRepo, FeedbackThreadsRepo } from "./repo";
 
 // [SUPABASE-SWAP] Future Supabase adapters for Feedback/Comments.
+// [DBV2] Canonical table: `public.feedback` (root + replies via `parent_feedback_id`).
 export function createSupabaseCommentRepo(): CommentRepo {
   return {
     async listThreadsForInbox() {
-      throw new Error("Supabase comment repo not implemented yet.");
+      throw new NotImplementedError("Supabase comment repo not implemented yet.");
     },
     async getThread() {
-      throw new Error("Supabase comment repo not implemented yet.");
+      throw new NotImplementedError("Supabase comment repo not implemented yet.");
     },
     async listMessages() {
-      throw new Error("Supabase comment repo not implemented yet.");
+      throw new NotImplementedError("Supabase comment repo not implemented yet.");
     },
     async addReply() {
-      throw new Error("Supabase comment repo not implemented yet.");
+      throw new NotImplementedError("Supabase comment repo not implemented yet.");
     },
     async resolveThread() {
-      throw new Error("Supabase comment repo not implemented yet.");
+      throw new NotImplementedError("Supabase comment repo not implemented yet.");
     },
   };
 }
@@ -24,25 +28,25 @@ export function createSupabaseCommentRepo(): CommentRepo {
 export function createSupabaseFeedbackRepo(): FeedbackRepo {
   return {
     async listForAip() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
     async listForProject() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
     async createForAip() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
     async createForProject() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
     async reply() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
     async update() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
     async remove() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError("Supabase FeedbackRepo not implemented yet.");
     },
   };
 }
@@ -50,16 +54,24 @@ export function createSupabaseFeedbackRepo(): FeedbackRepo {
 export function createSupabaseFeedbackThreadsRepo(): FeedbackThreadsRepo {
   return {
     async listThreadRootsByTarget() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError(
+        "Supabase FeedbackThreadsRepo not implemented yet."
+      );
     },
     async listThreadMessages() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError(
+        "Supabase FeedbackThreadsRepo not implemented yet."
+      );
     },
     async createRoot() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError(
+        "Supabase FeedbackThreadsRepo not implemented yet."
+      );
     },
     async createReply() {
-      throw new Error("Not implemented");
+      throw new NotImplementedError(
+        "Supabase FeedbackThreadsRepo not implemented yet."
+      );
     },
   };
 }

@@ -1,4 +1,6 @@
-import { getProjectsRepo } from "./selector";
+import "server-only";
+
+import { getProjectsRepo } from "./repo.server";
 import type { HealthProject, InfrastructureProject } from "./repo";
 
 // [DATAFLOW] Page/server components → `projectService` → `ProjectsRepo` → adapter (mock now; Supabase later).
@@ -80,4 +82,3 @@ export const projectService = {
     return allProjects.filter((project) => project.year === year);
   },
 };
-

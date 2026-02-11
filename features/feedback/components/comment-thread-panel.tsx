@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
-import { getCommentRepo } from "@/lib/repos/feedback/selector";
+import { getCommentRepo } from "@/lib/repos/feedback/repo";
 import type { CommentMessage, CommentThread } from "../types";
 
 const ROLE_LABELS: Record<string, string> = {

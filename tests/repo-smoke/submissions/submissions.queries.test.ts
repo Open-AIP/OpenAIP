@@ -1,6 +1,6 @@
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
-import { getCitySubmissionsFeedForActor } from "../queries";
+import { getCitySubmissionsFeedForActor } from "@/lib/repos/submissions/queries";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -43,3 +43,4 @@ export async function runSubmissionsServiceTests() {
     "Expected barangay official to receive no city submissions"
   );
 }
+

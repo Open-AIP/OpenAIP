@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AipDetailView } from "@/features/aip";
-import { getAipRepo } from "@/lib/repos/aip/selector";
+import { getAipRepo } from "@/lib/repos/aip/repo.server";
 
 export default async function BarangayAipDetail({
   params,

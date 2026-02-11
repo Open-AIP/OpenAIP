@@ -38,14 +38,30 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims
 
   const pathname = request.nextUrl.pathname;
-  const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
+  const pathArray =
+    pathname.includes("/") && pathname.trim() !== "/" ? pathname.split("/") : [];
+
+  const pathRole = pathArray.includes("admin")
+    ? "admin"
+    : pathArray.includes("barangay")
+    ? "barangay"
+    : pathArray.includes("city")
+    ? "city"
+    : "citizen";
+
+  if (pathRole === "admin" && process.env.NODE_ENV !== "production") {
+    return supabaseResponse;
+  }
+
+  /*
+    const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
 
   const pathRole = pathArray.indexOf('barangay') > 0 ? 
     'barangay' : 
     pathArray.indexOf('city') > 0 ? 
     'city' : 
     'citizen';
-
+  */
   const userRole = user?.user_metadata?.access?.role;
   
 

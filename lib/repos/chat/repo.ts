@@ -1,33 +1,11 @@
-import type { ChatMessageRole } from "@/lib/contracts/databasev2";
+import { NotImplementedError } from "@/lib/core/errors";
+import { selectRepo } from "@/lib/repos/_shared/selector";
+import { createMockChatRepo } from "./repo.mock";
 
-export type { ChatMessageRole };
+export type { ChatMessage, ChatMessageRole, ChatSession } from "./types";
+export { ChatRepoErrors } from "./types";
 
-export const ChatRepoErrors = {
-  FORBIDDEN: "FORBIDDEN",
-  INVALID_ROLE: "INVALID_ROLE",
-  NOT_FOUND: "NOT_FOUND",
-  INVALID_CONTENT: "INVALID_CONTENT",
-} as const;
-
-export type ChatSession = {
-  id: string;
-  userId: string;
-  title?: string | null;
-  context: unknown;
-  lastMessageAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ChatMessage = {
-  id: string;
-  sessionId: string;
-  role: ChatMessageRole;
-  content: string;
-  createdAt: string;
-  citations?: unknown | null;
-  retrievalMeta?: unknown | null;
-};
+import type { ChatMessage, ChatSession } from "./types";
 
 // [DATAFLOW] UI should depend on this interface; adapters handle storage (mock now; Supabase later).
 // [DBV2] Tables: `public.chat_sessions` + `public.chat_messages`.
@@ -43,4 +21,16 @@ export interface ChatRepo {
   renameSession(sessionId: string, title: string): Promise<ChatSession | null>;
   listMessages(sessionId: string): Promise<ChatMessage[]>;
   appendUserMessage(sessionId: string, content: string): Promise<ChatMessage>;
+}
+
+export function getChatRepo(): ChatRepo {
+  return selectRepo({
+    label: "ChatRepo",
+    mock: () => createMockChatRepo(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "ChatRepo is server-only outside mock mode. Import from `@/lib/repos/chat/repo.server`."
+      );
+    },
+  });
 }

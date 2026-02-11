@@ -14,7 +14,7 @@ import type { HealthProject } from "@/features/projects/types";
 import Image from "next/image";
 import { Users, Hash, Building2, Calendar, DollarSign, Plus } from "lucide-react";
 import Link from "next/link";
-import { formatPeso } from "@/lib/utils/formatting";
+import { formatPeso } from "@/lib/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 /**

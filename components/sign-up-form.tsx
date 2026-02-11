@@ -26,7 +26,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LGUAccounts, ListOfBarangays } from '@/constants'
-import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
+import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
 // import { time } from 'console'
 
 export function SignUpForm({role, baseURL}:AuthParameters) {

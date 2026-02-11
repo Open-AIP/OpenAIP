@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useState } from 'react'
-import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
+import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
 
 export function ForgotPasswordForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')

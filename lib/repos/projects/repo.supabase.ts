@@ -1,4 +1,4 @@
-import { NotImplementedError } from "@/lib/errors/notImplemented";
+import { NotImplementedError } from "@/lib/core/errors";
 import type { ProjectsRepo } from "./repo";
 
 export function createSupabaseProjectsRepo(): ProjectsRepo {

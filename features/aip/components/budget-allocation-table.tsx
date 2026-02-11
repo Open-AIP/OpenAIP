@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatPeso } from "@/lib/utils/formatting";
+import { formatPeso } from "@/lib/formatting";
 import type { AipProjectRow } from "../types";
 import { SECTOR_TABS } from "../utils";
 

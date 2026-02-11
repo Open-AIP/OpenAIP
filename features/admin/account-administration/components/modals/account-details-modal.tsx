@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn } from "@/ui/utils";
 import type { AccountRecord } from "@/lib/repos/accounts/repo";
 
 function roleLabel(role: AccountRecord["role"]) {

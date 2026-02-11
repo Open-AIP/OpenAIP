@@ -1,4 +1,4 @@
-import { NotImplementedError } from "@/lib/errors/notImplemented";
+import { NotImplementedError } from "@/lib/core/errors";
 import type { AipSubmissionsReviewRepo } from "./repo";
 
 // [SUPABASE-SWAP] Future Supabase adapter for `AipSubmissionsReviewRepo`.

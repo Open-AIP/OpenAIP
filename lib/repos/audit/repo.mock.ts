@@ -1,5 +1,5 @@
 import type { AuditRepo, ActivityLogRow } from "./repo";
-import { ACTIVITY_LOG_FIXTURE } from "@/lib/fixtures/audit/activity-log.fixture";
+import { ACTIVITY_LOG_FIXTURE } from "@/mocks/fixtures/audit/activity-log.fixture";
 
 function sortNewestFirst(rows: ActivityLogRow[]): ActivityLogRow[] {
   return [...rows].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -18,4 +18,3 @@ export function createMockAuditRepo(): AuditRepo {
     },
   };
 }
-

@@ -10,5 +10,7 @@ export function getAppEnv(): AppEnv {
 }
 
 export function isMockEnabled(): boolean {
+  const forced = process.env.NEXT_PUBLIC_USE_MOCKS;
+  if (forced === "true") return true;
   return getAppEnv() === "dev";
 }

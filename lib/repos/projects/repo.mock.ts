@@ -1,11 +1,11 @@
-import { PROJECT_UPDATES_TABLE } from "@/lib/fixtures/projects/project-updates-table.fixture";
+import { PROJECT_UPDATES_TABLE } from "@/mocks/fixtures/projects/project-updates-table.fixture";
 import type { ProjectBundle, ProjectsRepo, UiProject } from "./repo";
 import { inferKind, mapProjectRowToUiModel } from "./mappers";
 import {
   MOCK_HEALTH_DETAILS_ROWS,
   MOCK_INFRA_DETAILS_ROWS,
   MOCK_PROJECTS_ROWS,
-} from "@/lib/fixtures/projects/projects.mock.fixture";
+} from "@/mocks/fixtures/projects/projects.mock.fixture";
 
 function attachUpdates<T extends UiProject>(project: T): T {
   const updates = PROJECT_UPDATES_TABLE.filter((u) => u.projectRefCode === project.id);
@@ -85,4 +85,3 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
     },
   };
 }
-

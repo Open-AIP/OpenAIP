@@ -1,4 +1,4 @@
-import { NotImplementedError } from "@/lib/errors/notImplemented";
+import { NotImplementedError } from "@/lib/core/errors";
 import type { AipProjectRepo, AipRepo } from "./repo";
 
 export function createSupabaseAipRepo(): AipRepo {

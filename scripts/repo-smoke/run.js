@@ -71,7 +71,7 @@ const {
 } = require("@/lib/repos/audit/queries");
 const {
   ACTIVITY_LOG_FIXTURE,
-} = require("@/lib/fixtures/audit/activity-log.fixture");
+} = require("@/mocks/fixtures/audit/activity-log.fixture");
 const {
   runSubmissionsServiceTests,
 } = require("@/lib/repos/submissions/__tests__/submissions.queries.test");
@@ -81,7 +81,7 @@ const {
 const {
   getCitySubmissionsFeedForActor,
 } = require("@/lib/repos/submissions/queries");
-const { AIPS_TABLE } = require("@/lib/fixtures/aip/aips.table.fixture");
+const { AIPS_TABLE } = require("@/mocks/fixtures/aip/aips.table.fixture");
 
 function assert(condition, message) {
   if (!condition) {

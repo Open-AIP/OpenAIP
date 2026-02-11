@@ -1,4 +1,4 @@
-import { LGUS_TABLE } from "@/lib/fixtures/lgu/lgus.table.fixture";
+import { LGUS_TABLE } from "@/mocks/fixtures/lgu/lgus.table.fixture";
 import type {
   CreateLguInput,
   LguRecord,
@@ -68,4 +68,3 @@ export function createMockLguRepoImpl(): LguRepo {
     },
   };
 }
-

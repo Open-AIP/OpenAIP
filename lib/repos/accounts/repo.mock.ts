@@ -1,4 +1,4 @@
-import { ACCOUNTS_TABLE } from "@/lib/fixtures/accounts/accounts.table.fixture";
+import { ACCOUNTS_TABLE } from "@/mocks/fixtures/accounts/accounts.table.fixture";
 import type {
   AccountRecord,
   AccountsRepo,
@@ -57,4 +57,3 @@ export function createMockAccountsRepoImpl(): AccountsRepo {
     },
   };
 }
-

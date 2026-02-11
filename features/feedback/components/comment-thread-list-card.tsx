@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
 import { getCommentStatusBadge } from "../lib/status";
@@ -97,4 +97,3 @@ export function CommentThreadListCard({
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
 import { getAppEnv } from "@/lib/config/appEnv";
-import { NotImplementedError } from "@/lib/errors/notImplemented";
+import { NotImplementedError } from "@/lib/core/errors";
 import type { ChatRepo } from "./repo";
 import { createMockChatRepo } from "./repo.mock";
 

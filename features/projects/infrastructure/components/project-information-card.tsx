@@ -22,7 +22,7 @@ import {
   Plus,
   Flag,
 } from "lucide-react";
-import { formatPeso } from "@/lib/utils/formatting";
+import { formatPeso } from "@/lib/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 /**

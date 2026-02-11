@@ -1,5 +1,5 @@
 import { getAppEnv } from "@/lib/config/appEnv";
-import { NotImplementedError } from "@/lib/errors/notImplemented";
+import { NotImplementedError } from "@/lib/core/errors";
 import type { AccountsRepo } from "./repo";
 import { createMockAccountsRepoImpl } from "./repo.mock";
 
@@ -14,4 +14,3 @@ export function getAccountsRepo(): AccountsRepo {
     `AccountsRepo not implemented for env="${env}". Expected until Supabase repo is added.`
   );
 }
-

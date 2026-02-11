@@ -14,7 +14,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { InfrastructureProject, ProjectUpdateUi } from "@/features/projects/types";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
-import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import InfrastructureProjectInformationCard from "../components/project-information-card";
 import { ProjectUpdatesSection } from "../../shared/update-view";
 import { CommentThreadsSplitView } from "@/features/feedback";

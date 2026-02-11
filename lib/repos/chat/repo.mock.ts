@@ -1,6 +1,7 @@
-import { CHAT_MESSAGES_FIXTURE, CHAT_SESSIONS_FIXTURE } from "@/lib/fixtures/chat/chat.fixture";
+import { CHAT_MESSAGES_FIXTURE, CHAT_SESSIONS_FIXTURE } from "@/mocks/fixtures/chat/chat.fixture";
 import type { ChatMessageRole } from "@/lib/contracts/databasev2";
-import { ChatRepoErrors, type ChatMessage, type ChatRepo, type ChatSession } from "./repo";
+import { ChatRepoErrors } from "./types";
+import type { ChatMessage, ChatRepo, ChatSession } from "./repo";
 
 // [DATAFLOW] Mock `ChatRepo` implementation backed by in-memory arrays.
 // [DBV2] Supabase adapter should map sessions/messages to `public.chat_sessions`/`public.chat_messages` and keep messages append-only.

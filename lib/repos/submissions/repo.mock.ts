@@ -1,7 +1,7 @@
 import type { AipStatus, ReviewAction } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import type { AipHeader } from "@/lib/repos/aip/repo";
-import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import type { AipSubmissionsReviewRepo, AipSubmissionRow, LatestReview, ListSubmissionsResult } from "./repo";
 
 // [DATAFLOW] Mock implementation of the DBV2 review workflow:

@@ -1,44 +1,15 @@
-import type { AipScopeRef, ISODateTime, Json, RoleType, UUID } from "@/lib/contracts/databasev2";
+import { NotImplementedError } from "@/lib/core/errors";
+import { selectRepo } from "@/lib/repos/_shared/selector";
+import { createMockAuditRepo } from "./repo.mock";
 
-export type ActivityLogEntityType =
-  | "aip"
-  | "project"
-  | "feedback"
-  | "upload"
-  | (string & {});
+export type {
+  ActivityLogAction,
+  ActivityLogEntityType,
+  ActivityLogRow,
+  ActivityScopeSnapshot,
+} from "./types";
 
-export type ActivityLogAction =
-  | "draft_created"
-  | "submission_created"
-  | "revision_uploaded"
-  | "cancelled"
-  | "project_updated"
-  | "comment_replied"
-  | "approval_granted"
-  | "revision_requested"
-  | "published"
-  | (string & {});
-
-export type ActivityScopeSnapshot =
-  | {
-      scope_type: "none";
-      barangay_id: null;
-      city_id: null;
-      municipality_id: null;
-    }
-  | AipScopeRef;
-
-export type ActivityLogRow = {
-  id: UUID;
-  actorId: UUID;
-  action: ActivityLogAction;
-  entityType: ActivityLogEntityType;
-  entityId: UUID;
-  scope?: ActivityScopeSnapshot | null;
-  metadata?: Json | null;
-  actorRole?: RoleType | null;
-  createdAt: ISODateTime;
-};
+import type { ActivityLogRow } from "./types";
 
 // [DATAFLOW] Page/service depends on this interface; swap adapters without touching UI/pages.
 // [DBV2] Backing table is `public.activity_log` (server-only writes; RLS restricts reads).
@@ -47,3 +18,14 @@ export interface AuditRepo {
   listAllActivity(): Promise<ActivityLogRow[]>;
 }
 
+export function getAuditRepo(): AuditRepo {
+  return selectRepo({
+    label: "AuditRepo",
+    mock: () => createMockAuditRepo(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "AuditRepo is server-only outside mock mode. Import from `@/lib/repos/audit/repo.server`."
+      );
+    },
+  });
+}

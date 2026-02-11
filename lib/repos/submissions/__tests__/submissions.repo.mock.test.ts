@@ -1,5 +1,5 @@
-import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
-import { AIP_IDS } from "@/lib/fixtures/shared/id-contract.fixture";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
+import { AIP_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
 import {
   __getMockAipReviewsForAipId,
   __resetMockAipSubmissionsReviewState,
@@ -89,4 +89,3 @@ export async function runSubmissionsReviewRepoTests() {
   resetAipsTable();
   __resetMockAipSubmissionsReviewState();
 }
-

@@ -1,8 +1,10 @@
+import "server-only";
+
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAppEnv } from "@/lib/config/appEnv";
 import type { ActivityLogRow } from "./repo";
-import { getAuditRepo } from "./selector";
+import { getAuditRepo } from "./repo.server";
 
 // [DATAFLOW] Page → `getAuditFeed()` → `AuditRepo` adapter (mock now; Supabase later).
 // [SECURITY] DBV2 forbids client writes to `public.activity_log`; this module remains read-only.

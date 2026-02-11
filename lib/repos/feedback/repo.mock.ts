@@ -16,14 +16,14 @@ import type {
   ResolveThreadParams,
 } from "./repo";
 import type { CommentMessage, CommentThread } from "./types";
-import { COMMENT_MESSAGES_FIXTURE } from "@/lib/fixtures/feedback/comment-messages.fixture";
-import { COMMENT_THREADS_FIXTURE } from "@/lib/fixtures/feedback/comment-threads.fixture";
-import { validateMockIds } from "@/lib/fixtures/shared/validate-mock-ids";
+import { COMMENT_MESSAGES_FIXTURE } from "@/mocks/fixtures/feedback/comment-messages.fixture";
+import { COMMENT_THREADS_FIXTURE } from "@/mocks/fixtures/feedback/comment-threads.fixture";
+import { validateMockIds } from "@/mocks/fixtures/shared/validate-mock-ids";
 import { feedbackDebugLog } from "./debug";
 import { dedupeByKey, findDuplicateKeys } from "./mappers";
 import { getProjectsRepo } from "@/lib/repos/projects/selector";
-import { AIPS_TABLE } from "@/lib/fixtures/aip/aips.table.fixture";
-import { AIP_PROJECT_ROWS_TABLE } from "@/lib/fixtures/aip/aip-project-rows.table.fixture";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
+import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 
 let threadStore: CommentThread[] = [...COMMENT_THREADS_FIXTURE];
 let messageStore: CommentMessage[] = [...COMMENT_MESSAGES_FIXTURE];

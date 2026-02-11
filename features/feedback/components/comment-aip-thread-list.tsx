@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "@/ui/utils";
 
 import { CommentThreadListCard } from "./comment-thread-list-card";
 import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";

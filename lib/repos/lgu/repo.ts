@@ -1,30 +1,16 @@
-export type LguType = "city" | "barangay";
-export type LguStatus = "active" | "deactivated";
+import { NotImplementedError } from "@/lib/core/errors";
+import { selectRepo } from "@/lib/repos/_shared/selector";
+import { createMockLguRepoImpl } from "./repo.mock";
 
-export type LguRecord = {
-  id: string;
-  type: LguType;
-  name: string;
-  code: string;
+export type {
+  CreateLguInput,
+  LguRecord,
+  LguStatus,
+  LguType,
+  UpdateLguInput,
+} from "./types";
 
-  parentCityId?: string | null;
-  parentCityName?: string | null;
-
-  status: LguStatus;
-  updatedAt: string; // YYYY-MM-DD
-};
-
-export type CreateLguInput = {
-  type: LguType;
-  name: string;
-  code: string;
-  parentCityId?: string | null;
-  parentCityName?: string | null;
-};
-
-export type UpdateLguInput = Partial<
-  Pick<LguRecord, "type" | "name" | "code" | "parentCityId" | "parentCityName">
->;
+import type { CreateLguInput, LguRecord, LguStatus, UpdateLguInput } from "./types";
 
 export interface LguRepo {
   list(): Promise<LguRecord[]>;
@@ -33,3 +19,14 @@ export interface LguRepo {
   setStatus(id: string, status: LguStatus): Promise<LguRecord>;
 }
 
+export function getLguRepo(): LguRepo {
+  return selectRepo({
+    label: "LguRepo",
+    mock: () => createMockLguRepoImpl(),
+    supabase: () => {
+      throw new NotImplementedError(
+        "LguRepo is server-only outside mock mode. Import from `@/lib/repos/lgu/repo.server`."
+      );
+    },
+  });
+}

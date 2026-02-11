@@ -9,13 +9,15 @@ Currently:
 
 Code surfaces:
 - Repo contract: `lib/repos/chat/repo.ts`
-- Repo selector: `lib/repos/chat/selector.ts`
+- Repo entrypoints:
+  - client-safe: `lib/repos/chat/repo.ts`
+  - server-only: `lib/repos/chat/repo.server.ts`
 - Mock adapter: `lib/repos/chat/repo.mock.ts`
 - Supabase stub: `lib/repos/chat/repo.supabase.ts`
 
 ## C. Data Flow (diagram in text)
 Future UI (page/component)
-→ `getChatRepo()` (`lib/repos/chat/selector.ts`)
+→ `getChatRepo()` (`lib/repos/chat/repo.ts` or `lib/repos/chat/repo.server.ts`)
 → `ChatRepo` interface (`lib/repos/chat/repo.ts`)
 → adapter:
   - today: `createMockChatRepo()` (`lib/repos/chat/repo.mock.ts`)
@@ -39,12 +41,12 @@ How those rules should be enforced:
 - Any assistant/system message persistence must be implemented server-side using a service role route.
 
 ## E. Current Implementation (Mock)
-- In-memory stores in `lib/repos/chat/repo.mock.ts` (seeded from `lib/fixtures/chat/chat.fixture.ts`).
+- In-memory stores in `lib/repos/chat/repo.mock.ts` (seeded from `mocks/fixtures/chat/chat.fixture.ts`).
 - `getChatRepo()` returns the mock repo only in dev (`NEXT_PUBLIC_APP_ENV=dev`).
 
 ## F. Supabase Swap Plan (Future-only)
 1) Update repo selector to pick by environment:
-- `lib/repos/chat/selector.ts` should return:
+- `lib/repos/chat/repo.server.ts` should return:
   - mock in `dev`
   - `createSupabaseChatRepo()` in non-dev
 
@@ -64,7 +66,7 @@ Manual:
 - Create session, rename session, append user messages, list messages in order.
 
 Automated:
-- Existing tests: `lib/repos/chat/__tests__/chat.repo.mock.test.ts`
+- Existing tests: `tests/repo-smoke/chat/chat.repo.mock.test.ts`
 - Add integration tests for Supabase adapter once implemented (ownership + append-only behavior).
 
 ## H. Gotchas / Pitfalls

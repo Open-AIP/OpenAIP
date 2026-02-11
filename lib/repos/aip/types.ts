@@ -46,6 +46,8 @@ export type Sector =
   | "Unknown";
 
 export type ReviewStatus = "ai_flagged" | "reviewed" | "unreviewed";
+// Back-compat type alias (some feature barrels re-export this name).
+export type reviewStatus = ReviewStatus;
 export type ProjectKind = "health" | "infrastructure";
 
 /**
@@ -86,4 +88,3 @@ export type SubmitReviewInput = {
 export type CreateMockAipRepoOptions = {
   defaultScope?: LguScope;
 };
-

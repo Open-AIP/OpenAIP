@@ -84,7 +84,7 @@ Manual:
 
 Automated:
 - Existing tests:
-  - `lib/repos/projects/__tests__/projects.repo.mock.test.ts`
+  - `tests/repo-smoke/projects/projects.repo.mock.test.ts`
 - Add adapter tests:
   - list-by-aip respects readability
   - update gates enforce editable-only windows

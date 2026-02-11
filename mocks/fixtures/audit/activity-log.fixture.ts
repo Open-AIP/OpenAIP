@@ -43,7 +43,7 @@ type ActivityLogRow = {
   createdAt: string;
 };
 
-// TODO(P1-next): centralize shared mock ids in `lib/fixtures/shared/*` when migrating AIP/Projects/Feedback.
+// TODO(P1-next): centralize shared mock ids in `mocks/fixtures/shared/*` when migrating AIP/Projects/Feedback.
 export const ACTIVITY_LOG_FIXTURE = [
   {
     id: "log_001",

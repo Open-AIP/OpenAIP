@@ -4,9 +4,13 @@ const path = require("path");
 const Module = require("module");
 
 const rootDir = path.resolve(__dirname, "..", "..");
+const serverOnlyShim = path.join(__dirname, "server-only-shim.js");
 
 const originalResolve = Module._resolveFilename;
 Module._resolveFilename = function resolveFilename(request, parent, isMain, options) {
+  if (request === "server-only") {
+    return serverOnlyShim;
+  }
   if (request.startsWith("@/")) {
     const mapped = path.join(rootDir, request.slice(2));
     return originalResolve.call(this, mapped, parent, isMain, options);

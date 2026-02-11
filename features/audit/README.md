@@ -16,16 +16,16 @@ Queries:
 
 Repo:
 - `lib/repos/audit/repo.ts`
-- `lib/repos/audit/selector.ts`
+- `lib/repos/audit/repo.server.ts`
 - `lib/repos/audit/repo.mock.ts`
 - `lib/repos/audit/repo.supabase.ts` (stub)
 
 ## C. Data Flow (diagram in text)
 `app/(lgu)/.../audit/page.tsx`
 → `getAuditFeed()` (`lib/repos/audit/queries.ts`)
-→ `getAuditRepo()` (`lib/repos/audit/selector.ts`)
+→ `getAuditRepo()` (`lib/repos/audit/repo.server.ts`)
 → adapter:
-  - today: `createMockAuditRepo()` (`lib/repos/audit/repo.mock.ts`) → `lib/fixtures/audit/activity-log.fixture.ts`
+  - today: `createMockAuditRepo()` (`lib/repos/audit/repo.mock.ts`) → `mocks/fixtures/audit/activity-log.fixture.ts`
   - future: Supabase adapter → `public.activity_log`
 → `features/audit/views/AuditView.tsx`
 
@@ -47,15 +47,15 @@ How those rules should be enforced:
 - Repository reads should use RLS for enforcement; the service layer can still apply additional UX-friendly filtering.
 
 ## E. Current Implementation (Mock)
-- Mock data lives in `lib/fixtures/audit/activity-log.fixture.ts`.
-- Repo selector returns mock repo in `dev` and throws for non-dev (`lib/repos/audit/selector.ts`).
+- Mock data lives in `mocks/fixtures/audit/activity-log.fixture.ts`.
+- Server repo entrypoint returns mock repo in `dev` and selects Supabase stub for non-dev (`lib/repos/audit/repo.server.ts`).
 - `getAuditFeedForActor()` intentionally includes a dev-only fallback to keep the page usable when mock actor ids do not match.
 
 ## F. Supabase Swap Plan (Future-only)
 1) Add a Supabase adapter:
 - Implement `lib/repos/audit/repo.supabase.ts` implementing `AuditRepo`.
 2) Update selector:
-- Update `lib/repos/audit/selector.ts` to return the Supabase adapter for non-dev environments.
+- Update `lib/repos/audit/repo.server.ts` to return the Supabase adapter for non-dev environments.
 3) Query mapping:
 - `listMyActivity(actorId)` → select from `public.activity_log` filtered by `actor_id = actorId` (RLS should already enforce; keep explicit filter for clarity).
 - `listAllActivity()` → select all rows (admin-only via RLS).

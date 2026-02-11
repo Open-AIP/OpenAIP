@@ -2,6 +2,17 @@ import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockAipProjectRepo, createMockAipRepoImpl } from "./repo.mock";
 
+import type {
+  AipDetail,
+  AipListItem,
+  AipProjectRow,
+  AipStatus,
+  CreateMockAipRepoOptions,
+  LguScope,
+  ListVisibleAipsInput,
+  SubmitReviewInput,
+} from "./types";
+
 export type {
   AipDetail,
   AipHeader,
@@ -13,12 +24,10 @@ export type {
   ListVisibleAipsInput,
   ProjectKind,
   ReviewStatus,
+  reviewStatus,
   Sector,
   SubmitReviewInput,
 } from "./types";
-
-import type { AipDetail, AipListItem, AipProjectRow, AipStatus, LguScope, ListVisibleAipsInput, SubmitReviewInput } from "./types";
-import type { CreateMockAipRepoOptions } from "./types";
 
 // [DATAFLOW] UI/pages should depend on this interface, not on a concrete adapter.
 // [DBV2] Backing table is `public.aips` (enum `public.aip_status`).
@@ -67,4 +76,3 @@ export function getAipProjectRepo(_scope?: LguScope): AipProjectRepo {
     },
   });
 }
-

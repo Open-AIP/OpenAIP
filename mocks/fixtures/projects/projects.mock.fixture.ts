@@ -2,6 +2,7 @@ import { HEALTH_DETAILS_TABLE } from "@/mocks/fixtures/projects/health-details-t
 import { INFRA_DETAILS_TABLE } from "@/mocks/fixtures/projects/infrastructure-details-table.fixture";
 import { PROJECTS_TABLE } from "@/mocks/fixtures/projects/projects-table.fixture";
 import { AIP_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
+import type { Json } from "@/lib/contracts/databasev2/primitives";
 
 export type ProjectRowDTO = {
   id: string;
@@ -21,7 +22,7 @@ export type ProjectRowDTO = {
   climate_change_adaptation: string | null;
   climate_change_mitigation: string | null;
   cc_topology_code: string | null;
-  errors: unknown | null;
+  errors: Json | null;
   category: "health" | "infrastructure" | "other";
   sector_code: string;
   is_human_edited: boolean;
@@ -30,7 +31,7 @@ export type ProjectRowDTO = {
   created_at: string;
   updated_at: string;
   // Mock-only UI fields (not persisted in DBV2).
-  status?: string | null;
+  status?: "planning" | "ongoing" | "completed" | "on_hold" | null;
   image_url?: string | null;
 };
 

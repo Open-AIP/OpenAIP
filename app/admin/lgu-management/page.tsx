@@ -1,5 +1,5 @@
-import Placeholder from "@/components/layout/placeholder";
+import { LguManagementView } from "@/features/admin";
 
 export default function LguManagementPage() {
-  return <Placeholder title="LGU Management" description="This module is under development." />;
+  return <LguManagementView />;
 }

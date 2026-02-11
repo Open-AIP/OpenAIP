@@ -38,6 +38,7 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims
 
   const pathname = request.nextUrl.pathname;
+  
   const pathArray =
     pathname.includes("/") && pathname.trim() !== "/" ? pathname.split("/") : [];
 
@@ -54,7 +55,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   /*
-    const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
+  
+  const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
 
   const pathRole = pathArray.indexOf('barangay') > 0 ? 
     'barangay' : 

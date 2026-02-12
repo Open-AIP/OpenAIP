@@ -1,14 +1,24 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { AipDetails } from '@/features/citizen/aips/types';
+import type { AipDetails, FeedbackItem, FeedbackUser } from '@/features/citizen/aips/types';
 import AipAccountabilityCard from '@/features/citizen/aips/components/AipAccountabilityCard';
-import AipCommentsTab from '@/features/citizen/aips/components/AipCommentsTab';
+import AipFeedbackTab from '@/features/citizen/aips/components/AipFeedbackTab';
 import AipOverviewDocumentCard from '@/features/citizen/aips/components/AipOverviewDocumentCard';
 import AipProjectsTable from '@/features/citizen/aips/components/AipProjectsTable';
 import AipSummaryCard from '@/features/citizen/aips/components/AipSummaryCard';
 
-export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
+export default function AipDetailsTabs({
+  aip,
+  feedbackItems,
+  isAuthenticated,
+  currentUser,
+}: {
+  aip: AipDetails;
+  feedbackItems: FeedbackItem[];
+  isAuthenticated: boolean;
+  currentUser?: FeedbackUser | null;
+}) {
   return (
     <Tabs defaultValue="overview" className="space-y-6">
       <TabsList className="h-10 rounded-full bg-slate-200 p-1">
@@ -25,10 +35,10 @@ export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
           Accountability
         </TabsTrigger>
         <TabsTrigger
-          value="comments"
+          value="feedback"
           className="h-8 rounded-full px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
-          Comments ({aip.placeholderComments.length})
+          Feedback ({feedbackItems.length})
         </TabsTrigger>
       </TabsList>
 
@@ -42,8 +52,13 @@ export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
         <AipAccountabilityCard accountability={aip.accountability} />
       </TabsContent>
 
-      <TabsContent value="comments">
-        <AipCommentsTab comments={aip.placeholderComments} />
+      <TabsContent value="feedback">
+        <AipFeedbackTab
+          aipId={aip.id}
+          items={feedbackItems}
+          isAuthenticated={isAuthenticated}
+          currentUser={currentUser}
+        />
       </TabsContent>
     </Tabs>
   );

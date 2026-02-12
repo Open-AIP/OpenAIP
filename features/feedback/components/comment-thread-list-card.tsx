@@ -13,6 +13,10 @@ export function CommentThreadListCard({
   contextTitle,
   contextSubtitle,
   snippet,
+  contextLine,
+  badgeLabel,
+  badgeClassName,
+  onReply,
   variant = "standalone",
   className,
 }: {
@@ -23,12 +27,18 @@ export function CommentThreadListCard({
   contextTitle: string;
   contextSubtitle: string;
   snippet: string;
+  contextLine?: string;
+  badgeLabel?: string;
+  badgeClassName?: string;
+  onReply?: () => void;
   variant?: "standalone" | "embedded";
   className?: string;
 }) {
   const safeAuthorName = authorName.trim() || "Citizen";
   const initial = safeAuthorName.charAt(0).toUpperCase() || "C";
-  const badge = getCommentStatusBadge(status);
+  const badge = badgeLabel
+    ? { label: badgeLabel, className: badgeClassName }
+    : getCommentStatusBadge(status);
 
   const content = (
     <div className="flex items-start justify-between gap-4">
@@ -49,12 +59,16 @@ export function CommentThreadListCard({
             ) : null}
           </div>
 
-          <p className="mt-2 text-xs text-slate-500">
-            <span className="font-semibold text-slate-600">Commented on:</span>{" "}
-            <span className="text-slate-600">
-              {contextTitle} • {contextSubtitle}
-            </span>
-          </p>
+          {contextLine ? (
+            <p className="mt-2 text-xs text-slate-500">{contextLine}</p>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">
+              <span className="font-semibold text-slate-600">Commented on:</span>{" "}
+              <span className="text-slate-600">
+                {contextTitle} - {contextSubtitle}
+              </span>
+            </p>
+          )}
 
           <p className="mt-2 text-xs leading-relaxed text-slate-700">
             {snippet}
@@ -64,8 +78,18 @@ export function CommentThreadListCard({
             <time dateTime={new Date(updatedAt).toISOString()}>
               {formatCommentDate(updatedAt)}
             </time>
-            <span className="text-slate-300">•</span>
-            <span className="font-semibold text-slate-700">Reply</span>
+            <span className="text-slate-300">-</span>
+            {onReply ? (
+              <button
+                type="button"
+                onClick={onReply}
+                className="font-semibold text-slate-700 hover:underline"
+              >
+                Reply
+              </button>
+            ) : (
+              <span className="font-semibold text-slate-700">Reply</span>
+            )}
           </div>
         </div>
       </div>

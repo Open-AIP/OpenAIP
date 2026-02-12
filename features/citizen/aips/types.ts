@@ -1,4 +1,9 @@
 import type { Sector } from "@/lib/repos/aip";
+import type {
+  FeedbackCategory as CitizenFeedbackCategory,
+  FeedbackItem as CitizenFeedbackItem,
+  FeedbackUser as CitizenFeedbackUser,
+} from "@/lib/repos/feedback/citizen";
 
 export type AipListItem = {
   id: string;
@@ -54,3 +59,7 @@ export type AipDetails = AipListItem & {
   placeholderComments: CommentPlaceholder[];
   accountability: AipAccountability;
 };
+
+export type FeedbackCategory = CitizenFeedbackCategory;
+export type FeedbackItem = CitizenFeedbackItem;
+export type FeedbackUser = CitizenFeedbackUser;

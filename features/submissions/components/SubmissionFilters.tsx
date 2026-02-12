@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AipSubmissionRow } from "../data/submissionsReview.contracts";
+import type { AipSubmissionRow } from "@/lib/repos/submissions/repo";
 import { getAipStatusLabel } from "../presentation/submissions.presentation";
 
 interface SubmissionFiltersProps {

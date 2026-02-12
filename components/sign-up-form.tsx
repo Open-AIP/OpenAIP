@@ -1,6 +1,6 @@
 'use client'
 
-import { supabaseBrowser } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import type { AuthParameters } from "@/types";
 
@@ -26,7 +26,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { LGUAccounts, ListOfBarangays } from '@/constants'
-import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
+import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
 // import { time } from 'console'
 
 export function SignUpForm({role, baseURL}:AuthParameters) {
@@ -54,7 +54,7 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const supabase = supabaseBrowser()
+    const supabase = createClient()
 
     setIsLoading(true)
     setError(null)

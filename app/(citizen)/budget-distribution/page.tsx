@@ -1,7 +1,7 @@
-const BudgetAllocation = () => {
-  return (
-    <div>BudgetAllocation</div>
-  )
-}
+import { redirect } from 'next/navigation';
 
-export default BudgetAllocation
+const BudgetDistributionPage = () => {
+  redirect('/budget-allocation');
+};
+
+export default BudgetDistributionPage;

@@ -1,6 +1,6 @@
 'use client'
 
-import { supabaseBrowser } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import type { AuthParameters } from '@/types'
 import {
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
+import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
 
 export function LoginForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -28,7 +28,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = supabaseBrowser()
+    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -40,14 +40,10 @@ export function LoginForm({role, baseURL}:AuthParameters) {
       if (error) throw error
 
       // check if user role matches the referrer role
-      const {data: signedInRole, error: roleError} = await supabase.rpc('current_role');
-      if (roleError) throw roleError
-
-      console.log(role, signedInRole)
-
+      const signedInRole = data?.user?.user_metadata?.access?.role;
       if(signedInRole !== role) {
         await supabase.auth.signOut();
-        throw new Error('Role Validation Failed.')
+        throw new Error('Invalid Login Credentials')
       }; 
 
       // route to redirect to an authenticated route. The user already has an active session.

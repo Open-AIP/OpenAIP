@@ -1,5 +1,5 @@
-const CitizenHealthProject = async ({params}:ProjectIdParameter) => {
-  const {projectId} = await params;
+const CitizenHealthProject = async ({ params }: { params: Promise<{ projectId: string }> }) => {
+  const { projectId } = await params;
  
   return (
     <div>AIP {projectId}</div>

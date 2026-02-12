@@ -8,18 +8,20 @@ Currently:
 - No `app/` routes import `features/chat` yet (feature is present but not wired to a page).
 
 Code surfaces:
-- Repo contract: `features/chat/data/ChatRepo.ts`
-- Repo selector: `features/chat/repo/getChatRepo.ts`
-- Mock adapter: `features/chat/data/chat.mock.ts`
-- Supabase stub: `features/chat/data/chat.supabase.ts`
+- Repo contract: `lib/repos/chat/repo.ts`
+- Repo entrypoints:
+  - client-safe: `lib/repos/chat/repo.ts`
+  - server-only: `lib/repos/chat/repo.server.ts`
+- Mock adapter: `lib/repos/chat/repo.mock.ts`
+- Supabase stub: `lib/repos/chat/repo.supabase.ts`
 
 ## C. Data Flow (diagram in text)
 Future UI (page/component)
-→ `getChatRepo()` (`features/chat/repo/getChatRepo.ts`)
-→ `ChatRepo` interface (`features/chat/data/ChatRepo.ts`)
+→ `getChatRepo()` (`lib/repos/chat/repo.ts` or `lib/repos/chat/repo.server.ts`)
+→ `ChatRepo` interface (`lib/repos/chat/repo.ts`)
 → adapter:
-  - today: `createMockChatRepo()` (`features/chat/data/chat.mock.ts`)
-  - future: `createSupabaseChatRepo()` (`features/chat/data/chat.supabase.ts`)
+  - today: `createMockChatRepo()` (`lib/repos/chat/repo.mock.ts`)
+  - future: `createSupabaseChatRepo()` (`lib/repos/chat/repo.supabase.ts`)
 
 ## D. databasev2 Alignment
 Relevant DBV2 tables:
@@ -39,12 +41,12 @@ How those rules should be enforced:
 - Any assistant/system message persistence must be implemented server-side using a service role route.
 
 ## E. Current Implementation (Mock)
-- In-memory stores in `features/chat/data/chat.mock.ts`.
-- `getChatRepo()` always returns the mock repo today (`features/chat/repo/getChatRepo.ts`).
+- In-memory stores in `lib/repos/chat/repo.mock.ts` (seeded from `mocks/fixtures/chat/chat.fixture.ts`).
+- `getChatRepo()` returns the mock repo only in dev (`NEXT_PUBLIC_APP_ENV=dev`).
 
 ## F. Supabase Swap Plan (Future-only)
 1) Update repo selector to pick by environment:
-- `features/chat/repo/getChatRepo.ts` should return:
+- `lib/repos/chat/repo.server.ts` should return:
   - mock in `dev`
   - `createSupabaseChatRepo()` in non-dev
 
@@ -64,10 +66,9 @@ Manual:
 - Create session, rename session, append user messages, list messages in order.
 
 Automated:
-- Existing tests: `features/chat/repo/mock/createMockChatRepo.test.ts`
+- Existing tests: `tests/repo-smoke/chat/chat.repo.mock.test.ts`
 - Add integration tests for Supabase adapter once implemented (ownership + append-only behavior).
 
 ## H. Gotchas / Pitfalls
 - Do not allow the client to insert non-`user` roles; DBV2 RLS blocks it.
 - “Append-only” means edit/delete UIs must be avoided or explicitly server-admin-only.
-

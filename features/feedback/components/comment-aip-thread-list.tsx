@@ -2,13 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "@/ui/utils";
 
 import { CommentThreadListCard } from "./comment-thread-list-card";
 import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
-import { getCommentRepo } from "../services/comment-repo";
-import { getCommentTargetLookup } from "../services/comment-target-lookup";
-import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
+import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
+import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
 export function CommentAipThreadList({
@@ -115,4 +114,3 @@ export function CommentAipThreadList({
     </div>
   );
 }
-

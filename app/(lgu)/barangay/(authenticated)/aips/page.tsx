@@ -1,5 +1,5 @@
-import AipManagementView from "@/features/aip/views/aip-management-view";
-import { getAipRepo } from "@/features/aip/services/aip-repo.selector";
+import { AipManagementView } from "@/features/aip";
+import { getAipRepo } from "@/lib/repos/aip/repo.server";
 
 const BarangayAIPS = async () => {
   const aipRepo = getAipRepo({ defaultScope: "barangay" });

@@ -1,12 +1,5 @@
-export type ProjectCommentTarget = {
-  targetKind: "project";
-  projectId: string;
-};
-
-export type AipItemCommentTarget = {
-  targetKind: "aip_item";
-  aipId: string;
-  aipItemId: string;
-};
-
-export type CommentTarget = ProjectCommentTarget | AipItemCommentTarget;
+export type {
+  AipItemCommentTarget,
+  CommentTarget,
+  ProjectCommentTarget,
+} from "@/lib/repos/feedback/types";

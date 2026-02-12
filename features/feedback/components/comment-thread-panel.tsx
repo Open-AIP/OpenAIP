@@ -3,10 +3,10 @@
 import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
-import { getCommentRepo } from "../services/comment-repo";
+import { getCommentRepo } from "@/lib/repos/feedback/repo";
 import type { CommentMessage, CommentThread } from "../types";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -218,4 +218,3 @@ export function CommentThreadPanel({
     </div>
   );
 }
-

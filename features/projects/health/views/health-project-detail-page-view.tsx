@@ -16,7 +16,7 @@ import type { HealthProject, ProjectUpdateUi } from "@/features/projects/types";
 import ProjectInformationCard from "../components/project-information-card";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
-import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import { ProjectUpdatesSection } from "../../shared/update-view";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";

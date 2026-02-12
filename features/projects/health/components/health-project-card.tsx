@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/features/projects/types";
 import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
-import { formatPeso } from "@/lib/utils/formatting";
-import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { formatPeso } from "@/lib/formatting";
+import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 
 /**
  * HealthProjectCard Component

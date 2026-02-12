@@ -4,9 +4,8 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CommentThreadAccordionList } from "./comment-thread-accordion-list";
-import { getCommentRepo } from "../services/comment-repo";
-import { getCommentTargetLookup } from "../services/comment-target-lookup";
-import { resolveCommentSidebar } from "../services/resolve-comment-sidebar";
+import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
+import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
 type Target =
@@ -155,4 +154,3 @@ export function CommentThreadsSplitView({
     />
   );
 }
-

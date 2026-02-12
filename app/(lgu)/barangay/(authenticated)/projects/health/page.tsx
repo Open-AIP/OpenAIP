@@ -1,5 +1,5 @@
-import HealthProjectsView from "@/features/projects/health/views/health-projects-view";
-import { projectService } from "@/features/projects/services";
+import { HealthProjectsView } from "@/features/projects";
+import { projectService } from "@/lib/repos/projects/queries";
 
 /**
  * DATA ISOLATION: Uses Projects service only (NOT AIP)

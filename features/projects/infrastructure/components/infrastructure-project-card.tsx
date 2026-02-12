@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { InfrastructureProject } from "@/features/projects/types";
 import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-react";
-import { formatPeso } from "@/lib/utils/formatting";
-import { getProjectStatusBadgeClass } from "@/lib/utils/ui-helpers";
+import { formatPeso } from "@/lib/formatting";
+import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 
 /**
  * InfrastructureProjectCard Component
@@ -48,7 +48,7 @@ export default function InfrastructureProjectCard({
           <div className="w-full lg:w-[420px] flex items-center justify-center bg-slate-100">
             <div className="relative w-full h-[280px] overflow-hidden rounded-xl bg-slate-100">
                 <Image
-                    src={project.imageUrl}
+                    src={project.imageUrl || "/default/default-no-image.jpg"}
                     alt={project.title}
                     fill
                     className="object-cover object-center"

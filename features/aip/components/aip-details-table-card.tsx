@@ -37,7 +37,7 @@ export function AipDetailsTableCard({
   React.useEffect(() => {
     if (!focusedRowId) return;
     const match = rows.find((row) => row.id === focusedRowId);
-    if (match && match.sector !== activeSector) {
+    if (match && match.sector !== "Unknown" && match.sector !== activeSector) {
       setActiveSector(match.sector);
     }
   }, [focusedRowId, rows, activeSector]);

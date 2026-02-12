@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { AipHeader } from "../types";
 import { CalendarDays, PhilippinePeso } from "lucide-react";
-import { formatPeso } from "@/lib/utils/formatting";
+import { formatPeso } from "@/lib/formatting";
 import { getAipStatusBadgeClass } from "../utils";
 
 /**

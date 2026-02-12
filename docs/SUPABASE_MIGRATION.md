@@ -73,7 +73,7 @@ DBV2 explicitly expects some operations to be server-managed:
 ## 6) Adapter implementation recipe (repeat per feature)
 
 1) Identify the contract file (interface/type).
-   - Example: `features/submissions/data/submissionsReview.repo.ts`
+   - Example: `lib/repos/submissions/repo.ts`
 
 2) Create `*.supabase.ts` adapter implementing the contract.
    - Keep method names and return types identical.

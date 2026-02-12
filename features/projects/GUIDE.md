@@ -15,25 +15,25 @@ Routes:
 - `app/(lgu)/city/(authenticated)/projects/infrastructure/[projectId]/page.tsx`
 
 Service entrypoints:
-- `features/projects/services/project-service.ts` (`projectService`)
+- `lib/repos/projects/queries.ts` (`projectService`)
 
 Repo entrypoints:
-- `features/projects/data/types.ts` (`ProjectsRepo`)
-- `features/projects/data/projectsRepo.selector.ts` (`getProjectsRepo()`)
-- mock adapter: `features/projects/data/projectsRepo.mockImpl.ts`
+- `lib/repos/projects/repo.ts` (`ProjectsRepo`)
+- `lib/repos/projects/repo.server.ts` (`getProjectsRepo()` for server-only callers)
+- mock adapter: `lib/repos/projects/repo.mock.ts`
 
 Embedded feedback:
 - Project detail views embed `CommentThreadsSplitView` from `features/feedback`.
 
 ## C. Data Flow (diagram in text)
 `app/(lgu)/.../projects/*` pages
-→ `projectService` (`features/projects/services/project-service.ts`)
-→ `getProjectsRepo()` (`features/projects/data/projectsRepo.selector.ts`)
-→ `ProjectsRepo` contract (`features/projects/data/types.ts`)
+→ `projectService` (`lib/repos/projects/queries.ts`)
+→ `getProjectsRepo()` (`lib/repos/projects/repo.server.ts`)
+→ `ProjectsRepo` contract (`lib/repos/projects/repo.ts`)
 → adapter:
-  - today: `createMockProjectsRepoImpl()` (`features/projects/data/projectsRepo.mockImpl.ts`)
-    → `features/projects/data/mocks/projects.mock.ts` (normalized mock rows)
-    → `features/projects/mock/*` (tables like updates)
+  - today: `createMockProjectsRepoImpl()` (`lib/repos/projects/repo.mock.ts`)
+    → `mocks/fixtures/projects/projects.mock.fixture.ts` (normalized mock rows)
+    → `mocks/fixtures/projects/*` (tables like updates)
   - future: Supabase adapter (to be created) → `public.projects` + detail tables
 
 ## D. databasev2 Alignment
@@ -56,17 +56,17 @@ How those rules should be enforced:
 - Service layer should avoid exposing “edit” entrypoints when status is not editable.
 
 ## E. Current Implementation (Mock)
-- Mock tables are under `features/projects/mock/*`.
+- Mock tables are under `mocks/fixtures/projects/*`.
 - Repository mock implementation joins normalized mock rows into UI types:
-  - `features/projects/data/projectsRepo.mockImpl.ts`
-  - mapper: `features/projects/data/mappers/project.mapper.ts`
-- Selector: `features/projects/data/projectsRepo.selector.ts` uses mock in `dev` and throws in non-dev.
+  - `lib/repos/projects/repo.mock.ts`
+  - mapper: `lib/repos/projects/mappers.ts`
+- Server repo entrypoint: `lib/repos/projects/repo.server.ts` uses mock in `dev` and selects the Supabase adapter in non-dev (currently stubbed).
 
 ## F. Supabase Swap Plan (Future-only)
 1) Add adapter file:
-- Create `features/projects/data/repos/projects.repo.supabase.ts` implementing `ProjectsRepo`.
+- Implement `lib/repos/projects/repo.supabase.ts` implementing `ProjectsRepo`.
 2) Update selector:
-- Update `features/projects/data/projectsRepo.selector.ts` to use the Supabase adapter for non-dev.
+- Update `lib/repos/projects/repo.server.ts` to use the Supabase adapter for non-dev.
 3) Method → table mapping:
 - `listByAip(aipId)` → `public.projects` where `aip_id = $1`
 - `getById(projectId)` → `public.projects` where `id = $1` (or by `aip_ref_code` if you use that as the UI id)
@@ -84,7 +84,7 @@ Manual:
 
 Automated:
 - Existing tests:
-  - `features/projects/data/repos/__tests__/project.repo.mock.test.ts`
+  - `tests/repo-smoke/projects/projects.repo.mock.test.ts`
 - Add adapter tests:
   - list-by-aip respects readability
   - update gates enforce editable-only windows
@@ -94,4 +94,3 @@ Automated:
   - DBV2 has both `projects.id` (uuid) and `projects.aip_ref_code` (text, unique per AIP).
   - Decide which one the UI uses and map consistently in the repo adapter.
 - Avoid leaking projects for draft AIPs when building “global search” features.
-

@@ -59,7 +59,7 @@ export default function HealthProjectsView({
         !q ||
         p.title.toLowerCase().includes(q) ||
         p.description?.toLowerCase().includes(q) ||
-        p.office?.toLowerCase().includes(q);
+        p.implementingOffice?.toLowerCase().includes(q);
       return yearOk && qOk;
     });
   }, [projects, year, query]);

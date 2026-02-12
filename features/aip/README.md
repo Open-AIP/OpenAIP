@@ -25,17 +25,17 @@ Cross-feature composition:
 
 ## C. Data Flow (diagram in text)
 Server components (pages)
-→ `getAipRepo()` (`features/aip/services/aip-repo.selector.ts`)
-→ `AipRepo` contract (`features/aip/data/aip-repo.ts`)
+→ `getAipRepo()` (`lib/repos/aip/repo.server.ts`)
+→ `AipRepo` contract (`lib/repos/aip/repo.ts`)
 → adapter:
-  - today: `createMockAipRepoImpl()` (`features/aip/services/aip-repo.mock-impl.ts`) → `features/aip/mock/aips.table.ts`
-  - future: `createSupabaseAipRepoImpl()` (to be added) → `public.aips` (+ joins for scope names)
+  - today: `createMockAipRepoImpl()` (`lib/repos/aip/repo.mock.ts`) → `mocks/fixtures/aip/aips.table.fixture.ts`
+  - future: `createSupabaseAipRepo()` (`lib/repos/aip/repo.supabase.ts`) → `public.aips` (+ joins for scope names)
 
 AIP extracted rows table
-→ `getAipProjectRepo()` (`features/aip/services/aip-project-repo.selector.ts`)
-→ `AipProjectRepo` contract (`features/aip/data/aip-project-repo.ts`)
+→ `getAipProjectRepo()` (`lib/repos/aip/repo.server.ts`)
+→ `AipProjectRepo` contract (`lib/repos/aip/repo.ts`)
 → adapter:
-  - today: `createMockAipProjectRepo()` (`features/aip/services/aip-project-repo.mock.ts`) → `features/aip/mock/aip-project-rows.table.ts`
+  - today: `createMockAipProjectRepo()` (`lib/repos/aip/repo.mock.ts`) → `mocks/fixtures/aip/aip-project-rows.table.fixture.ts`
   - future: Supabase adapter → `public.projects` (+ `health_project_details` / `infrastructure_project_details`)
 
 ## D. databasev2 Alignment
@@ -61,20 +61,18 @@ How these rules should be enforced:
 - Service/usecase layer should validate lifecycle transitions (DBV2 explicitly notes state-machine tightening can be added later).
 
 ## E. Current Implementation (Mock)
-- AIP list/detail data: `features/aip/mock/aips.table.ts` (in-memory table)
-- AIP rows data: `features/aip/mock/aip-project-rows.table.ts` + generator `features/aip/services/mock-aip-generator.ts`
-- Repo selector: `features/aip/services/aip-repo.selector.ts` (dev uses mock; non-dev throws `NotImplementedError`)
+- AIP list/detail data: `mocks/fixtures/aip/aips.table.fixture.ts` (in-memory table)
+- AIP rows data: `mocks/fixtures/aip/aip-project-rows.table.fixture.ts` + generator `lib/repos/aip/mock-aip-generator.ts`
+- Server repo entrypoint: `lib/repos/aip/repo.server.ts` (dev uses mock; non-dev selects Supabase stub)
 
 ## F. Supabase Swap Plan (Future-only)
 Goal: keep all pages/components unchanged; only swap repo adapters.
 
 1) Add Supabase adapter files:
-- `features/aip/services/aip-repo.supabase-impl.ts` implementing `AipRepo`
-- `features/aip/services/aip-project-repo.supabase-impl.ts` implementing `AipProjectRepo`
+- `lib/repos/aip/repo.supabase.ts` implementing `AipRepo` + `AipProjectRepo`
 
 2) Update selectors:
-- `features/aip/services/aip-repo.selector.ts` to return Supabase adapter in non-dev
-- `features/aip/services/aip-project-repo.selector.ts` similarly
+- `lib/repos/aip/repo.server.ts` to return Supabase adapter in non-dev
 
 3) Method → table/query mapping (minimum viable):
 - `AipRepo.listVisibleAips({ visibility: "public" })`
@@ -116,4 +114,3 @@ Automated:
   - reviewers can act on barangay AIPs under jurisdiction
   - owners can act only within their own scope
 - Keep the “rows table” mapping honest: DBV2’s canonical source for projects-under-AIP is `public.projects` (+ detail tables). Avoid introducing parallel “AIP rows” tables beyond what DBV2 defines.
-

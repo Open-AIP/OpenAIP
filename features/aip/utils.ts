@@ -10,7 +10,7 @@
 import type { AipStatus, Sector } from "./types";
 
 // Re-export formatting utility from shared location
-export { formatPeso as peso } from "@/lib/utils/formatting";
+export { formatPeso as peso } from "@/lib/formatting";
 
 /**
  * Determines if an AIP can be edited based on its current status

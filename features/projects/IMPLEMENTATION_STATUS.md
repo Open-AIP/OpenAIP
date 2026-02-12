@@ -3,13 +3,14 @@
 ## Summary
 
 All **Projects feature** pages have been successfully updated to use mock data from `features/projects/mock/*` with complete **data isolation from the AIP feature**.
+All **Projects feature** pages now read data via the global repo layer (`lib/repos/projects/*`) backed by fixtures (`mocks/fixtures/projects/*`).
 
 ---
 
 ## ✅ Completed Changes
 
 ### 1. Mock Data Consolidation
-- **Folder**: `features/projects/mock/`
+- **Folder**: `mocks/fixtures/projects/`
 - **Contains**:
   - `projects-table.ts` (20 projects)
   - `health-details-table.ts` (8 records)
@@ -18,12 +19,12 @@ All **Projects feature** pages have been successfully updated to use mock data f
   - `form-options.ts`
 - **Status**: ✓ Created with strict AIP isolation comments
 
-### 2. Service Layer
+### 2. Global Repo Layer
 - **Files**:
-  - `features/projects/services/project-repo-mock.ts` - Repository layer
-  - `features/projects/services/project-service.ts` - Business logic
-  - `features/projects/services/index.ts` - Barrel exports
-- **Status**: ✓ Complete with 8 service methods
+  - `lib/repos/projects/repo.ts` - Repo contract + types
+  - `lib/repos/projects/repo.mock.ts` - Mock adapter
+  - `lib/repos/projects/repo.server.ts` - Server repo entrypoint (dev uses mock; non-dev selects Supabase stub)
+  - `lib/repos/projects/queries.ts` - `projectService` (business logic)
 
 ### 3. Updated Pages (10 total)
 
@@ -50,7 +51,7 @@ All **Projects feature** pages have been successfully updated to use mock data f
 ### ✓ No MOCK_AIPS imports in Projects pages
 All 12 project-related pages now use:
 ```typescript
-import { projectService } from "@/features/projects/services";
+import { projectService } from "@/lib/repos/projects/queries";
 ```
 
 ### ✓ Correct import paths
@@ -68,15 +69,13 @@ Fixed all typos from `@/feature/...` to `@/features/...`
 
 ```
 features/projects/
-├── mock/                             ← Mock data tables
-├── mocks.ts                          ← Legacy barrel re-exports
 ├── types/
 │   ├── index.ts                      ← Type exports
 │   └── ui-types.ts                   ← UI-specific types
-└── services/
-    ├── index.ts                      ← Barrel exports
-    ├── project-service.ts            ← Business logic (8 methods)
-    └── project-repo-mock.ts          ← Data access layer
+
+lib/
+├── fixtures/projects/                 ← Mock data tables
+└── repos/projects/                    ← Repo + adapters + queries
 ```
 
 ---
@@ -101,15 +100,15 @@ grep -r "MOCK_AIPS" app/(lgu)/*/projects/
 # Check service imports
 grep -r "@/features/projects/services" app/(lgu)/*/projects/
 
-# List mock data files
-ls features/projects/mock
+# List mock fixture files
+ls mocks/fixtures/projects
 ```
 
 ---
 
 ## TypeScript Note
 
-If you see module resolution errors for `@/features/projects/services`:
+If you see module resolution errors after the migration:
 1. The files are correctly created and in place
 2. VS Code's TypeScript server may need to reload
 3. Save any open files and the errors should resolve automatically

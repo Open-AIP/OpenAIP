@@ -1,11 +1,16 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require("fs");
 const path = require("path");
 const Module = require("module");
 
 const rootDir = path.resolve(__dirname, "..", "..");
+const serverOnlyShim = path.join(__dirname, "server-only-shim.js");
 
 const originalResolve = Module._resolveFilename;
 Module._resolveFilename = function resolveFilename(request, parent, isMain, options) {
+  if (request === "server-only") {
+    return serverOnlyShim;
+  }
   if (request.startsWith("@/")) {
     const mapped = path.join(rootDir, request.slice(2));
     return originalResolve.call(this, mapped, parent, isMain, options);
@@ -32,55 +37,58 @@ function registerTypeScriptExtension(ext) {
 registerTypeScriptExtension(".ts");
 registerTypeScriptExtension(".tsx");
 
-const { createMockFeedbackRepo } = require("@/features/feedback/data");
-const { createMockChatRepo } = require("@/features/chat/data");
-const { projectService } = require("@/features/projects/services/project-service");
-const { getProjectsRepo } = require("@/features/projects/data/projectsRepo.selector");
+const { createMockFeedbackRepo } = require("@/lib/repos/feedback/repo.mock");
+const { createMockChatRepo } = require("@/lib/repos/chat/repo.mock");
+const { projectService } = require("@/lib/repos/projects/queries");
+const { getProjectsRepo } = require("@/lib/repos/projects/repo.server");
 const { mapUserToActorContext } = require("@/lib/domain/actor-context");
 const {
   createMockFeedbackThreadsRepo: createMockFeedbackThreadRepo,
-} = require("@/features/feedback/data/feedback.repo.mock");
-const { listComments } = require("@/features/feedback/services/comments.service");
+} = require("@/lib/repos/feedback/repo.mock");
+const { listComments } = require("@/lib/repos/feedback/legacy");
 const {
   runCommentRepoSelectorTests,
-} = require("@/features/feedback/services/__tests__/commentRepo.selector.test");
+} = require("@/tests/repo-smoke/feedback/commentRepo.selector.test");
 const {
   runCommentThreadHighlightTests,
-} = require("@/features/feedback/services/__tests__/commentThread.highlight.test");
+} = require("@/tests/repo-smoke/feedback/commentThread.highlight.test");
 const {
   runCommentThreadAccordionListTests,
-} = require("@/features/feedback/services/__tests__/commentThreadAccordionList.test");
+} = require("@/tests/repo-smoke/feedback/commentThreadAccordionList.test");
 const {
   runFeedbackDedupeTests,
-} = require("@/features/feedback/services/__tests__/dedupe.test");
+} = require("@/tests/repo-smoke/feedback/dedupe.test");
 const {
   runProjectMapperTests,
-} = require("@/features/projects/data/mappers/__tests__/project.mapper.test");
+} = require("@/tests/repo-smoke/projects/projects.mappers.test");
 const {
   runProjectRepoTests,
-} = require("@/features/projects/data/repos/__tests__/project.repo.mock.test");
+} = require("@/tests/repo-smoke/projects/projects.repo.mock.test");
 const {
   runChatRepoTests,
-} = require("@/features/chat/repo/mock/createMockChatRepo.test");
+} = require("@/tests/repo-smoke/chat/chat.repo.mock.test");
 const {
   runAuditServiceTests,
-} = require("@/features/audit/services/__tests__/auditService.test");
+} = require("@/tests/repo-smoke/audit/audit.queries.test");
 const {
   getAuditFeedForActor,
-} = require("@/features/audit/services/auditService");
+} = require("@/lib/repos/audit/queries");
 const {
-  ACTIVITY_LOG_MOCK,
-} = require("@/features/audit/mock/activity-log.mock");
+  ACTIVITY_LOG_FIXTURE,
+} = require("@/mocks/fixtures/audit/activity-log.fixture");
 const {
   runSubmissionsServiceTests,
-} = require("@/features/submissions/services/__tests__/submissionsService.test");
+} = require("@/tests/repo-smoke/submissions/submissions.queries.test");
 const {
   runSubmissionsReviewRepoTests,
-} = require("@/features/submissions/services/__tests__/submissionsReviewRepo.mock.test");
+} = require("@/tests/repo-smoke/submissions/submissions.repo.mock.test");
 const {
   getCitySubmissionsFeedForActor,
-} = require("@/features/submissions/services/submissionsService");
-const { AIPS_TABLE } = require("@/features/aip/mock/aips.table");
+} = require("@/lib/repos/submissions/queries");
+const { AIPS_TABLE } = require("@/mocks/fixtures/aip/aips.table.fixture");
+const {
+  runRepoSelectorOverrideTests,
+} = require("@/tests/repo-smoke/shared/selector.override.test");
 
 function assert(condition, message) {
   if (!condition) {
@@ -313,9 +321,15 @@ const tests = [
     },
   },
   {
-    name: "getCommentRepo uses supabase outside dev",
+    name: "getCommentRepo throws outside mock mode",
     async run() {
       await runCommentRepoSelectorTests();
+    },
+  },
+  {
+    name: "shared selector override forces mocks",
+    async run() {
+      await runRepoSelectorOverrideTests();
     },
   },
   {
@@ -372,7 +386,7 @@ const tests = [
           scope: { kind: "city", id: "cabuyao" },
         };
         const result = await getAuditFeedForActor(actor);
-        const expected = ACTIVITY_LOG_MOCK.filter(
+        const expected = ACTIVITY_LOG_FIXTURE.filter(
           (row) => row.scope?.scope_type === "city"
         ).length;
         assert(

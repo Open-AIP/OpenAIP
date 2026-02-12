@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { projectService } from "@/features/projects/services";
-import InfrastructureProjectDetailPageView from "@/features/projects/infrastructure/views/infrastructure-project-detail-page-view";
+import { projectService } from "@/lib/repos/projects/queries";
+import { InfrastructureProjectDetailPageView } from "@/features/projects";
 
 export default async function InfrastructureProjectDetailPage({
   params,

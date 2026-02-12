@@ -8,8 +8,8 @@ The **Projects feature** manages health and infrastructure projects with complet
 
 **CRITICAL**: Projects data is self-contained and NOT sourced from AIP feature.
 
-- ✅ **DO**: Use Projects mocks from `features/projects/mock/*` (table files)
-- ✅ **DO**: Use Projects service from `features/projects/services`
+- ✅ **DO**: Use Projects fixtures from `mocks/fixtures/projects/*`
+- ✅ **DO**: Use Projects repo/service from `lib/repos/projects/*`
 - ❌ **DON'T**: Import anything from AIP feature
 - ❌ **DON'T**: Share Projects mock data with other features
 
@@ -19,15 +19,16 @@ Field names may overlap (e.g., `status`, `year`), but values are independent.
 
 ```
 features/projects/
-├── mock/                 # Mock data tables
-├── mocks.ts              # Legacy barrel re-exports
-├── services/             # Business logic layer
-│   ├── project-repo-mock.ts  # Data access (joins mock tables)
-│   └── project-service.ts    # High-level operations
 ├── types/                # TypeScript types
 ├── health/               # Health project components
 ├── infrastructure/       # Infrastructure project components
 └── shared/               # Shared components
+
+mocks/
+└── fixtures/projects/     # Mock data tables (single source)
+
+lib/
+└── repos/projects/        # Repo contract + adapters + queries
 ```
 
 ## Usage
@@ -35,7 +36,7 @@ features/projects/
 ### In Pages
 
 ```typescript
-import { projectService } from "@/features/projects/services";
+import { projectService } from "@/lib/repos/projects/queries";
 
 // List all health projects
 const healthProjects = await projectService.getHealthProjects();
@@ -56,12 +57,11 @@ const project = await projectService.getHealthProjectById("PROJ-H-2026-001");
 
 ### Mock Data
 
-All mocks in `features/projects/mock/*`:
-- `projects-table.ts` - 20 projects (8 health, 12 infrastructure)
-- `health-details-table.ts` - Health-specific information
-- `infrastructure-details-table.ts` - Infrastructure-specific information
-- `project-updates-table.ts` - Progress updates and milestones
-- `form-options.ts` - Dropdown options for forms
+All fixtures in `mocks/fixtures/projects/*`:
+- `projects-table.fixture.ts` - 20 projects (8 health, 12 infrastructure)
+- `health-details-table.fixture.ts` - Health-specific information
+- `infrastructure-details-table.fixture.ts` - Infrastructure-specific information
+- `project-updates-table.fixture.ts` - Progress updates and milestones
 
 ### Edge Cases Included
 
@@ -92,18 +92,20 @@ Page Component
     ↓
 projectService (business logic)
     ↓
-createMockProjectsRepo() (data access)
+getProjectsRepo() (repo selector)
     ↓
-mock/* (mock data tables)
+repo.mock.ts (mock adapter)
+    ↓
+mocks/fixtures/projects/* (mock data tables)
 ```
 
 ## Adding New Projects
 
-Edit files in `features/projects/mock/`:
+Edit files in `mocks/fixtures/projects/`:
 
-1. Add to `projects-table.ts` with unique `projectRefCode`
-2. Add details to `health-details-table.ts` or `infrastructure-details-table.ts`
-3. Optionally add updates to `project-updates-table.ts`
+1. Add to `projects-table.fixture.ts` with unique `projectRefCode`
+2. Add details to `health-details-table.fixture.ts` or `infrastructure-details-table.fixture.ts`
+3. Optionally add updates to `project-updates-table.fixture.ts`
 4. Use naming: `PROJ-{H|I}-{YEAR}-{###}`
 
 ## Important Notes
@@ -111,5 +113,5 @@ Edit files in `features/projects/mock/`:
 - Mock data is deterministic (no random generators)
 - Dates are ISO strings
 - Money fields are numbers (formatting in UI)
-- All types in `features/projects/types/`
+- Canonical repo/types in `lib/repos/projects/repo.ts` (feature re-exports remain under `features/projects/types/*`)
 - NO Supabase calls or external APIs

@@ -1,6 +1,6 @@
 'use client'
 
-import { supabaseBrowser } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import type { AuthParameters } from '@/types'
 import {
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useState } from 'react'
-import { getRolePath, getRoleEmailPlaceholder } from '@/lib/utils/auth-helpers'
+import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
 
 export function ForgotPasswordForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -26,7 +26,7 @@ export function ForgotPasswordForm({role, baseURL}:AuthParameters) {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = supabaseBrowser()
+    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 

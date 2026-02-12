@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
 
 import type { AipHeader } from "@/features/aip/types";
 import { getAipStatusBadgeClass } from "@/features/aip/utils";
@@ -11,7 +10,7 @@ import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
 import { RemarksCard } from "@/features/aip/components/remarks-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
-import { getAipProjectRepo } from "@/features/aip/services/aip-project-repo.selector";
+import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,9 +18,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { LatestReview } from "../data/submissionsReview.contracts";
+import type { LatestReview } from "@/lib/repos/submissions/repo";
 import { getAipStatusLabel } from "../presentation/submissions.presentation";
 import { publishAipAction, requestRevisionAction } from "../actions/submissionsReview.actions";
+import { PublishSuccessCard } from "../components/PublishSuccessCard";
 
 export default function CitySubmissionReviewDetail({
   aip,
@@ -37,7 +37,8 @@ export default function CitySubmissionReviewDetail({
   const router = useRouter();
   const projectRepo = useMemo(() => getAipProjectRepo(), []);
   const isReviewMode = mode === "review";
-  const showSuccess = isReviewMode && result === "published";
+  const [publishedSuccess, setPublishedSuccess] = useState(false);
+  const showSuccess = (isReviewMode && result === "published") || publishedSuccess;
   const canReview = isReviewMode && aip.status === "under_review";
 
   const [note, setNote] = useState("");
@@ -58,14 +59,11 @@ export default function CitySubmissionReviewDetail({
 
   function goToViewMode() {
     router.replace(`/city/submissions/aip/${aip.id}`);
-    router.refresh();
   }
 
   function goToPublishedSuccess() {
-    router.replace(
-      `/city/submissions/aip/${aip.id}?mode=review&result=published`
-    );
-    router.refresh();
+    setPublishedSuccess(true);
+    router.replace(`/city/submissions/aip/${aip.id}?mode=review&result=published`);
   }
 
   async function confirmPublish() {
@@ -85,6 +83,7 @@ export default function CitySubmissionReviewDetail({
 
       setPublishOpen(false);
       setNote("");
+      setPublishedSuccess(true);
       goToPublishedSuccess();
     } finally {
       setSubmitting(false);
@@ -118,33 +117,11 @@ export default function CitySubmissionReviewDetail({
 
   if (showSuccess) {
     return (
-      <div className="grid place-items-center py-16">
-        <div className="w-full max-w-3xl rounded-2xl border border-emerald-200 bg-white p-10">
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-emerald-50 grid place-items-center">
-              <CheckCircle2 className="h-7 w-7 text-emerald-600" />
-            </div>
-            <div className="text-2xl font-semibold text-slate-900">
-              AIP Published Successfully!
-            </div>
-            <div className="text-sm text-slate-600 max-w-xl">
-              The Annual Investment Plan for {aip.barangayName ?? "the barangay"}{" "}
-              has been published and is now available for viewing.
-            </div>
-            <div className="mt-2 flex items-center gap-3">
-              <Button variant="outline" onClick={goToSubmissions}>
-                Back to Submissions
-              </Button>
-              <Button
-                className="bg-[#022437] hover:bg-[#022437]/90"
-                onClick={goToViewMode}
-              >
-                View Published AIP
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PublishSuccessCard
+        barangayName={aip.barangayName}
+        onBackToSubmissions={goToSubmissions}
+        onViewPublishedAip={goToViewMode}
+      />
     );
   }
 

@@ -23,20 +23,20 @@ Embedded by other features:
 
 ## C. Data Flow (diagram in text)
 Inbox / thread UI (today)
-→ `getCommentRepo()` (`features/feedback/services/comment-repo.ts`)
-→ `CommentRepo` contract (same file)
+→ `getCommentRepo()` (`lib/repos/feedback/repo.ts`)
+→ `CommentRepo` contract (`lib/repos/feedback/repo.ts`)
 → adapter:
-  - today: `createMockCommentRepo()` (`features/feedback/services/comment-repo.mock.ts`)
-  - future: `createSupabaseCommentRepo()` (`features/feedback/services/comment-repo.supabase.ts`)
+  - today: `createMockCommentRepo()` (`lib/repos/feedback/repo.mock.ts`)
+  - future: `createSupabaseCommentRepo()` (`lib/repos/feedback/repo.supabase.ts`)
 → resolve sidebar context:
-  - `getCommentTargetLookup()` (`features/feedback/services/comment-target-lookup.mock.ts`)
-  - `resolveCommentSidebar()` (`features/feedback/services/resolve-comment-sidebar.ts`)
+  - `getCommentTargetLookup()` (`lib/repos/feedback/repo.ts`)
+  - `resolveCommentSidebar()` (`lib/repos/feedback/queries.ts`)
 
 DBV2-aligned repo (future-facing; not the primary UI path yet)
-→ `FeedbackRepo` (`features/feedback/data/FeedbackRepo.ts`) or `FeedbackThreadsRepo` (`features/feedback/data/feedback.repo.ts`)
+→ `FeedbackRepo` / `FeedbackThreadsRepo` (`lib/repos/feedback/repo.ts`)
 → adapter:
-  - today: mock impls under `features/feedback/data/*.mock.ts`
-  - future: Supabase adapters under `features/feedback/data/*.supabase.ts`
+  - today: mock impls under `lib/repos/feedback/repo.mock.ts`
+  - future: Supabase adapters under `lib/repos/feedback/repo.supabase.ts`
 
 ## D. databasev2 Alignment
 Relevant DBV2 tables/enums/helpers:
@@ -59,12 +59,12 @@ How those rules should be enforced:
 
 ## E. Current Implementation (Mock)
 Thread UI mocks:
-- Threads/messages live in `features/feedback/mock/comment-threads.mock.ts` and `features/feedback/mock/comment-messages.mock.ts`.
-- `createMockCommentRepo()` is in `features/feedback/services/comment-repo.mock.ts`.
+- Threads/messages live in `mocks/fixtures/feedback/comment-threads.fixture.ts` and `mocks/fixtures/feedback/comment-messages.fixture.ts`.
+- `createMockCommentRepo()` is in `lib/repos/feedback/repo.mock.ts`.
 
 DBV2-aligned mock store:
-- `features/feedback/data/feedback.mock.ts` builds a `FeedbackItem[]` store from the thread mocks.
-- `features/feedback/data/feedback.repo.mock.ts` builds a `FeedbackRow[]` store (thread roots + replies).
+- `lib/repos/feedback/repo.mock.ts` builds a `FeedbackItem[]` store from the thread fixtures.
+- `lib/repos/feedback/repo.mock.ts` builds a `FeedbackThreadRow[]` store (thread roots + replies).
 
 ## F. Supabase Swap Plan (Future-only)
 Keep UI unchanged; swap adapters behind repo selectors.
@@ -73,8 +73,7 @@ Keep UI unchanged; swap adapters behind repo selectors.
 - Recommended: migrate UI to the DBV2-aligned repo (`FeedbackThreadsRepo`) so one row = one `public.feedback` record.
 
 2) Implement Supabase adapters:
-- `features/feedback/services/comment-repo.supabase.ts` (if you keep CommentRepo)
-- `features/feedback/data/feedback.supabase.ts` and/or `features/feedback/data/feedback.repo.supabase.ts`
+- `lib/repos/feedback/repo.supabase.ts` (CommentRepo + FeedbackRepo + FeedbackThreadsRepo)
 
 3) Method → table mapping (DBV2 canonical):
 - list thread roots → `public.feedback` where `parent_feedback_id is null` and matches `target_type` + `(aip_id|project_id)`
@@ -94,8 +93,8 @@ Manual:
 
 Automated:
 - Existing tests:
-  - `features/feedback/services/__tests__/commentThread.highlight.test.ts`
-  - `features/feedback/services/__tests__/commentThreadAccordionList.test.tsx`
+  - `tests/repo-smoke/feedback/commentThread.highlight.test.ts`
+  - `tests/repo-smoke/feedback/commentThreadAccordionList.test.tsx`
 - Add adapter tests for:
   - published-only public visibility
   - reply target enforcement (parent/child match)
@@ -105,4 +104,3 @@ Automated:
 - Public visibility is **published-only** for feedback in DBV2; do not leak feedback for `draft/under_review/for_revision`.
 - Reviewers can write only AIP-target feedback (no project-target).
 - Keep `is_public` semantics aligned: DBV2 uses `is_public` plus additional gates; don’t treat `is_public=true` as “always visible”.
-

@@ -67,13 +67,15 @@ export async function updateSession(request: NextRequest) {
   const pathArray =
     pathname.includes("/") && pathname.trim() !== "/" ? pathname.split("/") : [];
 
-  const pathRole = pathArray.includes("admin")
-    ? "admin"
-    : pathArray.includes("barangay")
-    ? "barangay"
-    : pathArray.includes("city")
-    ? "city"
-    : "citizen";
+  const pathRole = pathArray.indexOf('barangay') > 0 ? 
+    'barangay' : 
+    pathArray.indexOf('municipality') > 0 ? 
+    'municipality' : 
+    pathArray.indexOf('city') > 0 ? 
+    'city' : 
+    pathArray.indexOf('admin') > 0 ? 
+    'admin' : 
+    'citizen';
 
   if (pathRole === "admin" && process.env.NODE_ENV !== "production") {
     return supabaseResponse;

@@ -1,6 +1,31 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+// This is only temp for accessing the citizen routes without authentication. Remove this function if you want to protect the citizen routes as well.
 
+function isPublicCitizenPath(pathname: string) {
+  if (pathname === '/') return true;
+
+  const prefixes = [
+    '/dashboard',
+    '/aips',
+    '/budget-allocation',
+    '/budget-distribution',
+    '/projects',
+    '/about-us',
+    '/chatbot',
+    '/account',
+    '/sign-in',
+    '/sign-up',
+    '/sign-up-success',
+    '/forgot-password',
+    '/update-password',
+    '/confirm',
+    '/error',
+  ];
+
+  return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+//the changes ends here. The rest of the code is just the default code from the supabase auth middleware example. You can find the original code here:
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -51,6 +76,10 @@ export async function updateSession(request: NextRequest) {
     : "citizen";
 
   if (pathRole === "admin" && process.env.NODE_ENV !== "production") {
+    return supabaseResponse;
+  }
+  // remove this condition if you want to protect the citizen routes as well
+  if (isPublicCitizenPath(pathname)) {
     return supabaseResponse;
   }
 

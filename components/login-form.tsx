@@ -40,10 +40,14 @@ export function LoginForm({role, baseURL}:AuthParameters) {
       if (error) throw error
 
       // check if user role matches the referrer role
-      const signedInRole = data?.user?.user_metadata?.access?.role;
+      const {data: signedInRole, error: roleError} = await supabase.rpc('current_role');
+      if (roleError) throw roleError
+
+      console.log(role, signedInRole)
+
       if(signedInRole !== role) {
         await supabase.auth.signOut();
-        throw new Error('Invalid Login Credentials')
+        throw new Error('Role Validation Failed.')
       }; 
 
       // route to redirect to an authenticated route. The user already has an active session.

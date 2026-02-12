@@ -19,6 +19,7 @@ export function getRolePath(baseURL: string, role: string): string {
  */
 export function getRoleDisplayName(role: string): string {
   if (role === 'citizen') return 'Citizen';
+  else if (role === 'admin') return 'Admin';
   return `${role.charAt(0).toUpperCase()}${role.slice(1)} Official`;
 }
 
@@ -28,5 +29,5 @@ export function getRoleDisplayName(role: string): string {
  * @returns Email placeholder string
  */
 export function getRoleEmailPlaceholder(role: string): string {
-  return role + `${role === 'citizen' ? '' : '-official'}@email.com`;
+  return role + `${role === 'citizen' || role === 'admin' ? '' : '-official'}@email.com`;
 }

@@ -10,7 +10,7 @@
 
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
+import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -45,7 +45,7 @@ export function UpdatePasswordForm({role}:AuthParameters) {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
+    const supabase = supabaseBrowser()
     setIsLoading(true)
     setError(null)
 

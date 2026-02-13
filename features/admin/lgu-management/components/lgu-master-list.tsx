@@ -65,7 +65,10 @@ export default function LguMasterList({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="region">Region</SelectItem>
+              <SelectItem value="province">Province</SelectItem>
               <SelectItem value="city">City</SelectItem>
+              <SelectItem value="municipality">Municipality</SelectItem>
               <SelectItem value="barangay">Barangay</SelectItem>
             </SelectContent>
           </Select>

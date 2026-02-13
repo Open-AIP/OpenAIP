@@ -1,6 +1,54 @@
 import { supabaseServer } from "../supabase/server";
+import type { RoleType } from "@/lib/contracts/databasev2";
 
-export const getUser = async () => {
+type RouteRole = "citizen" | "barangay" | "city" | "municipality" | "admin";
+
+export type GetUserResult = {
+  userId: string;
+  id: string;
+  fullName: string;
+  email: string;
+  role: RoleType;
+  routeRole: RouteRole;
+  officeLabel: string;
+  barangayId: string | null;
+  cityId: string | null;
+  municipalityId: string | null;
+  isActive: boolean;
+  // Compatibility aliases for existing call sites.
+  userRole: RouteRole;
+  userLocale: string;
+  barangay_id: string | null;
+  city_id: string | null;
+  municipality_id: string | null;
+  baseURL: string;
+};
+
+function isRoleType(value: unknown): value is RoleType {
+  return (
+    value === "citizen" ||
+    value === "barangay_official" ||
+    value === "city_official" ||
+    value === "municipal_official" ||
+    value === "admin"
+  );
+}
+
+function toRouteRole(role: RoleType): RouteRole {
+  if (role === "barangay_official") return "barangay";
+  if (role === "city_official") return "city";
+  if (role === "municipal_official") return "municipality";
+  return role;
+}
+
+function toOfficeLabel(role: RoleType): string {
+  if (role === "city_official") return "City Hall";
+  if (role === "municipal_official") return "Municipal Hall";
+  if (role === "barangay_official" || role === "citizen") return "Barangay Hall";
+  return "System Administration";
+}
+
+export const getUser = async (): Promise<GetUserResult> => {
 
   const baseURL = process.env.BASE_URL;
 
@@ -10,36 +58,60 @@ export const getUser = async () => {
 
   const supabase = await supabaseServer();
 
-  const { data, error } = await supabase.auth.getClaims();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
 
-  if(error || !data) {
+  const authUser = authData.user;
+  if(authError || !authUser?.id) {
     throw new Error(
-      error?.message ||
+      authError?.message ||
       'Failed to fetch user info.'
     )
   }
 
-  const fullName = data?.claims?.user_metadata?.fullName;
-  const email = data?.claims?.user_metadata?.email;
-  const userRole = data?.claims?.user_metadata?.access?.role;
-  const userLocale = data?.claims?.user_metadata?.access?.locale;
-  const claims = data?.claims as unknown as Record<string, unknown> | undefined;
-  const userId =
-    claims && typeof claims.sub === "string"
-      ? claims.sub
-      : claims && typeof claims.user_id === "string"
-      ? claims.user_id
-      : claims && typeof claims.id === "string"
-      ? claims.id
-      : undefined;
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id,role,full_name,email,barangay_id,city_id,municipality_id,is_active")
+    .eq("id", authUser.id)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    throw new Error(
+      profileError?.message || "Failed to fetch profile info."
+    );
+  }
+
+  if (!isRoleType(profile.role)) {
+    throw new Error("Invalid profile role.");
+  }
+
+  if (!profile.is_active) {
+    throw new Error("Inactive user profile.");
+  }
+
+  const role = profile.role;
+  const userId = profile.id;
+  const routeRole = toRouteRole(role);
+  const officeLabel = toOfficeLabel(role);
+  const fullName = profile.full_name ?? authUser.email ?? "";
+  const email = profile.email ?? authUser.email ?? "";
 
   return {
     userId,
     id: userId,
     fullName,
     email,
-    userRole,
-    userLocale,
+    role,
+    routeRole,
+    officeLabel,
+    barangayId: profile.barangay_id,
+    cityId: profile.city_id,
+    municipalityId: profile.municipality_id,
+    isActive: profile.is_active,
+    userRole: routeRole,
+    userLocale: officeLabel,
+    barangay_id: profile.barangay_id,
+    city_id: profile.city_id,
+    municipality_id: profile.municipality_id,
     baseURL
   };
 }

@@ -7,7 +7,7 @@ export default async function InfrastructureAddInformationRoute({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { fullName, userRole, userLocale } = await getUser();
+  const { fullName, role, officeLabel } = await getUser();
   const { projectId } = await params;
   const project = await projectService.getInfrastructureProjectById(projectId);
 
@@ -26,8 +26,8 @@ export default async function InfrastructureAddInformationRoute({
       ]}
       uploader={{
         name: fullName,
-        position: userRole === "citizen" ? "Citizen" : "Barangay Official",
-        office: userLocale,
+        position: role === "citizen" ? "Citizen" : "Barangay Official",
+        office: officeLabel,
       }}
       projectInfo={{
         name: project.title,

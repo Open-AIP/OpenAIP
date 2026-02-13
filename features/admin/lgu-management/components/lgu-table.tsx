@@ -20,6 +20,14 @@ function statusBadgeClass(status: LguRecord["status"]) {
   return "border-slate-200 bg-slate-100 text-slate-600";
 }
 
+function lguTypeLabel(type: LguRecord["type"]) {
+  if (type === "region") return "Region";
+  if (type === "province") return "Province";
+  if (type === "city") return "City";
+  if (type === "municipality") return "Municipality";
+  return "Barangay";
+}
+
 export default function LguTable({
   rows,
   onEdit,
@@ -43,10 +51,10 @@ export default function LguTable({
               Name
             </TableHead>
             <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
-              LGU Code / ID
+              PSGC Code
             </TableHead>
             <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
-              Parent City
+              Parent LGU
             </TableHead>
             <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
               Status
@@ -64,14 +72,14 @@ export default function LguTable({
           {rows.map((lgu) => (
             <TableRow key={lgu.id} className="hover:bg-slate-50">
               <TableCell className="text-sm text-slate-700">
-                {lgu.type === "city" ? "City" : "Barangay"}
+                {lguTypeLabel(lgu.type)}
               </TableCell>
               <TableCell className="text-sm text-slate-900 font-medium">
                 {lgu.name}
               </TableCell>
               <TableCell className="text-sm text-slate-700">{lgu.code}</TableCell>
               <TableCell className="text-sm text-slate-700">
-                {lgu.type === "barangay" ? lgu.parentCityName ?? "—" : "—"}
+                {lgu.parentName ?? "-"}
               </TableCell>
               <TableCell>
                 <Badge

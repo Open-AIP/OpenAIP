@@ -3,15 +3,15 @@ import { getUser } from '@/lib/actions/auth.actions'
 
 const BarangayDashboard = async () => {
 
-  const {fullName, email, userRole, userLocale, baseURL} = await getUser();
+  const { fullName, email, role, routeRole, officeLabel, baseURL } = await getUser();
 
   return (
     <div>
       <p>BarangayDashboard</p>
       <p>
-        Hello {fullName}, {email}. A {userRole} {userRole === 'citizen' ? '':' official'} from {userLocale}
+        Hello {fullName}, {email}. A {role} from {officeLabel}
       </p>
-      <LogoutButton role={userRole} baseURL={baseURL}/>
+      <LogoutButton role={routeRole} baseURL={baseURL}/>
     </div>
   )
 }

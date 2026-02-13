@@ -18,9 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type {
+  BarangayParentType,
   LguRecord,
   LguStatus,
-  LguType,
   UpdateLguInput,
 } from "@/lib/repos/lgu/repo";
 
@@ -28,61 +28,185 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lgu: LguRecord | null;
-  cityOptions: LguRecord[];
+  lgus: LguRecord[];
   onSave: (id: string, patch: UpdateLguInput, nextStatus: LguStatus) => Promise<void>;
 };
+
+function psgcLength(type: LguRecord["type"]) {
+  if (type === "region") return 2;
+  if (type === "province") return 4;
+  if (type === "city") return 6;
+  if (type === "municipality") return 6;
+  return 9;
+}
+
+function typeLabel(type: LguRecord["type"]) {
+  if (type === "region") return "Region";
+  if (type === "province") return "Province";
+  if (type === "city") return "City";
+  if (type === "municipality") return "Municipality";
+  return "Barangay";
+}
+
+function isNcrRegion(region: LguRecord | null) {
+  if (!region) return false;
+  return (
+    region.code === "13" ||
+    region.name.toLowerCase().includes("national capital region")
+  );
+}
 
 export default function EditLguModal({
   open,
   onOpenChange,
   lgu,
-  cityOptions,
+  lgus,
   onSave,
 }: Props) {
-  const [type, setType] = useState<LguType | "">("");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<LguStatus>("active");
-  const [parentCityId, setParentCityId] = useState<string>("");
+  const [regionId, setRegionId] = useState("");
+  const [provinceId, setProvinceId] = useState("");
+  const [parentType, setParentType] = useState<BarangayParentType | "">("");
+  const [parentId, setParentId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const regions = useMemo(
+    () =>
+      lgus
+        .filter((row) => row.type === "region")
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [lgus]
+  );
+  const provinces = useMemo(
+    () =>
+      lgus
+        .filter((row) => row.type === "province")
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [lgus]
+  );
+  const cities = useMemo(
+    () =>
+      lgus
+        .filter((row) => row.type === "city")
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [lgus]
+  );
+  const municipalities = useMemo(
+    () =>
+      lgus
+        .filter((row) => row.type === "municipality")
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [lgus]
+  );
+
   useEffect(() => {
     if (!lgu) return;
-    setType(lgu.type);
     setName(lgu.name);
     setCode(lgu.code);
     setStatus(lgu.status);
-    setParentCityId(lgu.parentCityId ?? "");
+    setRegionId(lgu.regionId ?? "");
+    setProvinceId(lgu.provinceId ?? "");
+    setParentType(
+      lgu.parentType === "city" || lgu.parentType === "municipality"
+        ? lgu.parentType
+        : ""
+    );
+    setParentId(lgu.parentId ?? "");
     setErrors({});
     setSubmitting(false);
   }, [lgu, open]);
 
-  const parentCityName = useMemo(() => {
-    if (!parentCityId) return "";
-    return cityOptions.find((c) => c.id === parentCityId)?.name ?? "";
-  }, [cityOptions, parentCityId]);
+  const selectedRegion = useMemo(
+    () => regions.find((row) => row.id === regionId) ?? null,
+    [regions, regionId]
+  );
+  const ncrSelected = isNcrRegion(selectedRegion);
+
+  const filteredProvinces = useMemo(() => {
+    if (!regionId) return provinces;
+    return provinces.filter((row) => row.regionId === regionId);
+  }, [provinces, regionId]);
+
+  const filteredCityParents = useMemo(() => {
+    return cities.filter((row) => {
+      if (regionId && row.regionId !== regionId) return false;
+      if (provinceId && row.provinceId !== provinceId) return false;
+      return true;
+    });
+  }, [cities, regionId, provinceId]);
+
+  const filteredMunicipalityParents = useMemo(() => {
+    return municipalities.filter((row) => {
+      if (regionId && row.regionId !== regionId) return false;
+      if (provinceId && row.provinceId !== provinceId) return false;
+      return true;
+    });
+  }, [municipalities, regionId, provinceId]);
+
+  const parentOptions = useMemo(() => {
+    if (parentType === "city") return filteredCityParents;
+    if (parentType === "municipality") return filteredMunicipalityParents;
+    return [];
+  }, [filteredCityParents, filteredMunicipalityParents, parentType]);
 
   async function handleSave() {
     if (!lgu) return;
 
     const nextErrors: Record<string, string> = {};
-    if (!type) nextErrors.type = "LGU Type is required.";
     if (!name.trim()) nextErrors.name = "LGU Name is required.";
-    if (!code.trim()) nextErrors.code = "LGU Code / ID is required.";
-    if (type === "barangay" && !parentCityId) {
-      nextErrors.parentCityId = "Parent City is required for barangays.";
+    if (!code.trim()) nextErrors.code = "PSGC code is required.";
+
+    const expectedLength = psgcLength(lgu.type);
+    if (!/^[0-9]+$/.test(code.trim())) {
+      nextErrors.code = "PSGC code must contain digits only.";
+    } else if (code.trim().length !== expectedLength) {
+      nextErrors.code = `PSGC code for ${lgu.type} must be ${expectedLength} digits.`;
     }
+
+    if (lgu.type === "province" && !regionId) {
+      nextErrors.regionId = "Region is required for provinces.";
+    }
+
+    if (lgu.type === "city") {
+      if (!regionId) nextErrors.regionId = "Region is required for cities.";
+      if (!ncrSelected && !provinceId) {
+        nextErrors.provinceId = "Province is required for cities outside NCR.";
+      }
+    }
+
+    if (lgu.type === "municipality") {
+      if (!regionId) nextErrors.regionId = "Region is required for municipalities.";
+      if (!provinceId) nextErrors.provinceId = "Province is required for municipalities.";
+    }
+
+    if (lgu.type === "barangay") {
+      if (!parentType) nextErrors.parentType = "Select City or Municipality.";
+      if (!parentId) nextErrors.parentId = "Parent LGU is required for barangays.";
+    }
+
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     const patch: UpdateLguInput = {
-      type: type as LguType,
       name: name.trim(),
       code: code.trim(),
-      parentCityId: type === "barangay" ? parentCityId : null,
-      parentCityName: type === "barangay" ? parentCityName : null,
     };
+
+    if (lgu.type === "province") {
+      patch.regionId = regionId;
+    } else if (lgu.type === "city") {
+      patch.regionId = regionId;
+      patch.provinceId = ncrSelected ? null : provinceId;
+      patch.isIndependent = ncrSelected;
+    } else if (lgu.type === "municipality") {
+      patch.provinceId = provinceId;
+    } else if (lgu.type === "barangay") {
+      patch.parentType = parentType as BarangayParentType;
+      patch.parentId = parentId;
+    }
 
     setSubmitting(true);
     try {
@@ -105,30 +229,9 @@ export default function EditLguModal({
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>
-                LGU Type <span className="text-rose-600">*</span>
-              </Label>
-              <Select
-                value={type}
-                onValueChange={(v) => {
-                  const next = v as LguType;
-                  setType(next);
-                  if (next === "city") {
-                    setParentCityId("");
-                  }
-                }}
-              >
-                <SelectTrigger className="h-11 w-full">
-                  <SelectValue placeholder="Select LGU Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="city">City</SelectItem>
-                  <SelectItem value="barangay">Barangay</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.type ? (
-                <div className="text-xs text-rose-600">{errors.type}</div>
-              ) : null}
+              <Label>LGU Type</Label>
+              <Input className="h-11 bg-slate-100" value={typeLabel(lgu.type)} disabled />
+              <div className="text-xs text-slate-500">Type is fixed for existing records.</div>
             </div>
 
             <div className="space-y-2">
@@ -136,42 +239,153 @@ export default function EditLguModal({
                 LGU Name <span className="text-rose-600">*</span>
               </Label>
               <Input className="h-11" value={name} onChange={(e) => setName(e.target.value)} />
-              {errors.name ? (
-                <div className="text-xs text-rose-600">{errors.name}</div>
-              ) : null}
+              {errors.name ? <div className="text-xs text-rose-600">{errors.name}</div> : null}
             </div>
 
             <div className="space-y-2">
               <Label>
-                LGU Code / ID <span className="text-rose-600">*</span>
+                PSGC Code <span className="text-rose-600">*</span>
               </Label>
               <Input className="h-11" value={code} onChange={(e) => setCode(e.target.value)} />
-              {errors.code ? (
-                <div className="text-xs text-rose-600">{errors.code}</div>
-              ) : null}
+              {errors.code ? <div className="text-xs text-rose-600">{errors.code}</div> : null}
             </div>
 
-            {type === "barangay" ? (
+            {(lgu.type === "province" || lgu.type === "city" || lgu.type === "municipality" || lgu.type === "barangay") && (
               <div className="space-y-2">
                 <Label>
-                  Parent City <span className="text-rose-600">*</span>
+                  {lgu.type === "barangay" ? "Filter by Region (optional)" : "Region"}
+                  {lgu.type !== "barangay" ? <span className="text-rose-600"> *</span> : null}
                 </Label>
-                <Select value={parentCityId} onValueChange={setParentCityId}>
+                <Select
+                  value={lgu.type === "barangay" ? (regionId || "all") : regionId}
+                  onValueChange={(value) => {
+                    const nextRegion = value === "all" ? "" : value;
+                    setRegionId(nextRegion);
+                    setProvinceId("");
+                    if (lgu.type === "barangay") setParentId("");
+                  }}
+                >
                   <SelectTrigger className="h-11 w-full">
-                    <SelectValue placeholder="Select parent city" />
+                    <SelectValue
+                      placeholder={
+                        lgu.type === "barangay" ? "All regions" : "Select region"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {cityOptions.map((city) => (
-                      <SelectItem key={city.id} value={city.id}>
-                        {city.name}
+                    {lgu.type === "barangay" ? (
+                      <SelectItem value="all">All regions</SelectItem>
+                    ) : null}
+                    {regions.map((row) => (
+                      <SelectItem key={row.id} value={row.id}>
+                        {row.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.parentCityId ? (
-                  <div className="text-xs text-rose-600">{errors.parentCityId}</div>
+                {errors.regionId ? (
+                  <div className="text-xs text-rose-600">{errors.regionId}</div>
                 ) : null}
               </div>
+            )}
+
+            {(lgu.type === "city" || lgu.type === "municipality" || lgu.type === "barangay") && (
+              <div className="space-y-2">
+                <Label>
+                  {lgu.type === "barangay" ? "Filter by Province (optional)" : "Province"}
+                  {lgu.type === "municipality" || (lgu.type === "city" && !ncrSelected) ? (
+                    <span className="text-rose-600"> *</span>
+                  ) : null}
+                </Label>
+                <Select
+                  value={lgu.type === "barangay" ? (provinceId || "all") : provinceId}
+                  onValueChange={(value) => {
+                    const nextProvince = value === "all" ? "" : value;
+                    setProvinceId(nextProvince);
+                    if (lgu.type === "barangay") setParentId("");
+                  }}
+                  disabled={lgu.type === "city" && ncrSelected}
+                >
+                  <SelectTrigger className="h-11 w-full">
+                    <SelectValue
+                      placeholder={
+                        lgu.type === "barangay"
+                          ? "All provinces"
+                          : ncrSelected
+                          ? "N/A for NCR cities"
+                          : "Select province"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lgu.type === "barangay" ? (
+                      <SelectItem value="all">All provinces</SelectItem>
+                    ) : null}
+                    {filteredProvinces.map((row) => (
+                      <SelectItem key={row.id} value={row.id}>
+                        {row.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {ncrSelected && lgu.type === "city" ? (
+                  <div className="text-xs text-slate-500">
+                    Province is automatically set to N/A for NCR cities.
+                  </div>
+                ) : null}
+                {errors.provinceId ? (
+                  <div className="text-xs text-rose-600">{errors.provinceId}</div>
+                ) : null}
+              </div>
+            )}
+
+            {lgu.type === "barangay" ? (
+              <>
+                <div className="space-y-2">
+                  <Label>
+                    Parent Type <span className="text-rose-600">*</span>
+                  </Label>
+                  <Select
+                    value={parentType}
+                    onValueChange={(value) => {
+                      setParentType(value as BarangayParentType);
+                      setParentId("");
+                    }}
+                  >
+                    <SelectTrigger className="h-11 w-full">
+                      <SelectValue placeholder="Select parent type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="city">City</SelectItem>
+                      <SelectItem value="municipality">Municipality</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.parentType ? (
+                    <div className="text-xs text-rose-600">{errors.parentType}</div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>
+                    Parent LGU <span className="text-rose-600">*</span>
+                  </Label>
+                  <Select value={parentId} onValueChange={setParentId}>
+                    <SelectTrigger className="h-11 w-full">
+                      <SelectValue placeholder="Select parent city/municipality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parentOptions.map((row) => (
+                        <SelectItem key={row.id} value={row.id}>
+                          {row.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.parentId ? (
+                    <div className="text-xs text-rose-600">{errors.parentId}</div>
+                  ) : null}
+                </div>
+              </>
             ) : null}
 
             <div className="space-y-2">
@@ -227,4 +441,3 @@ export default function EditLguModal({
     </Dialog>
   );
 }
-

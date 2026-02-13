@@ -19,8 +19,8 @@ export default function LguManagementView() {
     setTypeFilter,
     statusFilter,
     setStatusFilter,
+    lgus,
     filteredLgus,
-    cityOptions,
     addOpen,
     setAddOpen,
     editOpen,
@@ -82,7 +82,7 @@ export default function LguManagementView() {
       <AddLguModal
         open={addOpen}
         onOpenChange={setAddOpen}
-        cityOptions={cityOptions}
+        lgus={lgus}
         onSave={async (input) => {
           setInlineError(null);
           try {
@@ -98,7 +98,7 @@ export default function LguManagementView() {
         open={editOpen}
         onOpenChange={setEditOpen}
         lgu={selected}
-        cityOptions={cityOptions}
+        lgus={lgus}
         onSave={async (id, patch, nextStatus) => {
           setInlineError(null);
           try {

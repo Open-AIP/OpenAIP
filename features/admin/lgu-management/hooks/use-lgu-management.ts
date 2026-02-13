@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getLguRepo } from "@/lib/repos/lgu/repo";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createLguAction,
+  listLgusAction,
+  setLguStatusAction,
+  updateLguAction,
+} from "../actions/lgu-management.actions";
 import type {
   CreateLguInput,
   LguRecord,
@@ -14,8 +19,6 @@ export type TypeFilter = "all" | LguType;
 export type StatusFilter = "all" | LguStatus;
 
 export function useLguManagement() {
-  const repo = useMemo(() => getLguRepo(), []);
-
   const [lgus, setLgus] = useState<LguRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,41 +32,26 @@ export function useLguManagement() {
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const rows = await repo.list();
-        if (!isActive) return;
-        setLgus(rows);
-      } catch (err) {
-        if (!isActive) return;
-        setError(err instanceof Error ? err.message : "Failed to load LGUs.");
-      } finally {
-        if (isActive) setLoading(false);
-      }
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await listLgusAction();
+      setLgus(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load LGUs.");
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [repo]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const selected = useMemo(
     () => (selectedId ? lgus.find((lgu) => lgu.id === selectedId) ?? null : null),
     [lgus, selectedId]
-  );
-
-  const cityOptions = useMemo(
-    () =>
-      lgus
-        .filter((lgu) => lgu.type === "city")
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [lgus]
   );
 
   const filteredLgus = useMemo(() => {
@@ -73,7 +61,11 @@ export function useLguManagement() {
       if (statusFilter !== "all" && lgu.status !== statusFilter) return false;
 
       if (!q) return true;
-      return lgu.name.toLowerCase().includes(q) || lgu.code.toLowerCase().includes(q);
+      return (
+        lgu.name.toLowerCase().includes(q) ||
+        lgu.code.toLowerCase().includes(q) ||
+        (lgu.parentName ?? "").toLowerCase().includes(q)
+      );
     });
   }, [lgus, query, typeFilter, statusFilter]);
 
@@ -93,19 +85,19 @@ export function useLguManagement() {
   }
 
   async function addLgu(input: CreateLguInput) {
-    const created = await repo.create(input);
+    const created = await createLguAction(input);
     setLgus((prev) => [created, ...prev]);
     return created;
   }
 
   async function editLgu(id: string, patch: UpdateLguInput) {
-    const updated = await repo.update(id, patch);
+    const updated = await updateLguAction(id, patch);
     setLgus((prev) => prev.map((row) => (row.id === id ? updated : row)));
     return updated;
   }
 
   async function setStatus(id: string, status: LguStatus) {
-    const updated = await repo.setStatus(id, status);
+    const updated = await setLguStatusAction(id, status);
     setLgus((prev) => prev.map((row) => (row.id === id ? updated : row)));
     return updated;
   }
@@ -123,7 +115,6 @@ export function useLguManagement() {
     setStatusFilter,
 
     filteredLgus,
-    cityOptions,
 
     addOpen,
     setAddOpen,

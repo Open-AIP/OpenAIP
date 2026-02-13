@@ -38,8 +38,8 @@ export default function DeactivateLguModal({
             <Alert variant="destructive" className="border-red-200 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertDescription className="text-red-700">
-                Deactivate {lgu.name}? This LGU will be hidden from dashboards
-                and cannot submit AIPs. Historical records will be preserved.
+                Deactivate {lgu.name}? This LGU will be hidden from dashboards.
+                Historical records will be preserved.
               </AlertDescription>
             </Alert>
 

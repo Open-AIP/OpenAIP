@@ -1,4 +1,11 @@
-export type LguType = "city" | "barangay";
+export type LguType =
+  | "region"
+  | "province"
+  | "city"
+  | "municipality"
+  | "barangay";
+
+export type BarangayParentType = "city" | "municipality";
 export type LguStatus = "active" | "deactivated";
 
 export type LguRecord = {
@@ -7,8 +14,20 @@ export type LguRecord = {
   name: string;
   code: string;
 
-  parentCityId?: string | null;
-  parentCityName?: string | null;
+  parentType?: LguType | null;
+  parentId?: string | null;
+  parentName?: string | null;
+
+  regionId?: string | null;
+  regionName?: string | null;
+  provinceId?: string | null;
+  provinceName?: string | null;
+  cityId?: string | null;
+  cityName?: string | null;
+  municipalityId?: string | null;
+  municipalityName?: string | null;
+
+  isIndependent?: boolean | null;
 
   status: LguStatus;
   updatedAt: string; // YYYY-MM-DD
@@ -18,11 +37,17 @@ export type CreateLguInput = {
   type: LguType;
   name: string;
   code: string;
-  parentCityId?: string | null;
-  parentCityName?: string | null;
+
+  regionId?: string | null;
+  provinceId?: string | null;
+
+  parentType?: BarangayParentType | null;
+  parentId?: string | null;
+
+  isIndependent?: boolean | null;
 };
 
 export type UpdateLguInput = Partial<
-  Pick<LguRecord, "type" | "name" | "code" | "parentCityId" | "parentCityName">
+  Pick<CreateLguInput, "name" | "code" | "regionId" | "provinceId" | "parentType" | "parentId" | "isIndependent">
 >;
 

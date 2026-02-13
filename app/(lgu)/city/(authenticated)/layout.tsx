@@ -11,9 +11,9 @@ const CityLayout = async ({children} : {children: React.ReactNode}) => {
     redirect("/city/sign-in");
   }
 
-  const { fullName, userRole } = userData;
+  const { fullName, role } = userData;
 
-  if (userRole !== "city") {
+  if (role !== "city_official") {
     redirect("/city/unauthorized");
   }
 
@@ -21,7 +21,7 @@ const CityLayout = async ({children} : {children: React.ReactNode}) => {
     <LguShell 
       variant="city" 
       userName={fullName}
-      roleLabel={userRole === "citizen" ? "Citizen" : "City Official"}
+      roleLabel="City Official"
     >
       {children}
     </LguShell>

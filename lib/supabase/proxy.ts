@@ -1,5 +1,25 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { RoleType } from '@/lib/contracts/databasev2'
+
+type RouteRole = 'citizen' | 'barangay' | 'city' | 'municipality' | 'admin'
+
+function isRoleType(value: unknown): value is RoleType {
+  return (
+    value === 'citizen' ||
+    value === 'barangay_official' ||
+    value === 'city_official' ||
+    value === 'municipal_official' ||
+    value === 'admin'
+  )
+}
+
+function toRouteRole(role: RoleType): RouteRole {
+  if (role === 'barangay_official') return 'barangay'
+  if (role === 'city_official') return 'city'
+  if (role === 'municipal_official') return 'municipality'
+  return role
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -34,8 +54,28 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: If you remove getClaims() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
   const { data } = await supabase.auth.getClaims()
+  const claims = data?.claims as Record<string, unknown> | undefined
+  const userId =
+    claims && typeof claims.sub === 'string'
+      ? claims.sub
+      : claims && typeof claims.user_id === 'string'
+      ? claims.user_id
+      : claims && typeof claims.id === 'string'
+      ? claims.id
+      : null
 
-  const user = data?.claims
+  let userRole: RouteRole | null = null
+  if (userId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (isRoleType(profile?.role)) {
+      userRole = toRouteRole(profile.role)
+    }
+  }
 
   const pathname = request.nextUrl.pathname;
   const pathArray = pathname.includes('/') && pathname.trim() !== '/' ? pathname.split('/') : [];
@@ -50,10 +90,8 @@ export async function updateSession(request: NextRequest) {
     'admin' : 
     'citizen';
 
-  const userRole = user?.user_metadata?.access?.role;
-
   if (
-    !user && 
+    !userId && 
     !request.nextUrl.pathname.endsWith('/sign-in') &&
     !request.nextUrl.pathname.endsWith('/sign-up') &&
     !request.nextUrl.pathname.endsWith('/forgot-password') &&
@@ -64,21 +102,28 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
   
+  if (userId && !userRole && pathRole !== 'citizen') {
+    const url = request.nextUrl.clone()
+    url.pathname = `/${pathRole}/unauthorized`
+    return NextResponse.redirect(url)
+  }
+
   // signed in user accessing different role
-  if(user && userRole && pathRole !== userRole) {
+  if(userId && userRole && pathRole !== userRole) {
     const url = request.nextUrl.clone()
     url.pathname = `${userRole === 'citizen' ? '' : '/' + userRole}/unauthorized`
     return NextResponse.redirect(url)
   }
   if (
-    user && (
+    userId && (
       request.nextUrl.pathname.endsWith('/sign-in') ||
       request.nextUrl.pathname.endsWith('/sign-up') ||
       request.nextUrl.pathname.endsWith('/forgot-password')
     )
   ) {
+    const signedInRole = userRole ?? 'citizen'
     const url = request.nextUrl.clone()
-    url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/`
+    url.pathname = `${signedInRole === 'citizen' ? '' : '/' + signedInRole}/`
     return NextResponse.redirect(url)
   }
 

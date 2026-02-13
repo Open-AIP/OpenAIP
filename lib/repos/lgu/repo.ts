@@ -3,6 +3,7 @@ import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockLguRepoImpl } from "./repo.mock";
 
 export type {
+  BarangayParentType,
   CreateLguInput,
   LguRecord,
   LguStatus,

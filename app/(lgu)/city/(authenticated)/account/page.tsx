@@ -2,16 +2,16 @@ import AccountView from "@/features/account/account-view";
 import { getUser } from "@/lib/actions/auth.actions";
 
 export default async function CityAccount() {
-  const { fullName, email, userRole, userLocale } = await getUser();
+  const { fullName, email, role, officeLabel } = await getUser();
 
   const position =
-    userRole === "citizen"
+    role === "citizen"
       ? "Citizen"
-      : userRole === "city"
+      : role === "city_official"
       ? "City Official"
       : "Official";
 
-  const office = userLocale || "City Hall";
+  const office = officeLabel || "City Hall";
 
   return (
     <AccountView

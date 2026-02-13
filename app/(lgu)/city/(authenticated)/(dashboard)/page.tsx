@@ -15,14 +15,15 @@ const CityDashboard = async () => {
     redirect('/login');
   }
 
-  const { fullName, email, userRole, userLocale, baseURL } = user;
+  const { fullName, email, role, routeRole, officeLabel, baseURL } = user;
 
   return (
     <div>
       <p>CityDashboard</p>
       <p>
-        Hello {fullName}, {email}. Role: {userRole}{userRole === 'citizen' ? '' : ' official'} from {userLocale}.
-      </p>      <LogoutButton role={userRole} baseURL={baseURL}/>
+        Hello {fullName}, {email}. Role: {role} from {officeLabel}.
+      </p>
+      <LogoutButton role={routeRole} baseURL={baseURL}/>
     </div>
   )
 }

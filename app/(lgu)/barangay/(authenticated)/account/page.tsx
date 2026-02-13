@@ -2,18 +2,16 @@ import AccountView from "@/features/account/account-view";
 import { getUser } from "@/lib/actions/auth.actions";
 
 export default async function BarangayAccount() {
-  const { fullName, email, userRole, userLocale } = await getUser();
+  const { fullName, email, role, officeLabel } = await getUser();
 
-  // If you have more user fields (position/office), map them here.
-  // For now, follow your current available fields.
   const position =
-    userRole === "citizen"
+    role === "citizen"
       ? "Citizen"
-      : userRole === "barangay"
+      : role === "barangay_official"
       ? "Barangay Official"
       : "Official";
 
-  const office = userLocale || "—";
+  const office = officeLabel || "-";
 
   return (
     <AccountView

@@ -16,10 +16,18 @@ export type ActorContext = {
 };
 
 export type GetUserOutput = {
+  role?: unknown;
   userRole?: unknown;
-  userLocale?: unknown;
+  routeRole?: unknown;
   userId?: unknown;
   id?: unknown;
+  scope?: unknown;
+  barangay_id?: unknown;
+  city_id?: unknown;
+  municipality_id?: unknown;
+  barangayId?: unknown;
+  cityId?: unknown;
+  municipalityId?: unknown;
   [key: string]: unknown;
 };
 
@@ -46,13 +54,27 @@ function getIdValue(
   return null;
 }
 
+function mapRouteRoleToRoleType(value: unknown): RoleType | null {
+  if (value === "citizen") return "citizen";
+  if (value === "barangay") return "barangay_official";
+  if (value === "city") return "city_official";
+  if (value === "municipality") return "municipal_official";
+  if (value === "admin") return "admin";
+  return null;
+}
+
 export function mapUserToActorContext(user: GetUserOutput): ActorContext | null {
-  const role = isRoleType(user.userRole) ? user.userRole : null;
+  const role =
+    (isRoleType(user.role) && user.role) ||
+    (isRoleType(user.userRole) && user.userRole) ||
+    mapRouteRoleToRoleType(user.routeRole) ||
+    mapRouteRoleToRoleType(user.userRole);
+
   if (!role) return null;
 
-  const locale =
-    user.userLocale && typeof user.userLocale === "object"
-      ? (user.userLocale as Record<string, unknown>)
+  const scope =
+    user.scope && typeof user.scope === "object"
+      ? (user.scope as Record<string, unknown>)
       : null;
 
   const userId =
@@ -68,7 +90,7 @@ export function mapUserToActorContext(user: GetUserOutput): ActorContext | null 
 
   if (role === "city_official") {
     const cityId =
-      getIdValue(locale, "city_id", "cityId") ??
+      getIdValue(scope, "city_id", "cityId") ??
       getIdValue(user as Record<string, unknown>, "city_id", "cityId");
     if (!cityId) return null;
     return { userId, role, scope: { kind: "city", id: cityId } };
@@ -76,7 +98,7 @@ export function mapUserToActorContext(user: GetUserOutput): ActorContext | null 
 
   if (role === "municipal_official") {
     const municipalityId =
-      getIdValue(locale, "municipality_id", "municipalityId") ??
+      getIdValue(scope, "municipality_id", "municipalityId") ??
       getIdValue(user as Record<string, unknown>, "municipality_id", "municipalityId");
     if (!municipalityId) return null;
     return { userId, role, scope: { kind: "municipality", id: municipalityId } };
@@ -84,7 +106,7 @@ export function mapUserToActorContext(user: GetUserOutput): ActorContext | null 
 
   if (role === "barangay_official" || role === "citizen") {
     const barangayId =
-      getIdValue(locale, "barangay_id", "barangayId") ??
+      getIdValue(scope, "barangay_id", "barangayId") ??
       getIdValue(user as Record<string, unknown>, "barangay_id", "barangayId");
     if (!barangayId) return null;
     return { userId, role, scope: { kind: "barangay", id: barangayId } };

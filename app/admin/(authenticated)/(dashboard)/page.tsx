@@ -3,13 +3,13 @@ import { getUser } from '@/lib/actions/auth.actions'
 
 const AdminDashboard = async () => {
 
-  const {fullName, email, userRole, userLocale, baseURL} = await getUser();
+  const { fullName, email, role, officeLabel, baseURL } = await getUser();
 
   return (
     <div>
       <p>AdminDashboard</p>
       <p>
-        Hello {fullName}, {email}. A {userRole} {userRole === 'citizen' ? '':' official'} from {userLocale}
+        Hello {fullName}, {email}. A {role} from {officeLabel}
       </p>
       <LogoutButton role={'admin'} baseURL={baseURL}/>
     </div>

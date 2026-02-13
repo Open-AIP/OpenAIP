@@ -60,12 +60,12 @@ export default function LguSidebar({ variant }: Props) {
             height={100}
             className="h-25 w-25"
           />
-          <div className="text-3xl font-semibold leading-none">OpenAIP</div>
+          <div className="text-xs font-semibold leading-none">OpenAIP</div>
         </div>
 
         {/* CTA Panel */}
         <div className="mt-6 rounded-xl bg-[#114B59] border border-white/10 p-3 shadow-sm">
-          <div className="rounded-lg bg-[#1B6272] px-4 py-3 text-sm font-medium text-center">
+          <div className="rounded-lg bg-[#1B6272] px-4 py-3 text-xs font-medium text-center">
             {headerLabel}
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function LguSidebar({ variant }: Props) {
                     <button
                       onClick={() => toggleDropdown(item.href)}
                       className={cn(
-                        "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                        "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
                         "hover:bg-white/10",
                         active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                       )}
@@ -111,7 +111,7 @@ export default function LguSidebar({ variant }: Props) {
                               <Link
                                 href={child.href}
                                 className={cn(
-                                  "flex items-center gap-3 rounded-xl px-4 py-2 text-sm transition-colors",
+                                  "flex items-center gap-3 rounded-xl px-4 py-2 text-xs transition-colors",
                                   "hover:bg-white/10",
                                   childActive && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                                 )}
@@ -129,7 +129,7 @@ export default function LguSidebar({ variant }: Props) {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                      "flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
                       "hover:bg-white/10",
                       active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                     )}

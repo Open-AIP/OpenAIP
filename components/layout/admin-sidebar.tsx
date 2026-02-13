@@ -21,11 +21,11 @@ export default function AdminSidebar() {
       <div className="px-6 pt-8 pb-3">
         <div className="flex flex-col items-center gap-3">
           <Image src="/brand/logo3.svg" alt="OpenAIP Logo" width={100} height={100} className="h-25 w-25" />
-          <div className="text-3xl font-semibold leading-none">OpenAIP</div>
+          <div className="text-xs font-semibold leading-none">OpenAIP</div>
         </div>
 
         <div className="mt-6 rounded-xl bg-[#114B59] border border-white/10 p-3 shadow-sm">
-          <div className="rounded-lg bg-[#1B6272] px-4 py-3 text-sm font-medium text-center">ADMIN</div>
+          <div className="rounded-lg bg-[#1B6272] px-4 py-3 text-xs font-medium text-center">ADMIN</div>
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export default function AdminSidebar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                    "flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
                     "hover:bg-white/10",
                     active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                   )}

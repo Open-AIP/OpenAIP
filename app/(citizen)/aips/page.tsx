@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import AipBanner from '@/features/citizen/aips/components/AipBanner';
+import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
 import AipFiltersBar from '@/features/citizen/aips/components/AipFiltersBar';
 import AipIntroCard from '@/features/citizen/aips/components/AipIntroCard';
 import AipListCard from '@/features/citizen/aips/components/AipListCard';
@@ -32,7 +32,8 @@ const CitizenAipsPage = () => {
 
   return (
     <section className="space-y-6">
-      <AipBanner />
+      <CitizenSectionBanner />
+      <div className='mx-30 space-y-10'>
       <AipIntroCard />
 
       <AipFiltersBar
@@ -58,7 +59,8 @@ const CitizenAipsPage = () => {
             No AIPs matched the selected filters.
           </div>
         )}
-      </div>
+      </div></div>
+      
     </section>
   );
 };

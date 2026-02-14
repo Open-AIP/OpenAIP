@@ -1,26 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import CitizenInfrastructureProjectsView from "@/features/citizen/projects/views/infrastructure-projects-view";
+import { projectService } from "@/lib/repos/projects/queries";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 
-const CitizenInfrastructureProjects = () => {
+const getDefaultBarangayLabel = () => {
+  const barangayAips = AIPS_TABLE.filter((aip) => aip.scope === "barangay");
+  const latest = barangayAips.sort((a, b) => b.year - a.year)[0];
+  return latest?.barangayName ?? "Barangay";
+};
+
+const CitizenInfrastructureProjects = async () => {
+  const projects = await projectService.getInfrastructureProjects();
+  const barangayLabel = getDefaultBarangayLabel();
+  const lguOptions = ["All LGUs", barangayLabel];
+
   return (
-    <section className="space-y-4">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">Infrastructure Projects</h1>
-      <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
-        Explore infrastructure projects funded by AIPs, including roads, drainage, public facilities, and community
-        upgrades.
-      </p>
-
-      <Card className="border-slate-200">
-        <CardHeader>
-          <CardTitle className="text-base text-slate-900">Coming soon</CardTitle>
-          <CardDescription>
-            This page will display infrastructure project cards with progress, budgets, and milestones.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-slate-500">
-          Detailed project filters and geographic views will be added in the next release.
-        </CardContent>
-      </Card>
-    </section>
+    <CitizenInfrastructureProjectsView
+      projects={projects}
+      barangayLabel={barangayLabel}
+      lguOptions={lguOptions}
+    />
   );
 };
 

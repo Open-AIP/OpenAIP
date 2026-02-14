@@ -1,4 +1,4 @@
-import type { Sector } from "@/lib/repos/aip";
+import type { Sector } from "@/lib/repos/aip/types";
 import type {
   FeedbackCategory as CitizenFeedbackCategory,
   FeedbackItem as CitizenFeedbackItem,

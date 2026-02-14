@@ -2,30 +2,22 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import HealthProjectCard from "@/features/projects/health/components/health-project-card";
 import type { HealthProject } from "@/features/projects/types";
 import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
+import ProjectFilters from "@/features/citizen/projects/components/project-filters";
+import { Card, CardContent } from "@/components/ui/card";
 
 type Props = {
   projects: HealthProject[];
-  barangayLabel: string;
+  lguLabel: string;
   lguOptions: string[];
 };
 
 export default function CitizenHealthProjectsView({
   projects,
-  barangayLabel,
+  lguLabel,
   lguOptions,
 }: Props) {
   const years = useMemo(
@@ -41,16 +33,16 @@ export default function CitizenHealthProjectsView({
     () =>
       projects.map((project) => ({
         ...project,
-        title: `${barangayLabel} - ${project.title}`,
+        title: `${lguLabel} - ${project.title}`,
       })),
-    [projects, barangayLabel]
+    [projects, lguLabel]
   );
 
   const filteredProjects = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase();
     return displayProjects.filter((project) => {
       const yearOk = yearFilter === "all" || project.year === Number(yearFilter);
-      const lguOk = lguFilter === "All LGUs" || lguFilter === barangayLabel;
+      const lguOk = lguFilter === "All LGUs" || lguFilter === lguLabel;
       const queryOk =
         !loweredQuery ||
         project.title.toLowerCase().includes(loweredQuery) ||
@@ -59,7 +51,7 @@ export default function CitizenHealthProjectsView({
 
       return yearOk && lguOk && queryOk;
     });
-  }, [displayProjects, yearFilter, lguFilter, query, barangayLabel]);
+  }, [displayProjects, yearFilter, lguFilter, query, lguLabel]);
 
   return (
     <section className="space-y-6">
@@ -85,57 +77,16 @@ export default function CitizenHealthProjectsView({
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200">
-        <CardContent className="p-5">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <div className="text-xs text-slate-500">Filters</div>
-              <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="Fiscal Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs text-slate-500">LGU</div>
-              <Select value={lguFilter} onValueChange={setLguFilter}>
-                <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="Select LGU" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lguOptions.map((lgu) => (
-                    <SelectItem key={lgu} value={lgu}>
-                      {lgu}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs text-slate-500">Search</div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search projects..."
-                  className="h-10 border-slate-200 bg-slate-50 pl-9"
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectFilters
+        years={years}
+        yearFilter={yearFilter}
+        onYearChange={setYearFilter}
+        lguOptions={lguOptions}
+        lguFilter={lguFilter}
+        onLguChange={setLguFilter}
+        query={query}
+        onQueryChange={setQuery}
+      />
 
       <div className="text-xs text-slate-500">
         Showing {filteredProjects.length} result{filteredProjects.length !== 1 ? "s" : ""}

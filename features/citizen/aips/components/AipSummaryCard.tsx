@@ -1,28 +1,57 @@
-import { Card, CardContent } from '@/components/ui/card';
-import type { AipDetails } from '@/features/citizen/aips/types';
+import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
+import type { AipHeader } from "@/lib/repos/aip/types";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
+import type { AipDetails } from "@/features/citizen/aips/types";
+
+const parseCurrency = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  const parsed = Number(cleaned);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const inferScope = (lguName: string): "city" | "barangay" =>
+  lguName.toLowerCase().includes("city") ? "city" : "barangay";
+
+const buildFallbackHeader = (aip: AipDetails): AipHeader => {
+  const budget = parseCurrency(aip.budget);
+  const scope = inferScope(aip.lguName);
+
+  return {
+    id: aip.id,
+    scope,
+    barangayName: scope === "barangay" ? aip.lguName : undefined,
+    title: aip.title,
+    description: aip.description,
+    year: Number(aip.year),
+    budget,
+    uploadedAt: aip.publishedDate,
+    publishedAt: aip.publishedDate,
+    status: "published",
+    fileName: aip.pdfFilename,
+    pdfUrl: "",
+    tablePreviewUrl: "",
+    summaryText: aip.summary,
+    detailedBullets: aip.detailedBullets,
+    sectors: [],
+    uploader: {
+      name: aip.lguName,
+      role: "Official",
+      uploadDate: aip.publishedDate,
+      budgetAllocated: budget,
+    },
+    feedback: undefined,
+  };
+};
 
 export default function AipSummaryCard({ aip }: { aip: AipDetails }) {
+  const base = AIPS_TABLE.find((item) => item.id === aip.id);
+  const resolved: AipHeader = base
+    ? { ...base, summaryText: aip.summary, detailedBullets: aip.detailedBullets }
+    : buildFallbackHeader(aip);
+
+  const communityLabel = resolved.scope === "city" ? "city" : "barangay";
+
   return (
-    <Card className="border-slate-200">
-      <CardContent className="space-y-6 p-6">
-        <div>
-          <h2 className="text-4xl font-semibold text-slate-900">Summary</h2>
-          <p className="mt-3 text-lg leading-relaxed text-slate-700">{aip.summary}</p>
-        </div>
-
-        <div>
-          <h3 className="text-4xl font-semibold text-slate-900">Detailed Description</h3>
-          <p className="mt-3 text-lg leading-relaxed text-slate-700">{aip.detailedDescriptionIntro}</p>
-
-          <ol className="mt-4 list-decimal space-y-2 pl-5 text-lg text-slate-700">
-            {aip.detailedBullets.map((bullet) => (
-              <li key={bullet}>{bullet}</li>
-            ))}
-          </ol>
-
-          <p className="mt-5 text-lg leading-relaxed text-slate-700">{aip.detailedClosing}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <AipDetailsSummary aip={resolved} communityLabel={communityLabel} />
   );
 }

@@ -19,9 +19,11 @@ const ROLE_LABELS: Record<string, string> = {
 export function CommentThreadPanel({
   threadId,
   variant = "card",
+  mode = "lgu",
 }: {
   threadId: string;
   variant?: "card" | "embedded";
+  mode?: "lgu" | "citizen";
 }) {
   const repo = React.useMemo(() => getCommentRepo(), []);
   const [thread, setThread] = React.useState<CommentThread | null>(null);
@@ -33,6 +35,7 @@ export function CommentThreadPanel({
   const [error, setError] = React.useState<string | null>(null);
 
   const isEmbedded = variant === "embedded";
+  const canReply = mode === "lgu";
   const messagesToRender = isEmbedded ? messages.slice(1) : messages;
 
   React.useEffect(() => {
@@ -146,13 +149,15 @@ export function CommentThreadPanel({
                     <time dateTime={new Date(message.createdAt).toISOString()}>
                       {formatCommentDate(message.createdAt)}
                     </time>
-                    <button
-                      type="button"
-                      className="font-semibold text-slate-700"
-                      onClick={() => setShowReply(true)}
-                    >
-                      Reply
-                    </button>
+                    {canReply ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-slate-700"
+                        onClick={() => setShowReply(true)}
+                      >
+                        Reply
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -162,7 +167,7 @@ export function CommentThreadPanel({
       </div>
 
       <div className={cn(isEmbedded ? "mt-4 space-y-3" : "mt-6 space-y-3")}>
-        {isEmbedded && !showReply ? (
+        {isEmbedded && !showReply && canReply ? (
           <button
             type="button"
             className="text-xs font-semibold text-slate-700"
@@ -172,7 +177,7 @@ export function CommentThreadPanel({
           </button>
         ) : null}
 
-        {showReply ? (
+        {showReply && canReply ? (
           <>
             <label className="text-xs font-semibold text-slate-600">Reply</label>
             <Textarea

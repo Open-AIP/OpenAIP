@@ -9,10 +9,8 @@
  */
 
 import Image from "next/image";
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/features/projects/types";
 import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
@@ -31,14 +29,14 @@ import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-bad
  * - View project button
  * 
  * @param project - The health project data to display
- * @param scope - Administrative scope (city or barangay) for routing
+ * @param actionSlot - Optional action element (e.g. View Project button)
  */
 export default function HealthProjectCard({ 
   project,
-  scope = "barangay"
+  actionSlot
 }: { 
   project: HealthProject;
-  scope?: "city" | "barangay";
+  actionSlot?: React.ReactNode;
 }) {
   return (
     <Card className="border-slate-200 overflow-hidden">
@@ -105,13 +103,9 @@ export default function HealthProjectCard({
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
-                <Link href={`/${scope}/projects/health/${project.id}`}>
-                  View Project
-                </Link>
-              </Button>
-            </div>
+            {actionSlot ? (
+              <div className="flex justify-end pt-2">{actionSlot}</div>
+            ) : null}
           </div>
         </div>
       </CardContent>

@@ -129,7 +129,10 @@ export default function AipDetailView({
 
           {activeTab === "summary" ? (
             <>
-              <AipDetailsSummary aip={aip} scope={scope} />
+              <AipDetailsSummary
+                aip={aip}
+                communityLabel={scope === "city" ? "city" : "barangay"}
+              />
 
               <AipDetailsTableView
                 aipId={aip.id}

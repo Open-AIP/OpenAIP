@@ -5,10 +5,10 @@ import type { AipHeader } from "../types";
 
 export function AipDetailsSummary({
   aip,
-  scope,
+  communityLabel = "barangay",
 }: {
   aip: AipHeader;
-  scope: "city" | "barangay";
+  communityLabel?: string;
 }) {
   return (
     <Card className="border-slate-200">
@@ -21,7 +21,7 @@ export function AipDetailsSummary({
         <div>
           <h3 className="text-base font-semibold text-slate-900">Detailed Description</h3>
           <p className="mt-2 text-sm text-slate-600">
-            This comprehensive infrastructure plan addresses the critical needs of our growing {scope} community:
+            This comprehensive infrastructure plan addresses the critical needs of our growing {communityLabel} community:
           </p>
 
           <ol className="mt-3 list-decimal pl-5 space-y-1 text-sm text-slate-600">

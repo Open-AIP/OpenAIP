@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -112,7 +113,9 @@ export default function AipManagementView({
       {/* List */}
       <div className="space-y-4">
         {filtered.map((aip) => (
-          <AipCard key={aip.id} aip={aip} scope={scope} />
+          <Link key={aip.id} href={`/${scopeLabel}/aips/${aip.id}`} className="block">
+            <AipCard aip={aip} />
+          </Link>
         ))}
       </div>
 

@@ -9,21 +9,17 @@
  */
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import type { InfrastructureProject } from "@/features/projects/types";
 import Image from "next/image";
-import Link from "next/link";
 import {
   Building2,
   User,
   Calendar,
   PhilippinePeso,
   Landmark,
-  Plus,
   Flag,
 } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
-import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 /**
  * InfrastructureProjectInformationCard Component
@@ -40,29 +36,29 @@ import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
  * 
  * @param aipYear - The AIP year for context
  * @param project - Complete infrastructure project data
- * @param scope - Administrative scope (city or barangay) for routing
+ * @param actionSlot - Optional action element (e.g. Add Information button)
+ * @param defaultImplementingOffice - Fallback office label when not provided
+ * @param mode - Display mode (lgu or citizen)
  */
 export default function InfrastructureProjectInformationCard({
   aipYear,
   project,
-  scope = "barangay"
+  actionSlot,
+  defaultImplementingOffice,
+  mode = "lgu",
 }: {
   aipYear: number;
   project: InfrastructureProject;
-  scope?: "city" | "barangay";
+  actionSlot?: React.ReactNode;
+  defaultImplementingOffice?: string;
+  mode?: "lgu" | "citizen";
 }) {
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
-            <Button asChild className={PRIMARY_BUTTON_CLASS}>
-              <Link href={`/${scope}/projects/infrastructure/${project.id}/add-information`}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Information
-              </Link>
-            </Button>
-
+          {mode === "lgu" ? actionSlot : null}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -92,7 +88,7 @@ export default function InfrastructureProjectInformationCard({
                 <Building2 className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Implementing Office:</span>
                 <span className="font-medium text-slate-900">
-                  {project.implementingOffice || (scope === "city" ? "City Engineering Office" : "Barangay Engineering Office")}
+                  {project.implementingOffice || defaultImplementingOffice || "N/A"}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-sm">

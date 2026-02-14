@@ -12,14 +12,18 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import type { HealthProject, ProjectUpdateUi } from "@/features/projects/types";
 import ProjectInformationCard from "../components/project-information-card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import { ProjectUpdatesSection } from "../../shared/update-view";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus } from "lucide-react";
+import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 /**
  * HealthProjectDetailPageView Component
@@ -86,7 +90,18 @@ export default function HealthProjectDetailPageView({
         </div>
       </div>
 
-      <ProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
+      <ProjectInformationCard
+        aipYear={aipYear}
+        project={project}
+        actionSlot={
+          <Button asChild className={PRIMARY_BUTTON_CLASS}>
+            <Link href={`/${scope}/projects/health/${project.id}/add-information`}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Information
+            </Link>
+          </Button>
+        }
+      />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <div className="flex items-center gap-3">

@@ -11,7 +11,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectTrigger,
@@ -123,7 +125,17 @@ export default function InfrastructureProjectsView({
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <InfrastructureProjectCard key={p.id} project={p} scope={scope} />
+          <InfrastructureProjectCard
+            key={p.id}
+            project={p}
+            actionSlot={
+              <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
+                <Link href={`/${scope}/projects/infrastructure/${p.id}`}>
+                  View Project
+                </Link>
+              </Button>
+            }
+          />
         ))}
       </div>
     </div>

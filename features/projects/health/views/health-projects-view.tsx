@@ -11,7 +11,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectTrigger,
@@ -119,7 +121,17 @@ export default function HealthProjectsView({
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <HealthProjectCard key={p.id} project={p} scope={scope} />
+          <HealthProjectCard
+            key={p.id}
+            project={p}
+            actionSlot={
+              <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
+                <Link href={`/${scope}/projects/health/${p.id}`}>
+                  View Project
+                </Link>
+              </Button>
+            }
+          />
         ))}
       </div>
     </div>

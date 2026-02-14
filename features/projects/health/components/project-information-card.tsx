@@ -9,13 +9,10 @@
  */
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import type { HealthProject } from "@/features/projects/types";
 import Image from "next/image";
-import { Users, Hash, Building2, Calendar, DollarSign, Plus } from "lucide-react";
-import Link from "next/link";
+import { Users, Hash, Building2, Calendar, DollarSign } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
-import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 /**
  * ProjectInformationCard Component (Health)
@@ -31,28 +28,26 @@ import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
  * 
  * @param aipYear - The AIP year for context
  * @param project - Complete health project data
- * @param scope - Administrative scope (city or barangay) for routing
+ * @param actionSlot - Optional action element (e.g. Add Information button)
+ * @param mode - Display mode (lgu or citizen)
  */
 export default function ProjectInformationCard({
   aipYear,
   project,
-  scope = "barangay"
+  actionSlot,
+  mode = "lgu",
 }: {
   aipYear: number;
   project: HealthProject;
-  scope?: "city" | "barangay";
+  actionSlot?: React.ReactNode;
+  mode?: "lgu" | "citizen";
 }) {
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
-            <Button asChild className={PRIMARY_BUTTON_CLASS}>
-              <Link href={`/${scope}/projects/health/${project.id}/add-information`}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Information
-              </Link>
-            </Button>
+          {mode === "lgu" ? actionSlot : null}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">

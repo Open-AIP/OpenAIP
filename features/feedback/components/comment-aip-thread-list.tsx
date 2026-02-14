@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { cn } from "@/ui/utils";
 
 import { CommentThreadListCard } from "./comment-thread-list-card";
@@ -14,10 +13,16 @@ export function CommentAipThreadList({
   aipId,
   scope,
   activeThreadId,
+  renderItem,
 }: {
   aipId: string;
   scope: "city" | "barangay";
   activeThreadId?: string | null;
+  renderItem?: (args: {
+    item: CommentSidebarItem;
+    thread?: CommentThread;
+    className?: string;
+  }) => React.ReactNode;
 }) {
   const repo = React.useMemo(() => getCommentRepo(), []);
   const [items, setItems] = React.useState<CommentSidebarItem[]>([]);
@@ -96,19 +101,26 @@ export function CommentAipThreadList({
           selectedThreadId: activeThreadId,
         });
 
+        if (renderItem) {
+          return (
+            <React.Fragment key={item.threadId}>
+              {renderItem({ item, thread, className: highlightClass })}
+            </React.Fragment>
+          );
+        }
+
         return (
-          <Link key={item.threadId} href={item.href} className="block">
-            <CommentThreadListCard
-              authorName={thread?.preview.authorName ?? "Citizen"}
-              authorScopeLabel={thread?.preview.authorScopeLabel ?? null}
-              updatedAt={item.updatedAt}
-              contextTitle={item.contextTitle}
-              contextSubtitle={item.contextSubtitle}
-              snippet={item.snippet}
-              status={item.status}
-              className={cn(highlightClass)}
-            />
-          </Link>
+          <CommentThreadListCard
+            key={item.threadId}
+            authorName={thread?.preview.authorName ?? "Citizen"}
+            authorScopeLabel={thread?.preview.authorScopeLabel ?? null}
+            updatedAt={item.updatedAt}
+            contextTitle={item.contextTitle}
+            contextSubtitle={item.contextSubtitle}
+            snippet={item.snippet}
+            status={item.status}
+            className={cn(highlightClass)}
+          />
         );
       })}
     </div>

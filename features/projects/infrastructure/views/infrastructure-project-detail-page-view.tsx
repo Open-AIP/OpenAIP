@@ -11,14 +11,18 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import type { InfrastructureProject, ProjectUpdateUi } from "@/features/projects/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import InfrastructureProjectInformationCard from "../components/project-information-card";
 import { ProjectUpdatesSection } from "../../shared/update-view";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus } from "lucide-react";
+import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 
 /**
  * InfrastructureProjectDetailPageView Component
@@ -57,6 +61,8 @@ export default function InfrastructureProjectDetailPageView({
     { label: "Infrastructure Project", href: `/${scope}/projects/infrastructure` },
     { label: "Detail & Updates", href: "#" },
   ];
+  const defaultImplementingOffice =
+    scope === "city" ? "City Engineering Office" : "Barangay Engineering Office";
 
   // ✅ Adapt Infrastructure updates to shared ProjectUpdate (only fields needed by shared UI)
   const initialUpdates: ProjectUpdateUi[] = (project.updates ?? []).map(
@@ -86,7 +92,19 @@ export default function InfrastructureProjectDetailPageView({
         </div>
       </div>
 
-      <InfrastructureProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
+      <InfrastructureProjectInformationCard
+        aipYear={aipYear}
+        project={project}
+        defaultImplementingOffice={defaultImplementingOffice}
+        actionSlot={
+          <Button asChild className={PRIMARY_BUTTON_CLASS}>
+            <Link href={`/${scope}/projects/infrastructure/${project.id}/add-information`}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Information
+            </Link>
+          </Button>
+        }
+      />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <div className="flex items-center gap-3">

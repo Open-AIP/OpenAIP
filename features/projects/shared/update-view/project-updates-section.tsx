@@ -37,11 +37,18 @@ export default function ProjectUpdatesSection({
   mode?: "lgu" | "citizen";
 }) {
   const [updates, setUpdates] = React.useState<ProjectUpdateUi[]>(initialUpdates);
+  const isCitizen = mode === "citizen";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+    <div
+      className={
+        isCitizen
+          ? "space-y-6"
+          : "grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6"
+      }
+    >
       <UpdatesTimelineView updates={updates} />
-      {mode === "lgu" ? (
+      {!isCitizen ? (
         <PostUpdateForm onCreate={(u) => setUpdates((prev) => [u, ...prev])} />
       ) : null}
     </div>

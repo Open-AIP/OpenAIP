@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { CommentThreadAccordionList } from "./comment-thread-accordion-list";
+import { CommentThreadPanel } from "./comment-thread-panel";
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
@@ -16,10 +17,12 @@ export function CommentThreadsSplitView({
   scope,
   target,
   selectedThreadId,
+  mode = "lgu",
 }: {
   scope: "city" | "barangay";
   target: Target;
   selectedThreadId?: string | null;
+  mode?: "lgu" | "citizen";
 }) {
   const repo = React.useMemo(() => getCommentRepo(), []);
   const router = useRouter();
@@ -114,6 +117,13 @@ export function CommentThreadsSplitView({
     });
   }, [items, threadMap]);
 
+  const renderExpandedContent = React.useCallback(
+    (threadId: string) => (
+      <CommentThreadPanel threadId={threadId} variant="embedded" mode={mode} />
+    ),
+    [mode]
+  );
+
   const handleNavigate = React.useCallback(
     (href: string) => {
       router.push(href, { scroll: false });
@@ -151,6 +161,7 @@ export function CommentThreadsSplitView({
       selectedThreadId={effectiveSelectedThreadId}
       onNavigate={handleNavigate}
       onClearSelection={handleClearSelection}
+      renderExpandedContent={renderExpandedContent}
     />
   );
 }

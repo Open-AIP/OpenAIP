@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import InfrastructureProjectCard from "@/features/projects/infrastructure/components/infrastructure-project-card";
 import type { InfrastructureProject } from "@/features/projects/types";
 import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
@@ -138,7 +140,17 @@ export default function CitizenInfrastructureProjectsView({
 
       <div className="space-y-5">
         {filteredProjects.map((project) => (
-          <InfrastructureProjectCard key={project.id} project={project} />
+          <InfrastructureProjectCard
+            key={project.id}
+            project={project}
+            actionSlot={
+              <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
+                <Link href={`/projects/infrastructure/${project.id}`}>
+                  View Project
+                </Link>
+              </Button>
+            }
+          />
         ))}
       </div>
     </section>

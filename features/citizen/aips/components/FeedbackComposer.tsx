@@ -6,35 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { FeedbackCategory, FeedbackUser } from "@/features/citizen/aips/types";
+import type { FeedbackUser } from "@/features/citizen/aips/types";
+import { CATEGORY_KINDS, formatFeedbackKind, type CategoryKind } from "@/features/feedback/lib/kind";
 
 type Props = {
-  aipId: string;
   currentUser: FeedbackUser;
+  onSubmit: (input: { message: string; kind: CategoryKind }) => Promise<void> | void;
 };
 
-const CATEGORY_OPTIONS: FeedbackCategory[] = [
-  "Question",
-  "Concern",
-  "Suggestion",
-  "Commendation",
-];
-
-export default function FeedbackComposer({ aipId, currentUser }: Props) {
+export default function FeedbackComposer({ currentUser, onSubmit }: Props) {
   const [message, setMessage] = useState("");
-  const [category, setCategory] = useState<FeedbackCategory | "">("");
+  const [category, setCategory] = useState<CategoryKind | "">("");
+  const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = message.trim().length > 0 && category !== "";
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
-    console.log({
-      aipId,
-      message: message.trim(),
-      category,
-    });
-    setMessage("");
-    setCategory("");
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        message: message.trim(),
+        kind: category,
+      });
+      setMessage("");
+      setCategory("");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -61,14 +60,14 @@ export default function FeedbackComposer({ aipId, currentUser }: Props) {
 
         <div className="space-y-2">
           <p className="text-xs font-semibold text-slate-600">Category</p>
-          <Select value={category} onValueChange={(value) => setCategory(value as FeedbackCategory)}>
+          <Select value={category} onValueChange={(value) => setCategory(value as CategoryKind)}>
             <SelectTrigger className="h-10 bg-white">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORY_OPTIONS.map((option) => (
+              {CATEGORY_KINDS.map((option) => (
                 <SelectItem key={option} value={option}>
-                  {option}
+                  {formatFeedbackKind(option)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -79,11 +78,11 @@ export default function FeedbackComposer({ aipId, currentUser }: Props) {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             className="bg-[#0E7490] text-white hover:bg-[#0C6078]"
           >
             <Send className="h-4 w-4" />
-            Submit Comment
+            {submitting ? "Submitting..." : "Submit Comment"}
           </Button>
         </div>
       </CardContent>

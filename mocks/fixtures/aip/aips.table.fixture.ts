@@ -48,7 +48,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2026-01-15",
     status: "pending_review",
     fileName: "AIP_2026_Mamadid.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     summaryText:
       "Development and improvement of barangay infrastructure including roads, bridges, and community facilities",
     detailedBullets: [
@@ -77,7 +77,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2026-01-10",
     status: "published",
     fileName: "AIP_2026_Poblacion.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     publishedAt: "2026-01-20",
     summaryText:
       "Comprehensive development plan focusing on health, education, and social services to improve quality of life for all residents",
@@ -107,7 +107,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2025-01-20",
     status: "published",
     fileName: "AIP_2025_Mamadid.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     publishedAt: "2025-02-01",
     summaryText:
       "Infrastructure and livelihood development projects aimed at improving community facilities and economic opportunities",
@@ -136,7 +136,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2026-01-05",
     status: "under_review",
     fileName: "City_AIP_2026.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     summaryText:
       "Comprehensive city development plan covering infrastructure, education, health, and economic sectors to promote sustainable growth",
     detailedBullets: [
@@ -165,7 +165,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2025-01-08",
     status: "published",
     fileName: "City_AIP_2025.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     publishedAt: "2025-02-15",
     summaryText:
       "Strategic development initiatives focused on infrastructure and social services to enhance urban living standards",
@@ -196,7 +196,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2026-01-12",
     status: "draft",
     fileName: "AIP_2026_SantaMaria.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     summaryText:
       "Community development focusing on agricultural support and rural infrastructure to boost local economy",
     detailedBullets: [
@@ -225,7 +225,7 @@ export const AIPS_TABLE: AipHeader[] = [
     uploadedAt: "2026-01-18",
     status: "for_revision",
     fileName: "AIP_2026_SanIsidro.pdf",
-    pdfUrl: "",
+    pdfUrl: "C:\\Users\\User\\Documents\\COLLEGE\\THESIS\\OpenAIP\\public\\mock\\sample.pdf",
     summaryText:
       "Health and sanitation improvement projects for community wellness and disease prevention",
     detailedBullets: [

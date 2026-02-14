@@ -8,6 +8,7 @@ import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
+import { getFeedbackKindBadge } from "../lib/kind";
 
 export function CommentAipThreadList({
   aipId,
@@ -41,10 +42,12 @@ export function CommentAipThreadList({
         const allThreads = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
         });
-        const aipThreads = allThreads.filter(
-          (thread) =>
-            thread.target.targetKind === "aip_item" && thread.target.aipId === aipId
-        );
+        const aipThreads = allThreads.filter((thread) => {
+          if (thread.target.targetKind === "aip_item") {
+            return thread.target.aipId === aipId;
+          }
+          return thread.target.targetKind === "aip" && thread.target.aipId === aipId;
+        });
 
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({
@@ -109,6 +112,8 @@ export function CommentAipThreadList({
           );
         }
 
+        const badge = thread ? getFeedbackKindBadge(thread.preview.kind) : null;
+
         return (
           <CommentThreadListCard
             key={item.threadId}
@@ -119,6 +124,8 @@ export function CommentAipThreadList({
             contextSubtitle={item.contextSubtitle}
             snippet={item.snippet}
             status={item.status}
+            badgeLabel={badge?.label}
+            badgeClassName={badge?.className}
             className={cn(highlightClass)}
           />
         );

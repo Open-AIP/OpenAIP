@@ -8,6 +8,7 @@ import { CommentThreadPanel } from "./comment-thread-panel";
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
+import { getFeedbackKindBadge } from "../lib/kind";
 
 type Target =
   | { kind: "aip"; aipId: string }
@@ -52,8 +53,10 @@ export function CommentThreadsSplitView({
         const filtered = allThreads.filter((thread) => {
           if (targetKind === "aip") {
             return (
-              thread.target.targetKind === "aip_item" &&
-              thread.target.aipId === targetAipId
+              (thread.target.targetKind === "aip_item" &&
+                thread.target.aipId === targetAipId) ||
+              (thread.target.targetKind === "aip" &&
+                thread.target.aipId === targetAipId)
             );
           }
 
@@ -101,6 +104,7 @@ export function CommentThreadsSplitView({
   const accordionItems = React.useMemo(() => {
     return items.map((item) => {
       const thread = threadMap.get(item.threadId);
+      const badge = thread ? getFeedbackKindBadge(thread.preview.kind) : null;
       return {
         threadId: item.threadId,
         href: item.href,
@@ -112,6 +116,8 @@ export function CommentThreadsSplitView({
           contextTitle: item.contextTitle,
           contextSubtitle: item.contextSubtitle,
           snippet: item.snippet,
+          badgeLabel: badge?.label,
+          badgeClassName: badge?.className,
         },
       };
     });

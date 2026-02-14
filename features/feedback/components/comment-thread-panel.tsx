@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
+import { getFeedbackKindBadge } from "../lib/kind";
 import { getCommentRepo } from "@/lib/repos/feedback/repo";
+import { getCommentStatusBadge } from "../lib/status";
 import type { CommentMessage, CommentThread } from "../types";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -37,6 +40,8 @@ export function CommentThreadPanel({
   const isEmbedded = variant === "embedded";
   const canReply = mode === "lgu";
   const messagesToRender = isEmbedded ? messages.slice(1) : messages;
+  const kindBadge = thread ? getFeedbackKindBadge(thread.preview.kind) : null;
+  const statusBadge = thread ? getCommentStatusBadge(thread.preview.status) : null;
 
   React.useEffect(() => {
     let active = true;
@@ -103,6 +108,24 @@ export function CommentThreadPanel({
     </div>
   ) : (
     <>
+      {kindBadge && statusBadge ? (
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2",
+            isEmbedded ? "text-xs" : "text-sm"
+          )}
+        >
+          <Badge
+            variant="outline"
+            className={cn("rounded-full px-3 py-1 text-xs font-medium", kindBadge.className)}
+          >
+            {kindBadge.label}
+          </Badge>
+          <span className="text-xs font-semibold text-slate-600">
+            {statusBadge.label}
+          </span>
+        </div>
+      ) : null}
       <div
         className={cn(
           isEmbedded ? "space-y-4 pl-14" : "mt-4 space-y-4"

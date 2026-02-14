@@ -10,11 +10,18 @@ import WorkflowActionModal, {
   WorkflowActionType,
 } from "../components/WorkflowActionModal";
 import {
-  AIP_MONITORING_ROWS,
-  CASE_MONITORING_ROWS,
-  AipMonitoringRow,
-  CaseRow,
-} from "../mock/aipMonitoring.mock";
+  AIP_MONITORING_ACTIVITY,
+  AIP_MONITORING_AIPS,
+  AIP_MONITORING_DETAILS,
+  AIP_MONITORING_LGU_NAMES,
+  AIP_MONITORING_REVIEWS,
+  REVIEWER_DIRECTORY,
+} from "@/mocks/fixtures/admin/aip-monitoring/aipMonitoring.mock";
+import type { AipMonitoringRow, CaseRow } from "../types/monitoring.types";
+import {
+  mapActivityToCaseRows,
+  mapAipRowsToMonitoringRows,
+} from "../mappers/aip-monitoring.mapper";
 
 type WorkflowState = { actionType: WorkflowActionType; rowId: string } | null;
 
@@ -28,8 +35,23 @@ export default function AipMonitoringView() {
   const [caseTypeFilter, setCaseTypeFilter] = useState("all");
   const [lguFilter, setLguFilter] = useState("all");
 
-  const [aipRows] = useState<AipMonitoringRow[]>(AIP_MONITORING_ROWS);
-  const [caseRows, setCaseRows] = useState<CaseRow[]>(CASE_MONITORING_ROWS);
+  const [aipRows] = useState<AipMonitoringRow[]>(() =>
+    mapAipRowsToMonitoringRows({
+      aips: AIP_MONITORING_AIPS,
+      reviews: AIP_MONITORING_REVIEWS,
+      activity: AIP_MONITORING_ACTIVITY,
+      details: AIP_MONITORING_DETAILS,
+      lguNameByAipId: AIP_MONITORING_LGU_NAMES,
+      reviewerDirectory: REVIEWER_DIRECTORY,
+    })
+  );
+  const [caseRows, setCaseRows] = useState<CaseRow[]>(() =>
+    mapActivityToCaseRows({
+      activity: AIP_MONITORING_ACTIVITY,
+      aips: AIP_MONITORING_AIPS,
+      lguNameByAipId: AIP_MONITORING_LGU_NAMES,
+    })
+  );
 
   const [selectedAipId, setSelectedAipId] = useState<string | null>(null);
   const [workflowState, setWorkflowState] = useState<WorkflowState>(null);

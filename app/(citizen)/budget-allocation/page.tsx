@@ -1,3 +1,5 @@
+"use client";
+
 import { BudgetAllocationTable, buildBudgetAllocation } from "@/features/aip/components/budget-allocation-table";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";

@@ -1,14 +1,9 @@
 import { CommentThreadListCard } from "@/features/feedback/components/comment-thread-list-card";
-import type { FeedbackCategory, FeedbackItem } from "@/features/citizen/aips/types";
-
-const CATEGORY_BADGE_STYLES: Record<FeedbackCategory, string> = {
-  Question: "border-slate-200 text-slate-600",
-  Concern: "border-rose-200 text-rose-600",
-  Suggestion: "border-amber-200 text-amber-700",
-  Commendation: "border-emerald-200 text-emerald-600",
-};
+import type { FeedbackItem } from "@/features/citizen/aips/types";
+import { getFeedbackKindBadge } from "@/features/feedback/lib/kind";
 
 export default function FeedbackListItem({ item }: { item: FeedbackItem }) {
+  const badge = getFeedbackKindBadge(item.kind);
   return (
     <CommentThreadListCard
       authorName={item.authorName}
@@ -19,8 +14,8 @@ export default function FeedbackListItem({ item }: { item: FeedbackItem }) {
       contextSubtitle="Citizen Feedback"
       contextLine={item.contextLine}
       snippet={item.content}
-      badgeLabel={item.category}
-      badgeClassName={CATEGORY_BADGE_STYLES[item.category]}
+      badgeLabel={badge.label}
+      badgeClassName={badge.className}
       onReply={() => console.log(item.id)}
     />
   );

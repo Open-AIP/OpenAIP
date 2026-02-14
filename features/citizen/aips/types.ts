@@ -1,6 +1,5 @@
 import type { Sector } from "@/lib/repos/aip/types";
 import type {
-  FeedbackCategory as CitizenFeedbackCategory,
   FeedbackItem as CitizenFeedbackItem,
   FeedbackUser as CitizenFeedbackUser,
 } from "@/lib/repos/feedback/citizen";
@@ -60,6 +59,5 @@ export type AipDetails = AipListItem & {
   accountability: AipAccountability;
 };
 
-export type FeedbackCategory = CitizenFeedbackCategory;
 export type FeedbackItem = CitizenFeedbackItem;
 export type FeedbackUser = CitizenFeedbackUser;

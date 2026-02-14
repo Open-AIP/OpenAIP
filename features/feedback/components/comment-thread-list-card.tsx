@@ -36,9 +36,12 @@ export function CommentThreadListCard({
 }) {
   const safeAuthorName = authorName.trim() || "Citizen";
   const initial = safeAuthorName.charAt(0).toUpperCase() || "C";
-  const badge = badgeLabel
+  const statusBadge = getCommentStatusBadge(status);
+  const categoryBadge = badgeLabel
     ? { label: badgeLabel, className: badgeClassName }
-    : getCommentStatusBadge(status);
+    : null;
+  const badge = categoryBadge ?? statusBadge;
+  const showStatusText = Boolean(categoryBadge);
 
   const content = (
     <div className="flex items-start justify-between gap-4">
@@ -78,6 +81,14 @@ export function CommentThreadListCard({
             <time dateTime={new Date(updatedAt).toISOString()}>
               {formatCommentDate(updatedAt)}
             </time>
+            {showStatusText ? (
+              <>
+                <span className="text-slate-300">|</span>
+                <span className="font-semibold text-slate-600">
+                  {statusBadge.label}
+                </span>
+              </>
+            ) : null}
             <span className="text-slate-300">-</span>
             {onReply ? (
               <button

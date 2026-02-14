@@ -1,23 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CommentThreadAccordionList,
   type CommentThreadAccordionItem,
 } from "@/features/feedback/components/comment-thread-accordion-list";
 import { CommentThreadPanel } from "@/features/feedback/components/comment-thread-panel";
+import FeedbackComposer from "@/features/citizen/aips/components/FeedbackComposer";
+import { getFeedbackKindBadge } from "@/features/feedback/lib/kind";
 import type {
-  FeedbackCategory,
   FeedbackItem,
   FeedbackUser,
 } from "@/features/citizen/aips/types";
-
-const CATEGORY_BADGE_STYLES: Record<FeedbackCategory, string> = {
-  Question: "border-slate-200 text-slate-600",
-  Concern: "border-rose-200 text-rose-600",
-  Suggestion: "border-amber-200 text-amber-700",
-  Commendation: "border-emerald-200 text-emerald-600",
-};
+import { createCitizenFeedback } from "@/lib/repos/feedback/citizen";
 
 type Props = {
   aipId: string;
@@ -27,12 +22,35 @@ type Props = {
 };
 
 export default function AipFeedbackTab(props: Props) {
-  const { items } = props;
+  const { aipId, items, isAuthenticated, currentUser } = props;
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [threadItems, setThreadItems] = useState<FeedbackItem[]>(items);
+
+  useEffect(() => {
+    setThreadItems(items);
+  }, [items]);
+
+  const handleSubmit = async (input: { message: string; kind: FeedbackItem["kind"] }) => {
+    if (!currentUser) return;
+    try {
+      const created = await createCitizenFeedback({
+        aipId,
+        message: input.message,
+        kind: input.kind,
+        user: currentUser,
+      });
+      setThreadItems((prev) => [created, ...prev]);
+      setSelectedThreadId(created.id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const accordionItems: CommentThreadAccordionItem[] = useMemo(
     () =>
-      items.map((item) => ({
+      threadItems.map((item) => {
+        const badge = getFeedbackKindBadge(item.kind);
+        return {
         threadId: item.id,
         href: item.id,
         card: {
@@ -44,32 +62,34 @@ export default function AipFeedbackTab(props: Props) {
           contextSubtitle: "Citizen Feedback",
           contextLine: item.contextLine,
           snippet: item.content,
-          badgeLabel: item.category,
-          badgeClassName: CATEGORY_BADGE_STYLES[item.category],
+          badgeLabel: badge.label,
+          badgeClassName: badge.className,
         },
-      })),
-    [items]
+      };
+      }),
+    [threadItems]
   );
-
-  if (accordionItems.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
-        No feedback for this AIP yet.
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <CommentThreadAccordionList
-        items={accordionItems}
-        selectedThreadId={selectedThreadId}
-        onNavigate={(threadId) => setSelectedThreadId(threadId)}
-        onClearSelection={() => setSelectedThreadId(null)}
-        renderExpandedContent={(threadId) => (
-          <CommentThreadPanel threadId={threadId} variant="embedded" mode="citizen" />
-        )}
-      />
+      {isAuthenticated && currentUser ? (
+        <FeedbackComposer currentUser={currentUser} onSubmit={handleSubmit} />
+      ) : null}
+      {accordionItems.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+          No feedback for this AIP yet.
+        </div>
+      ) : (
+        <CommentThreadAccordionList
+          items={accordionItems}
+          selectedThreadId={selectedThreadId}
+          onNavigate={(threadId) => setSelectedThreadId(threadId)}
+          onClearSelection={() => setSelectedThreadId(null)}
+          renderExpandedContent={(threadId) => (
+            <CommentThreadPanel threadId={threadId} variant="embedded" mode="citizen" />
+          )}
+        />
+      )}
     </div>
   );
 }

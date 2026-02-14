@@ -23,6 +23,12 @@ export function validateMockIds() {
           message: `Missing project for thread ${thread.id}: projectId=${thread.target.projectId}`,
         });
       }
+    } else if (thread.target.targetKind === "aip") {
+      if (!aipIds.has(thread.target.aipId)) {
+        issues.push({
+          message: `Missing AIP for thread ${thread.id}: aipId=${thread.target.aipId}`,
+        });
+      }
     } else {
       if (!aipIds.has(thread.target.aipId)) {
         issues.push({

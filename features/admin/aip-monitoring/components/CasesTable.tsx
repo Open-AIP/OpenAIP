@@ -24,7 +24,7 @@ import {
   Trash2,
   UserX,
 } from "lucide-react";
-import type { CaseRow, CaseType } from "../mock/aipMonitoring.mock";
+import type { CaseRow, CaseType } from "../types/monitoring.types";
 import { cn } from "@/ui/utils";
 
 function caseBadgeClass(caseType: CaseType) {

@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CATEGORY_KINDS, formatFeedbackKind, getFeedbackKindBadge } from "../lib/kind";
 
 export default function CommentsView({
   scope = "barangay",
@@ -33,6 +34,7 @@ export default function CommentsView({
     "all"
   );
   const [context, setContext] = useState("all");
+  const [category, setCategory] = useState<"all" | (typeof CATEGORY_KINDS)[number]>("all");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -98,6 +100,11 @@ export default function CommentsView({
       if (status !== "all" && item.status !== status) return false;
       if (context !== "all" && item.contextTitle !== context) return false;
 
+      if (category !== "all") {
+        const thread = threadMap.get(item.threadId);
+        if (!thread || thread.preview.kind !== category) return false;
+      }
+
       if (year !== "all") {
         const itemYear = new Date(item.updatedAt).getFullYear();
         if (Number.isNaN(itemYear) || itemYear !== Number(year)) return false;
@@ -119,7 +126,7 @@ export default function CommentsView({
 
       return haystack.includes(query.trim().toLowerCase());
     });
-  }, [items, status, context, year, query, threadMap]);
+  }, [items, status, context, category, year, query, threadMap]);
 
   return (
     <div className="space-y-6">
@@ -132,7 +139,7 @@ export default function CommentsView({
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-4">
           <div className="space-y-2">
             <div className="text-xs text-slate-500">Year</div>
             <Select value={year} onValueChange={setYear}>
@@ -185,6 +192,28 @@ export default function CommentsView({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <div className="text-xs text-slate-500">Category</div>
+            <Select
+              value={category}
+              onValueChange={(value) =>
+                setCategory(value as "all" | (typeof CATEGORY_KINDS)[number])
+              }
+            >
+              <SelectTrigger className="h-11 border-slate-200 bg-slate-50">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {CATEGORY_KINDS.map((kind) => (
+                  <SelectItem key={kind} value={kind}>
+                    {formatFeedbackKind(kind)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="mt-4 space-y-2">
@@ -215,6 +244,8 @@ export default function CommentsView({
                   const thread = threadMap.get(item.threadId);
                   const authorName = thread?.preview.authorName ?? "Citizen";
                   const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
+                  const kind = thread?.preview.kind ?? "question";
+                  const badge = getFeedbackKindBadge(kind);
 
                   return (
                     <Link key={item.threadId} href={item.href} className="block">
@@ -226,6 +257,8 @@ export default function CommentsView({
                         contextSubtitle={item.contextSubtitle}
                         snippet={item.snippet}
                         status={item.status}
+                        badgeLabel={badge.label}
+                        badgeClassName={badge.className}
                       />
                     </Link>
                   );

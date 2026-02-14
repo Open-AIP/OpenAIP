@@ -1,6 +1,6 @@
 import type { FeedbackKind, FeedbackTargetType } from "@/lib/contracts/databasev2";
 import type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
-import type { CommentMessage, CommentThread } from "./types";
+import type { CommentAuthorRole, CommentMessage, CommentTarget, CommentThread } from "./types";
 import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import {
@@ -10,7 +10,7 @@ import {
   createMockFeedbackThreadsRepo,
 } from "./repo.mock";
 
-export type { Comment, CommentMessage, CommentSidebarItem, CommentThread } from "./types";
+export type { Comment, CommentAuthorRole, CommentMessage, CommentSidebarItem, CommentTarget, CommentThread } from "./types";
 export type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 
 export type ListThreadsForInboxParams = {
@@ -30,6 +30,16 @@ export type AddReplyParams = {
   text: string;
 };
 
+export type CreateThreadParams = {
+  target: CommentTarget;
+  text: string;
+  kind: FeedbackKind;
+  authorId: string;
+  authorRole: CommentAuthorRole;
+  authorName?: string;
+  authorScopeLabel?: string | null;
+};
+
 export type ResolveThreadParams = {
   threadId: string;
 };
@@ -40,6 +50,7 @@ export type CommentRepo = {
   listThreadsForInbox: (params: ListThreadsForInboxParams) => Promise<CommentThread[]>;
   getThread: (params: GetThreadParams) => Promise<CommentThread | null>;
   listMessages: (params: ListMessagesParams) => Promise<CommentMessage[]>;
+  createThread: (params: CreateThreadParams) => Promise<CommentThread>;
   addReply: (params: AddReplyParams) => Promise<CommentMessage>;
   resolveThread?: (params: ResolveThreadParams) => Promise<void>;
 };

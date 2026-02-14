@@ -1,3 +1,5 @@
+import type { FeedbackKind } from "@/lib/contracts/databasev2";
+
 export type CommentAuthorRole =
   | "citizen"
   | "barangay_official"
@@ -9,6 +11,7 @@ export type CommentMessage = {
   threadId: string;
   authorRole: CommentAuthorRole;
   authorId: string;
+  kind: FeedbackKind;
   text: string;
   createdAt: string;
 };
@@ -18,13 +21,18 @@ export type ProjectCommentTarget = {
   projectId: string;
 };
 
+export type AipCommentTarget = {
+  targetKind: "aip";
+  aipId: string;
+};
+
 export type AipItemCommentTarget = {
   targetKind: "aip_item";
   aipId: string;
   aipItemId: string;
 };
 
-export type CommentTarget = ProjectCommentTarget | AipItemCommentTarget;
+export type CommentTarget = ProjectCommentTarget | AipCommentTarget | AipItemCommentTarget;
 
 export type CommentThreadStatus = "no_response" | "responded";
 
@@ -32,6 +40,7 @@ export type CommentThreadPreview = {
   text: string;
   updatedAt: string;
   status: CommentThreadStatus;
+  kind: FeedbackKind;
   authorName?: string;
   authorScopeLabel?: string | null;
 };

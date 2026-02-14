@@ -71,6 +71,30 @@ export async function resolveCommentSidebar({
         } satisfies CommentSidebarItem;
       }
 
+      if (thread.target.targetKind === "aip") {
+        const aip = await getAip(thread.target.aipId);
+
+        const contextTitle = aip?.title ?? "AIP Detail";
+        const contextSubtitleParts = [
+          aip?.barangayName,
+          aip?.year ? `AIP ${aip.year}` : null,
+        ].filter(Boolean) as string[];
+        const contextSubtitle =
+          contextSubtitleParts.length > 0
+            ? contextSubtitleParts.join(" | ")
+            : thread.target.aipId;
+
+        return {
+          threadId: thread.id,
+          snippet: thread.preview.text,
+          updatedAt: thread.preview.updatedAt,
+          status: thread.preview.status,
+          contextTitle,
+          contextSubtitle,
+          href: `/${scope}/aips/${thread.target.aipId}?tab=comments&thread=${thread.id}`,
+        } satisfies CommentSidebarItem;
+      }
+
       const aip = await getAip(thread.target.aipId);
       const aipItem = await getAipItem(thread.target.aipId, thread.target.aipItemId);
 

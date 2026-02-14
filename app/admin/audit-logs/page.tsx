@@ -1,6 +1,8 @@
-import Placeholder from "@/components/layout/placeholder";
+import { AuditView } from "@/features/audit";
+import { AUDIT_LOGS_MOCK } from "@/features/audit/mock/auditLogs.mock";
+import { mapAuditRecordToActivityLogRow } from "@/features/audit/mappers/audit.mapper";
 
 export default function AuditLogsPage() {
-  return <Placeholder title="Audit Logs" description="This module is under development." />;
+  const logs = AUDIT_LOGS_MOCK.map(mapAuditRecordToActivityLogRow);
+  return <AuditView logs={logs} />;
 }
-

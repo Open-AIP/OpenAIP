@@ -101,6 +101,7 @@ export async function respondToComment(input: RespondToCommentInput): Promise<Co
   await feedbackRepo.createReply({
     parentId: input.commentId,
     body: input.message,
+    kind: "lgu_note",
     authorId: input.responderName,
   });
   const index = commentsStore.findIndex((c) => c.id === input.commentId);
@@ -123,4 +124,3 @@ export async function respondToComment(input: RespondToCommentInput): Promise<Co
 
   return updated;
 }
-

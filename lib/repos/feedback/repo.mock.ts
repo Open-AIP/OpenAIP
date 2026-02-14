@@ -5,6 +5,7 @@ import type {
   CreateFeedbackInput,
   CreateReplyInput,
   CreateRootInput,
+  CreateThreadParams,
   FeedbackItem,
   FeedbackRepo,
   FeedbackTarget,
@@ -27,6 +28,7 @@ import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.ta
 
 let threadStore: CommentThread[] = [...COMMENT_THREADS_FIXTURE];
 let messageStore: CommentMessage[] = [...COMMENT_MESSAGES_FIXTURE];
+let threadSequence = threadStore.length + 1;
 let messageSequence = messageStore.length + 1;
 let mockIdsValidated = false;
 
@@ -95,6 +97,53 @@ export function createMockCommentRepo(): CommentRepo {
       return unique;
     },
 
+    async createThread({
+      target,
+      text,
+      kind,
+      authorId,
+      authorRole,
+      authorName,
+      authorScopeLabel,
+    }: CreateThreadParams): Promise<CommentThread> {
+      const createdAt = new Date().toISOString();
+      const threadId = `thread_${String(threadSequence).padStart(3, "0")}`;
+      threadSequence += 1;
+
+      const messageId = `cmsg_${String(messageSequence).padStart(3, "0")}`;
+      messageSequence += 1;
+
+      const message: CommentMessage = {
+        id: messageId,
+        threadId,
+        authorRole,
+        authorId,
+        kind,
+        text,
+        createdAt,
+      };
+
+      const thread: CommentThread = {
+        id: threadId,
+        createdAt,
+        createdByUserId: authorId,
+        target,
+        preview: {
+          text,
+          updatedAt: createdAt,
+          status: "no_response",
+          kind,
+          authorName,
+          authorScopeLabel,
+        },
+      };
+
+      messageStore = [...messageStore, message];
+      threadStore = [...threadStore, thread];
+
+      return thread;
+    },
+
     async addReply({ threadId, text }: AddReplyParams): Promise<CommentMessage> {
       const createdAt = new Date().toISOString();
       const id = `cmsg_${String(messageSequence).padStart(3, "0")}`;
@@ -105,6 +154,7 @@ export function createMockCommentRepo(): CommentRepo {
         threadId,
         authorRole: "barangay_official",
         authorId: "official_001",
+        kind: "lgu_note",
         text,
         createdAt,
       };
@@ -200,10 +250,13 @@ function buildInitialStore(threads: CommentThread[], messages: CommentMessage[])
       store.push({
         id: message.id,
         targetType: thread.target.targetKind === "project" ? "project" : "aip",
-        aipId: thread.target.targetKind === "aip_item" ? thread.target.aipId : null,
+        aipId:
+          thread.target.targetKind === "aip_item" || thread.target.targetKind === "aip"
+            ? thread.target.aipId
+            : null,
         projectId: thread.target.targetKind === "project" ? thread.target.projectId : null,
         parentFeedbackId: firstMessageId && message.id !== firstMessageId ? firstMessageId : null,
-        kind: "question",
+        kind: message.kind,
         body: message.text,
         authorId: message.authorId ?? null,
         createdAt: message.createdAt,
@@ -405,7 +458,10 @@ function buildSeedRows(): FeedbackThreadRow[] {
 
     const targetType: FeedbackThreadRow["target_type"] =
       thread.target.targetKind === "project" ? "project" : "aip";
-    const aipId = thread.target.targetKind === "aip_item" ? thread.target.aipId : null;
+    const aipId =
+      thread.target.targetKind === "aip_item" || thread.target.targetKind === "aip"
+        ? thread.target.aipId
+        : null;
     const projectId = thread.target.targetKind === "project" ? thread.target.projectId : null;
 
     rows.push({
@@ -414,6 +470,7 @@ function buildSeedRows(): FeedbackThreadRow[] {
       project_id: projectId,
       aip_id: aipId,
       parent_feedback_id: null,
+      kind: rootMessage.kind,
       body: rootMessage.text,
       author_id: rootMessage.authorId,
       created_at: rootMessage.createdAt,
@@ -426,6 +483,7 @@ function buildSeedRows(): FeedbackThreadRow[] {
         project_id: projectId,
         aip_id: aipId,
         parent_feedback_id: thread.id,
+        kind: message.kind,
         body: message.text,
         author_id: message.authorId,
         created_at: message.createdAt,
@@ -481,6 +539,7 @@ export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
         aip_id: input.target.aip_id ?? null,
         project_id: input.target.project_id ?? null,
         parent_feedback_id: null,
+        kind: input.kind,
         body: input.body,
         author_id: input.authorId,
         created_at: now,
@@ -512,6 +571,7 @@ export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
         aip_id: parent.aip_id ?? null,
         project_id: parent.project_id ?? null,
         parent_feedback_id: parent.id,
+        kind: input.kind,
         body: input.body,
         author_id: input.authorId,
         created_at: now,

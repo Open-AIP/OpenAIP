@@ -1,9 +1,12 @@
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentThread } from "@/lib/repos/feedback/types";
-import { CITIZEN_FEEDBACK_CATEGORY_BY_THREAD_ID } from "@/mocks/fixtures/feedback/citizen-feedback.fixture";
+import type { FeedbackKind } from "@/lib/contracts/databasev2";
 
-export type FeedbackCategory = "Question" | "Concern" | "Suggestion" | "Commendation";
+export type FeedbackCategoryKind = Extract<
+  FeedbackKind,
+  "question" | "suggestion" | "concern" | "commend"
+>;
 
 export type FeedbackItem = {
   id: string;
@@ -11,7 +14,7 @@ export type FeedbackItem = {
   barangayName: string;
   createdAt: string;
   content: string;
-  category: FeedbackCategory;
+  kind: FeedbackCategoryKind;
   contextLine?: string;
   replyCount?: number;
 };
@@ -24,17 +27,27 @@ export type FeedbackUser = {
 const sortByUpdatedAtDesc = (a: CommentThread, b: CommentThread) =>
   new Date(b.preview.updatedAt).getTime() - new Date(a.preview.updatedAt).getTime();
 
-const toCategory = (threadId: string): FeedbackCategory =>
-  CITIZEN_FEEDBACK_CATEGORY_BY_THREAD_ID[threadId] ?? "Question";
+const CATEGORY_KINDS: FeedbackCategoryKind[] = [
+  "commend",
+  "suggestion",
+  "question",
+  "concern",
+];
+
+const isCategoryKind = (kind: FeedbackKind): kind is FeedbackCategoryKind =>
+  CATEGORY_KINDS.includes(kind as FeedbackCategoryKind);
 
 export async function listCitizenFeedbackItems(aipId: string): Promise<FeedbackItem[]> {
   const repo = getCommentRepo();
   const lookup = getCommentTargetLookup();
   const threads = await repo.listThreadsForInbox({ lguId: "lgu_barangay_001" });
 
-  const aipThreads = threads.filter(
-    (thread) => thread.target.targetKind === "aip_item" && thread.target.aipId === aipId
-  );
+  const aipThreads = threads.filter((thread) => {
+    if (thread.target.targetKind === "aip_item" && thread.target.aipId === aipId) {
+      return true;
+    }
+    return thread.target.targetKind === "aip" && thread.target.aipId === aipId;
+  });
 
   const remainingThreads = threads.filter((thread) => !aipThreads.includes(thread));
   const sortedAipThreads = [...aipThreads].sort(sortByUpdatedAtDesc);
@@ -56,7 +69,7 @@ export async function listCitizenFeedbackItems(aipId: string): Promise<FeedbackI
   return selected.map((thread) => {
     const context = resolvedMap.get(thread.id);
     const contextLine =
-      context && thread.target.targetKind === "aip_item"
+      context && (thread.target.targetKind === "aip_item" || thread.target.targetKind === "aip")
         ? `Submitted feedback on the ${context.contextTitle}`
         : undefined;
 
@@ -66,8 +79,42 @@ export async function listCitizenFeedbackItems(aipId: string): Promise<FeedbackI
       barangayName: thread.preview.authorScopeLabel ?? "Barangay",
       createdAt: thread.preview.updatedAt,
       content: thread.preview.text,
-      category: toCategory(thread.id),
+      kind: isCategoryKind(thread.preview.kind) ? thread.preview.kind : "question",
       contextLine,
     };
   });
+}
+
+export async function createCitizenFeedback({
+  aipId,
+  message,
+  kind,
+  user,
+}: {
+  aipId: string;
+  message: string;
+  kind: FeedbackCategoryKind;
+  user: FeedbackUser;
+}): Promise<FeedbackItem> {
+  const repo = getCommentRepo();
+  const authorId = user.name.trim().toLowerCase().replace(/\s+/g, "_");
+  const thread = await repo.createThread({
+    target: { targetKind: "aip", aipId },
+    text: message,
+    kind,
+    authorId,
+    authorRole: "citizen",
+    authorName: user.name,
+    authorScopeLabel: user.barangayName,
+  });
+
+  return {
+    id: thread.id,
+    authorName: thread.preview.authorName ?? user.name,
+    barangayName: thread.preview.authorScopeLabel ?? user.barangayName,
+    createdAt: thread.preview.updatedAt,
+    content: thread.preview.text,
+    kind,
+    contextLine: "Submitted feedback on the AIP",
+  };
 }

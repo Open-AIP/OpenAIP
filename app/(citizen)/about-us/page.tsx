@@ -290,55 +290,60 @@ export default function AboutUsPage() {
 			</section>
 
 			<section className="mx-auto w-full max-w-6xl">
-				<div className="relative overflow-hidden rounded-[26px] border border-[#0B3F77] bg-gradient-to-br from-[#0B3F77] via-[#0C4AA1] to-[#0B3F77] px-6 py-8 text-white shadow-xl md:px-10">
-					<div className="pointer-events-none absolute inset-0">
-						<div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.2),transparent_55%)]" />
-						<div className="absolute bottom-0 left-0 right-0 h-24 opacity-35 [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.35)_0_12px,transparent_12px_24px)]" />
-					</div>
+				<div className="relative overflow-hidden rounded-[18px] border border-[#0A4A9E] bg-gradient-to-b from-[#0E5AC5] via-[#0B4EA5] to-[#07396F] px-6 py-8 text-white shadow-xl md:px-10">
 					<div className="relative z-10 text-center">
-						<Badge className="bg-white/15 text-white">Ready to Explore Your LGU's AIP?</Badge>
-						<h2 className="mt-4 text-2xl font-semibold">Discover how your local government plans to invest in your community</h2>
-						<Button asChild className="mt-6 bg-white text-[#0B3F77] hover:bg-slate-100">
-							<Link href="/aips">Explore Your LGU's AIP</Link>
+						<h2 className="text-xl font-semibold">Ready to Explore Your LGU's AIP?</h2>
+						<p className="mt-2 text-xs text-white/80">
+							Discover how your local government plans to invest in your community
+						</p>
+						<Button asChild className="mt-5 h-8 rounded-full bg-white px-4 text-[11px] font-semibold text-[#0B4EA5] hover:bg-slate-100">
+							<Link href="/aips">
+								Explore Your LGU's AIP <span aria-hidden="true">→</span>
+							</Link>
 						</Button>
 					</div>
-					<div className="relative z-10 mt-8 grid gap-4 rounded-2xl bg-white/10 p-4 text-xs text-white/90 md:grid-cols-2">
-						<div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
-							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/20">
+
+					<div className="relative z-10 mt-6 grid gap-3 md:grid-cols-2">
+						<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/15">
 								<BarChart3 className="h-4 w-4" />
 							</div>
 							<div>
-								<p className="font-semibold text-white">View Interactive Dashboard</p>
-								<p className="text-[11px] text-white/70">See annual priorities visually</p>
+								<p className="text-xs font-semibold text-white">View Interactive Dashboard</p>
+								<p className="text-[10px] text-white/70">Explore budget data visually</p>
 							</div>
 						</div>
-						<div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
-							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/20">
+						<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/15">
 								<Layers className="h-4 w-4" />
 							</div>
 							<div>
-								<p className="font-semibold text-white">Compare Budget Allocations</p>
-								<p className="text-[11px] text-white/70">Analyze spending across sectors</p>
+								<p className="text-xs font-semibold text-white">Compare Budget Allocations</p>
+								<p className="text-[10px] text-white/70">Analyze spending across sectors</p>
 							</div>
 						</div>
-						<div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
-							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/20">
+						<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/15">
 								<FileText className="h-4 w-4" />
 							</div>
 							<div>
-								<p className="font-semibold text-white">Browse AIP Documents</p>
-								<p className="text-[11px] text-white/70">Review project documentation</p>
+								<p className="text-xs font-semibold text-white">Browse AIP Documents</p>
+								<p className="text-[10px] text-white/70">Monitor project implementation</p>
 							</div>
 						</div>
-						<div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
-							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/20">
+						<div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3">
+							<div className="grid h-9 w-9 place-items-center rounded-lg bg-white/15">
 								<Building2 className="h-4 w-4" />
 							</div>
 							<div>
-								<p className="font-semibold text-white">Explore Local Projects</p>
-								<p className="text-[11px] text-white/70">Discover planned programs and updates</p>
+								<p className="text-xs font-semibold text-white">Explore Local Projects</p>
+								<p className="text-[10px] text-white/70">Browse planned projects and updates</p>
 							</div>
 						</div>
+					</div>
+
+					<div className="relative z-10 mt-6 border-t border-white/15 pt-3 text-center text-[10px] text-white/70">
+						• Based on official AIP documents and prescribed templates •
 					</div>
 				</div>
 			</section>

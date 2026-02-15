@@ -9,6 +9,8 @@ export type {
   FeedbackKind,
   ChatMessageRole,
   ProjectCategory,
+  PipelineStage,
+  PipelineStatus,
 } from "./enums";
 
 export type { AipScopeRef, ActorContext, ActorRole } from "./scopes";
@@ -25,3 +27,6 @@ export type { AipRow } from "./rows/aips";
 export type { AipReviewRow } from "./rows/aip_reviews";
 export type { ProjectRow, HealthProjectDetailsRow, InfrastructureProjectDetailsRow } from "./rows/projects";
 export type { ActivityLogRow } from "./rows/activity_log";
+export type { UploadedFileRow } from "./rows/uploaded_files";
+export type { ExtractionRunRow } from "./rows/extraction_runs";
+export type { ExtractionArtifactRow } from "./rows/extraction_artifacts";

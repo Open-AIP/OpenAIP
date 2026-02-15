@@ -26,6 +26,7 @@ import type { AipHeader } from "../types";
 import { getAipYears } from "../utils";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
+import { isMockEnabled } from "@/lib/config/appEnv";
 
 /**
  * Props for AipManagementView component
@@ -61,6 +62,7 @@ export default function AipManagementView({
 
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [openUpload, setOpenUpload] = useState(false);
+  const mockEnabled = isMockEnabled();
 
   const filtered = useMemo(() => {
     if (yearFilter === "all") return activeRecords;
@@ -120,15 +122,44 @@ export default function AipManagementView({
         open={openUpload}
         onOpenChange={setOpenUpload}
         scope={scope}
-        onSubmit={({ file, year }) => {
-          // mock handling for now
-          console.log("Upload payload:", { file, year, scope });
-        }}   
-        onSuccess={(aipId) => {
-          // Route to the mock AIP detail page
+        onSubmit={async ({ file, year }) => {
+          if (mockEnabled) {
+            throw new Error("Upload requires Supabase mode. Set NEXT_PUBLIC_USE_MOCKS=false.");
+          }
+          if (scope !== "barangay") {
+            throw new Error("City upload flow is not implemented yet.");
+          }
+
+          const form = new FormData();
+          form.append("file", file);
+          form.append("year", String(year));
+
+          const response = await fetch("/api/barangay/aips/upload", {
+            method: "POST",
+            body: form,
+          });
+
+          const payload = (await response.json()) as {
+            message?: string;
+            aipId?: string;
+            runId?: string;
+            status?: string;
+          };
+
+          if (!response.ok || !payload.aipId || !payload.runId || !payload.status) {
+            throw new Error(payload.message ?? "Failed to upload AIP.");
+          }
+
+          return {
+            aipId: payload.aipId,
+            runId: payload.runId,
+            status: payload.status,
+          };
+        }}
+        onSuccess={({ aipId, runId }) => {
           const scopePath = scope === "city" ? "city" : "barangay";
-          router.push(`/${scopePath}/aips/${aipId}`);
-        }}     
+          router.push(`/${scopePath}/aips/${aipId}?run=${encodeURIComponent(runId)}`);
+        }}
       />
     </div>
   );

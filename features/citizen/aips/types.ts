@@ -1,4 +1,4 @@
-import type { Sector } from "@/lib/repos/aip";
+import type { Sector } from "@/lib/repos/aip/repo";
 
 export type AipListItem = {
   id: string;

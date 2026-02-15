@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +45,13 @@ export default function AipDetailView({
   const pathname = usePathname();
   const threadId = searchParams.get("thread");
   const tab = searchParams.get("tab");
+  const runId = searchParams.get("run");
   const activeTab = tab === "comments" ? "comments" : "summary";
+  const [runStatus, setRunStatus] = useState<{
+    status: string;
+    stage: string;
+    errorMessage: string | null;
+  } | null>(null);
   // `focus` is only meaningful in the context of the feedback/comments UI.
   // Avoid showing a "focused row" outline in the AIP details table (Summary tab).
   const focusedRowId =
@@ -54,6 +60,49 @@ export default function AipDetailView({
     onCancel ?? (() => console.log("Canceling AIP draft:", aip.id));
   const handleSubmitForReview =
     onSubmit ?? (() => console.log("Submitting AIP for review:", aip.id));
+
+  useEffect(() => {
+    if (!runId || scope !== "barangay") {
+      return;
+    }
+    const activeRunId = runId;
+
+    let cancelled = false;
+    const terminal = new Set(["succeeded", "failed"]);
+
+    async function poll() {
+      try {
+        const res = await fetch(`/api/barangay/aips/runs/${encodeURIComponent(activeRunId)}`);
+        if (!res.ok) return;
+        const payload = (await res.json()) as {
+          status: string;
+          stage: string;
+          errorMessage: string | null;
+        };
+        if (cancelled) return;
+        setRunStatus({
+          status: payload.status,
+          stage: payload.stage,
+          errorMessage: payload.errorMessage ?? null,
+        });
+        if (terminal.has(payload.status)) {
+          return;
+        }
+      } catch {
+        // Best-effort polling only.
+      }
+    }
+
+    poll();
+    const timer = window.setInterval(async () => {
+      await poll();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [runId, scope]);
 
   const breadcrumb = [
     { label: "AIP Management", href: `/${scope}/aips` },
@@ -76,6 +125,22 @@ export default function AipDetailView({
           </Badge>
         </CardContent>
       </Card>
+
+      {runStatus ? (
+        <Card className="border-slate-200">
+          <CardContent className="p-4 text-sm">
+            <p className="font-medium text-slate-900">
+              Extraction run status: <span className="capitalize">{runStatus.status}</span>
+            </p>
+            <p className="mt-1 text-slate-600">
+              Current stage: <span className="capitalize">{runStatus.stage}</span>
+            </p>
+            {runStatus.errorMessage ? (
+              <p className="mt-2 text-red-700">{runStatus.errorMessage}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className={showRemarks ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"}>
         <div className="space-y-6">

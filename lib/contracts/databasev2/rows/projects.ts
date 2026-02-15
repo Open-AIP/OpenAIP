@@ -17,6 +17,7 @@ export type ProjectRow = {
 
   personal_services: number | null;
   maintenance_and_other_operating_expenses: number | null;
+  financial_expenses?: number | null;
   capital_outlay: number | null;
   total: number | null;
 

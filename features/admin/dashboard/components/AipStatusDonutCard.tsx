@@ -19,11 +19,9 @@ const createSegments = (data: AipStatusDistributionVM[]): DonutSegment[] => {
 export default function AipStatusDonutCard({
   data,
   onStatusClick,
-  onViewAips,
 }: {
   data: AipStatusDistributionVM[];
   onStatusClick: (status: string) => void;
-  onViewAips: () => void;
 }) {
   const segments = createSegments(data);
   const total = data.reduce((sum, item) => sum + item.count, 0);
@@ -100,10 +98,6 @@ export default function AipStatusDonutCard({
           Interactive Chart: Click a status segment or legend item to open AIP Oversight filtered to that
           status.
         </div>
-
-        <Button className="w-full bg-[#0E5D6F] text-white hover:bg-[#0E5D6F]/90" onClick={onViewAips}>
-          View AIPs
-        </Button>
       </CardContent>
     </Card>
   );

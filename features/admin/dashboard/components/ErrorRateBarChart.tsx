@@ -10,6 +10,9 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
   const barWidth = 16;
   const gap = 10;
   const width = data.length * (barWidth + gap);
+  const svgWidth = Math.max(width, 420);
+  const plotWidth = svgWidth - 40;
+  const gridLines = 4;
 
   return (
     <Card className="border-slate-200">
@@ -21,8 +24,27 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
-          <svg width={Math.max(width, 420)} height={220} className="text-slate-400">
+          <svg
+            width="100%"
+            height={220}
+            viewBox={`0 0 ${svgWidth} 220`}
+            className="text-slate-400"
+          >
             <g transform="translate(20,20)">
+              {Array.from({ length: gridLines + 1 }, (_, idx) => {
+                const y = (chartHeight / gridLines) * idx;
+                return (
+                  <line
+                    key={`grid-${idx}`}
+                    x1={0}
+                    y1={y}
+                    x2={plotWidth}
+                    y2={y}
+                    stroke="#e2e8f0"
+                    strokeWidth={1}
+                  />
+                );
+              })}
               {data.map((point, idx) => {
                 const barHeight = (point.value / maxValue) * chartHeight;
                 const x = idx * (barWidth + gap);
@@ -54,4 +76,3 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
     </Card>
   );
 }
-

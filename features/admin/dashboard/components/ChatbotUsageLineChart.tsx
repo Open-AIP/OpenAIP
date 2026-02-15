@@ -8,6 +8,9 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
   const maxValue = Math.max(...data.map((d) => d.value), 1);
   const chartHeight = 160;
   const chartWidth = data.length * 30;
+  const svgWidth = Math.max(chartWidth, 420);
+  const plotWidth = svgWidth - 40;
+  const gridLines = 4;
 
   const points = data
     .map((point, idx) => {
@@ -27,8 +30,22 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
-          <svg width={Math.max(chartWidth, 420)} height={220}>
+          <svg width="100%" height={220} viewBox={`0 0 ${svgWidth} 220`}>
             <g transform="translate(20,20)">
+              {Array.from({ length: gridLines + 1 }, (_, idx) => {
+                const y = (chartHeight / gridLines) * idx;
+                return (
+                  <line
+                    key={`grid-${idx}`}
+                    x1={0}
+                    y1={y}
+                    x2={plotWidth}
+                    y2={y}
+                    stroke="#e2e8f0"
+                    strokeWidth={1}
+                  />
+                );
+              })}
               <polyline
                 fill="none"
                 stroke="#0E5D6F"
@@ -59,4 +76,3 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
     </Card>
   );
 }
-

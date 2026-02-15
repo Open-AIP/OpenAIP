@@ -194,7 +194,6 @@ export default function AdminDashboardView() {
         <AipStatusDonutCard
           data={distribution}
           onStatusClick={handleStatusClick}
-          onViewAips={() => router.push(`/admin/aip-monitoring?${buildQuery()}`)}
         />
         {reviewBacklog && (
           <ReviewBacklogCard
@@ -225,4 +224,3 @@ export default function AdminDashboardView() {
     </div>
   );
 }
-

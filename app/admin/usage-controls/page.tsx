@@ -1,6 +1,5 @@
-import Placeholder from "@/components/layout/placeholder";
+import PlatformControlsView from "@/features/admin/usage-controls/views/platform-controls-view";
 
 export default function UsageControlsPage() {
-  return <Placeholder title="Usage Controls" description="This module is under development." />;
+  return <PlatformControlsView />;
 }
-

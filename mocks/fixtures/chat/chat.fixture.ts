@@ -39,7 +39,7 @@ export const CHAT_MESSAGES_FIXTURE: ChatMessageRow[] = [
     role: "user",
     content: "How should I allocate the budget for health programs?",
     citations: null,
-    retrieval_meta: null,
+    retrieval_meta: { is_error: true },
     created_at: "2026-02-10T14:30:00.000Z",
   },
   {

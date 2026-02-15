@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/ui/utils";
 import type { LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 
 const tagToneStyles: Record<"info" | "warning" | "danger", string> = {
   info: "bg-blue-50 text-blue-700 border-blue-200",
@@ -34,6 +35,8 @@ export default function KpiCard({
   tagLabel?: string;
   tagTone?: "info" | "warning" | "danger";
 }) {
+  const isNegative = deltaLabel.trim().startsWith("-");
+  const TrendIcon = isNegative ? ArrowDownRight : ArrowUpRight;
   return (
     <Card className="border-slate-200">
       <CardContent className="p-5 space-y-4">
@@ -46,15 +49,20 @@ export default function KpiCard({
           )}
         </div>
         <div>
-          <div className="text-2xl font-semibold text-slate-900">{value}</div>
+          <div className="text-[28px] font-semibold text-slate-900">{value}</div>
           <div className="text-[12px] text-slate-500">{title}</div>
         </div>
-        <div className="text-[11px] text-slate-500">{deltaLabel}</div>
+        <div className="flex items-center gap-1 text-[11px] text-slate-500">
+          <TrendIcon className={cn("h-3.5 w-3.5", isNegative ? "text-rose-500" : "text-emerald-500")} />
+          <span>{deltaLabel}</span>
+        </div>
         <Button variant="outline" className="w-full justify-between text-[12px]" asChild>
-          <Link href={ctaHref}>{ctaLabel}</Link>
+          <Link href={ctaHref}>
+            <span>{ctaLabel}</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </Button>
       </CardContent>
     </Card>
   );
 }
-

@@ -1,6 +1,5 @@
-import Placeholder from "@/components/layout/placeholder";
+import SystemAdministrationView from "@/features/admin/system-administration/views/system-administration-view";
 
 export default function SystemAdministrationPage() {
-  return <Placeholder title="System Administration" description="This module is under development." />;
+  return <SystemAdministrationView />;
 }
-

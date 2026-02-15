@@ -1,0 +1,158 @@
+import type { AipRecord, ActivityLogRecord, AdminDashboardDataset } from "@/lib/repos/admin-dashboard/types";
+import { FEEDBACK_MODERATION_DATASET } from "@/mocks/fixtures/admin/feedback-moderation/feedbackModeration.mock";
+import { CHAT_MESSAGES_FIXTURE } from "@/mocks/fixtures/chat/chat.fixture";
+import { AIP_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
+
+const ADMIN_ID = "admin_001";
+
+const createAip = (input: AipRecord): AipRecord => ({ ...input });
+const createActivity = (input: ActivityLogRecord): ActivityLogRecord => ({ ...input });
+
+const EXTRA_AIPS: AipRecord[] = [
+  createAip({
+    id: AIP_IDS.city_2025,
+    fiscal_year: 2025,
+    barangay_id: null,
+    city_id: "city_qc",
+    municipality_id: null,
+    status: "under_review",
+    status_updated_at: "2026-02-07T08:00:00.000Z",
+    submitted_at: "2026-02-01T08:00:00.000Z",
+    published_at: null,
+    created_by: "profile_elena",
+    created_at: "2026-01-05T08:00:00.000Z",
+    updated_at: "2026-02-07T08:00:00.000Z",
+  }),
+  createAip({
+    id: AIP_IDS.barangay_poblacion_2026,
+    fiscal_year: 2026,
+    barangay_id: "brgy_poblacion",
+    city_id: null,
+    municipality_id: null,
+    status: "pending_review",
+    status_updated_at: "2026-02-12T09:30:00.000Z",
+    submitted_at: "2026-02-12T09:00:00.000Z",
+    published_at: null,
+    created_by: "profile_maria",
+    created_at: "2026-02-10T08:00:00.000Z",
+    updated_at: "2026-02-12T09:30:00.000Z",
+  }),
+  createAip({
+    id: AIP_IDS.barangay_sanisidro_2026,
+    fiscal_year: 2026,
+    barangay_id: "brgy_sanisidro",
+    city_id: null,
+    municipality_id: null,
+    status: "for_revision",
+    status_updated_at: "2026-02-02T10:30:00.000Z",
+    submitted_at: "2026-01-25T08:00:00.000Z",
+    published_at: null,
+    created_by: "profile_juan",
+    created_at: "2026-01-15T08:00:00.000Z",
+    updated_at: "2026-02-02T10:30:00.000Z",
+  }),
+  createAip({
+    id: AIP_IDS.barangay_mamadid_2025,
+    fiscal_year: 2025,
+    barangay_id: "brgy_mamadid",
+    city_id: null,
+    municipality_id: "municipality_001",
+    status: "draft",
+    status_updated_at: "2026-02-11T07:45:00.000Z",
+    submitted_at: null,
+    published_at: null,
+    created_by: "profile_ana",
+    created_at: "2026-02-05T08:00:00.000Z",
+    updated_at: "2026-02-11T07:45:00.000Z",
+  }),
+];
+
+const EXTRA_ACTIVITY: ActivityLogRecord[] = [
+  createActivity({
+    id: "activity_dash_001",
+    actor_id: ADMIN_ID,
+    actor_role: "admin",
+    action: "feedback_hidden",
+    entity_table: "feedback",
+    entity_id: "feedback_001",
+    region_id: null,
+    province_id: null,
+    city_id: "city_qc",
+    municipality_id: null,
+    barangay_id: "brgy_sanisidro",
+    metadata: {
+      details: "Comment #45821 on AIP-2026-001",
+      actor_name: "Admin Maria Rodriguez",
+    },
+    created_at: "2026-02-12T14:23:15.000Z",
+  }),
+  createActivity({
+    id: "activity_dash_002",
+    actor_id: ADMIN_ID,
+    actor_role: "admin",
+    action: "aip_locked",
+    entity_table: "aips",
+    entity_id: AIP_IDS.city_2025,
+    region_id: null,
+    province_id: null,
+    city_id: "city_qc",
+    municipality_id: null,
+    barangay_id: null,
+    metadata: {
+      details: "AIP-2026-027 (Quezon City) locked for review",
+      actor_name: "Admin Carlos Santos",
+    },
+    created_at: "2026-02-11T14:35:32.000Z",
+  }),
+  createActivity({
+    id: "activity_dash_003",
+    actor_id: ADMIN_ID,
+    actor_role: "admin",
+    action: "user_suspended",
+    entity_table: "profiles",
+    entity_id: "profile_juan",
+    region_id: null,
+    province_id: null,
+    city_id: "city_qc",
+    municipality_id: null,
+    barangay_id: "brgy_sanisidro",
+    metadata: {
+      details: "User: john.doe@example.com",
+      actor_name: "Admin Juan Dela Cruz",
+    },
+    created_at: "2026-02-10T12:10:10.000Z",
+  }),
+  createActivity({
+    id: "activity_dash_004",
+    actor_id: ADMIN_ID,
+    actor_role: "admin",
+    action: "aip_published",
+    entity_table: "aips",
+    entity_id: AIP_IDS.city_2026,
+    region_id: null,
+    province_id: null,
+    city_id: "city_qc",
+    municipality_id: null,
+    barangay_id: null,
+    metadata: {
+      details: "AIP-2026-019 (Makati)",
+      actor_name: "Admin Ana Reyes",
+    },
+    created_at: "2026-02-09T09:05:21.000Z",
+  }),
+];
+
+export const ADMIN_DASHBOARD_DATASET: AdminDashboardDataset = {
+  cities: FEEDBACK_MODERATION_DATASET.cities.map((row) => ({ ...row })),
+  municipalities: FEEDBACK_MODERATION_DATASET.municipalities.map((row) => ({ ...row })),
+  barangays: FEEDBACK_MODERATION_DATASET.barangays.map((row) => ({ ...row })),
+  profiles: FEEDBACK_MODERATION_DATASET.profiles.map((row) => ({ ...row })),
+  aips: [...FEEDBACK_MODERATION_DATASET.aips.map((row) => ({ ...row })), ...EXTRA_AIPS],
+  feedback: FEEDBACK_MODERATION_DATASET.feedback.map((row) => ({ ...row })),
+  activity: [
+    ...FEEDBACK_MODERATION_DATASET.activity.map((row) => ({ ...row })),
+    ...EXTRA_ACTIVITY,
+  ],
+  chatMessages: CHAT_MESSAGES_FIXTURE.map((row) => ({ ...row })),
+};
+

@@ -1,6 +1,5 @@
-import Placeholder from "@/components/layout/placeholder";
+import AdminDashboardView from "@/features/admin/dashboard/views/admin-dashboard-view";
 
 export default function AdminDashboardPage() {
-  return <Placeholder title="Dashboard" description="This module is under development." />;
+  return <AdminDashboardView />;
 }
-

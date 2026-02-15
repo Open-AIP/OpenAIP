@@ -1,7 +1,5 @@
-const BarangayChatbot = () => {
-  return (
-    <div>BarangayChatbot</div>
-  )
-}
+import LguChatbotView from "@/features/chat/views/lgu-chatbot-view";
 
-export default BarangayChatbot
+export default function BarangayChatbot() {
+  return <LguChatbotView />;
+}

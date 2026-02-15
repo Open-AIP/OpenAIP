@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { FeedbackModerationRow } from "@/lib/repos/feedback-moderation/mappers/feedback.mapper";
 
@@ -54,10 +55,29 @@ export default function FeedbackDetailsModal({
               </div>
             </div>
 
+            {row.status === "Hidden" && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
+                  <div className="space-y-2 text-sm">
+                    <div className="font-semibold">Comment is Currently Hidden</div>
+                    <div className="text-amber-800">
+                      Citizens see: &quot;This comment has been hidden due to policy violation.&quot;
+                    </div>
+                    <div className="text-amber-800">
+                      Moderation Reason: {row.hiddenReason ?? "Policy violation."}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <div className="text-sm font-medium text-slate-900">Violation</div>
               <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-600">
-                {row.violationCategory ?? "No violation for this comment."}
+                <span className={row.status === "Hidden" ? "text-rose-600" : ""}>
+                  {row.violationCategory ?? "No violation for this comment."}
+                </span>
               </div>
             </div>
 

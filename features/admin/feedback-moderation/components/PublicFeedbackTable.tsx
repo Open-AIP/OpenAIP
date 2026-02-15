@@ -42,28 +42,28 @@ export default function PublicFeedbackTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50 hover:bg-slate-50">
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Comment Preview
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Submitted By
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 LGU
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Project
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Violation Category
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Status
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Submitted Date
               </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold text-right">
+              <TableHead className="p-4 text-[11px] uppercase tracking-wide text-slate-500 font-semibold text-right">
                 Actions
               </TableHead>
             </TableRow>
@@ -72,23 +72,25 @@ export default function PublicFeedbackTable({
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.id} className="hover:bg-slate-50">
-                <TableCell className="text-[13.5px] text-slate-900">
-                  <div className="line-clamp-2 max-w-[280px]">{row.commentPreview}</div>
+                <TableCell className="p-4 text-[13.5px] text-slate-900 align-top">
+                  <div className="max-w-[280px] whitespace-normal break-words">
+                    {row.commentPreview}
+                  </div>
                 </TableCell>
-                <TableCell className="text-[13.5px] text-slate-700">
+                <TableCell className="p-4 text-[13.5px] text-slate-700">
                   <div className="font-medium text-slate-900">{row.submittedByName}</div>
                   {row.submittedByEmail ? (
                     <div className="text-xs text-slate-500">{row.submittedByEmail}</div>
                   ) : null}
                 </TableCell>
-                <TableCell className="text-[13.5px] text-slate-700">{row.lguName}</TableCell>
-                <TableCell className="text-[13.5px] text-slate-700">
+                <TableCell className="p-4 text-[13.5px] text-slate-700">{row.lguName}</TableCell>
+                <TableCell className="p-4 text-[13.5px] text-slate-700">
                   {row.projectName}
                 </TableCell>
-                <TableCell className="text-[13.5px] text-slate-700">
+                <TableCell className="p-4 text-[13.5px] text-slate-700">
                   {row.violationCategory ?? "N/A"}
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-4">
                   <Badge
                     variant="outline"
                     className={cn(
@@ -99,10 +101,10 @@ export default function PublicFeedbackTable({
                     {row.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-[13.5px] text-slate-700">
+                <TableCell className="p-4 text-[13.5px] text-slate-700">
                   {row.submittedDateLabel}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="p-4 text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon-sm" aria-label="Actions">
@@ -149,7 +151,7 @@ export default function PublicFeedbackTable({
 
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-12 text-center text-sm text-slate-500">
+                <TableCell colSpan={8} className="p-4 py-12 text-center text-sm text-slate-500">
                   No feedback records found.
                 </TableCell>
               </TableRow>

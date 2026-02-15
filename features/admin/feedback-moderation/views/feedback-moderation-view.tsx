@@ -9,7 +9,7 @@ import PublicFeedbackTable from "../components/PublicFeedbackTable";
 import FeedbackDetailsModal from "../components/FeedbackDetailsModal";
 import HideFeedbackModal from "../components/HideFeedbackModal";
 import UnhideFeedbackModal from "../components/UnhideFeedbackModal";
-import ProjectUpdatesPlaceholder from "../components/ProjectUpdatesPlaceholder";
+import ProjectUpdatesPage from "@/features/admin/feedback-moderation-project-updates/components/ProjectUpdatesPage";
 import {
   mapFeedbackModerationRows,
   type FeedbackModerationRow,
@@ -230,7 +230,7 @@ export default function FeedbackModerationView() {
           )}
         </div>
       ) : (
-        <ProjectUpdatesPlaceholder />
+        <ProjectUpdatesPage />
       )}
 
       <FeedbackDetailsModal

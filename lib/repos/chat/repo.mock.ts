@@ -1,4 +1,8 @@
-import { CHAT_MESSAGES_FIXTURE, CHAT_SESSIONS_FIXTURE } from "@/mocks/fixtures/chat/chat.fixture";
+import {
+  CHAT_MESSAGES_FIXTURE,
+  CHAT_SESSIONS_FIXTURE,
+} from "@/mocks/fixtures/chat/chat.fixture";
+import type { ChatMessageRow, ChatSessionRow } from "@/lib/contracts/databasev2";
 import type { ChatMessageRole } from "@/lib/contracts/databasev2";
 import { ChatRepoErrors } from "./types";
 import type { ChatMessage, ChatRepo, ChatSession } from "./repo";
@@ -6,11 +10,31 @@ import type { ChatMessage, ChatRepo, ChatSession } from "./repo";
 // [DATAFLOW] Mock `ChatRepo` implementation backed by in-memory arrays.
 // [DBV2] Supabase adapter should map sessions/messages to `public.chat_sessions`/`public.chat_messages` and keep messages append-only.
 
-let sessionSequence = 1;
-let messageSequence = 1;
+let sessionSequence = CHAT_SESSIONS_FIXTURE.length + 1;
+let messageSequence = CHAT_MESSAGES_FIXTURE.length + 1;
 
-let sessionsStore: ChatSession[] = [...CHAT_SESSIONS_FIXTURE];
-let messagesStore: ChatMessage[] = [...CHAT_MESSAGES_FIXTURE];
+const mapSessionRecord = (record: ChatSessionRow): ChatSession => ({
+  id: record.id,
+  userId: record.user_id,
+  title: record.title,
+  context: record.context,
+  lastMessageAt: record.last_message_at,
+  createdAt: record.created_at,
+  updatedAt: record.updated_at,
+});
+
+const mapMessageRecord = (record: ChatMessageRow): ChatMessage => ({
+  id: record.id,
+  sessionId: record.session_id,
+  role: record.role,
+  content: record.content,
+  createdAt: record.created_at,
+  citations: record.citations ?? null,
+  retrievalMeta: record.retrieval_meta ?? null,
+});
+
+let sessionsStore: ChatSession[] = CHAT_SESSIONS_FIXTURE.map(mapSessionRecord);
+let messagesStore: ChatMessage[] = CHAT_MESSAGES_FIXTURE.map(mapMessageRecord);
 
 function nextSessionId() {
   const id = `chat_${String(sessionSequence).padStart(3, "0")}`;
@@ -29,10 +53,10 @@ function sortByCreatedAtAsc(a: { createdAt: string }, b: { createdAt: string }) 
 }
 
 export function __resetMockChatState() {
-  sessionSequence = 1;
-  messageSequence = 1;
-  sessionsStore = [...CHAT_SESSIONS_FIXTURE];
-  messagesStore = [...CHAT_MESSAGES_FIXTURE];
+  sessionSequence = CHAT_SESSIONS_FIXTURE.length + 1;
+  messageSequence = CHAT_MESSAGES_FIXTURE.length + 1;
+  sessionsStore = CHAT_SESSIONS_FIXTURE.map(mapSessionRecord);
+  messagesStore = CHAT_MESSAGES_FIXTURE.map(mapMessageRecord);
 }
 
 export function createMockChatRepo(): ChatRepo {

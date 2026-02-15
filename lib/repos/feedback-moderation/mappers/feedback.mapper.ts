@@ -15,6 +15,7 @@ export type FeedbackModerationRow = {
   lguName: string;
   projectName: string;
   violationCategory: string | null;
+  hiddenReason: string | null;
   status: "Visible" | "Hidden";
   submittedDate: string;
   submittedDateLabel: string;
@@ -46,6 +47,13 @@ const readViolationCategory = (log: Dbv2ActivityLogRow | null) => {
   const metadata = log.metadata as Record<string, unknown>;
   const category = metadata.violation_category;
   return typeof category === "string" ? category : null;
+};
+
+const readHiddenReason = (log: Dbv2ActivityLogRow | null) => {
+  if (!log || !log.metadata || typeof log.metadata !== "object") return null;
+  const metadata = log.metadata as Record<string, unknown>;
+  const reason = metadata.reason;
+  return typeof reason === "string" ? reason : null;
 };
 
 const resolveLguName = (dataset: FeedbackModerationDataset, profileId: string | null) => {
@@ -109,6 +117,7 @@ export const mapFeedbackModerationRows = (
         ? null
         : getLatestHiddenLog(dataset.activity, feedback.id);
       const violationCategory = feedback.is_public ? null : readViolationCategory(hiddenLog);
+      const hiddenReason = feedback.is_public ? null : readHiddenReason(hiddenLog);
 
       return {
         id: feedback.id,
@@ -120,6 +129,7 @@ export const mapFeedbackModerationRows = (
         lguName,
         projectName,
         violationCategory,
+        hiddenReason,
         status,
         submittedDate: feedback.created_at,
         submittedDateLabel: toDateLabel(feedback.created_at),

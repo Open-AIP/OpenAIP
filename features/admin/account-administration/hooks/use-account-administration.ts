@@ -1,231 +1,248 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getAccountsRepo } from "@/lib/repos/accounts/repo";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createOfficialAccountAction,
+  deleteAccountAction,
+  listAccountsAction,
+  resendInviteAction,
+  resetAccountPasswordAction,
+  setAccountStatusAction,
+  updateAccountAction,
+} from "../actions/account-administration.actions";
 import type {
-  AccountRecord,
+  AccountListResult,
   AccountRole,
+  AccountScopeType,
   AccountStatus,
   AccountTab,
+  CreateOfficialAccountInput,
+  OfficialRole,
+  UpdateAccountInput,
 } from "@/lib/repos/accounts/repo";
 
 export type OpenModal =
   | "details"
+  | "create"
+  | "edit"
   | "deactivate"
-  | "suspend"
-  | "reset_password"
-  | "force_logout"
   | "activate"
+  | "delete"
+  | "reset_password"
+  | "resend_invite"
   | null;
 
 export type RoleFilter = "all" | AccountRole;
 export type StatusFilter = "all" | AccountStatus;
 export type LguFilter = "all" | string;
 
-export function useAccountAdministration() {
-  const repo = useMemo(() => getAccountsRepo(), []);
+const DEFAULT_PAGE_SIZE = 10;
 
+function initialListResult(): AccountListResult {
+  return {
+    rows: [],
+    total: 0,
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    roleOptions: ["admin", "barangay_official", "city_official", "municipal_official"],
+    lguOptions: [],
+  };
+}
+
+export function useAccountAdministration() {
   const [activeTab, setActiveTab] = useState<AccountTab>("officials");
-  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
+  const [listResult, setListResult] = useState<AccountListResult>(initialListResult());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
 
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [lguFilter, setLguFilter] = useState<LguFilter>("all");
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState<OpenModal>(null);
 
-  const [suspensionReason, setSuspensionReason] = useState("");
-  const [suspensionEndDate, setSuspensionEndDate] = useState("");
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const rows = await repo.list(activeTab);
-        if (!isActive) return;
-        setAccounts(rows);
-      } catch (err) {
-        if (!isActive) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load accounts."
-        );
-      } finally {
-        if (isActive) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [repo, activeTab]);
-
   const selectedAccount = useMemo(() => {
     if (!selectedAccountId) return null;
-    return accounts.find((row) => row.id === selectedAccountId) ?? null;
-  }, [accounts, selectedAccountId]);
+    return listResult.rows.find((row) => row.id === selectedAccountId) ?? null;
+  }, [listResult.rows, selectedAccountId]);
 
-  const roleOptions = useMemo(() => {
-    const set = new Set<AccountRole>();
-    accounts.forEach((row) => set.add(row.role));
-    return Array.from(set);
-  }, [accounts]);
+  const totalPages = Math.max(1, Math.ceil(listResult.total / listResult.pageSize));
 
-  const lguOptions = useMemo(() => {
-    const set = new Set<string>();
-    accounts.forEach((row) => {
-      if (row.lguAssignment && row.lguAssignment !== "—") set.add(row.lguAssignment);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [accounts]);
+  const lguOptions = useMemo(() => listResult.lguOptions, [listResult.lguOptions]);
 
-  const filteredAccounts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return accounts.filter((row) => {
-      if (roleFilter !== "all" && row.role !== roleFilter) return false;
-      if (statusFilter !== "all" && row.status !== statusFilter) return false;
-      if (lguFilter !== "all" && row.lguAssignment !== lguFilter) return false;
+  const filteredRoleOptions = useMemo(() => {
+    if (activeTab === "citizens") return ["citizen"] as AccountRole[];
+    return listResult.roleOptions.filter((role) => role !== "citizen");
+  }, [activeTab, listResult.roleOptions]);
 
-      if (!q) return true;
-      return (
-        row.fullName.toLowerCase().includes(q) ||
-        row.email.toLowerCase().includes(q)
-      );
-    });
-  }, [accounts, query, roleFilter, statusFilter, lguFilter]);
+  const createRoleOptions = useMemo(
+    () =>
+      (["barangay_official", "city_official", "municipal_official"] as OfficialRole[]),
+    []
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listAccountsAction({
+        tab: activeTab,
+        query,
+        role: roleFilter,
+        status: statusFilter,
+        lguKey: lguFilter,
+        page,
+        pageSize,
+      });
+      setListResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load accounts.");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, lguFilter, page, pageSize, query, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, query, roleFilter, statusFilter, lguFilter]);
+
+  useEffect(() => {
+    setRoleFilter("all");
+    setLguFilter("all");
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   function closeModal() {
     setOpenModal(null);
   }
 
   function openFor(id: string, modal: Exclude<OpenModal, null>) {
-    setSelectedAccountId(id);
+    if (modal === "create") {
+      setSelectedAccountId(null);
+    } else {
+      setSelectedAccountId(id);
+    }
     setOpenModal(modal);
-    if (modal !== "suspend") {
-      setSuspensionReason("");
-      setSuspensionEndDate("");
+    setNotice(null);
+    setError(null);
+  }
+
+  async function performMutation(run: () => Promise<void>) {
+    setMutating(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await run();
+      await load();
+      closeModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Operation failed.");
+    } finally {
+      setMutating(false);
     }
   }
 
-  async function applyStatus(id: string, status: AccountStatus) {
-    const updated = await repo.setStatus(id, status, { kind: "none" });
-    setAccounts((prev) => prev.map((row) => (row.id === id ? updated : row)));
-    return updated;
+  async function createOfficial(input: CreateOfficialAccountInput) {
+    await performMutation(async () => {
+      await createOfficialAccountAction(input);
+      setNotice("Official account invited successfully.");
+    });
+  }
+
+  async function updateSelected(input: { fullName: string; role: AccountRole; lguKey: string | "none" }) {
+    if (!selectedAccount) return;
+
+    const scopeType = input.lguKey === "none"
+      ? "none"
+      : (input.lguKey.split(":")[0] as AccountScopeType);
+    const scopeId =
+      input.lguKey === "none" ? null : input.lguKey.split(":").slice(1).join(":");
+
+    const patch: UpdateAccountInput = {
+      fullName: input.fullName,
+      role: input.role,
+      scopeType,
+      scopeId,
+    };
+
+    await performMutation(async () => {
+      await updateAccountAction(selectedAccount.id, patch);
+      setNotice("Account updated.");
+    });
   }
 
   async function deactivateSelected() {
     if (!selectedAccount) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const updated = await repo.setStatus(selectedAccount.id, "deactivated", {
-        kind: "none",
-      });
-      setAccounts((prev) =>
-        prev.map((row) => (row.id === selectedAccount.id ? updated : row))
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to deactivate account."
-      );
-    } finally {
-      setLoading(false);
-      closeModal();
-    }
+    await performMutation(async () => {
+      await setAccountStatusAction(selectedAccount.id, "deactivated");
+      setNotice("Account deactivated.");
+    });
   }
 
   async function activateSelected() {
     if (!selectedAccount) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const updated = await repo.setStatus(selectedAccount.id, "active", {
-        kind: "none",
-      });
-      setAccounts((prev) =>
-        prev.map((row) => (row.id === selectedAccount.id ? updated : row))
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to activate account."
-      );
-    } finally {
-      setLoading(false);
-      closeModal();
-    }
+    await performMutation(async () => {
+      await setAccountStatusAction(selectedAccount.id, "active");
+      setNotice("Account activated.");
+    });
   }
 
-  async function suspendSelected() {
+  async function deleteSelected() {
     if (!selectedAccount) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const reason = suspensionReason.trim();
-      const updated = await repo.setStatus(selectedAccount.id, "suspended", {
-        kind: "suspension",
-        reason,
-        endDate: suspensionEndDate.trim() ? suspensionEndDate.trim() : undefined,
-      });
-      setAccounts((prev) =>
-        prev.map((row) => (row.id === selectedAccount.id ? updated : row))
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to suspend account."
-      );
-    } finally {
-      setLoading(false);
-      closeModal();
-    }
+    await performMutation(async () => {
+      await deleteAccountAction(selectedAccount.id);
+      setSelectedAccountId(null);
+      setNotice("Account deleted.");
+    });
   }
 
   async function resetPasswordSelected() {
     if (!selectedAccount) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await repo.resetPassword(selectedAccount.id);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to reset password."
-      );
-    } finally {
-      setLoading(false);
-      closeModal();
-    }
+    await performMutation(async () => {
+      await resetAccountPasswordAction(selectedAccount.id);
+      setNotice("Password reset email sent.");
+    });
   }
 
-  async function forceLogoutSelected() {
+  async function resendInviteSelected() {
     if (!selectedAccount) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await repo.forceLogout(selectedAccount.id);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to force logout."
-      );
-    } finally {
-      setLoading(false);
-      closeModal();
-    }
+    await performMutation(async () => {
+      await resendInviteAction(selectedAccount.id);
+      setNotice("Invite resent.");
+    });
+  }
+
+  function toLguKey(scopeType: AccountScopeType, scopeId: string | null) {
+    if (scopeType === "none" || !scopeId) return "none";
+    return `${scopeType}:${scopeId}`;
   }
 
   return {
     activeTab,
     setActiveTab,
 
-    accounts,
-    filteredAccounts,
+    rows: listResult.rows,
+    total: listResult.total,
     loading,
     error,
+    notice,
+    mutating,
 
     query,
     setQuery,
@@ -235,8 +252,15 @@ export function useAccountAdministration() {
     setStatusFilter,
     lguFilter,
     setLguFilter,
-    roleOptions,
+    roleOptions: filteredRoleOptions,
+    createRoleOptions,
     lguOptions,
+
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalPages,
 
     selectedAccount,
     openModal,
@@ -244,15 +268,14 @@ export function useAccountAdministration() {
     closeModal,
     openFor,
 
-    suspensionReason,
-    setSuspensionReason,
-    suspensionEndDate,
-    setSuspensionEndDate,
-
+    createOfficial,
+    updateSelected,
     deactivateSelected,
     activateSelected,
-    suspendSelected,
+    deleteSelected,
     resetPasswordSelected,
-    forceLogoutSelected,
+    resendInviteSelected,
+
+    toLguKey,
   };
 }

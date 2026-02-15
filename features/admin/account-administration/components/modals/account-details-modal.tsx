@@ -16,27 +16,28 @@ import { cn } from "@/ui/utils";
 import type { AccountRecord } from "@/lib/repos/accounts/repo";
 
 function roleLabel(role: AccountRecord["role"]) {
+  if (role === "admin") return "Admin";
   if (role === "barangay_official") return "Barangay Official";
   if (role === "city_official") return "City Official";
+  if (role === "municipal_official") return "Municipal Official";
   return "Citizen";
 }
 
 function statusBadgeClass(status: AccountRecord["status"]) {
   if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "suspended") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-slate-200 bg-slate-100 text-slate-600";
 }
 
-function statusLabel(status: AccountRecord["status"]) {
-  if (status === "active") return "Active";
-  if (status === "suspended") return "Suspended";
-  return "Deactivated";
+function statusLongText(status: AccountRecord["status"]) {
+  if (status === "active") return "Active - account can sign in.";
+  return "Deactivated - account access is blocked.";
 }
 
-function statusLongText(status: AccountRecord["status"]) {
-  if (status === "active") return "Active - Full system access";
-  if (status === "suspended") return "Suspended - Access temporarily blocked";
-  return "Deactivated - Account disabled";
+function formatDate(value: string | null) {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 function InfoBox({
@@ -53,7 +54,7 @@ function InfoBox({
       ? "border-amber-200 bg-amber-50 text-amber-900"
       : "border-slate-200 bg-slate-50 text-slate-700";
   return (
-      <div className={cn("rounded-lg border p-4 text-sm", cls)}>
+    <div className={cn("rounded-lg border p-4 text-sm", cls)}>
       <div className="font-medium">{title}</div>
       <div className="mt-1 text-xs leading-relaxed opacity-90">{children}</div>
     </div>
@@ -114,7 +115,7 @@ export default function AccountDetailsModal({
                     variant="outline"
                     className={cn("rounded-full px-3 py-1 text-[11px]", statusBadgeClass(account.status))}
                   >
-                    {statusLabel(account.status)}
+                    {account.status === "active" ? "Active" : "Deactivated"}
                   </Badge>
                 </div>
               </div>
@@ -134,11 +135,6 @@ export default function AccountDetailsModal({
                 value={account.lguAssignment}
               />
               <DetailItem
-                icon={<Building2 className="h-4 w-4" />}
-                label="Office / Department"
-                value={account.officeDepartment}
-              />
-              <DetailItem
                 icon={<Mail className="h-4 w-4" />}
                 label="Email Address"
                 value={account.email}
@@ -146,12 +142,22 @@ export default function AccountDetailsModal({
               <DetailItem
                 icon={<Calendar className="h-4 w-4" />}
                 label="Account Created"
-                value={account.createdDate}
+                value={formatDate(account.createdAt)}
               />
               <DetailItem
                 icon={<Clock className="h-4 w-4" />}
                 label="Last Login"
-                value={account.lastLogin}
+                value={formatDate(account.lastLoginAt)}
+              />
+              <DetailItem
+                icon={<Clock className="h-4 w-4" />}
+                label="Invite Sent"
+                value={formatDate(account.invitedAt)}
+              />
+              <DetailItem
+                icon={<Clock className="h-4 w-4" />}
+                label="Invite Accepted"
+                value={formatDate(account.emailConfirmedAt)}
               />
               <DetailItem
                 icon={<Shield className="h-4 w-4" />}
@@ -161,20 +167,14 @@ export default function AccountDetailsModal({
             </div>
 
             {account.status === "deactivated" ? (
-              <InfoBox
-                variant="neutral"
-                title="Account Deactivated"
-              >
-                This account has been permanently deactivated and cannot be used to access the system.
+              <InfoBox variant="neutral" title="Account Deactivated">
+                This account is currently blocked from signing in.
               </InfoBox>
             ) : null}
 
-            {account.status === "suspended" ? (
-              <InfoBox
-                variant="warning"
-                title="Suspension Information"
-              >
-                This account has been suspended. The user cannot access the system until the suspension is lifted.
+            {account.invitationPending ? (
+              <InfoBox variant="warning" title="Invite Pending">
+                This user has not completed the invite flow yet.
               </InfoBox>
             ) : null}
           </div>

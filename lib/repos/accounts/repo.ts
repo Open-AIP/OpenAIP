@@ -3,29 +3,37 @@ import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockAccountsRepoImpl } from "./repo.mock";
 
 export type {
+  AccountListInput,
+  AccountListResult,
   AccountRecord,
   AccountRole,
   AccountStatus,
   AccountTab,
-  SetStatusMeta,
+  AccountScopeType,
+  CreateOfficialAccountInput,
+  LguScopeType,
+  LguOption,
+  OfficialRole,
+  UpdateAccountInput,
 } from "./types";
 
 import type {
+  AccountListInput,
+  AccountListResult,
   AccountRecord,
   AccountStatus,
-  AccountTab,
-  SetStatusMeta,
+  CreateOfficialAccountInput,
+  UpdateAccountInput,
 } from "./types";
 
 export interface AccountsRepo {
-  list(tab: AccountTab): Promise<AccountRecord[]>;
-  setStatus(
-    id: string,
-    status: AccountStatus,
-    meta?: SetStatusMeta
-  ): Promise<AccountRecord>;
+  list(input: AccountListInput): Promise<AccountListResult>;
+  createOfficial(input: CreateOfficialAccountInput): Promise<AccountRecord>;
+  updateAccount(id: string, patch: UpdateAccountInput): Promise<AccountRecord>;
+  setStatus(id: string, status: AccountStatus): Promise<AccountRecord>;
+  deleteAccount(id: string): Promise<void>;
   resetPassword(id: string): Promise<void>;
-  forceLogout(id: string): Promise<void>;
+  resendInvite(id: string): Promise<void>;
 }
 
 export function getAccountsRepo(): AccountsRepo {

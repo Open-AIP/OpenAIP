@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { AuthParameters } from '@/types'
 
 /**
@@ -42,14 +42,52 @@ export function UpdatePasswordForm({role}:AuthParameters) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const supabase = useMemo(() => supabaseBrowser(), [])
+
+  function readTokensFromHash() {
+    if (typeof window === "undefined" || !window.location.hash) return null
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const accessToken = params.get("access_token")
+    const refreshToken = params.get("refresh_token")
+    if (!accessToken || !refreshToken) return null
+    return { accessToken, refreshToken }
+  }
+
+  async function ensureInviteSession() {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) return
+
+    const tokens = readTokensFromHash()
+    if (!tokens) return
+
+    const { error } = await supabase.auth.setSession({
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    })
+    if (error) throw error
+
+    // Drop sensitive tokens from the URL once session cookies are set.
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`)
+  }
+
+  useEffect(() => {
+    void ensureInviteSession().catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : "Failed to initialize auth session.")
+    })
+  }, [])
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = supabaseBrowser()
     setIsLoading(true)
     setError(null)
 
     try {
+      await ensureInviteSession()
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (!sessionData.session) {
+        throw new Error("Auth session missing. Reopen the invite/reset link from your email.")
+      }
+
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
       // Update this route to redirect to an authenticated route. The user already has an active session.
@@ -65,7 +103,7 @@ export function UpdatePasswordForm({role}:AuthParameters) {
     <div className='flex flex-col gap-6'>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+          <CardTitle className="text-2xl">Update Your Password</CardTitle>
           <CardDescription>Please enter your new password below.</CardDescription>
         </CardHeader>
         <CardContent>

@@ -11,11 +11,13 @@ export default function DeactivateAccountModal({
   onOpenChange,
   account,
   onConfirm,
+  loading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   account: AccountRecord | null;
   onConfirm: () => void;
+  loading: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,10 +39,20 @@ export default function DeactivateAccountModal({
             </Alert>
 
             <div className="flex items-center justify-center gap-3">
-              <Button variant="destructive" className="w-48" onClick={onConfirm}>
+              <Button
+                variant="destructive"
+                className="w-48"
+                onClick={onConfirm}
+                disabled={loading}
+              >
                 Deactivate
               </Button>
-              <Button variant="outline" className="w-48" onClick={() => onOpenChange(false)}>
+              <Button
+                variant="outline"
+                className="w-48"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
                 Cancel
               </Button>
             </div>

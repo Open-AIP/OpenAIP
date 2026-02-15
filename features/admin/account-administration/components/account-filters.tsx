@@ -9,18 +9,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AccountRole, AccountStatus } from "@/lib/repos/accounts/repo";
+import type {
+  AccountRole,
+  AccountStatus,
+  LguOption,
+} from "@/lib/repos/accounts/repo";
 import type { LguFilter, RoleFilter, StatusFilter } from "../hooks/use-account-administration";
 
 function roleLabel(role: AccountRole) {
+  if (role === "admin") return "Admin";
   if (role === "barangay_official") return "Barangay Official";
   if (role === "city_official") return "City Official";
+  if (role === "municipal_official") return "Municipal Official";
   return "Citizen";
 }
 
 function statusLabel(status: AccountStatus) {
   if (status === "active") return "Active";
-  if (status === "suspended") return "Suspended";
   return "Deactivated";
 }
 
@@ -45,7 +50,7 @@ export default function AccountFilters({
   lguFilter: LguFilter;
   onLguChange: (value: LguFilter) => void;
   roleOptions: AccountRole[];
-  lguOptions: string[];
+  lguOptions: LguOption[];
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -84,7 +89,7 @@ export default function AccountFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            {(["active", "suspended", "deactivated"] as const).map((status) => (
+            {(["active", "deactivated"] as const).map((status) => (
               <SelectItem key={status} value={status}>
                 {statusLabel(status)}
               </SelectItem>
@@ -99,8 +104,8 @@ export default function AccountFilters({
           <SelectContent>
             <SelectItem value="all">All LGUs</SelectItem>
             {lguOptions.map((lgu) => (
-              <SelectItem key={lgu} value={lgu}>
-                {lgu}
+              <SelectItem key={lgu.key} value={lgu.key}>
+                {lgu.label}
               </SelectItem>
             ))}
           </SelectContent>

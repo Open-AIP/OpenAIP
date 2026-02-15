@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  Ban,
+  Edit3,
   EllipsisVertical,
   Eye,
   KeyRound,
-  LogOut,
-  PauseCircle,
+  Mail,
+  Trash2,
   UserCheck,
   UserX,
 } from "lucide-react";
@@ -23,23 +23,26 @@ import type { AccountRecord } from "@/lib/repos/accounts/repo";
 export default function AccountRowActions({
   account,
   onViewDetails,
+  onEdit,
   onDeactivate,
-  onSuspend,
+  onDelete,
   onResetPassword,
-  onForceLogout,
+  onResendInvite,
   onActivateOrReactivate,
 }: {
   account: AccountRecord;
   onViewDetails: () => void;
+  onEdit: () => void;
   onDeactivate: () => void;
-  onSuspend: () => void;
+  onDelete: () => void;
   onResetPassword: () => void;
-  onForceLogout: () => void;
+  onResendInvite: () => void;
   onActivateOrReactivate: () => void;
 }) {
   const isActive = account.status === "active";
   const isDeactivated = account.status === "deactivated";
-  const isSuspended = account.status === "suspended";
+  const isAdmin = account.role === "admin";
+  const showInviteResend = account.canResendInvite;
 
   return (
     <DropdownMenu>
@@ -62,29 +65,27 @@ export default function AccountRowActions({
 
         <DropdownMenuSeparator />
 
-        {isActive ? (
-          <>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={(e) => {
-                e.preventDefault();
-                onDeactivate();
-              }}
-            >
-              <UserX className="h-4 w-4" />
-              Deactivate
-            </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            onEdit();
+          }}
+        >
+          <Edit3 className="h-4 w-4" />
+          Edit Account
+        </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                onSuspend();
-              }}
-            >
-              <PauseCircle className="h-4 w-4" />
-              Suspend
-            </DropdownMenuItem>
-          </>
+        {isActive && !isAdmin ? (
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(e) => {
+              e.preventDefault();
+              onDeactivate();
+            }}
+          >
+            <UserX className="h-4 w-4" />
+            Deactivate
+          </DropdownMenuItem>
         ) : null}
 
         {isDeactivated ? (
@@ -99,30 +100,6 @@ export default function AccountRowActions({
           </DropdownMenuItem>
         ) : null}
 
-        {isSuspended ? (
-          <>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={(e) => {
-                e.preventDefault();
-                onDeactivate();
-              }}
-            >
-              <Ban className="h-4 w-4" />
-              Deactivate
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                onActivateOrReactivate();
-              }}
-            >
-              <UserCheck className="h-4 w-4" />
-              Reactivate
-            </DropdownMenuItem>
-          </>
-        ) : null}
-
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
@@ -135,15 +112,33 @@ export default function AccountRowActions({
           Reset Password
         </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault();
-            onForceLogout();
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          Force Logout
-        </DropdownMenuItem>
+        {showInviteResend ? (
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              onResendInvite();
+            }}
+          >
+            <Mail className="h-4 w-4" />
+            Resend Invite
+          </DropdownMenuItem>
+        ) : null}
+
+        {!isAdmin ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={(e) => {
+                e.preventDefault();
+                onDelete();
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Account
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

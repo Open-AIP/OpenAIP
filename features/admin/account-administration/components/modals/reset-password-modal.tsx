@@ -11,11 +11,13 @@ export default function ResetPasswordModal({
   onOpenChange,
   account,
   onConfirm,
+  loading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   account: AccountRecord | null;
   onConfirm: () => void;
+  loading: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,10 +38,19 @@ export default function ResetPasswordModal({
             </Alert>
 
             <div className="flex items-center justify-center gap-3">
-              <Button className="w-56 bg-teal-700 hover:bg-teal-800" onClick={onConfirm}>
+              <Button
+                className="w-56 bg-teal-700 hover:bg-teal-800"
+                onClick={onConfirm}
+                disabled={loading}
+              >
                 Send Reset Link
               </Button>
-              <Button variant="outline" className="w-56" onClick={() => onOpenChange(false)}>
+              <Button
+                variant="outline"
+                className="w-56"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
                 Cancel
               </Button>
             </div>

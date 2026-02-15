@@ -14,7 +14,7 @@ function isRoleType(value: unknown): value is RoleType {
   )
 }
 
-function toRouteRole(role: RoleType): RouteRole {
+export function toRouteRole(role: RoleType): RouteRole {
   if (role === 'barangay_official') return 'barangay'
   if (role === 'city_official') return 'city'
   if (role === 'municipal_official') return 'municipality'
@@ -90,17 +90,23 @@ export async function updateSession(request: NextRequest) {
     'admin' : 
     'citizen';
 
+  const isPublicAuthRoute =
+    request.nextUrl.pathname.endsWith('/sign-in') ||
+    request.nextUrl.pathname.endsWith('/sign-up') ||
+    request.nextUrl.pathname.endsWith('/forgot-password') ||
+    request.nextUrl.pathname.endsWith('/update-password') ||
+    request.nextUrl.pathname.endsWith('/confirm')
+
   if (
     !userId && 
-    !request.nextUrl.pathname.endsWith('/sign-in') &&
-    !request.nextUrl.pathname.endsWith('/sign-up') &&
-    !request.nextUrl.pathname.endsWith('/forgot-password') &&
-    !request.nextUrl.pathname.endsWith('/update-password') 
+    !isPublicAuthRoute
   ) {
     const url = request.nextUrl.clone()
     url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/sign-in`
     return NextResponse.redirect(url)
   }
+
+  console.log(userRole, pathRole)
   
   if (userId && !userRole && pathRole !== 'citizen') {
     const url = request.nextUrl.clone()

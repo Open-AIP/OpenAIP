@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
+import { toRouteRole } from '@/lib/supabase/proxy'
 
 export function LoginForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -45,7 +46,9 @@ export function LoginForm({role, baseURL}:AuthParameters) {
 
       console.log(role, signedInRole)
 
-      if(signedInRole !== role) {
+      const routeRole = toRouteRole(signedInRole);
+
+      if(routeRole !== role) {
         await supabase.auth.signOut();
         throw new Error('Role Validation Failed.')
       }; 

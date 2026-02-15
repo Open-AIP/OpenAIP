@@ -25,8 +25,9 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { LGUAccounts, ListOfBarangays } from '@/constants'
+import { ListOfBarangays } from '@/constants'
 import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
+import { verifyOfficialInviteEligibilityAction } from "@/lib/actions/signup.actions";
 // import { time } from 'console'
 
 export function SignUpForm({role, baseURL}:AuthParameters) {
@@ -39,11 +40,13 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
   const localeRef = useRef('');
   const passwordRef = useRef('');
   const repeatPasswordRef = useRef('');
-  const lguListed = useRef(false);
 
   const router = useRouter()
   
   const rolePath = getRolePath(baseURL, role);
+
+  const isInvitedOfficialRole =
+    role === "barangay" || role === "city" || role === "municipality";
 
   useEffect(() => {
     if(email.trim() === '') {
@@ -59,24 +62,20 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
     setIsLoading(true)
     setError(null)
 
-    if (role !== 'citizen' && email.trim() !== '') {
-
-      lguListed.current = false;
-
-      // check if the lgu is on the list
-      LGUAccounts.forEach((account) => {
-        if(account.email === email && account.role === role) {
-          lguListed.current = true;
-          fullNameRef.current = account.fullName;
-          localeRef.current = account.locale
-        }
+    if (isInvitedOfficialRole && email.trim() !== '') {
+      const eligibility = await verifyOfficialInviteEligibilityAction({
+        email,
+        routeRole: role,
       });
 
-      if(!lguListed.current) {
-        setError('Unregistered Email. Contact Admin.')
+      if (!eligibility.ok) {
+        setError(eligibility.message)
         setIsLoading(false)
         return
       }
+
+      fullNameRef.current = eligibility.fullName
+      localeRef.current = eligibility.locale
     }
     
     if (role === 'citizen' && !localeRef.current) {
@@ -111,6 +110,9 @@ export function SignUpForm({role, baseURL}:AuthParameters) {
 
       // Detect "already exists" without relying on error
       if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        if (isInvitedOfficialRole) {
+          throw new Error("Account already exists. Use your invite/reset link in email to set your password.");
+        }
         throw new Error("Account already exists. Please log in.");
       }
 

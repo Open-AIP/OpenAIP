@@ -1,12 +1,12 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { AccountRecord } from "@/lib/repos/accounts/repo";
 
-export default function ActivateAccountModal({
+export default function ResendInviteModal({
   open,
   onOpenChange,
   account,
@@ -23,9 +23,7 @@ export default function ActivateAccountModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>
-            Activate Account
-          </DialogTitle>
+          <DialogTitle>Resend Invite</DialogTitle>
         </DialogHeader>
 
         {!account ? (
@@ -33,19 +31,15 @@ export default function ActivateAccountModal({
         ) : (
           <div className="space-y-4">
             <Alert className="border-sky-200 bg-sky-50 text-sky-900">
-              <CheckCircle2 className="h-4 w-4 text-sky-700" />
+              <Mail className="h-4 w-4 text-sky-700" />
               <AlertDescription className="text-sky-800">
-                {`Activate ${account.fullName}'s account? They will be able to sign in again.`}
+                {`Send another invite to ${account.email}?`}
               </AlertDescription>
             </Alert>
 
             <div className="flex items-center justify-center gap-3">
-              <Button
-                className="w-56 bg-teal-700 hover:bg-teal-800"
-                onClick={onConfirm}
-                disabled={loading}
-              >
-                Activate
+              <Button className="w-56 bg-teal-700 hover:bg-teal-800" onClick={onConfirm} disabled={loading}>
+                Resend Invite
               </Button>
               <Button
                 variant="outline"
@@ -62,4 +56,3 @@ export default function ActivateAccountModal({
     </Dialog>
   );
 }
-

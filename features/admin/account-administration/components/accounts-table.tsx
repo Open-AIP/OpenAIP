@@ -14,44 +14,64 @@ import { cn } from "@/ui/utils";
 import AccountRowActions from "./account-row-actions";
 
 function roleLabel(role: AccountRecord["role"]) {
+  if (role === "admin") return "Admin";
   if (role === "barangay_official") return "Barangay Official";
   if (role === "city_official") return "City Official";
+  if (role === "municipal_official") return "Municipal Official";
   return "Citizen";
 }
 
 function statusBadgeClass(status: AccountRecord["status"]) {
   if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "suspended") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-slate-200 bg-slate-100 text-slate-600";
 }
 
 function statusLabel(status: AccountRecord["status"]) {
   if (status === "active") return "Active";
-  if (status === "suspended") return "Suspended";
   return "Deactivated";
 }
 
+function invitationBadgeClass(pending: boolean) {
+  if (pending) return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-slate-200 bg-slate-100 text-slate-600";
+}
+
+function invitationLabel(pending: boolean) {
+  return pending ? "Pending Invite" : "Accepted";
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString();
+}
+
 export default function AccountsTable({
-  tab,
   rows,
   onViewDetails,
+  onEdit,
   onDeactivate,
-  onSuspend,
+  onDelete,
   onResetPassword,
-  onForceLogout,
+  onResendInvite,
   onActivateOrReactivate,
 }: {
-  tab: AccountRecord["tab"];
   rows: AccountRecord[];
   onViewDetails: (id: string) => void;
+  onEdit: (id: string) => void;
   onDeactivate: (id: string) => void;
-  onSuspend: (id: string) => void;
+  onDelete: (id: string) => void;
   onResetPassword: (id: string) => void;
-  onForceLogout: (id: string) => void;
+  onResendInvite: (id: string) => void;
   onActivateOrReactivate: (id: string) => void;
 }) {
-  const emailHeader = tab === "officials" ? "OFFICIAL EMAIL" : "EMAIL";
-
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="border border-slate-200 rounded-xl overflow-hidden bg-white m-5">
@@ -62,7 +82,7 @@ export default function AccountsTable({
                 Full Name
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
-                {emailHeader}
+                Email
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Role
@@ -71,16 +91,16 @@ export default function AccountsTable({
                 LGU Assignment
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
-                Office / Department
+                Status
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
-                Status
+                Invite Status
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 Last Login
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
-                Created Date
+                Created
               </TableHead>
               <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold text-right">
                 Actions
@@ -99,9 +119,6 @@ export default function AccountsTable({
                   {roleLabel(row.role)}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700">{row.lguAssignment}</TableCell>
-                <TableCell className="text-sm text-slate-700">
-                  {row.officeDepartment}
-                </TableCell>
                 <TableCell>
                   <Badge
                     variant="outline"
@@ -110,18 +127,32 @@ export default function AccountsTable({
                     {statusLabel(row.status)}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-slate-700">{row.lastLogin}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "rounded-full px-3 py-1 text-[11px]",
+                      invitationBadgeClass(row.invitationPending)
+                    )}
+                  >
+                    {invitationLabel(row.invitationPending)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-slate-700">
+                  {formatDateTime(row.lastLoginAt)}
+                </TableCell>
                 <TableCell className="text-sm text-slate-700 tabular-nums">
-                  {row.createdDate}
+                  {formatDate(row.createdAt)}
                 </TableCell>
                 <TableCell className="text-right">
                   <AccountRowActions
                     account={row}
                     onViewDetails={() => onViewDetails(row.id)}
+                    onEdit={() => onEdit(row.id)}
                     onDeactivate={() => onDeactivate(row.id)}
-                    onSuspend={() => onSuspend(row.id)}
+                    onDelete={() => onDelete(row.id)}
                     onResetPassword={() => onResetPassword(row.id)}
-                    onForceLogout={() => onForceLogout(row.id)}
+                    onResendInvite={() => onResendInvite(row.id)}
                     onActivateOrReactivate={() => onActivateOrReactivate(row.id)}
                   />
                 </TableCell>
@@ -131,7 +162,7 @@ export default function AccountsTable({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="py-12 text-center text-sm text-slate-500">
-                  No accounts found.
+                  No accounts found for the selected filters.
                 </TableCell>
               </TableRow>
             ) : null}

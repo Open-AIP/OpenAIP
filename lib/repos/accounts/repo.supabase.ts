@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type {
@@ -238,6 +239,31 @@ function resetPathForRole(role: AccountRole) {
   if (role === "citizen") return "/update-password";
   // Municipality route is not yet implemented; admin update-password is a safe fallback.
   return "/admin/update-password";
+}
+
+function supabaseRecoverySender() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const publishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+
+  if (!url || !publishableKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_ANON_KEY."
+    );
+  }
+
+  // Use an explicit non-SSR client for admin-initiated recovery emails.
+  // SSR clients enforce PKCE and bind the verifier to the caller's cookies,
+  // which breaks when the recipient opens the email in a different browser/device.
+  return createClient(url, publishableKey, {
+    auth: {
+      flowType: "implicit",
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      persistSession: false,
+    },
+  });
 }
 
 async function assertScopeExists(scopeType: LguScopeType, scopeId: string) {
@@ -647,7 +673,7 @@ export function createSupabaseAccountsRepo(): AccountsRepo {
         throw new Error("Cannot send password reset because account email is missing.");
       }
 
-      const client = await supabaseServer();
+      const client = supabaseRecoverySender();
       const { error } = await client.auth.resetPasswordForEmail(row.email, {
         redirectTo: `${requireBaseUrl()}${resetPathForRole(row.role)}`,
       });

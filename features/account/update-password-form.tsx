@@ -53,9 +53,35 @@ export function UpdatePasswordForm({role}:AuthParameters) {
     return { accessToken, refreshToken }
   }
 
+  function readCodeFromQuery() {
+    if (typeof window === "undefined") return null
+    return new URLSearchParams(window.location.search).get("code")
+  }
+
+  function scrubSensitiveAuthParams() {
+    if (typeof window === "undefined") return
+    const searchParams = new URLSearchParams(window.location.search)
+    const hadCode = searchParams.has("code")
+    const hadType = searchParams.has("type")
+    if (hadCode) searchParams.delete("code")
+    if (hadType) searchParams.delete("type")
+    if (!hadCode && !hadType) return
+    const nextSearch = searchParams.toString()
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`
+    window.history.replaceState(null, "", nextUrl)
+  }
+
   async function ensureInviteSession() {
     const { data } = await supabase.auth.getSession()
     if (data.session) return
+
+    const code = readCodeFromQuery()
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (error) throw error
+      scrubSensitiveAuthParams()
+      return
+    }
 
     const tokens = readTokensFromHash()
     if (!tokens) return

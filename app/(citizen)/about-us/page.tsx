@@ -39,6 +39,7 @@ const featureCards = [
 
 const legalBasis = [
 	{
+		label: 'Law',
 		title: 'Republic Act No. 7160 (Local Government Code of 1991)',
 		items: [
 			'Mandates planning-linked budgeting and development investment.',
@@ -46,21 +47,35 @@ const legalBasis = [
 			'Sec. 287: 20% of NTA for development projects.',
 			'Sec. 17(b): devolved basic services responsibility.',
 		],
-		accent: 'bg-[#0E7490] text-white',
+		accent: 'border-[#3B82F6] text-[#1D4ED8] bg-[#EFF6FF]',
+		line: 'bg-[#3B82F6]',
 	},
 	{
+		label: 'Memorandum',
 		title: 'Local Budget Memorandum (LBM No. 92, FY 2026)',
 		items: [
 			'Requires total resource AIP preparation.',
 			'Prescribes official AIP templates and compliance rules.',
 			'Mandates statutory allocations and climate tagging.',
 		],
-		accent: 'bg-[#1E40AF] text-white',
+		accent: 'border-[#3B82F6] text-[#1D4ED8] bg-[#EFF6FF]',
+		line: 'bg-[#3B82F6]',
 	},
 	{
+		label: 'Allocations',
 		title: 'Other statutory allocations reflected in AIPs include',
-		chips: ['20% Development Fund', '5% DRRM Fund', '5% GAD Budget', '10% SK Fund', 'PWDs'],
-		accent: 'bg-[#16A34A] text-white',
+		chips: [
+			'20% Development Fund',
+			'5% DRRM Fund',
+			'5% GAD Budget',
+			'10% SK Fund',
+			'PWDs',
+			'Children',
+			'Public Health',
+			'Senior Citizens',
+		],
+		accent: 'border-[#22C55E] text-[#166534] bg-[#ECFDF5]',
+		line: 'bg-[#22C55E]',
 	},
 ];
 
@@ -108,16 +123,16 @@ export default function AboutUsPage() {
 				title="About Us"
 				description="Explore how your city or barangay plans to use public funds for programs, projects, and community development throughout the year."
 				imageSrc="/default/default-no-image.jpg"
-				className="rounded-[22px] border border-[#0B3F77]"
+				className="border border-[#0B3F77]"
 			/>
 
 			<section className="mx-auto w-full max-w-6xl">
-				<Card className="border-slate-200 bg-white/80 shadow-lg">
+				<Card className="border border-slate-100 bg-[#F3F5F7] shadow-sm">
 					<CardContent className="grid gap-8 px-8 py-8 md:grid-cols-[1.2fr_1fr]">
 						<div className="space-y-4">
-							<Badge className="bg-[#0E7490] text-white">Transparency Platform</Badge>
+							<Badge className="bg-[#1C4F9D] text-white">Transparency Platform</Badge>
 							<h2 className="text-2xl font-semibold text-slate-900">What is OpenAIP?</h2>
-							<p className="text-sm font-semibold text-[#0E7490]">
+							<p className="text-sm font-semibold text-[#1C4F9D]">
 								Turning AIP PDFs into citizen-readable open data.
 							</p>
 							<p className="text-sm leading-relaxed text-slate-600">
@@ -130,13 +145,13 @@ export default function AboutUsPage() {
 								and projects, empowering communities to actively participate in local governance.
 							</p>
 							<div className="flex flex-wrap gap-2 pt-2">
-								<Badge variant="outline" className="border-slate-200 text-slate-600">
+								<Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
 									Official AIP Documents
 								</Badge>
-								<Badge variant="outline" className="border-slate-200 text-slate-600">
+								<Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
 									Standardized Templates
 								</Badge>
-								<Badge variant="outline" className="border-slate-200 text-slate-600">
+								<Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
 									Citizen-Friendly Visuals
 								</Badge>
 							</div>
@@ -148,9 +163,9 @@ export default function AboutUsPage() {
 								return (
 									<div
 										key={card.title}
-										className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
+										className="rounded-xl border border-slate-100 bg-[#EDF1F5] p-4 shadow-sm"
 									>
-										<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#E0F2FE] text-[#0E7490]">
+										<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#1C4F9D]">
 											<Icon className="h-5 w-5" />
 										</div>
 										<h3 className="text-sm font-semibold text-slate-900">{card.title}</h3>
@@ -163,59 +178,65 @@ export default function AboutUsPage() {
 				</Card>
 			</section>
 
-			<section className="mx-auto w-full max-w-6xl space-y-6">
-				<div className="inline-flex items-center gap-2">
-					<Badge className="bg-[#0E7490] text-white">Legal Basis</Badge>
-					<h2 className="text-xl font-semibold text-slate-900">Legal and Policy Basis of the AIP</h2>
+			<section className="mx-auto w-full max-w-6xl space-y-6 rounded-[28px] bg-[#EEF2F6] px-6 py-8 shadow-sm md:px-10">
+				<div className="space-y-2">
+					<Badge className="rounded-full border border-[#60A5FA] bg-[#EFF6FF] text-[11px] font-semibold text-[#1D4ED8]">
+						Legal Basis
+					</Badge>
+					<h2 className="text-2xl font-semibold text-slate-900">Legal and Policy Basis of the AIP</h2>
 				</div>
 
-				<div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+				<div className="grid gap-6 lg:grid-cols-[1.6fr_0.8fr]">
 					<div className="space-y-4">
 						{legalBasis.map((section) => (
-							<Card key={section.title} className="border-slate-200 bg-white/90">
-								<CardContent className="space-y-4 px-6 py-5">
-									<span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${section.accent}`}>
-										Law
-									</span>
-									<h3 className="text-sm font-semibold text-slate-900">{section.title}</h3>
-									{section.items ? (
-										<ul className="list-disc space-y-2 pl-4 text-xs text-slate-600">
-											{section.items.map((item) => (
-												<li key={item}>{item}</li>
-											))}
-										</ul>
-									) : null}
-									{section.chips ? (
-										<div className="flex flex-wrap gap-2">
-											{section.chips.map((chip) => (
-												<Badge key={chip} variant="outline" className="border-slate-200 text-slate-600">
-													{chip}
-												</Badge>
-											))}
-										</div>
-									) : null}
-								</CardContent>
-							</Card>
+							<div key={section.title} className="relative">
+								<div className={`absolute left-0 top-0 h-full w-1 rounded-full ${section.line}`} />
+								<Card className="border border-slate-200 bg-white">
+									<CardContent className="space-y-4 px-6 py-5">
+										<span
+											className={`absolute -top-3 left-4 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${section.accent}`}
+										>
+											{section.label}
+										</span>
+										<h3 className="text-sm font-semibold text-slate-900">{section.title}</h3>
+										{section.items ? (
+											<ul className="list-disc space-y-2 pl-4 text-xs text-slate-600">
+												{section.items.map((item) => (
+													<li key={item}>{item}</li>
+												))}
+											</ul>
+										) : null}
+										{section.chips ? (
+											<div className="flex flex-wrap gap-2">
+												{section.chips.map((chip) => (
+													<Badge key={chip} className="border border-[#BFDBFE] bg-[#E6F0FF] text-[11px] font-medium text-[#1E3A8A]">
+														{chip}
+													</Badge>
+												))}
+											</div>
+										) : null}
+									</CardContent>
+								</Card>
+							</div>
 						))}
-						<div className="rounded-xl border border-slate-200 bg-white/80 px-6 py-5 text-xs text-slate-600">
-							<span className="block text-sm font-semibold text-slate-900">"The AIP serves as the legal bridge between planning and public expenditure."</span>
+						<div className="rounded-xl border-l-4 border-[#3B82F6] bg-white px-6 py-5 text-xs text-slate-600 shadow-sm">
+							<span className="block text-sm font-semibold text-slate-900">
+								"The AIP serves as the legal bridge between planning and public expenditure."
+							</span>
 						</div>
 					</div>
 
-					<Card className="h-fit border-slate-200 bg-white/90">
+					<Card className="h-fit border border-slate-200 bg-white">
 						<CardContent className="space-y-4 px-6 py-6">
-							<div className="flex items-center justify-between">
-								<div>
-									<Badge className="bg-[#166534] text-white">Verified Sources</Badge>
-									<h3 className="mt-2 text-sm font-semibold text-slate-900">Reference Documents</h3>
-								</div>
-								<FileText className="h-6 w-6 text-slate-400" />
+							<div className="space-y-2">
+								<Badge className="rounded-full bg-[#166534] text-[11px] font-semibold text-white">Verified Sources</Badge>
+								<h3 className="text-base font-semibold text-slate-900">Reference Documents</h3>
 							</div>
 							<div className="space-y-3">
 								{referenceDocs.map((doc) => (
-									<div key={doc.title} className="rounded-lg border border-slate-100 bg-white p-4">
-										<div className="flex items-start gap-3">
-											<div className="mt-1 grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600">
+									<div key={doc.title} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+										<div className="flex items-center gap-3">
+											<div className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-[#1C4F9D]">
 												<FileText className="h-4 w-4" />
 											</div>
 											<div className="space-y-1">
@@ -225,7 +246,7 @@ export default function AboutUsPage() {
 													asChild
 													variant="outline"
 													size="sm"
-													className="h-7 px-3 text-[11px]"
+													className="h-7 border-[#BFDBFE] bg-[#EFF6FF] px-3 text-[11px] text-[#1D4ED8] hover:bg-[#DBEAFE]"
 												>
 													<Link href={doc.href}>View PDF</Link>
 												</Button>

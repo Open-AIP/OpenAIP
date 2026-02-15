@@ -6,13 +6,12 @@ import type { UsageMetricsVM } from "@/lib/repos/admin-dashboard/types";
 export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM }) {
   const data = metrics.errorRateTrend;
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const chartHeight = 160;
-  const barWidth = 16;
-  const gap = 10;
-  const width = data.length * (barWidth + gap);
-  const svgWidth = Math.max(width, 420);
+  const chartHeight = 180;
+  const svgWidth = Math.max(data.length * 80, 700);
   const plotWidth = svgWidth - 40;
   const gridLines = 4;
+  const step = plotWidth / Math.max(data.length, 1);
+  const barWidth = Math.min(28, step * 0.7);
 
   return (
     <Card className="border-slate-200">
@@ -47,7 +46,7 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
               })}
               {data.map((point, idx) => {
                 const barHeight = (point.value / maxValue) * chartHeight;
-                const x = idx * (barWidth + gap);
+                const x = idx * step + (step - barWidth) / 2;
                 return (
                   <g key={point.label}>
                     <rect

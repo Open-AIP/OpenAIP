@@ -6,15 +6,15 @@ import type { UsageMetricsVM } from "@/lib/repos/admin-dashboard/types";
 export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetricsVM }) {
   const data = metrics.chatbotUsageTrend;
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const chartHeight = 160;
-  const chartWidth = data.length * 30;
-  const svgWidth = Math.max(chartWidth, 420);
+  const chartHeight = 180;
+  const svgWidth = Math.max(data.length * 80, 700);
   const plotWidth = svgWidth - 40;
   const gridLines = 4;
+  const step = data.length > 1 ? plotWidth / (data.length - 1) : plotWidth;
 
   const points = data
     .map((point, idx) => {
-      const x = idx * 30;
+      const x = idx * step;
       const y = chartHeight - (point.value / maxValue) * chartHeight;
       return `${x},${y}`;
     })
@@ -53,16 +53,16 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
                 points={points}
               />
               {data.map((point, idx) => {
-                const x = idx * 30;
+                const x = idx * step;
                 const y = chartHeight - (point.value / maxValue) * chartHeight;
                 return (
                   <g key={point.label}>
-                    <circle cx={x} cy={y} r={3} fill="#0E5D6F" />
+                    <circle cx={x} cy={y} r={4} fill="#0E5D6F" />
                     <text
                       x={x}
                       y={chartHeight + 18}
                       textAnchor="middle"
-                      className="text-[10px] fill-slate-400"
+                      className="text-[11px] fill-slate-400"
                     >
                       {point.label}
                     </text>

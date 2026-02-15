@@ -45,9 +45,9 @@ export default function AipStatusDonutCard({
         <div className="text-[12px] text-slate-500">Distribution across the selected filters.</div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr] items-center">
+        <div className="flex flex-col items-center gap-4">
           <div className="relative flex items-center justify-center">
-            <svg width="200" height="200" viewBox="0 0 200 200">
+            <svg width="220" height="220" viewBox="0 0 200 200">
               <g transform="translate(100,100) rotate(-90)">
                 {segmentsWithOffset.map((segment) => {
                   const dashArray = `${segment.length} ${circumference - segment.length}`;
@@ -76,19 +76,19 @@ export default function AipStatusDonutCard({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[12px] text-slate-600">
             {segments.map((segment) => (
               <Button
                 key={segment.status}
                 variant="ghost"
-                className="w-full justify-between text-[12px] text-slate-600 hover:text-slate-900"
+                className="h-auto px-2 py-1 text-[12px] text-slate-600 hover:text-slate-900"
                 onClick={() => onStatusClick(segment.status)}
               >
                 <span className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
-                  {segment.label}
+                  <span>{segment.label}:</span>
+                  <span className="font-medium text-slate-700">{segment.count}</span>
                 </span>
-                <span className="text-slate-700">{segment.count}</span>
               </Button>
             ))}
           </div>

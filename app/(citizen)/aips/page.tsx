@@ -1,18 +1,38 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
 import AipFiltersBar from '@/features/citizen/aips/components/AipFiltersBar';
 import AipIntroCard from '@/features/citizen/aips/components/AipIntroCard';
 import AipListCard from '@/features/citizen/aips/components/AipListCard';
-import { FISCAL_YEAR_OPTIONS, LGU_OPTIONS, getCitizenAipList } from '@/features/citizen/aips/data/aips.data';
+import { getCitizenAipFilters, getCitizenAipList } from '@/features/citizen/aips/data/aips.data';
+import type { AipListItem } from '@/features/citizen/aips/types';
 
 const CitizenAipsPage = () => {
-  const [selectedYear, setSelectedYear] = useState(FISCAL_YEAR_OPTIONS[0] ?? '2026');
+  const [selectedYear, setSelectedYear] = useState('');
   const [selectedLgu, setSelectedLgu] = useState('All LGUs');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const listItems = getCitizenAipList();
+  const [listItems, setListItems] = useState<AipListItem[]>([]);
+  const [fiscalYearOptions, setFiscalYearOptions] = useState<string[]>([]);
+  const [lguOptions, setLguOptions] = useState<string[]>(['All LGUs']);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const [items, filters] = await Promise.all([getCitizenAipList(), getCitizenAipFilters()]);
+      if (!active) return;
+      setListItems(items);
+      setFiscalYearOptions(filters.fiscalYearOptions);
+      setLguOptions(filters.lguOptions);
+      setSelectedYear((prev) => prev || filters.fiscalYearOptions[0] || '2026');
+      setSelectedLgu((prev) => prev || filters.lguOptions[0] || 'All LGUs');
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredAips = useMemo(() => {
     const loweredQuery = searchQuery.trim().toLowerCase();
@@ -43,8 +63,8 @@ const CitizenAipsPage = () => {
         onLguChange={setSelectedLgu}
         search={searchQuery}
         onSearchChange={setSearchQuery}
-        fiscalYearOptions={FISCAL_YEAR_OPTIONS}
-        lguOptions={LGU_OPTIONS}
+        fiscalYearOptions={fiscalYearOptions}
+        lguOptions={lguOptions}
       />
 
       <p className="text-sm text-slate-500">Showing {filteredAips.length} result{filteredAips.length !== 1 ? 's' : ''}</p>

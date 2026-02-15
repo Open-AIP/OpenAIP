@@ -1,6 +1,5 @@
 import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
 import type { AipHeader } from "@/lib/repos/aip/types";
-import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import type { AipDetails } from "@/features/citizen/aips/types";
 
 const parseCurrency = (value: string) => {
@@ -44,10 +43,7 @@ const buildFallbackHeader = (aip: AipDetails): AipHeader => {
 };
 
 export default function AipSummaryCard({ aip }: { aip: AipDetails }) {
-  const base = AIPS_TABLE.find((item) => item.id === aip.id);
-  const resolved: AipHeader = base
-    ? { ...base, summaryText: aip.summary, detailedBullets: aip.detailedBullets }
-    : buildFallbackHeader(aip);
+  const resolved: AipHeader = buildFallbackHeader(aip);
 
   const communityLabel = resolved.scope === "city" ? "city" : "barangay";
 

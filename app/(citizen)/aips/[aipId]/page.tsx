@@ -1,13 +1,14 @@
 import AipDetailsHeader from '@/features/citizen/aips/components/AipDetailsHeader';
 import AipDetailsTabs from '@/features/citizen/aips/components/AipDetailsTabs';
-import { DEFAULT_AIP_ID, getCitizenAipDetails } from '@/features/citizen/aips/data/aips.data';
-import { listCitizenFeedbackItems } from '@/lib/repos/feedback/citizen';
-import { CITIZEN_FEEDBACK_AUTH, CITIZEN_FEEDBACK_USER } from '@/mocks/fixtures/feedback/citizen-feedback.fixture';
+import { getCitizenAipDetails, getCitizenAipFilters } from '@/features/citizen/aips/data/aips.data';
+import { getCitizenFeedbackSession, listCitizenFeedbackItems } from '@/lib/repos/feedback/citizen';
 
 const CitizenAipDetailsPage = async ({ params }: { params: Promise<{ aipId: string }> }) => {
   const { aipId } = await params;
-  const aipDetails = getCitizenAipDetails(aipId || DEFAULT_AIP_ID);
+  const filters = await getCitizenAipFilters();
+  const aipDetails = await getCitizenAipDetails(aipId || filters.defaultAipId);
   const feedbackItems = await listCitizenFeedbackItems(aipDetails.id);
+  const feedbackSession = await getCitizenFeedbackSession();
 
   return (
     <section className="space-y-6">
@@ -15,8 +16,8 @@ const CitizenAipDetailsPage = async ({ params }: { params: Promise<{ aipId: stri
       <AipDetailsTabs
         aip={aipDetails}
         feedbackItems={feedbackItems}
-        isAuthenticated={CITIZEN_FEEDBACK_AUTH}
-        currentUser={CITIZEN_FEEDBACK_AUTH ? CITIZEN_FEEDBACK_USER : null}
+        isAuthenticated={feedbackSession.isAuthenticated}
+        currentUser={feedbackSession.isAuthenticated ? feedbackSession.currentUser : null}
       />
     </section>
   );

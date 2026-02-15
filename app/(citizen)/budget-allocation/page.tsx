@@ -1,22 +1,27 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { BudgetAllocationTable, buildBudgetAllocation } from "@/features/aip/components/budget-allocation-table";
-import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
-import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
+import { getCitizenAipRepo } from "@/lib/repos/citizen-aips/repo";
+import type { AipProjectRow } from "@/lib/repos/aip/types";
 
 const CitizenBudgetAllocationPage = () => {
-  const latestAip =
-    AIPS_TABLE.length > 0
-      ? AIPS_TABLE.reduce((latest, current) =>
-          current.year > latest.year ? current : latest
-        )
-      : null;
+  const [rows, setRows] = useState<AipProjectRow[]>([]);
 
-  const rowsForAip = latestAip
-    ? AIP_PROJECT_ROWS_TABLE.filter((row) => row.aipId === latestAip.id)
-    : [];
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const repo = getCitizenAipRepo();
+      const latestRows = await repo.getLatestAipProjectRows();
+      if (active) setRows(latestRows);
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const allocation = buildBudgetAllocation(rowsForAip);
+  const allocation = useMemo(() => buildBudgetAllocation(rows), [rows]);
 
   return (
     <section className="space-y-4">

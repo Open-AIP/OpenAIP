@@ -24,6 +24,20 @@ export type FeedbackUser = {
   barangayName: string;
 };
 
+export async function getCitizenFeedbackSession(): Promise<{
+  isAuthenticated: boolean;
+  currentUser: FeedbackUser | null;
+}> {
+  const { CITIZEN_FEEDBACK_AUTH, CITIZEN_FEEDBACK_USER } = await import(
+    "@/mocks/fixtures/feedback/citizen-feedback.fixture"
+  );
+
+  return {
+    isAuthenticated: CITIZEN_FEEDBACK_AUTH,
+    currentUser: CITIZEN_FEEDBACK_AUTH ? CITIZEN_FEEDBACK_USER : null,
+  };
+}
+
 const sortByUpdatedAtDesc = (a: CommentThread, b: CommentThread) =>
   new Date(b.preview.updatedAt).getTime() - new Date(a.preview.updatedAt).getTime();
 

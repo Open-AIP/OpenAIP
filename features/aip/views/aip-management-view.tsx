@@ -27,6 +27,8 @@ import type { AipHeader } from "../types";
 import { getAipYears } from "../utils";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
+import AipProcessingModal from "../components/AipProcessingModal";
+import { useAipProcessing } from "../hooks/use-aip-processing";
 
 /**
  * Props for AipManagementView component
@@ -62,6 +64,10 @@ export default function AipManagementView({
 
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [openUpload, setOpenUpload] = useState(false);
+  const [processingAipId, setProcessingAipId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem("aip-processing-id");
+  });
 
   const filtered = useMemo(() => {
     if (yearFilter === "all") return activeRecords;
@@ -70,6 +76,17 @@ export default function AipManagementView({
   }, [activeRecords, yearFilter]);
 
   const scopeLabel = scope === "city" ? "city" : "barangay";
+  const processing = useAipProcessing({
+    aipId: processingAipId,
+    enabled: Boolean(processingAipId),
+  });
+
+  const clearProcessing = () => {
+    setProcessingAipId(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("aip-processing-id");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -128,10 +145,27 @@ export default function AipManagementView({
           console.log("Upload payload:", { file, year, scope });
         }}   
         onSuccess={(aipId) => {
-          // Route to the mock AIP detail page
-          const scopePath = scope === "city" ? "city" : "barangay";
-          router.push(`/${scopePath}/aips/${aipId}`);
+          setProcessingAipId(aipId);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("aip-processing-id", aipId);
+          }
         }}     
+      />
+
+      <AipProcessingModal
+        open={processing.open}
+        run={processing.run}
+        state={processing.uiState}
+        onOpenChange={(next) => {
+          if (!next) clearProcessing();
+        }}
+        onReviewOutput={() => {
+          const scopePath = scope === "city" ? "city" : "barangay";
+          if (processingAipId) {
+            router.push(`/${scopePath}/aips/${processingAipId}`);
+          }
+          clearProcessing();
+        }}
       />
     </div>
   );

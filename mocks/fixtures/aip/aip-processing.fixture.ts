@@ -1,0 +1,88 @@
+import type { AipProcessingRunView } from "@/features/aip/types";
+
+export const AIP_PROCESSING_RUNS_FIXTURE: AipProcessingRunView[] = [
+  {
+    runId: "run-extract-73",
+    aipId: "aip-2026-city",
+    status: "running",
+    stage: "extract",
+    progressByStage: {
+      extract: 73,
+      validate: 0,
+      summarize: 0,
+      categorize: 0,
+    },
+    message: "Extracting data from document...",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    runId: "run-validate-12",
+    aipId: "aip-2026-city",
+    status: "running",
+    stage: "validate",
+    progressByStage: {
+      extract: 100,
+      validate: 12,
+      summarize: 0,
+      categorize: 0,
+    },
+    message: "Validating extracted information...",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    runId: "run-summarize-100",
+    aipId: "aip-2026-city",
+    status: "running",
+    stage: "summarize",
+    progressByStage: {
+      extract: 100,
+      validate: 100,
+      summarize: 100,
+      categorize: 0,
+    },
+    message: "Generating summary and insights...",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    runId: "run-categorize-53",
+    aipId: "aip-2026-city",
+    status: "running",
+    stage: "categorize",
+    progressByStage: {
+      extract: 100,
+      validate: 100,
+      summarize: 100,
+      categorize: 53,
+    },
+    message: "Categorizing projects and entries...",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    runId: "run-complete",
+    aipId: "aip-2026-city",
+    status: "succeeded",
+    stage: "categorize",
+    progressByStage: {
+      extract: 100,
+      validate: 100,
+      summarize: 100,
+      categorize: 100,
+    },
+    message: "Processing complete.",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    runId: "run-failed",
+    aipId: "aip-2026-city",
+    status: "failed",
+    stage: "summarize",
+    progressByStage: {
+      extract: 100,
+      validate: 100,
+      summarize: 42,
+      categorize: 0,
+    },
+    message: "Processing failed.",
+    updatedAt: new Date().toISOString(),
+  },
+];

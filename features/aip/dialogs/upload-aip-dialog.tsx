@@ -12,7 +12,6 @@
 
 import * as React from "react";
 import { X, Upload } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {

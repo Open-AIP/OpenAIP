@@ -1,19 +1,5 @@
-import { LogoutButton } from '@/components/logout-button'
-import { getUser } from '@/lib/actions/auth.actions'
+import { BarangayDashboardView } from "@/features/barangay-dashboard";
 
-const BarangayDashboard = async () => {
-
-  const {fullName, email, userRole, userLocale, baseURL} = await getUser();
-
-  return (
-    <div>
-      <p>BarangayDashboard</p>
-      <p>
-        Hello {fullName}, {email}. A {userRole} {userRole === 'citizen' ? '':' official'} from {userLocale}
-      </p>
-      <LogoutButton role={userRole} baseURL={baseURL}/>
-    </div>
-  )
+export default function BarangayDashboardPage() {
+  return <BarangayDashboardView />;
 }
-
-export default BarangayDashboard

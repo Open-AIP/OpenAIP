@@ -221,7 +221,7 @@ export default function AboutUsPage() {
 						))}
 						<div className="rounded-xl border-l-4 border-[#3B82F6] bg-white px-6 py-5 text-xs text-slate-600 shadow-sm">
 							<span className="block text-sm font-semibold text-slate-900">
-								"The AIP serves as the legal bridge between planning and public expenditure."
+								&quot;The AIP serves as the legal bridge between planning and public expenditure.&quot;
 							</span>
 						</div>
 					</div>
@@ -292,13 +292,13 @@ export default function AboutUsPage() {
 			<section className="mx-auto w-full max-w-6xl">
 				<div className="relative overflow-hidden rounded-[18px] border border-[#0A4A9E] bg-gradient-to-b from-[#0E5AC5] via-[#0B4EA5] to-[#07396F] px-6 py-8 text-white shadow-xl md:px-10">
 					<div className="relative z-10 text-center">
-						<h2 className="text-xl font-semibold">Ready to Explore Your LGU's AIP?</h2>
+						<h2 className="text-xl font-semibold">Ready to Explore Your LGU&apos;s AIP?</h2>
 						<p className="mt-2 text-xs text-white/80">
 							Discover how your local government plans to invest in your community
 						</p>
 						<Button asChild className="mt-5 h-8 rounded-full bg-white px-4 text-[11px] font-semibold text-[#0B4EA5] hover:bg-slate-100">
 							<Link href="/aips">
-								Explore Your LGU's AIP <span aria-hidden="true">→</span>
+								Explore Your LGU&apos;s AIP <span aria-hidden="true">→</span>
 							</Link>
 						</Button>
 					</div>

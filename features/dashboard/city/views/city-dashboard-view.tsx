@@ -14,14 +14,10 @@ import { getAipStatusLabel } from "@/features/submissions/presentation/submissio
 import { formatNumber } from "@/lib/formatting";
 import { useCityDashboard } from "../hooks/useCityDashboard";
 import type {
-  BudgetBreakdownVM,
   CityAipByYearVM,
   CityAipCoverageVM,
   KpiCardVM,
-  ProjectUpdateItemVM,
-  RecentActivityItemVM,
   SelectOption,
-  TopProjectRowVM,
   TopProjectsFiltersVM,
 } from "@/features/dashboard/barangay/types";
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
@@ -35,129 +31,6 @@ const AIP_STATUS_COLOR: Record<AipStatus, string> = {
   for_revision: "#f97316",
   published: "#22c55e",
 };
-
-const MOCK_BUDGET_BREAKDOWN: BudgetBreakdownVM = {
-  totalBudget: 128_500_000,
-  segments: [
-    { label: "General", percent: 29, value: 37_265_000, colorClass: "text-teal-700" },
-    { label: "Social", percent: 41, value: 52_685_000, colorClass: "text-blue-500" },
-    { label: "Economic", percent: 22, value: 28_270_000, colorClass: "text-emerald-500" },
-    { label: "Other", percent: 8, value: 10_280_000, colorClass: "text-amber-500" },
-  ],
-};
-
-const MOCK_TOP_FUNDED_PROJECTS: TopProjectRowVM[] = [
-  {
-    id: "p-001",
-    rank: 1,
-    projectName: "Main Road Rehabilitation",
-    category: "Economic",
-    type: "infrastructure",
-    budget: 5_000_000,
-    status: "ongoing",
-  },
-  {
-    id: "p-002",
-    rank: 2,
-    projectName: "Health Center Equipment Upgrade",
-    category: "Social",
-    type: "health",
-    budget: 2_500_000,
-    status: "ongoing",
-  },
-  {
-    id: "p-003",
-    rank: 3,
-    projectName: "Community Sports Complex",
-    category: "General",
-    type: "infrastructure",
-    budget: 1_800_000,
-    status: "planning",
-  },
-  {
-    id: "p-004",
-    rank: 4,
-    projectName: "Medical Outreach Program",
-    category: "Social",
-    type: "health",
-    budget: 1_200_000,
-    status: "ongoing",
-  },
-  {
-    id: "p-005",
-    rank: 5,
-    projectName: "Bridge Construction Project",
-    category: "Economic",
-    type: "infrastructure",
-    budget: 950_000,
-    status: "planning",
-  },
-  {
-    id: "p-006",
-    rank: 6,
-    projectName: "Youth Development Initiative",
-    category: "Social",
-    type: "health",
-    budget: 750_000,
-    status: "ongoing",
-  },
-  {
-    id: "p-007",
-    rank: 7,
-    projectName: "Senior Citizen Wellness",
-    category: "Social",
-    type: "health",
-    budget: 680_000,
-    status: "planning",
-  },
-  {
-    id: "p-008",
-    rank: 8,
-    projectName: "Drainage System Improvement",
-    category: "Economic",
-    type: "infrastructure",
-    budget: 520_000,
-    status: "on_hold",
-  },
-  {
-    id: "p-009",
-    rank: 9,
-    projectName: "Street Lighting Enhancement",
-    category: "General",
-    type: "infrastructure",
-    budget: 420_000,
-    status: "planning",
-  },
-  {
-    id: "p-010",
-    rank: 10,
-    projectName: "Vaccination Drive 2026",
-    category: "Social",
-    type: "health",
-    budget: 380_000,
-    status: "ongoing",
-  },
-];
-
-const MOCK_RECENT_PROJECT_UPDATES: ProjectUpdateItemVM[] = [
-  { id: "u-001", title: "Medical Mission Complete", category: "Health Outreach", date: "2026-02-12", metaRight: "250 attendees" },
-  { id: "u-002", title: "Vaccination Drive", category: "Immunization Program", date: "2026-02-08", metaRight: "180 advised" },
-  { id: "u-003", title: "Road Base Course Completed", category: "Infrastructure", date: "2026-02-03", metaRight: "64 attendees" },
-  { id: "u-004", title: "Bridge Safety Inspection", category: "Infrastructure", date: "2026-01-29", metaRight: "22 attendees" },
-  { id: "u-005", title: "Nutrition Counseling Session", category: "Health", date: "2026-01-26", metaRight: "95 attendees" },
-  { id: "u-006", title: "Street Lighting Installation", category: "Infrastructure", date: "2026-01-20", metaRight: "41 attendees" },
-];
-
-const MOCK_RECENT_ACTIVITY: RecentActivityItemVM[] = [
-  { id: "a-001", title: "Draft created", subtitle: "AIP 2026", timestamp: "2026-02-14 16:50", tag: "AIP" },
-  { id: "a-002", title: "Update posted", subtitle: "Medical Outreach Program", timestamp: "2026-02-13 15:36", tag: "Project" },
-  { id: "a-003", title: "Comment replied", subtitle: "Bridge Construction", timestamp: "2026-02-12 19:29", tag: "Comment" },
-  { id: "a-004", title: "Project completed", subtitle: "Youth Development", timestamp: "2026-02-11 14:40", tag: "Project" },
-  { id: "a-005", title: "Update posted", subtitle: "Main Road Rehabilitation", timestamp: "2026-02-10 11:05", tag: "Project" },
-  { id: "a-006", title: "Comment replied", subtitle: "AIP 2026", timestamp: "2026-02-09 16:30", tag: "Comment" },
-  { id: "a-007", title: "Project created", subtitle: "Vaccination Drive", timestamp: "2026-02-08 13:15", tag: "Project" },
-  { id: "a-008", title: "Update posted", subtitle: "Bridge Construction", timestamp: "2026-02-07 10:45", tag: "Project" },
-];
 
 const TOP_PROJECT_CATEGORY_OPTIONS: SelectOption[] = [
   { label: "All Categories", value: "all" },
@@ -247,9 +120,11 @@ export default function CityDashboardView() {
   }, [data]);
 
   const filteredTopProjects = useMemo(() => {
+    if (!data) return [];
+
     const search = topProjectFilters.search.trim().toLowerCase();
 
-    return MOCK_TOP_FUNDED_PROJECTS.filter((project) => {
+    return data.topFundedProjects.filter((project) => {
       const matchesCategory =
         topProjectFilters.category === "all" || project.category.toLowerCase() === topProjectFilters.category;
       const matchesType = topProjectFilters.type === "all" || project.type === topProjectFilters.type;
@@ -260,7 +135,7 @@ export default function CityDashboardView() {
 
       return matchesCategory && matchesType && matchesSearch;
     }).map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [topProjectFilters]);
+  }, [topProjectFilters, data]);
 
   const cityAipCoverage = useMemo<CityAipCoverageVM>(() => {
     if (!data) {
@@ -324,7 +199,7 @@ export default function CityDashboardView() {
       <KpiRow cards={kpiCards} />
 
       <BudgetBreakdownSection
-        breakdown={MOCK_BUDGET_BREAKDOWN}
+        breakdown={data.budgetBreakdown}
         dateCard={data.dateCard}
         workingOn={workingOn}
         aipDetailsHref="/city/aips"
@@ -374,7 +249,7 @@ export default function CityDashboardView() {
             value: point.publishedCount,
           }))}
           cityAipsByYear={cityAipsByYear}
-          recentActivity={MOCK_RECENT_ACTIVITY}
+          recentActivity={data.recentActivity}
           onUploadCityAip={() => console.info("[UI-only] Upload City AIP clicked", { year: filters.year })}
           onViewAudit={() => console.info("[UI-only] View audit clicked")}
         />
@@ -405,7 +280,7 @@ export default function CityDashboardView() {
           />
 
           <RecentProjectUpdatesCard
-            items={MOCK_RECENT_PROJECT_UPDATES}
+            items={data.recentProjectUpdates}
             onItemClick={(id) => console.info("[UI-only] Recent project update clicked", { id })}
           />
         </div>

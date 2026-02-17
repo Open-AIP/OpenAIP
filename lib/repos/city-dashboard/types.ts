@@ -1,4 +1,6 @@
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
+import type { ProjectCategory } from "@/lib/contracts/databasev2/enums";
+import type { ProjectStatus } from "@/lib/repos/projects/types";
 
 export type CityDashboardFilters = {
   year: number;
@@ -68,6 +70,44 @@ export type RecentComment = {
   replyAvailable: boolean;
 };
 
+export type BudgetBreakdownSegment = {
+  label: string;
+  percent: number;
+  value: number;
+  colorClass: string;
+};
+
+export type BudgetBreakdown = {
+  totalBudget: number;
+  segments: BudgetBreakdownSegment[];
+};
+
+export type TopFundedProject = {
+  id: string;
+  rank: number;
+  projectName: string;
+  category: string;
+  type: ProjectCategory;
+  budget: number;
+  status: ProjectStatus;
+};
+
+export type ProjectUpdateItem = {
+  id: string;
+  title: string;
+  category: string;
+  date: string;
+  metaRight?: string;
+};
+
+export type ActivityItem = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  timestamp: string;
+  tag?: string;
+};
+
 export type DateCard = {
   day: string;
   weekday: string;
@@ -98,6 +138,10 @@ export type CityDashboardData = {
   cityAipsByYear: CityAipSummary[];
   engagementPulse: EngagementPulse;
   recentComments: RecentComment[];
+  budgetBreakdown: BudgetBreakdown;
+  topFundedProjects: TopFundedProject[];
+  recentProjectUpdates: ProjectUpdateItem[];
+  recentActivity: ActivityItem[];
 };
 
 export type CityDashboardRepo = {

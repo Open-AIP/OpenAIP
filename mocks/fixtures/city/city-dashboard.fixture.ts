@@ -111,6 +111,45 @@ export const CITY_DASHBOARD_FIXTURES: Record<number, CityDashboardData> = {
         { category: "Infrastructure Projects", count: 5 },
       ],
     },
+    budgetBreakdown: {
+      totalBudget: 128_500_000,
+      segments: [
+        { label: "General", percent: 29, value: 37_265_000, colorClass: "text-teal-700" },
+        { label: "Social", percent: 41, value: 52_685_000, colorClass: "text-blue-500" },
+        { label: "Economic", percent: 22, value: 28_270_000, colorClass: "text-emerald-500" },
+        { label: "Other", percent: 8, value: 10_280_000, colorClass: "text-amber-500" },
+      ],
+    },
+    topFundedProjects: [
+      { id: "p-001", rank: 1, projectName: "Main Road Rehabilitation", category: "Economic", type: "infrastructure", budget: 5_000_000, status: "ongoing" },
+      { id: "p-002", rank: 2, projectName: "Health Center Equipment Upgrade", category: "Social", type: "health", budget: 2_500_000, status: "ongoing" },
+      { id: "p-003", rank: 3, projectName: "Community Sports Complex", category: "General", type: "infrastructure", budget: 1_800_000, status: "planning" },
+      { id: "p-004", rank: 4, projectName: "Medical Outreach Program", category: "Social", type: "health", budget: 1_200_000, status: "ongoing" },
+      { id: "p-005", rank: 5, projectName: "Bridge Construction Project", category: "Economic", type: "infrastructure", budget: 950_000, status: "planning" },
+      { id: "p-006", rank: 6, projectName: "Youth Development Initiative", category: "Social", type: "health", budget: 750_000, status: "ongoing" },
+      { id: "p-007", rank: 7, projectName: "Senior Citizen Wellness", category: "Social", type: "health", budget: 680_000, status: "planning" },
+      { id: "p-008", rank: 8, projectName: "Drainage System Improvement", category: "Economic", type: "infrastructure", budget: 520_000, status: "on_hold" },
+      { id: "p-009", rank: 9, projectName: "Street Lighting Enhancement", category: "General", type: "infrastructure", budget: 420_000, status: "planning" },
+      { id: "p-010", rank: 10, projectName: "Vaccination Drive 2026", category: "Social", type: "health", budget: 380_000, status: "ongoing" },
+    ],
+    recentProjectUpdates: [
+      { id: "u-001", title: "Medical Mission Complete", category: "Health Outreach", date: "2026-02-12", metaRight: "250 attendees" },
+      { id: "u-002", title: "Vaccination Drive", category: "Immunization Program", date: "2026-02-08", metaRight: "180 advised" },
+      { id: "u-003", title: "Road Base Course Completed", category: "Infrastructure", date: "2026-02-03", metaRight: "64 attendees" },
+      { id: "u-004", title: "Bridge Safety Inspection", category: "Infrastructure", date: "2026-01-29", metaRight: "22 attendees" },
+      { id: "u-005", title: "Nutrition Counseling Session", category: "Health", date: "2026-01-26", metaRight: "95 attendees" },
+      { id: "u-006", title: "Street Lighting Installation", category: "Infrastructure", date: "2026-01-20", metaRight: "41 attendees" },
+    ],
+    recentActivity: [
+      { id: "a-001", title: "Draft created", subtitle: "AIP 2026", timestamp: "2026-02-14 16:50", tag: "AIP" },
+      { id: "a-002", title: "Update posted", subtitle: "Medical Outreach Program", timestamp: "2026-02-13 15:36", tag: "Project" },
+      { id: "a-003", title: "Comment replied", subtitle: "Bridge Construction", timestamp: "2026-02-12 19:29", tag: "Comment" },
+      { id: "a-004", title: "Project completed", subtitle: "Youth Development", timestamp: "2026-02-11 14:40", tag: "Project" },
+      { id: "a-005", title: "Update posted", subtitle: "Main Road Rehabilitation", timestamp: "2026-02-10 11:05", tag: "Project" },
+      { id: "a-006", title: "Comment replied", subtitle: "AIP 2026", timestamp: "2026-02-09 16:30", tag: "Comment" },
+      { id: "a-007", title: "Project created", subtitle: "Vaccination Drive", timestamp: "2026-02-08 13:15", tag: "Project" },
+      { id: "a-008", title: "Update posted", subtitle: "Bridge Construction", timestamp: "2026-02-07 10:45", tag: "Project" },
+    ],
     recentComments: [
       {
         id: "comment_001",
@@ -252,6 +291,31 @@ export const CITY_DASHBOARD_FIXTURES: Record<number, CityDashboardData> = {
         { category: "Infrastructure Projects", count: 2 },
       ],
     },
+    budgetBreakdown: {
+      totalBudget: 91_600_000,
+      segments: [
+        { label: "General", percent: 31, value: 28_396_000, colorClass: "text-teal-700" },
+        { label: "Social", percent: 39, value: 35_724_000, colorClass: "text-blue-500" },
+        { label: "Economic", percent: 21, value: 19_236_000, colorClass: "text-emerald-500" },
+        { label: "Other", percent: 9, value: 8_244_000, colorClass: "text-amber-500" },
+      ],
+    },
+    topFundedProjects: [
+      { id: "p-101", rank: 1, projectName: "Public Market Rehabilitation", category: "Economic", type: "infrastructure", budget: 4_300_000, status: "ongoing" },
+      { id: "p-102", rank: 2, projectName: "Mobile Health Clinic Program", category: "Social", type: "health", budget: 2_200_000, status: "planning" },
+      { id: "p-103", rank: 3, projectName: "Drainage Upgrade Package B", category: "General", type: "infrastructure", budget: 1_750_000, status: "planning" },
+      { id: "p-104", rank: 4, projectName: "Senior Wellness Caravan", category: "Social", type: "health", budget: 900_000, status: "completed" },
+    ],
+    recentProjectUpdates: [
+      { id: "u-101", title: "Market roof works completed", category: "Infrastructure", date: "2025-12-11", metaRight: "Completed" },
+      { id: "u-102", title: "Clinic route approved", category: "Health", date: "2025-11-26", metaRight: "Approved" },
+      { id: "u-103", title: "Drainage bid opened", category: "Infrastructure", date: "2025-11-08", metaRight: "Bidding" },
+    ],
+    recentActivity: [
+      { id: "a-101", title: "AIP published", subtitle: "City AIP 2025", timestamp: "2025-12-15 09:15", tag: "AIP" },
+      { id: "a-102", title: "Project update posted", subtitle: "Public Market Rehabilitation", timestamp: "2025-12-10 14:02", tag: "Project" },
+      { id: "a-103", title: "Comment replied", subtitle: "City AIP 2025", timestamp: "2025-12-09 16:25", tag: "Comment" },
+    ],
     recentComments: [
       {
         id: "comment_101",

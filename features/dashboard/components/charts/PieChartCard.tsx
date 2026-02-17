@@ -15,15 +15,27 @@ type PieChartCardProps = ChartCardPropsBase & {
 
 const DEFAULT_PALETTE = ["#0f766e", "#2563eb", "#10b981", "#f59e0b", "#7c3aed"];
 
-const renderLabel =
-  (data: Array<{ name: string; value: number }>) =>
-  ({ name, percent, x, y, index }: { name?: string; percent?: number; x?: number; y?: number; index?: number }) => {
+function createPieLabelRenderer(data: Array<{ name: string; value: number }>) {
+  function PieLabelRenderer({
+    name,
+    percent,
+    x,
+    y,
+    index,
+  }: {
+    name?: string;
+    percent?: number;
+    x?: number;
+    y?: number;
+    index?: number;
+  }) {
     if (typeof x !== "number" || typeof y !== "number") return null;
 
     const total = data.reduce((sum, item) => sum + item.value, 0);
-    const fallbackPercent = total > 0 && typeof index === "number" && data[index]
-      ? Math.round((data[index].value / total) * 100)
-      : 0;
+    const fallbackPercent =
+      total > 0 && typeof index === "number" && data[index]
+        ? Math.round((data[index].value / total) * 100)
+        : 0;
     const displayPercent = percent ? Math.round(percent * 100) : fallbackPercent;
 
     return (
@@ -31,7 +43,11 @@ const renderLabel =
         {`${name ?? ""}: ${displayPercent}%`}
       </text>
     );
-  };
+  }
+
+  PieLabelRenderer.displayName = "PieLabelRenderer";
+  return PieLabelRenderer;
+}
 
 export function PieChartCard({
   title,
@@ -74,7 +90,7 @@ export function PieChartCard({
                   outerRadius={series.outerRadius ?? 82}
                   paddingAngle={1}
                   stroke="none"
-                  label={showLabels ? renderLabel(series.data) : false}
+                  label={showLabels ? createPieLabelRenderer(series.data) : false}
                   labelLine={showLabels}
                 >
                   {series.data.map((entry, index) => (

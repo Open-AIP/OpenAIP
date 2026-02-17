@@ -15,13 +15,15 @@ const toneClass: Record<NonNullable<KpiCardVM["tone"]>, string> = {
 
 export default function KpiRow({ cards }: KpiRowProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="flex flex-wrap gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <Card
             key={card.id}
-            className={`gap-3 py-4 ${toneClass[card.tone ?? "neutral"]}`}
+            className={`flex-1 min-w-[200px] gap-3 py-4 ${
+              toneClass[card.tone ?? "neutral"]
+            }`}
             onClick={card.onClick}
           >
             <CardContent className="space-y-2 px-4">

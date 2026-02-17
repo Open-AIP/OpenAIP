@@ -30,6 +30,13 @@ function cloneData(data: CityDashboardData): CityDashboardData {
       commentTargets: data.engagementPulse.commentTargets.map((point) => ({ ...point })),
     },
     recentComments: data.recentComments.map((item) => ({ ...item })),
+    budgetBreakdown: {
+      ...data.budgetBreakdown,
+      segments: data.budgetBreakdown.segments.map((item) => ({ ...item })),
+    },
+    topFundedProjects: data.topFundedProjects.map((item) => ({ ...item })),
+    recentProjectUpdates: data.recentProjectUpdates.map((item) => ({ ...item })),
+    recentActivity: data.recentActivity.map((item) => ({ ...item })),
   };
 }
 

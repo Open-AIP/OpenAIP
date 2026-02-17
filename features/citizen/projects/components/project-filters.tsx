@@ -12,23 +12,23 @@ import {
 } from "@/components/ui/select";
 
 type Props = {
-  years: number[];
-  yearFilter: string;
-  onYearChange: (value: string) => void;
-  lguOptions: string[];
-  lguFilter: string;
-  onLguChange: (value: string) => void;
+  fiscalYears: number[];
+  fiscalYearFilter: string;
+  onFiscalYearChange: (value: string) => void;
+  scopeOptions: string[];
+  scopeFilter: string;
+  onScopeChange: (value: string) => void;
   query: string;
   onQueryChange: (value: string) => void;
 };
 
 export default function ProjectFilters({
-  years,
-  yearFilter,
-  onYearChange,
-  lguOptions,
-  lguFilter,
-  onLguChange,
+  fiscalYears,
+  fiscalYearFilter,
+  onFiscalYearChange,
+  scopeOptions,
+  scopeFilter,
+  onScopeChange,
   query,
   onQueryChange,
 }: Props) {
@@ -38,13 +38,13 @@ export default function ProjectFilters({
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="space-y-2 md:flex-1">
             <div className="text-xs text-slate-500">Fiscal Year</div>
-            <Select value={yearFilter} onValueChange={onYearChange}>
+            <Select value={fiscalYearFilter} onValueChange={onFiscalYearChange}>
               <SelectTrigger className="h-10 w-full bg-slate-50 border-slate-200">
                 <SelectValue placeholder="Fiscal Year" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
-                {years.map((year) => (
+                {fiscalYears.map((year) => (
                   <SelectItem key={year} value={String(year)}>
                     {year}
                   </SelectItem>
@@ -55,12 +55,12 @@ export default function ProjectFilters({
 
           <div className="space-y-2 md:flex-1">
             <div className="text-xs text-slate-500">LGU</div>
-            <Select value={lguFilter} onValueChange={onLguChange}>
+            <Select value={scopeFilter} onValueChange={onScopeChange}>
               <SelectTrigger className="h-10 w-full bg-slate-50 border-slate-200">
                 <SelectValue placeholder="Select LGU" />
               </SelectTrigger>
               <SelectContent>
-                {lguOptions.map((lgu) => (
+                {scopeOptions.map((lgu) => (
                   <SelectItem key={lgu} value={lgu}>
                     {lgu}
                   </SelectItem>

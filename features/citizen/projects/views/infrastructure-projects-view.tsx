@@ -25,8 +25,8 @@ export default function CitizenInfrastructureProjectsView({
     [projects]
   );
 
-  const [yearFilter, setYearFilter] = useState<string>(String(years[0] ?? "all"));
-  const [lguFilter, setLguFilter] = useState<string>(lguOptions[1] ?? "All LGUs");
+  const [fiscalYearFilter, setFiscalYearFilter] = useState<string>(String(years[0] ?? "all"));
+  const [scopeFilter, setScopeFilter] = useState<string>(lguOptions[1] ?? "All LGUs");
   const [query, setQuery] = useState<string>("");
 
   const displayProjects = useMemo(
@@ -41,8 +41,8 @@ export default function CitizenInfrastructureProjectsView({
   const filteredProjects = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase();
     return displayProjects.filter((project) => {
-      const yearOk = yearFilter === "all" || project.year === Number(yearFilter);
-      const lguOk = lguFilter === "All LGUs" || lguFilter === lguLabel;
+      const yearOk = fiscalYearFilter === "all" || project.year === Number(fiscalYearFilter);
+      const lguOk = scopeFilter === "All LGUs" || scopeFilter === lguLabel;
       const queryOk =
         !loweredQuery ||
         project.title.toLowerCase().includes(loweredQuery) ||
@@ -51,7 +51,7 @@ export default function CitizenInfrastructureProjectsView({
 
       return yearOk && lguOk && queryOk;
     });
-  }, [displayProjects, yearFilter, lguFilter, query, lguLabel]);
+  }, [displayProjects, fiscalYearFilter, scopeFilter, query, lguLabel]);
 
   return (
     <section className="space-y-6">
@@ -75,12 +75,12 @@ export default function CitizenInfrastructureProjectsView({
       </Card>
 
       <ProjectFilters
-        years={years}
-        yearFilter={yearFilter}
-        onYearChange={setYearFilter}
-        lguOptions={lguOptions}
-        lguFilter={lguFilter}
-        onLguChange={setLguFilter}
+        fiscalYears={years}
+        fiscalYearFilter={fiscalYearFilter}
+        onFiscalYearChange={setFiscalYearFilter}
+        scopeOptions={lguOptions}
+        scopeFilter={scopeFilter}
+        onScopeChange={setScopeFilter}
         query={query}
         onQueryChange={setQuery}
       />

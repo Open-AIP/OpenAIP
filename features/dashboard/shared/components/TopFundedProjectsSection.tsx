@@ -8,7 +8,7 @@ type TopFundedProjectsSectionProps = {
   filters: TopProjectsFiltersVM;
   categoryOptions: SelectOption[];
   typeOptions: SelectOption[];
-  onFilterChange: (change: { category?: string; type?: string; search?: string }) => void;
+  onFilterChange: (change: { sector_code?: TopProjectsFiltersVM["sector_code"]; type?: string; search?: string }) => void;
 };
 
 export default function TopFundedProjectsSection({

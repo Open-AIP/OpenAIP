@@ -48,7 +48,7 @@ function filterTopFundedProjects(
   rows: TopFundedProjectRow[]
 ): TopFundedProjectRow[] {
   return rows
-    .filter((row) => (filters.sector === "all" ? true : row.sector === filters.sector))
+    .filter((row) => (filters.sector_code === "all" ? true : row.sector_code === filters.sector_code))
     .filter((row) => (filters.projectType === "all" ? true : row.projectType === filters.projectType))
     .filter((row) => {
       const query = normalize(filters.tableSearch);
@@ -58,7 +58,7 @@ function filterTopFundedProjects(
         row.projectName,
         row.projectStatus,
         row.projectType,
-        row.sector,
+        row.sector_code,
         String(row.rank),
       ]
         .join(" ")

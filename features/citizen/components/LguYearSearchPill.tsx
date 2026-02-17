@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getAvailableFiscalYears } from '@/features/shared/providers/yearOptions';
 
 const PLACE_OPTIONS = [
   { value: 'city-of-cabuyao', label: 'City of Cabuyao' },
@@ -14,11 +15,10 @@ const PLACE_OPTIONS = [
   { value: 'brgy-banaybanay', label: 'Brgy. Banaybanay' },
 ];
 
-const YEAR_OPTIONS = ['2024', '2025', '2026'];
-
 export default function LguYearSearchPill() {
+  const fiscalYearOptions = useMemo(() => getAvailableFiscalYears(), []);
   const [place, setPlace] = useState<string>(PLACE_OPTIONS[0].value);
-  const [year, setYear] = useState<string>(YEAR_OPTIONS[2]);
+  const [fiscalYear, setFiscalYear] = useState<string>(String(fiscalYearOptions[0] ?? new Date().getFullYear()));
 
   const selectedPlaceLabel = useMemo(
     () => PLACE_OPTIONS.find((option) => option.value === place)?.label ?? place,
@@ -50,13 +50,13 @@ export default function LguYearSearchPill() {
           <Label htmlFor="year-select" className="sr-only">
             Choose Year
           </Label>
-          <Select value={year} onValueChange={setYear}>
+          <Select value={fiscalYear} onValueChange={setFiscalYear}>
             <SelectTrigger id="year-select" className="h-10 border-slate-200 bg-white">
               <SelectValue placeholder="Choose Year" />
             </SelectTrigger>
             <SelectContent>
-              {YEAR_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
+              {fiscalYearOptions.map((option) => (
+                <SelectItem key={option} value={String(option)}>
                   {option}
                 </SelectItem>
               ))}
@@ -67,7 +67,7 @@ export default function LguYearSearchPill() {
         <Button
           type="button"
           onClick={() => {
-            console.log({ place: selectedPlaceLabel, year });
+            console.log({ place: selectedPlaceLabel, fiscalYear });
           }}
           className="h-10 bg-[#0E7490] px-6 text-white hover:bg-[#0C6078]"
         >

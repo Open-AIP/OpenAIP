@@ -1,73 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getCityDashboardRepo } from "@/lib/repos/city-dashboard/repo";
+import { useMemo, useState } from "react";
+import { useCityDashboardData } from "./useCityDashboardData";
+import { useScope } from "@/features/shared/providers/scope";
 import {
-  CITY_DASHBOARD_DEFAULT_YEAR,
-  CITY_DASHBOARD_SCOPE,
-} from "@/mocks/fixtures/city/city-dashboard.fixture";
-import type { CityDashboardData, CityDashboardFilters } from "../types";
-
-const createDefaultFilters = (): CityDashboardFilters => ({
-  year: CITY_DASHBOARD_DEFAULT_YEAR,
-  search: "",
-  cityId: CITY_DASHBOARD_SCOPE.cityId,
-});
+  DEFAULT_CITY_TOP_PROJECT_FILTERS,
+  mapCityDashboardVM,
+} from "../presentation/mapCityDashboardVM";
+import type { TopProjectsFiltersVM } from "@/features/dashboard/shared/types";
 
 export function useCityDashboard() {
-  const repo = useMemo(() => getCityDashboardRepo(), []);
+  const scope = useScope();
+  const {
+    filters,
+    setFilters,
+    data,
+    isLoading,
+    error,
+    availableYears,
+  } = useCityDashboardData();
 
-  const [filters, setFilters] = useState<CityDashboardFilters>(createDefaultFilters);
-  const [availableYears, setAvailableYears] = useState<number[]>([CITY_DASHBOARD_DEFAULT_YEAR]);
-  const [data, setData] = useState<CityDashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadYears() {
-      try {
-        const years = await repo.listAvailableYears();
-        if (!isActive || years.length === 0) return;
-        setAvailableYears(years);
-      } catch {
-        if (!isActive) return;
-      }
-    }
-
-    loadYears();
-
-    return () => {
-      isActive = false;
-    };
-  }, [repo]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadDashboard() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const result = await repo.getDashboard(filters);
-        if (!isActive) return;
-        setData(result);
-      } catch (err) {
-        if (!isActive) return;
-        setError(err instanceof Error ? err.message : "Failed to load city dashboard.");
-      } finally {
-        if (isActive) setIsLoading(false);
-      }
-    }
-
-    loadDashboard();
-
-    return () => {
-      isActive = false;
-    };
-  }, [repo, filters]);
+  const [topProjectFilters, setTopProjectFilters] = useState<TopProjectsFiltersVM>(
+    DEFAULT_CITY_TOP_PROJECT_FILTERS
+  );
 
   const setYear = (year: number) => {
     setFilters((prev) => ({ ...prev, year }));
@@ -77,6 +32,22 @@ export function useCityDashboard() {
     setFilters((prev) => ({ ...prev, search }));
   };
 
+  const viewModel = useMemo(
+    () =>
+      mapCityDashboardVM({
+        data,
+        filters,
+        fiscal_year: filters.year,
+        scope: {
+          scope_type: scope.scope_type,
+          scope_id: scope.scope_id,
+        },
+        availableYears,
+        topProjectFilters,
+      }),
+    [data, filters, scope.scope_id, scope.scope_type, availableYears, topProjectFilters]
+  );
+
   return {
     filters,
     setFilters,
@@ -84,7 +55,10 @@ export function useCityDashboard() {
     isLoading,
     error,
     availableYears,
+    topProjectFilters,
+    setTopProjectFilters,
     setYear,
     setSearch,
+    viewModel,
   };
 }

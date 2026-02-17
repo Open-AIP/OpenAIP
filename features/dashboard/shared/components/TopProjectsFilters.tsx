@@ -7,7 +7,7 @@ type TopProjectsFiltersProps = {
   filters: TopProjectsFiltersVM;
   categoryOptions: SelectOption[];
   typeOptions: SelectOption[];
-  onFilterChange: (change: { category?: string; type?: string; search?: string }) => void;
+  onFilterChange: (change: { sector_code?: TopProjectsFiltersVM["sector_code"]; type?: string; search?: string }) => void;
 };
 
 export default function TopProjectsFilters({
@@ -29,7 +29,10 @@ export default function TopProjectsFilters({
       </div>
 
       <div className="xl:col-span-2">
-        <Select value={filters.category} onValueChange={(value) => onFilterChange({ category: value })}>
+        <Select
+          value={filters.sector_code}
+          onValueChange={(value) => onFilterChange({ sector_code: value as TopProjectsFiltersVM["sector_code"] })}
+        >
           <SelectTrigger className="h-9 w-full border-slate-200 bg-slate-50">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>

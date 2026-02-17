@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Clock3, FileClock, GitPullRequestArrow, UserRoundCheck } from "lucide-react";
 import { BarChartCard, PieChartCard } from "@/features/dashboard/components/charts";
 import DashboardHeader from "@/features/dashboard/shared/components/DashboardHeader";
 import KpiRow from "@/features/dashboard/shared/components/KpiRow";
@@ -10,182 +8,48 @@ import TopFundedProjectsSection from "@/features/dashboard/shared/components/Top
 import RecentProjectUpdatesCard from "@/features/dashboard/shared/components/RecentProjectUpdatesCard";
 import CityAipStatusColumn from "@/features/dashboard/shared/components/CityAipStatusColumn";
 import CitizenEngagementPulseColumn from "@/features/dashboard/shared/components/CitizenEngagementPulseColumn";
-import { getAipStatusLabel } from "@/features/submissions/presentation/submissions.presentation";
-import { formatNumber } from "@/lib/formatting";
 import {
   CITY_PENDING_REVIEW_AGING_BAR_FILL,
-  CITY_TOP_PROJECT_CATEGORY_OPTIONS,
-  CITY_TOP_PROJECT_TYPE_OPTIONS,
   DASHBOARD_AIP_STATUS_COLORS,
-  DASHBOARD_AIP_STATUS_ORDER,
 } from "@/lib/constants/dashboard";
 import { useCityDashboard } from "../hooks/useCityDashboard";
-import type {
-  CityAipByYearVM,
-  CityAipCoverageVM,
-  KpiCardVM,
-  SelectOption,
-  TopProjectsFiltersVM,
-} from "@/features/dashboard/shared/types";
-
-const TOP_PROJECT_CATEGORY_OPTIONS: SelectOption[] = CITY_TOP_PROJECT_CATEGORY_OPTIONS;
-const TOP_PROJECT_TYPE_OPTIONS: SelectOption[] = CITY_TOP_PROJECT_TYPE_OPTIONS;
-
-const DEFAULT_TOP_PROJECT_FILTERS: TopProjectsFiltersVM = {
-  search: "",
-  category: "all",
-  type: "all",
-};
 
 export default function CityDashboardView() {
-  const { filters, data, isLoading, error, availableYears, setYear, setSearch } = useCityDashboard();
-  const [topProjectFilters, setTopProjectFilters] = useState<TopProjectsFiltersVM>(DEFAULT_TOP_PROJECT_FILTERS);
-
-  const kpiCards = useMemo<KpiCardVM[]>(() => {
-    if (!data) return [];
-
-    return [
-      {
-        id: "pending-review",
-        label: "Pending Review",
-        value: formatNumber(data.queueMetrics.pendingReview),
-        subtext: data.queueMetrics.asOfLabel,
-        icon: FileClock,
-        tone: "warning",
-      },
-      {
-        id: "under-review",
-        label: "Under Review",
-        value: formatNumber(data.queueMetrics.underReview),
-        subtext: data.queueMetrics.asOfLabel,
-        icon: Clock3,
-        tone: "info",
-      },
-      {
-        id: "for-revision",
-        label: "For Revision",
-        value: formatNumber(data.queueMetrics.forRevision),
-        subtext: data.queueMetrics.asOfLabel,
-        icon: GitPullRequestArrow,
-        tone: "warning",
-      },
-      {
-        id: "available-claim",
-        label: "Available to Claim",
-        value: formatNumber(data.queueMetrics.availableToClaim),
-        subtext: data.queueMetrics.availableToClaimLabel,
-        icon: UserRoundCheck,
-        tone: "success",
-      },
-      {
-        id: "oldest-pending",
-        label: "Oldest Pending",
-        value: formatNumber(data.queueMetrics.oldestPendingDays),
-        subtext: "days in queue",
-        tone: "neutral",
-      },
-    ];
-  }, [data]);
-
-  const workingOn = useMemo(() => {
-    if (!data) {
-      return { isEmpty: true, items: [], emptyLabel: "All Caught Up" };
-    }
-
-    return {
-      isEmpty: data.workingOn.length === 0,
-      emptyLabel: "All Caught Up",
-      items: data.workingOn.map((item) => ({
-        title: item.barangayName,
-        status: getAipStatusLabel(item.status),
-        meta: `in status for ${item.daysInStatus} days`,
-      })),
-    };
-  }, [data]);
-
-  const filteredTopProjects = useMemo(() => {
-    if (!data) return [];
-
-    const search = topProjectFilters.search.trim().toLowerCase();
-
-    return data.topFundedProjects.filter((project) => {
-      const matchesCategory =
-        topProjectFilters.category === "all" || project.category.toLowerCase() === topProjectFilters.category;
-      const matchesType = topProjectFilters.type === "all" || project.type === topProjectFilters.type;
-      const matchesSearch =
-        search.length === 0 ||
-        project.projectName.toLowerCase().includes(search) ||
-        project.category.toLowerCase().includes(search);
-
-      return matchesCategory && matchesType && matchesSearch;
-    }).map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [topProjectFilters, data]);
-
-  const cityAipCoverage = useMemo<CityAipCoverageVM>(() => {
-    if (!data) {
-      return {
-        status: "missing",
-        message: "Unable to determine City AIP coverage.",
-        ctaLabel: `Upload City AIP for ${filters.year}`,
-      };
-    }
-
-    return {
-      status: data.cityAipStatus.hasCityAipForYear ? "available" : "missing",
-      message: data.cityAipStatus.warningMessage,
-      ctaLabel: `Upload City AIP for ${filters.year}`,
-    };
-  }, [data, filters.year]);
-
-  const cityAipsByYear = useMemo<CityAipByYearVM[]>(() => {
-    if (!data) return [];
-
-    return data.cityAipsByYear.map((row) => ({
-      id: row.id,
-      year: row.year,
-      status: row.status,
-      uploadedBy: row.uploadedBy,
-      uploadDate: row.uploadDate,
-      onView: () => {
-        console.info("[UI-only] View City AIP row clicked", { id: row.id, href: row.actionHref });
-      },
-    }));
-  }, [data]);
-
-  const orderedStatusDistribution = useMemo(
-    () =>
-      data
-        ? [...data.statusDistribution].sort(
-            (a, b) => DASHBOARD_AIP_STATUS_ORDER.indexOf(a.status) - DASHBOARD_AIP_STATUS_ORDER.indexOf(b.status)
-          )
-        : [],
-    [data]
-  );
+  const {
+    filters,
+    data,
+    isLoading,
+    error,
+    setYear,
+    setSearch,
+    viewModel,
+    setTopProjectFilters,
+  } = useCityDashboard();
 
   if (isLoading && !data) {
     return <div className="text-sm text-slate-500">Loading city dashboard...</div>;
   }
 
-  if (error || !data) {
+  if (error || !data || !viewModel) {
     return <div className="text-sm text-rose-600">{error ?? "Unable to load dashboard."}</div>;
   }
 
   return (
     <div className="space-y-6 pb-8">
       <DashboardHeader
-        year={filters.year}
-        yearOptions={availableYears.map((year) => ({ label: String(year), value: year }))}
-        search={filters.search}
+        year={viewModel.header.year}
+        yearOptions={viewModel.header.yearOptions}
+        search={viewModel.header.search}
         onYearChange={(value) => setYear(Number(value))}
         onSearchChange={setSearch}
       />
 
-      <KpiRow cards={kpiCards} />
+      <KpiRow cards={viewModel.kpiCards} />
 
       <BudgetBreakdownSection
-        breakdown={data.budgetBreakdown}
-        dateCard={data.dateCard}
-        workingOn={workingOn}
+        breakdown={viewModel.budgetBreakdown}
+        dateCard={viewModel.dateCard}
+        workingOn={viewModel.workingOn}
         aipDetailsHref="/city/aips"
         onViewAipDetails={() => console.info("[UI-only] View AIP details clicked")}
         onViewAllProjects={() => console.info("[UI-only] View all projects clicked")}
@@ -193,20 +57,20 @@ export default function CityDashboardView() {
 
       <div className="grid gap-6 xl:grid-cols-[7fr_3fr]">
         <TopFundedProjectsSection
-          rows={filteredTopProjects}
-          filters={topProjectFilters}
-          categoryOptions={TOP_PROJECT_CATEGORY_OPTIONS}
-          typeOptions={TOP_PROJECT_TYPE_OPTIONS}
+          rows={viewModel.topFundedProjects}
+          filters={viewModel.topProjectFilters}
+          categoryOptions={viewModel.categoryOptions}
+          typeOptions={viewModel.typeOptions}
           onFilterChange={(change) => setTopProjectFilters((prev) => ({ ...prev, ...change }))}
         />
         <div className="space-y-4">
           <PieChartCard
             title="Status Distribution"
             series={{
-              data: orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
+              data: viewModel.orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
               outerRadius: 92,
             }}
-            palette={orderedStatusDistribution.map((item) => DASHBOARD_AIP_STATUS_COLORS[item.status])}
+            palette={viewModel.orderedStatusDistribution.map((item) => DASHBOARD_AIP_STATUS_COLORS[item.status])}
             showLabels
             height={230}
           />
@@ -227,44 +91,24 @@ export default function CityDashboardView() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <CityAipStatusColumn
-          cityAipCoverage={cityAipCoverage}
-          publicationTimeline={data.publicationTimeline.map((point) => ({
-            year: point.year,
-            value: point.publishedCount,
-          }))}
-          cityAipsByYear={cityAipsByYear}
-          recentActivity={data.recentActivity}
+          cityAipCoverage={viewModel.cityAipCoverage}
+          publicationTimeline={viewModel.publicationTimeline}
+          cityAipsByYear={viewModel.cityAipsByYear}
+          recentActivity={viewModel.recentActivity}
           onUploadCityAip={() => console.info("[UI-only] Upload City AIP clicked", { year: filters.year })}
           onViewAudit={() => console.info("[UI-only] View audit clicked")}
         />
 
         <div className="space-y-6">
           <CitizenEngagementPulseColumn
-            kpis={{
-              newThisWeek: data.engagementPulse.newThisWeek,
-              awaitingReply: data.engagementPulse.awaitingReply,
-              hidden: data.engagementPulse.moderated,
-            }}
-            trendSeries={data.engagementPulse.commentsTrend.map((point) => ({
-              label: point.label,
-              value: point.value,
-            }))}
-            targetsSeries={data.engagementPulse.commentTargets.map((point) => ({
-              label: point.category,
-              count: point.count,
-            }))}
-            recentFeedback={data.recentComments.map((comment) => ({
-              id: comment.id,
-              scopeTag: comment.sourceLabel,
-              title: comment.title,
-              snippet: comment.snippet,
-              author: comment.author,
-              timeAgo: comment.timestampLabel,
-            }))}
+            kpis={viewModel.pulse.kpis}
+            trendSeries={viewModel.pulse.trendSeries}
+            targetsSeries={viewModel.pulse.targetsSeries}
+            recentFeedback={viewModel.pulse.recentFeedback}
           />
 
           <RecentProjectUpdatesCard
-            items={data.recentProjectUpdates}
+            items={viewModel.recentProjectUpdates}
             onItemClick={(id) => console.info("[UI-only] Recent project update clicked", { id })}
           />
         </div>

@@ -32,4 +32,3 @@ export function getAipStatusBadgeClass(status: AipStatus): string {
       return "bg-slate-100 text-slate-700 border-slate-200";
   }
 }
-

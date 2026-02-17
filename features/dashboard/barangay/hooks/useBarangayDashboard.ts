@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useBarangayDashboardData } from "./useBarangayDashboardData";
-import { mapBarangayDashboardVM } from "../presentation/mapBarangayDashboardVM";
+import { mapBarangayDashboardToVM } from "@/lib/mappers/dashboard/barangay";
 import type { BarangayDashboardFilters, TopProjectsFilterChange } from "../types";
 
 export function useBarangayDashboard() {
@@ -48,7 +48,7 @@ export function useBarangayDashboard() {
 
   const viewModel = useMemo(
     () =>
-      mapBarangayDashboardVM({
+      mapBarangayDashboardToVM({
         data,
         filters,
         fiscal_year: filters.year,

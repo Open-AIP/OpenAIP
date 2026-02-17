@@ -1,5 +1,5 @@
 import type { AipRow, AipReviewRow, ActivityLogRow, AipStatus } from "@/lib/contracts/databasev2";
-import type { AipMonitoringRow, AipMonitoringStatus, CaseRow, CaseType } from "../types/monitoring.types";
+import type { AipMonitoringRow, AipMonitoringStatus, CaseRow, CaseType } from "@/lib/types/viewmodels/aip-monitoring.vm";
 import type { AipMonitoringDetail } from "@/mocks/fixtures/admin/aip-monitoring/aipMonitoring.mock";
 
 type ReviewDirectory = Record<string, { name: string }>;

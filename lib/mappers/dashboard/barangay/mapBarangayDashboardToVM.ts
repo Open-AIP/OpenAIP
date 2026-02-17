@@ -1,15 +1,12 @@
 import { FileText, FolderKanban, MessageSquare, Wallet } from "lucide-react";
-import { getAipStatusLabel } from "@/features/submissions/presentation/submissions.presentation";
+import { getAipStatusLabel } from "@/lib/mappers/submissions";
 import { formatNumber, formatPeso } from "@/lib/formatting";
 import {
   DASHBOARD_SECTOR_FILTER_OPTIONS,
   getSectorShortLabel,
 } from "@/lib/constants/dashboard";
-import type {
-  BarangayDashboardData,
-  BarangayDashboardFilters,
-  BarangayDashboardVM,
-} from "../types";
+import type { BarangayDashboardData, BarangayDashboardFilters } from "@/lib/repos/barangay-dashboard/repo";
+import type { BarangayDashboardVM } from "@/lib/types/viewmodels/dashboard/barangay-dashboard.vm";
 
 const TOP_PROJECT_TYPE_OPTIONS = [
   { label: "All Types", value: "all" },
@@ -30,7 +27,7 @@ type MapBarangayDashboardVMInput = {
   totalBudget: number;
 };
 
-export function mapBarangayDashboardVM({
+export function mapBarangayDashboardToVM({
   data,
   filters,
   fiscal_year,

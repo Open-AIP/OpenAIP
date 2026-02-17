@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 
 import type { LatestReview } from "@/lib/repos/submissions/repo";
-import { getAipStatusLabel } from "../presentation/submissions.presentation";
+import { getAipStatusLabel } from "@/lib/mappers/submissions";
 import { publishAipAction, requestRevisionAction } from "../actions/submissionsReview.actions";
 import { PublishSuccessCard } from "../components/PublishSuccessCard";
 

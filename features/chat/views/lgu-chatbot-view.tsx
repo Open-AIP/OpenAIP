@@ -6,8 +6,8 @@ import ChatThreadPanel from "../components/ChatThreadPanel";
 import {
   mapMessageToBubble,
   mapSessionToListItem,
-} from "../mappers/chat.mapper";
-import type { ChatMessageBubble, ChatSessionListItem } from "../types/chat.types";
+} from "@/lib/mappers/chat";
+import type { ChatMessageBubble, ChatSessionListItem } from "@/lib/types/viewmodels/chat.vm";
 import { getChatRepo } from "@/lib/repos/chat/repo";
 import type { ChatMessage, ChatSession } from "@/lib/repos/chat/repo";
 import { CHAT_DEFAULT_USER_ID } from "@/mocks/fixtures/chat/chat.fixture";

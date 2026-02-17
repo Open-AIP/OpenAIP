@@ -8,6 +8,7 @@ import type {
   ReviewBacklogVM,
   UsageMetricsVM,
 } from "@/lib/repos/admin-dashboard/types";
+import type { AdminDashboardVM } from "@/lib/types/viewmodels/dashboard/admin-dashboard.vm";
 
 const EMPTY_SUMMARY: DashboardSummaryVM = {
   totalLgus: 0,
@@ -33,25 +34,7 @@ type MapAdminDashboardVMInput = {
   lguOptions: LguOptionVM[];
 };
 
-export type AdminDashboardVM = {
-  safeSummary: DashboardSummaryVM;
-  distribution: AipStatusDistributionVM[];
-  reviewBacklog: ReviewBacklogVM | null;
-  usageMetrics: UsageMetricsVM | null;
-  recentActivity: RecentActivityItemVM[];
-  lguOptions: LguOptionVM[];
-  kpis: Array<{
-    title: string;
-    value: string;
-    deltaLabel: string;
-    iconClassName: string;
-    ctaLabel: string;
-    path: string;
-    tagLabel?: string;
-  }>;
-};
-
-export function mapAdminDashboardVM({
+export function mapAdminDashboardToVM({
   filters,
   summary,
   distribution,

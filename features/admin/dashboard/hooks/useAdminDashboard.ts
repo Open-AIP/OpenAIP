@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useAdminDashboardData } from "./useAdminDashboardData";
-import { mapAdminDashboardVM } from "../presentation/mapAdminDashboardVM";
+import { mapAdminDashboardToVM } from "@/lib/mappers/dashboard/admin";
 
 export function useAdminDashboard() {
   const {
@@ -21,7 +21,7 @@ export function useAdminDashboard() {
 
   const viewModel = useMemo(
     () =>
-      mapAdminDashboardVM({
+      mapAdminDashboardToVM({
         filters,
         summary,
         distribution,

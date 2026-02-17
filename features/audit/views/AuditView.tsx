@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ActivityLogRow } from "@/lib/repos/audit/repo";
-import { getAuditActionLabel, getAuditRoleLabel } from "@/features/audit/presentation/audit";
+import { getAuditActionLabel, getAuditRoleLabel } from "@/lib/mappers/audit";
 import { Search } from "lucide-react";
 
 /**

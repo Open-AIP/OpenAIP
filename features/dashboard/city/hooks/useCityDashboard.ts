@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { useCityDashboardData } from "./useCityDashboardData";
 import {
   DEFAULT_CITY_TOP_PROJECT_FILTERS,
-  mapCityDashboardVM,
-} from "../presentation/mapCityDashboardVM";
-import type { TopProjectsFiltersVM } from "@/features/dashboard/shared/types";
+  mapCityDashboardToVM,
+} from "@/lib/mappers/dashboard/city";
+import type { TopProjectsFiltersVM } from "@/lib/types/viewmodels/dashboard";
 
 export function useCityDashboard() {
   const {
@@ -32,7 +32,7 @@ export function useCityDashboard() {
 
   const viewModel = useMemo(
     () =>
-      mapCityDashboardVM({
+      mapCityDashboardToVM({
         data,
         filters,
         fiscal_year: filters.year,

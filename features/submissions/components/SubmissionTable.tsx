@@ -7,7 +7,7 @@ import type { AipSubmissionRow } from "@/lib/repos/submissions/repo";
 import {
   getAipStatusBadgeClass,
   getAipStatusLabel,
-} from "../presentation/submissions.presentation";
+} from "@/lib/mappers/submissions";
 
 interface SubmissionTableProps {
   aips: AipSubmissionRow[];

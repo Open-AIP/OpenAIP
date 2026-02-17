@@ -16,6 +16,17 @@ Phase 0 only: inventory + move plan. No code changes.
 - `features/audit/types/audit.types.ts` (domain alias)
 - `features/admin/aip-monitoring/types/monitoring.types.ts` (UI table row models; reviewed)
 
+## Phase 3 — Mapper inventory candidates
+
+- `features/dashboard/barangay/presentation/mapBarangayDashboardVM.ts` → outputs `BarangayDashboardVM` (shared dashboard VM contract)
+- `features/dashboard/city/presentation/mapCityDashboardVM.ts` → outputs `CityDashboardVM` (shared dashboard VM contract)
+- `features/admin/dashboard/presentation/mapAdminDashboardVM.ts` → outputs `AdminDashboardVM` (admin dashboard VM contract)
+- `features/submissions/presentation/submissions.presentation.ts` → outputs submission status labels/badge mapping (shared across submissions + dashboard)
+- `features/audit/presentation/audit.ts` → outputs audit action/entity/role labels (shared in audit UI)
+- `features/audit/mappers/audit.mapper.ts` → outputs normalized `ActivityLogRow` (shared by admin audit logs page)
+- `features/chat/mappers/chat.mapper.ts` → outputs `ChatSessionListItem` and `ChatMessageBubble` (chat VM contract)
+- `features/admin/aip-monitoring/mappers/aip-monitoring.mapper.ts` → outputs `AipMonitoringRow[]` and `CaseRow[]` (admin AIP monitoring VM contract)
+
 ## 1) Inventory table per feature
 
 | Feature | UI folders/files to keep | Non-UI folders/files to move | Duplicates already existing in lib |

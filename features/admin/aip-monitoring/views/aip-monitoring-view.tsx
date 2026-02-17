@@ -21,7 +21,7 @@ import type { AipMonitoringRow, CaseRow } from "../types/monitoring.types";
 import {
   mapActivityToCaseRows,
   mapAipRowsToMonitoringRows,
-} from "../mappers/aip-monitoring.mapper";
+} from "@/lib/mappers/aip-monitoring";
 
 type WorkflowState = { actionType: WorkflowActionType; rowId: string } | null;
 

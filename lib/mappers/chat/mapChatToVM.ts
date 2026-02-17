@@ -1,5 +1,5 @@
 import type { ChatMessage, ChatSession } from "@/lib/repos/chat/repo";
-import type { ChatMessageBubble, ChatSessionListItem } from "../types/chat.types";
+import type { ChatMessageBubble, ChatSessionListItem } from "@/lib/types/viewmodels/chat.vm";
 
 const truncate = (value: string, max = 44) =>
   value.length > max ? `${value.slice(0, max)}…` : value;

@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AipSubmissionRow } from "@/lib/repos/submissions/repo";
-import { getAipStatusLabel } from "../presentation/submissions.presentation";
+import { getAipStatusLabel } from "@/lib/mappers/submissions";
 
 interface SubmissionFiltersProps {
   aips: AipSubmissionRow[];

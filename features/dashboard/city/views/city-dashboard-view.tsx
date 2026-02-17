@@ -5,13 +5,14 @@ import { useMemo } from "react";
 import {
   AlertTriangle,
   CalendarDays,
-  CheckCheck,
+  ChevronRight,
   Clock3,
   Eye,
+  ExternalLink,
   FileClock,
   GitPullRequestArrow,
-  MessageSquare,
   Search,
+  Users,
   UserRoundCheck,
   Zap,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BarChartCard, DonutChartCard, LineChartCard } from "@/features/dashboard/components/charts";
 import { formatDate, formatNumber } from "@/lib/formatting";
 import { getAipStatusBadgeClass } from "@/features/aip/utils";
 import { getAipStatusLabel } from "@/features/submissions/presentation/submissions.presentation";
@@ -41,73 +43,15 @@ import { useCityDashboard } from "../hooks/useCityDashboard";
 import type { CityDashboardData } from "../types";
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
 
-const STATUS_TONE_CLASS: Record<AipStatus, string> = {
-  draft: "text-slate-500",
-  pending_review: "text-yellow-500",
-  under_review: "text-blue-500",
-  for_revision: "text-orange-500",
-  published: "text-emerald-500",
+const AIP_STATUS_ORDER: AipStatus[] = ["draft", "pending_review", "under_review", "for_revision", "published"];
+
+const AIP_STATUS_COLOR: Record<AipStatus, string> = {
+  draft: "#94a3b8",
+  pending_review: "#eab308",
+  under_review: "#3b82f6",
+  for_revision: "#f97316",
+  published: "#22c55e",
 };
-
-function PieDistribution({ data }: { data: CityDashboardData["statusDistribution"] }) {
-  const radius = 72;
-  const circumference = 2 * Math.PI * radius;
-  const total = data.reduce((sum, item) => sum + item.count, 0);
-
-  const segments = data.map((item, index) => {
-    const ratio = total > 0 ? item.count / total : 0;
-    const length = ratio * circumference;
-    const offset = data
-      .slice(0, index)
-      .reduce((sum, current) => sum + (total > 0 ? (current.count / total) * circumference : 0), 0);
-    return {
-      ...item,
-      ratio,
-      length,
-      offset,
-    };
-  });
-
-  return (
-    <div className="space-y-4">
-      <div className="relative mx-auto flex h-55 w-55 items-center justify-center">
-        <svg width="220" height="220" viewBox="0 0 220 220">
-          <g transform="translate(110,110) rotate(-90)">
-            {segments.map((segment) => (
-              <g key={segment.status} className={STATUS_TONE_CLASS[segment.status]}>
-                <circle
-                  r={radius}
-                  cx={0}
-                  cy={0}
-                  fill="transparent"
-                  stroke="currentColor"
-                  strokeWidth={26}
-                  strokeDasharray={`${segment.length} ${circumference - segment.length}`}
-                  strokeDashoffset={-segment.offset}
-                />
-              </g>
-            ))}
-          </g>
-        </svg>
-
-        <div className="absolute text-center">
-          <div className="text-xs text-slate-500">Total</div>
-          <div className="text-2xl font-semibold text-slate-900">{formatNumber(total)}</div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
-        {segments.map((segment) => (
-          <div key={segment.status} className="flex items-center gap-2 text-slate-600">
-            <span className={`h-2.5 w-2.5 rounded-full ${STATUS_TONE_CLASS[segment.status].replace("text", "bg")}`} />
-            <span>{getAipStatusLabel(segment.status)}</span>
-            <span className="font-semibold">{Math.round(segment.ratio * 100)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function HorizontalAgingChart({ data }: { data: CityDashboardData["pendingReviewAging"] }) {
   const maxCount = Math.max(...data.map((item) => item.count), 1);
@@ -132,72 +76,6 @@ function HorizontalAgingChart({ data }: { data: CityDashboardData["pendingReview
   );
 }
 
-function LineChart({ data }: { data: CityDashboardData["engagementPulse"]["commentsTrend"] }) {
-  const maxValue = Math.max(...data.map((point) => point.value), 1);
-  const width = 520;
-  const height = 180;
-  const plotWidth = width - 40;
-  const plotHeight = height - 40;
-  const step = data.length > 1 ? plotWidth / (data.length - 1) : plotWidth;
-
-  const points = data
-    .map((point, index) => {
-      const x = 20 + index * step;
-      const y = 20 + (1 - point.value / maxValue) * plotHeight;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <div className="w-full overflow-x-auto text-teal-700">
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
-        <polyline fill="none" stroke="currentColor" strokeWidth={2} points={points} />
-        {data.map((point, index) => {
-          const x = 20 + index * step;
-          const y = 20 + (1 - point.value / maxValue) * plotHeight;
-          return (
-            <g key={point.label}>
-              <circle cx={x} cy={y} r={3.5} fill="currentColor" />
-              <text x={x} y={height - 8} textAnchor="middle" className="fill-slate-500 text-[10px]">
-                {point.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-function VerticalBarChart({ data }: { data: CityDashboardData["engagementPulse"]["commentTargets"] }) {
-  const maxValue = Math.max(...data.map((point) => point.count), 1);
-  const width = 520;
-  const height = 190;
-  const chartHeight = 130;
-  const barSpace = width / Math.max(data.length, 1);
-  const barWidth = Math.min(80, barSpace * 0.58);
-
-  return (
-    <div className="w-full overflow-x-auto text-blue-500">
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
-        {data.map((point, index) => {
-          const barHeight = (point.count / maxValue) * chartHeight;
-          const x = index * barSpace + (barSpace - barWidth) / 2;
-          const y = 20 + (chartHeight - barHeight);
-
-          return (
-            <g key={point.category}>
-              <rect x={x} y={y} width={barWidth} height={barHeight} rx={6} fill="currentColor" />
-              <text x={x + barWidth / 2} y={height - 32} textAnchor="middle" className="fill-slate-500 text-[10px]">
-                {point.category}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
 
 export default function CityDashboardView() {
   const { filters, data, isLoading, error, availableYears, setYear, setSearch } = useCityDashboard();
@@ -243,9 +121,19 @@ export default function CityDashboardView() {
     console.info("[TODO] Wire reply action to feedback thread screen", { commentId });
   };
 
-  const onViewReferenced = (commentId: string) => {
-    console.info("[TODO] Wire view referenced action", { commentId });
+  const onViewAllComments = () => {
+    console.info("[TODO] Wire view all comments route/action");
   };
+
+  const orderedStatusDistribution = useMemo(
+    () =>
+      data
+        ? [...data.statusDistribution].sort(
+            (a, b) => AIP_STATUS_ORDER.indexOf(a.status) - AIP_STATUS_ORDER.indexOf(b.status)
+          )
+        : [],
+    [data]
+  );
 
   if (isLoading && !data) {
     return <div className="text-sm text-slate-500">Loading city dashboard...</div>;
@@ -311,14 +199,20 @@ export default function CityDashboardView() {
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="gap-4 border-slate-200 py-4">
-            <CardHeader className="px-4">
-              <CardTitle className="text-sm font-semibold">Status Distribution</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <PieDistribution data={data.statusDistribution} />
-            </CardContent>
-          </Card>
+          <DonutChartCard
+            title="Status Distribution"
+            series={{
+              data: orderedStatusDistribution.map((item) => ({ name: getAipStatusLabel(item.status), value: item.count })),
+            }}
+            centerLabel={{
+              title: "Total",
+              value: formatNumber(orderedStatusDistribution.reduce((sum, item) => sum + item.count, 0)),
+            }}
+            showLegend
+            palette={orderedStatusDistribution.map((item) => AIP_STATUS_COLOR[item.status])}
+            height={250}
+            emptyText="No status distribution data."
+          />
 
           <Card className="gap-4 border-slate-200 py-4">
             <CardHeader className="px-4">
@@ -392,26 +286,19 @@ export default function CityDashboardView() {
             </CardContent>
           </Card>
 
-          <Card className="gap-4 border-slate-200 py-4">
-            <CardHeader className="px-4">
-              <CardTitle className="text-sm font-semibold">Publication Timeline</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <div className="grid grid-cols-3 gap-4">
-                {data.publicationTimeline.map((item) => (
-                  <div key={item.year} className="space-y-2 text-center">
-                    <div className="mx-auto flex h-32 w-full max-w-30 items-end rounded bg-slate-100 p-2">
-                      <div
-                        className="w-full rounded bg-emerald-500"
-                        style={{ height: `${Math.max(item.publishedCount * 32, 24)}px` }}
-                      />
-                    </div>
-                    <div className="text-xs text-slate-500">{item.year}</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <BarChartCard
+            title="Publication Timeline"
+            series={{
+              data: data.publicationTimeline.map((item) => ({ year: String(item.year), publishedCount: item.publishedCount })),
+              xKey: "year",
+              bars: [{ key: "publishedCount", label: "Published", fill: "#22c55e" }],
+            }}
+            showLegend={false}
+            showGrid
+            height={190}
+            emptyText="No publication timeline data."
+            className="gap-4"
+          />
 
           <Card className="gap-4 border-slate-200 py-4">
             <CardHeader className="px-4">
@@ -481,68 +368,85 @@ export default function CityDashboardView() {
               </Card>
             </div>
 
-            <Card className="gap-3 border-slate-200 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="text-sm font-semibold">Comments Trend</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4">
-                <LineChart data={data.engagementPulse.commentsTrend} />
-              </CardContent>
-            </Card>
+            <LineChartCard
+              title="Comments Trend"
+              series={{
+                data: data.engagementPulse.commentsTrend.map((point) => ({ label: point.label, value: point.value })),
+                xKey: "label",
+                lines: [{ key: "value", label: "Comments", stroke: "#0f766e" }],
+              }}
+              showLegend={false}
+              showGrid
+              height={180}
+              emptyText="No comments trend data."
+              className="gap-3"
+            />
+
+            <BarChartCard
+              title="Comment Targets"
+              series={{
+                data: data.engagementPulse.commentTargets.map((point) => ({ category: point.category, count: point.count })),
+                xKey: "category",
+                bars: [{ key: "count", label: "Targets", fill: "#2563eb" }],
+              }}
+              showLegend={false}
+              showGrid
+              height={190}
+              emptyText="No comment target data."
+              className="gap-3"
+            />
 
             <Card className="gap-3 border-slate-200 py-4">
               <CardHeader className="px-4">
-                <CardTitle className="text-sm font-semibold">Comment Targets</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4">
-                <VerticalBarChart data={data.engagementPulse.commentTargets} />
-              </CardContent>
-            </Card>
-
-            <Card className="gap-3 border-slate-200 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="text-sm font-semibold">Recent Comments</CardTitle>
+                <CardTitle className="text-sm font-semibold">Recent Feedback</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 px-4">
                 {data.recentComments.map((comment) => (
-                  <div key={comment.id} className="space-y-2 rounded-lg border border-slate-200 p-3">
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                      <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 text-slate-600">
-                        {comment.sourceLabel}
+                  <div key={comment.id} className="space-y-3 rounded-lg border border-slate-200 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                        <Users className="h-4 w-4 text-slate-500" />
+                        <span>{comment.author}</span>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`rounded-full text-[11px] ${
+                          comment.replyAvailable
+                            ? "border-amber-300 bg-amber-50 text-amber-700"
+                            : "border-emerald-300 bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {comment.replyAvailable ? "Unreplied" : "Replied"}
                       </Badge>
-                      <span>{comment.timestampLabel}</span>
                     </div>
-                    <div className="text-sm font-semibold text-slate-800">{comment.title}</div>
-                    <p className="text-xs text-slate-600">{comment.snippet}</p>
-                    <div className="text-[11px] text-slate-500">by {comment.author}</div>
+                    <div className="text-xs text-slate-500">Commented on: {comment.title}</div>
+                    <p className="text-sm text-slate-700">{comment.snippet}</p>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      {comment.replyAvailable && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8 gap-1 text-xs"
-                          onClick={() => onReply(comment.id)}
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          Reply
-                        </Button>
-                      )}
-
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-500">{comment.timestampLabel}</span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-8 gap-1 text-xs text-slate-600"
-                        onClick={() => onViewReferenced(comment.id)}
+                        className="h-8 gap-1 text-xs text-slate-700"
+                        onClick={() => onReply(comment.id)}
                       >
-                        <CheckCheck className="h-3.5 w-3.5" />
-                        View Referenced
+                        Reply
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
                 ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 w-full gap-2"
+                  onClick={onViewAllComments}
+                >
+                  View All Comments
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
               </CardContent>
             </Card>
           </CardContent>

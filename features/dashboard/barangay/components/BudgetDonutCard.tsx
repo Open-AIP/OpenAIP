@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DonutChartCard } from "@/features/dashboard/components/charts";
 import { formatPeso } from "@/lib/formatting";
 import type { BudgetBreakdownVM } from "../types";
 
@@ -17,49 +18,19 @@ export default function BudgetDonutCard({
   onViewAipDetails,
   onViewAllProjects,
 }: BudgetDonutCardProps) {
+  const paletteByTextClass: Record<string, string> = {
+    "text-blue-500": "#3b82f6",
+    "text-teal-700": "#0f766e",
+    "text-emerald-500": "#10b981",
+    "text-amber-500": "#f59e0b",
+  };
+
   const dotColorByTextClass: Record<string, string> = {
     "text-blue-500": "bg-blue-500",
     "text-teal-700": "bg-teal-700",
     "text-emerald-500": "bg-emerald-500",
     "text-amber-500": "bg-amber-500",
   };
-
-  const radius = 78;
-  const strokeWidth = 26;
-  const circumference = 2 * Math.PI * radius;
-  const center = 140;
-
-  const polarToCartesian = (angleDeg: number, distance: number) => {
-    const rad = (angleDeg * Math.PI) / 180;
-    return {
-      x: center + Math.cos(rad) * distance,
-      y: center + Math.sin(rad) * distance,
-    };
-  };
-
-  const segments = breakdown.segments.map((item, index) => {
-    const ratio = breakdown.totalBudget > 0 ? item.value / breakdown.totalBudget : 0;
-    const length = ratio * circumference;
-    const priorRatio = breakdown.segments
-      .slice(0, index)
-      .reduce(
-        (sum, current) => sum + (breakdown.totalBudget > 0 ? current.value / breakdown.totalBudget : 0),
-        0
-      );
-    const offset = priorRatio * circumference;
-    const startAngle = priorRatio * 360 - 90;
-    const midAngle = startAngle + ratio * 180;
-
-    const p1 = polarToCartesian(midAngle, radius + strokeWidth / 2 + 2);
-    const p2 = polarToCartesian(midAngle, radius + strokeWidth / 2 + 18);
-    const labelToRight = p2.x >= center;
-    const p3 = {
-      x: p2.x + (labelToRight ? 16 : -16),
-      y: p2.y,
-    };
-
-    return { ...item, ratio, length, offset, p1, p2, p3, labelToRight };
-  });
 
   return (
     <Card className="w-full gap-4 border-slate-200 py-4">
@@ -69,45 +40,19 @@ export default function BudgetDonutCard({
       <CardContent className="space-y-4 px-4">
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="flex items-center justify-center">
-            <div className="relative w-full max-w-105">
-              <svg width="100%" height="280" viewBox="0 0 320 280" preserveAspectRatio="xMidYMid meet">
-                <g transform="translate(140,140) rotate(-90)">
-                  {segments.map((segment) => (
-                    <g key={segment.label} className={segment.colorClass}>
-                      <circle
-                        r={radius}
-                        cx={0}
-                        cy={0}
-                        fill="transparent"
-                        stroke="currentColor"
-                        strokeWidth={strokeWidth}
-                        strokeDasharray={`${segment.length} ${circumference - segment.length}`}
-                        strokeDashoffset={-segment.offset}
-                        strokeLinecap="butt"
-                      />
-                    </g>
-                  ))}
-                </g>
-                {segments.map((segment) => (
-                  <g key={`${segment.label}-label`} className={segment.colorClass}>
-                    <polyline
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.25"
-                      points={`${segment.p1.x},${segment.p1.y} ${segment.p2.x},${segment.p2.y} ${segment.p3.x},${segment.p3.y}`}
-                    />
-                    <text
-                      x={segment.p3.x + (segment.labelToRight ? 4 : -4)}
-                      y={segment.p3.y + 4}
-                      fontSize="10"
-                      textAnchor={segment.labelToRight ? "start" : "end"}
-                      fill="currentColor"
-                    >
-                      {segment.label} {Math.round(segment.ratio * 100)}%
-                    </text>
-                  </g>
-                ))}
-              </svg>
+            <div className="w-full max-w-105">
+              <DonutChartCard
+                title="Budget Breakdown"
+                series={{
+                  data: breakdown.segments.map((item) => ({ name: item.label, value: item.value })),
+                  innerRadius: 70,
+                  outerRadius: 98,
+                }}
+                palette={breakdown.segments.map((item) => paletteByTextClass[item.colorClass] ?? "#94a3b8")}
+                showLegend={false}
+                height={280}
+                className="gap-0 border-0 py-0 shadow-none [&_[data-slot=card-header]]:hidden [&_[data-slot=card-content]]:px-0"
+              />
             </div>
           </div>
 

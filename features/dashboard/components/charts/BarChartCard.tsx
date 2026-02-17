@@ -1,0 +1,115 @@
+"use client";
+
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import type { BarSeriesVM, ChartCardPropsBase } from "./chartTypes";
+
+type BarChartCardProps = ChartCardPropsBase & {
+  series: BarSeriesVM;
+  height?: number;
+  showLegend?: boolean;
+  showGrid?: boolean;
+  palette?: string[];
+  formatTooltipValue?: (value: unknown, name: string) => string | number;
+  formatYAxis?: (value: unknown) => string;
+};
+
+const DEFAULT_PALETTE = ["#2563eb", "#0f766e", "#10b981", "#f59e0b", "#7c3aed"];
+
+export function BarChartCard({
+  title,
+  subtitle,
+  helperText,
+  className,
+  loading,
+  emptyText,
+  actionSlot,
+  series,
+  height = 260,
+  showLegend = true,
+  showGrid = true,
+  palette,
+  formatTooltipValue,
+  formatYAxis,
+}: BarChartCardProps) {
+  const chartPalette = palette && palette.length > 0 ? palette : DEFAULT_PALETTE;
+  const hasData = series.data.length > 0 && series.bars.length > 0;
+
+  return (
+    <Card className={`border-slate-200 py-4 ${className ?? ""}`}>
+      <CardHeader className="px-4">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+        {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}
+        {actionSlot ? <CardAction>{actionSlot}</CardAction> : null}
+      </CardHeader>
+
+      <CardContent className="px-4">
+        {loading ? (
+          <div className="animate-pulse rounded-md bg-slate-100" style={{ height }} aria-label={`${title} loading`} />
+        ) : hasData ? (
+          <div style={{ height }} aria-label={`${title} chart`} role="img">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={series.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" /> : null}
+                <XAxis dataKey={series.xKey} tickLine={false} axisLine={false} tickMargin={8} stroke="#64748b" fontSize={12} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={formatYAxis}
+                  stroke="#64748b"
+                  fontSize={12}
+                />
+                <Tooltip
+                  formatter={
+                    formatTooltipValue
+                      ? (value, name) => formatTooltipValue(value, typeof name === "string" ? name : "")
+                      : undefined
+                  }
+                />
+                {showLegend ? <Legend /> : null}
+                {series.bars.map((bar, index) => (
+                  <Bar
+                    key={bar.key}
+                    dataKey={bar.key}
+                    name={bar.label}
+                    fill={bar.fill ?? chartPalette[index % chartPalette.length]}
+                    stackId={bar.stackId}
+                    radius={[6, 6, 0, 0]}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div
+            className="flex items-center justify-center rounded-md border border-dashed border-slate-300 text-sm text-slate-500"
+            style={{ height }}
+            aria-label={`${title} empty state`}
+          >
+            {emptyText ?? "No chart data available."}
+          </div>
+        )}
+      </CardContent>
+
+      {helperText ? (
+        <CardFooter className="px-4 text-xs text-slate-500">
+          <p>{helperText}</p>
+        </CardFooter>
+      ) : null}
+    </Card>
+  );
+}
+
+export default BarChartCard;
+
+// Usage VM example: { data: [{ bucket: "0-3 days", items: 5 }], xKey: "bucket", bars: [{ key: "items", label: "Items" }] }

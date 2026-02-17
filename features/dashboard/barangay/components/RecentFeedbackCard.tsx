@@ -1,3 +1,5 @@
+import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecentFeedbackItemVM } from "../types";
 
@@ -28,6 +30,11 @@ export default function RecentFeedbackCard({ recentFeedback }: RecentFeedbackCar
             </div>
           ))
         )}
+
+        <Button type="button" variant="outline" className="mt-2 h-9 w-full gap-2">
+          View All Comments
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
       </CardContent>
     </Card>
   );

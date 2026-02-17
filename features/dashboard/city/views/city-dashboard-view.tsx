@@ -1,46 +1,29 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo } from "react";
-import {
-  AlertTriangle,
-  CalendarDays,
-  ChevronRight,
-  Clock3,
-  Eye,
-  ExternalLink,
-  FileClock,
-  GitPullRequestArrow,
-  Search,
-  Users,
-  UserRoundCheck,
-  Zap,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { BarChartCard, DonutChartCard, LineChartCard } from "@/features/dashboard/components/charts";
-import { formatDate, formatNumber } from "@/lib/formatting";
-import { getAipStatusBadgeClass } from "@/features/aip/utils";
+import { useMemo, useState } from "react";
+import { Clock3, FileClock, GitPullRequestArrow, UserRoundCheck } from "lucide-react";
+import { BarChartCard, DonutChartCard } from "@/features/dashboard/components/charts";
+import DashboardHeader from "@/features/dashboard/barangay/components/DashboardHeader";
+import KpiRow from "@/features/dashboard/barangay/components/KpiRow";
+import BudgetBreakdownSection from "@/features/dashboard/barangay/components/BudgetBreakdownSection";
+import TopFundedProjectsSection from "@/features/dashboard/barangay/components/TopFundedProjectsSection";
+import RecentProjectUpdatesCard from "@/features/dashboard/barangay/components/RecentProjectUpdatesCard";
+import CityAipStatusColumn from "@/features/dashboard/barangay/components/CityAipStatusColumn";
+import CitizenEngagementPulseColumn from "@/features/dashboard/barangay/components/CitizenEngagementPulseColumn";
 import { getAipStatusLabel } from "@/features/submissions/presentation/submissions.presentation";
+import { formatNumber } from "@/lib/formatting";
 import { useCityDashboard } from "../hooks/useCityDashboard";
-import type { CityDashboardData } from "../types";
+import type {
+  BudgetBreakdownVM,
+  CityAipByYearVM,
+  CityAipCoverageVM,
+  KpiCardVM,
+  ProjectUpdateItemVM,
+  RecentActivityItemVM,
+  SelectOption,
+  TopProjectRowVM,
+  TopProjectsFiltersVM,
+} from "@/features/dashboard/barangay/types";
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
 
 const AIP_STATUS_ORDER: AipStatus[] = ["draft", "pending_review", "under_review", "for_revision", "published"];
@@ -53,77 +36,262 @@ const AIP_STATUS_COLOR: Record<AipStatus, string> = {
   published: "#22c55e",
 };
 
-function HorizontalAgingChart({ data }: { data: CityDashboardData["pendingReviewAging"] }) {
-  const maxCount = Math.max(...data.map((item) => item.count), 1);
+const MOCK_BUDGET_BREAKDOWN: BudgetBreakdownVM = {
+  totalBudget: 128_500_000,
+  segments: [
+    { label: "General", percent: 29, value: 37_265_000, colorClass: "text-teal-700" },
+    { label: "Social", percent: 41, value: 52_685_000, colorClass: "text-blue-500" },
+    { label: "Economic", percent: 22, value: 28_270_000, colorClass: "text-emerald-500" },
+    { label: "Other", percent: 8, value: 10_280_000, colorClass: "text-amber-500" },
+  ],
+};
 
-  return (
-    <div className="space-y-3">
-      {data.map((item) => (
-        <div key={item.label} className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>{item.label}</span>
-            <span>{item.count}</span>
-          </div>
-          <div className="h-3 rounded-full bg-slate-100">
-            <div
-              className="h-3 rounded-full bg-teal-700"
-              style={{ width: `${Math.max((item.count / maxCount) * 100, item.count > 0 ? 10 : 0)}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+const MOCK_TOP_FUNDED_PROJECTS: TopProjectRowVM[] = [
+  {
+    id: "p-001",
+    rank: 1,
+    projectName: "Main Road Rehabilitation",
+    category: "Economic",
+    type: "infrastructure",
+    budget: 5_000_000,
+    status: "ongoing",
+  },
+  {
+    id: "p-002",
+    rank: 2,
+    projectName: "Health Center Equipment Upgrade",
+    category: "Social",
+    type: "health",
+    budget: 2_500_000,
+    status: "ongoing",
+  },
+  {
+    id: "p-003",
+    rank: 3,
+    projectName: "Community Sports Complex",
+    category: "General",
+    type: "infrastructure",
+    budget: 1_800_000,
+    status: "planning",
+  },
+  {
+    id: "p-004",
+    rank: 4,
+    projectName: "Medical Outreach Program",
+    category: "Social",
+    type: "health",
+    budget: 1_200_000,
+    status: "ongoing",
+  },
+  {
+    id: "p-005",
+    rank: 5,
+    projectName: "Bridge Construction Project",
+    category: "Economic",
+    type: "infrastructure",
+    budget: 950_000,
+    status: "planning",
+  },
+  {
+    id: "p-006",
+    rank: 6,
+    projectName: "Youth Development Initiative",
+    category: "Social",
+    type: "health",
+    budget: 750_000,
+    status: "ongoing",
+  },
+  {
+    id: "p-007",
+    rank: 7,
+    projectName: "Senior Citizen Wellness",
+    category: "Social",
+    type: "health",
+    budget: 680_000,
+    status: "planning",
+  },
+  {
+    id: "p-008",
+    rank: 8,
+    projectName: "Drainage System Improvement",
+    category: "Economic",
+    type: "infrastructure",
+    budget: 520_000,
+    status: "on_hold",
+  },
+  {
+    id: "p-009",
+    rank: 9,
+    projectName: "Street Lighting Enhancement",
+    category: "General",
+    type: "infrastructure",
+    budget: 420_000,
+    status: "planning",
+  },
+  {
+    id: "p-010",
+    rank: 10,
+    projectName: "Vaccination Drive 2026",
+    category: "Social",
+    type: "health",
+    budget: 380_000,
+    status: "ongoing",
+  },
+];
 
+const MOCK_RECENT_PROJECT_UPDATES: ProjectUpdateItemVM[] = [
+  { id: "u-001", title: "Medical Mission Complete", category: "Health Outreach", date: "2026-02-12", metaRight: "250 attendees" },
+  { id: "u-002", title: "Vaccination Drive", category: "Immunization Program", date: "2026-02-08", metaRight: "180 advised" },
+  { id: "u-003", title: "Road Base Course Completed", category: "Infrastructure", date: "2026-02-03", metaRight: "64 attendees" },
+  { id: "u-004", title: "Bridge Safety Inspection", category: "Infrastructure", date: "2026-01-29", metaRight: "22 attendees" },
+  { id: "u-005", title: "Nutrition Counseling Session", category: "Health", date: "2026-01-26", metaRight: "95 attendees" },
+  { id: "u-006", title: "Street Lighting Installation", category: "Infrastructure", date: "2026-01-20", metaRight: "41 attendees" },
+];
+
+const MOCK_RECENT_ACTIVITY: RecentActivityItemVM[] = [
+  { id: "a-001", title: "Draft created", subtitle: "AIP 2026", timestamp: "2026-02-14 16:50", tag: "AIP" },
+  { id: "a-002", title: "Update posted", subtitle: "Medical Outreach Program", timestamp: "2026-02-13 15:36", tag: "Project" },
+  { id: "a-003", title: "Comment replied", subtitle: "Bridge Construction", timestamp: "2026-02-12 19:29", tag: "Comment" },
+  { id: "a-004", title: "Project completed", subtitle: "Youth Development", timestamp: "2026-02-11 14:40", tag: "Project" },
+  { id: "a-005", title: "Update posted", subtitle: "Main Road Rehabilitation", timestamp: "2026-02-10 11:05", tag: "Project" },
+  { id: "a-006", title: "Comment replied", subtitle: "AIP 2026", timestamp: "2026-02-09 16:30", tag: "Comment" },
+  { id: "a-007", title: "Project created", subtitle: "Vaccination Drive", timestamp: "2026-02-08 13:15", tag: "Project" },
+  { id: "a-008", title: "Update posted", subtitle: "Bridge Construction", timestamp: "2026-02-07 10:45", tag: "Project" },
+];
+
+const TOP_PROJECT_CATEGORY_OPTIONS: SelectOption[] = [
+  { label: "All Categories", value: "all" },
+  { label: "Economic", value: "economic" },
+  { label: "Social", value: "social" },
+  { label: "General", value: "general" },
+  { label: "Other", value: "other" },
+];
+
+const TOP_PROJECT_TYPE_OPTIONS: SelectOption[] = [
+  { label: "All Types", value: "all" },
+  { label: "Health", value: "health" },
+  { label: "Infrastructure", value: "infrastructure" },
+  { label: "Other", value: "other" },
+];
+
+const DEFAULT_TOP_PROJECT_FILTERS: TopProjectsFiltersVM = {
+  search: "",
+  category: "all",
+  type: "all",
+};
 
 export default function CityDashboardView() {
   const { filters, data, isLoading, error, availableYears, setYear, setSearch } = useCityDashboard();
+  const [topProjectFilters, setTopProjectFilters] = useState<TopProjectsFiltersVM>(DEFAULT_TOP_PROJECT_FILTERS);
 
-  const kpiCards = useMemo(() => {
+  const kpiCards = useMemo<KpiCardVM[]>(() => {
     if (!data) return [];
 
     return [
       {
+        id: "pending-review",
         label: "Pending Review",
-        value: data.queueMetrics.pendingReview,
-        footnote: data.queueMetrics.asOfLabel,
+        value: formatNumber(data.queueMetrics.pendingReview),
+        subtext: data.queueMetrics.asOfLabel,
         icon: FileClock,
+        tone: "warning",
       },
       {
+        id: "under-review",
         label: "Under Review",
-        value: data.queueMetrics.underReview,
-        footnote: data.queueMetrics.asOfLabel,
+        value: formatNumber(data.queueMetrics.underReview),
+        subtext: data.queueMetrics.asOfLabel,
         icon: Clock3,
+        tone: "info",
       },
       {
+        id: "for-revision",
         label: "For Revision",
-        value: data.queueMetrics.forRevision,
-        footnote: data.queueMetrics.asOfLabel,
+        value: formatNumber(data.queueMetrics.forRevision),
+        subtext: data.queueMetrics.asOfLabel,
         icon: GitPullRequestArrow,
+        tone: "warning",
       },
       {
+        id: "available-claim",
         label: "Available to Claim",
-        value: data.queueMetrics.availableToClaim,
-        footnote: data.queueMetrics.availableToClaimLabel,
+        value: formatNumber(data.queueMetrics.availableToClaim),
+        subtext: data.queueMetrics.availableToClaimLabel,
         icon: UserRoundCheck,
+        tone: "success",
       },
       {
+        id: "oldest-pending",
         label: "Oldest Pending",
-        value: data.queueMetrics.oldestPendingDays,
-        footnote: "days in queue",
-        icon: Zap,
+        value: formatNumber(data.queueMetrics.oldestPendingDays),
+        subtext: "days in queue",
+        tone: "neutral",
       },
     ];
   }, [data]);
 
-  const onReply = (commentId: string) => {
-    console.info("[TODO] Wire reply action to feedback thread screen", { commentId });
-  };
+  const workingOn = useMemo(() => {
+    if (!data) {
+      return { isEmpty: true, items: [], emptyLabel: "All Caught Up" };
+    }
 
-  const onViewAllComments = () => {
-    console.info("[TODO] Wire view all comments route/action");
-  };
+    return {
+      isEmpty: data.workingOn.length === 0,
+      emptyLabel: "All Caught Up",
+      items: data.workingOn.map((item) => ({
+        title: item.barangayName,
+        status: getAipStatusLabel(item.status),
+        meta: `in status for ${item.daysInStatus} days`,
+      })),
+    };
+  }, [data]);
+
+  const filteredTopProjects = useMemo(() => {
+    const search = topProjectFilters.search.trim().toLowerCase();
+
+    return MOCK_TOP_FUNDED_PROJECTS.filter((project) => {
+      const matchesCategory =
+        topProjectFilters.category === "all" || project.category.toLowerCase() === topProjectFilters.category;
+      const matchesType = topProjectFilters.type === "all" || project.type === topProjectFilters.type;
+      const matchesSearch =
+        search.length === 0 ||
+        project.projectName.toLowerCase().includes(search) ||
+        project.category.toLowerCase().includes(search);
+
+      return matchesCategory && matchesType && matchesSearch;
+    }).map((row, index) => ({ ...row, rank: index + 1 }));
+  }, [topProjectFilters]);
+
+  const cityAipCoverage = useMemo<CityAipCoverageVM>(() => {
+    if (!data) {
+      return {
+        status: "missing",
+        message: "Unable to determine City AIP coverage.",
+        ctaLabel: `Upload City AIP for ${filters.year}`,
+      };
+    }
+
+    return {
+      status: data.cityAipStatus.hasCityAipForYear ? "available" : "missing",
+      message: data.cityAipStatus.warningMessage,
+      ctaLabel: `Upload City AIP for ${filters.year}`,
+    };
+  }, [data, filters.year]);
+
+  const cityAipsByYear = useMemo<CityAipByYearVM[]>(() => {
+    if (!data) return [];
+
+    return data.cityAipsByYear.map((row) => ({
+      id: row.id,
+      year: row.year,
+      status: row.status,
+      uploadedBy: row.uploadedBy,
+      uploadDate: row.uploadDate,
+      onView: () => {
+        console.info("[UI-only] View City AIP row clicked", { id: row.id, href: row.actionHref });
+      },
+    }));
+  }, [data]);
 
   const orderedStatusDistribution = useMemo(
     () =>
@@ -144,320 +312,106 @@ export default function CityDashboardView() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* [DISCOVERY] Reuses existing route group `app/(lgu)/city/(authenticated)/(dashboard)`,
-          shadcn UI primitives in `components/ui/*`, and AIP status helpers from `features/aip` + `features/submissions`.
-          Data flow follows `lib/repos/*` selector pattern with mock fixtures in `mocks/fixtures/*`. */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-4xl font-semibold text-slate-900">Welcome to OpenAIP</h1>
-        </div>
-      </div>
+    <div className="space-y-6 pb-8">
+      <DashboardHeader
+        year={filters.year}
+        yearOptions={availableYears.map((year) => ({ label: String(year), value: year }))}
+        search={filters.search}
+        onYearChange={(value) => setYear(Number(value))}
+        onSearchChange={setSearch}
+      />
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_160px]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            value={filters.search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="h-10 border-slate-200 bg-slate-50 pl-9"
-            placeholder="Global search..."
-          />
-        </div>
+      <KpiRow cards={kpiCards} />
 
-        <Select value={String(filters.year)} onValueChange={(value) => setYear(Number(value))}>
-          <SelectTrigger className="h-10 border-slate-200 bg-slate-50">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableYears.map((year) => (
-              <SelectItem key={year} value={String(year)}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <BudgetBreakdownSection
+        breakdown={MOCK_BUDGET_BREAKDOWN}
+        dateCard={data.dateCard}
+        workingOn={workingOn}
+        aipDetailsHref="/city/aips"
+        onViewAipDetails={() => console.info("[UI-only] View AIP details clicked")}
+        onViewAllProjects={() => console.info("[UI-only] View all projects clicked")}
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {kpiCards.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Card key={kpi.label} className="gap-3 border-slate-200 py-4">
-              <CardContent className="space-y-2 px-4">
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{kpi.label}</span>
-                  <Icon className="h-4 w-4 text-slate-500" />
-                </div>
-                <div className="text-3xl font-semibold text-slate-900">{formatNumber(kpi.value)}</div>
-                <div className="text-[11px] text-slate-500">{kpi.footnote}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-[7fr_3fr]">
+        <TopFundedProjectsSection
+          rows={filteredTopProjects}
+          filters={topProjectFilters}
+          categoryOptions={TOP_PROJECT_CATEGORY_OPTIONS}
+          typeOptions={TOP_PROJECT_TYPE_OPTIONS}
+          onFilterChange={(change) => setTopProjectFilters((prev) => ({ ...prev, ...change }))}
+        />
+        <div className="space-y-4">
           <DonutChartCard
             title="Status Distribution"
             series={{
-              data: orderedStatusDistribution.map((item) => ({ name: getAipStatusLabel(item.status), value: item.count })),
+              data: orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
             }}
+            palette={orderedStatusDistribution.map((item) => AIP_STATUS_COLOR[item.status])}
+            showLegend
+            height={230}
             centerLabel={{
               title: "Total",
               value: formatNumber(orderedStatusDistribution.reduce((sum, item) => sum + item.count, 0)),
             }}
-            showLegend
-            palette={orderedStatusDistribution.map((item) => AIP_STATUS_COLOR[item.status])}
-            height={250}
-            emptyText="No status distribution data."
           />
 
-          <Card className="gap-4 border-slate-200 py-4">
-            <CardHeader className="px-4">
-              <CardTitle className="text-sm font-semibold">Pending Review Aging</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <HorizontalAgingChart data={data.pendingReviewAging} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-4">
-          <Card className="overflow-hidden border-slate-200 py-0">
-            <CardContent className="bg-linear-to-r from-sky-900 to-blue-500 px-5 py-4 text-white">
-              <div className="flex items-center gap-3">
-                <div className="text-5xl font-semibold leading-none">{data.dateCard.day}</div>
-                <div>
-                  <div className="text-xs font-semibold">{data.dateCard.weekday}</div>
-                  <div className="text-xs uppercase tracking-wide">{data.dateCard.month} {data.dateCard.year}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="gap-4 border-slate-200 py-4">
-            <CardHeader className="px-4">
-              <CardTitle className="text-sm font-semibold">You&apos;re Working On</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4">
-              {data.workingOn.map((item) => (
-                <div key={item.id} className="rounded-lg border border-slate-200 px-3 py-2">
-                  <div className="text-xs font-medium text-slate-700">{item.barangayName}</div>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <Badge variant="outline" className={`rounded-full text-[11px] ${getAipStatusBadgeClass(item.status)}`}>
-                      {getAipStatusLabel(item.status)}
-                    </Badge>
-                    <span className="text-[11px] text-slate-500">in status for {item.daysInStatus} days</span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <div className="space-y-6">
-          <Card className="gap-4 border-slate-200 py-4">
-            <CardHeader className="px-4">
-              <CardTitle className="text-2xl font-semibold">City AIP Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 px-4">
-              {data.cityAipStatus.hasCityAipForYear ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                  <div className="font-semibold">{data.cityAipStatus.warningTitle}</div>
-                  <div>{data.cityAipStatus.warningMessage}</div>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>{data.cityAipStatus.warningTitle}</span>
-                  </div>
-                  <div className="mt-1">{data.cityAipStatus.warningMessage}</div>
-                </div>
-              )}
-
-              <Button asChild className="w-full bg-teal-700 text-white hover:bg-teal-800">
-                <Link href={data.cityAipStatus.ctaHref}>Upload City AIP for {filters.year}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
           <BarChartCard
-            title="Publication Timeline"
+            title="Pending Review Aging"
             series={{
-              data: data.publicationTimeline.map((item) => ({ year: String(item.year), publishedCount: item.publishedCount })),
-              xKey: "year",
-              bars: [{ key: "publishedCount", label: "Published", fill: "#22c55e" }],
+              data: data.pendingReviewAging.map((item) => ({ bucket: item.label, count: item.count })),
+              xKey: "bucket",
+              bars: [{ key: "count", label: "Count", fill: "#0f766e" }],
             }}
             showLegend={false}
             showGrid
-            height={190}
-            emptyText="No publication timeline data."
-            className="gap-4"
+            height={210}
           />
-
-          <Card className="gap-4 border-slate-200 py-4">
-            <CardHeader className="px-4">
-              <CardTitle className="text-sm font-semibold">City AIPs by Year</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Uploaded By</TableHead>
-                    <TableHead>Upload Date</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.cityAipsByYear.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.year}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(row.status)}`}>
-                          {getAipStatusLabel(row.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{row.uploadedBy}</TableCell>
-                      <TableCell>{formatDate(row.uploadDate)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm" className="gap-2">
-                          <Link href={row.actionHref}>
-                            <Eye className="h-3.5 w-3.5" />
-                            View
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
         </div>
-
-        <Card className="gap-4 border-slate-200 py-4">
-          <CardHeader className="px-4">
-            <CardTitle className="text-2xl font-semibold">Citizen Engagement Pulse</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 px-4">
-            <div className="grid grid-cols-3 gap-3">
-              <Card className="gap-1 border-slate-200 py-3">
-                <CardContent className="px-3">
-                  <div className="text-[11px] text-slate-500">New This Week</div>
-                  <div className="text-3xl font-semibold text-slate-900">{data.engagementPulse.newThisWeek}</div>
-                </CardContent>
-              </Card>
-              <Card className="gap-1 border-rose-200 bg-rose-50 py-3">
-                <CardContent className="px-3">
-                  <div className="text-[11px] text-rose-700">Awaiting Reply</div>
-                  <div className="text-3xl font-semibold text-rose-700">{data.engagementPulse.awaitingReply}</div>
-                </CardContent>
-              </Card>
-              <Card className="gap-1 border-slate-200 py-3">
-                <CardContent className="px-3">
-                  <div className="text-[11px] text-slate-500">Moderated</div>
-                  <div className="text-3xl font-semibold text-slate-900">{data.engagementPulse.moderated}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <LineChartCard
-              title="Comments Trend"
-              series={{
-                data: data.engagementPulse.commentsTrend.map((point) => ({ label: point.label, value: point.value })),
-                xKey: "label",
-                lines: [{ key: "value", label: "Comments", stroke: "#0f766e" }],
-              }}
-              showLegend={false}
-              showGrid
-              height={180}
-              emptyText="No comments trend data."
-              className="gap-3"
-            />
-
-            <BarChartCard
-              title="Comment Targets"
-              series={{
-                data: data.engagementPulse.commentTargets.map((point) => ({ category: point.category, count: point.count })),
-                xKey: "category",
-                bars: [{ key: "count", label: "Targets", fill: "#2563eb" }],
-              }}
-              showLegend={false}
-              showGrid
-              height={190}
-              emptyText="No comment target data."
-              className="gap-3"
-            />
-
-            <Card className="gap-3 border-slate-200 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="text-sm font-semibold">Recent Feedback</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 px-4">
-                {data.recentComments.map((comment) => (
-                  <div key={comment.id} className="space-y-3 rounded-lg border border-slate-200 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                        <Users className="h-4 w-4 text-slate-500" />
-                        <span>{comment.author}</span>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full text-[11px] ${
-                          comment.replyAvailable
-                            ? "border-amber-300 bg-amber-50 text-amber-700"
-                            : "border-emerald-300 bg-emerald-50 text-emerald-700"
-                        }`}
-                      >
-                        {comment.replyAvailable ? "Unreplied" : "Replied"}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-slate-500">Commented on: {comment.title}</div>
-                    <p className="text-sm text-slate-700">{comment.snippet}</p>
-
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-slate-500">{comment.timestampLabel}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1 text-xs text-slate-700"
-                        onClick={() => onReply(comment.id)}
-                      >
-                        Reply
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9 w-full gap-2"
-                  onClick={onViewAllComments}
-                >
-                  View All Comments
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* [DBv2] `public.aips` does not currently expose explicit claim/claimed_by fields.
-          `Available to Claim` is a UI-only queue metric for now; TODO map this to real assignment data once schema evolves. */}
-      <div className="hidden items-center gap-2 text-xs text-slate-400">
-        <CalendarDays className="h-3.5 w-3.5" />
-        <span>Dashboard snapshot for city scope: {data.scope.psgcCode}</span>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <CityAipStatusColumn
+          cityAipCoverage={cityAipCoverage}
+          publicationTimeline={data.publicationTimeline.map((point) => ({
+            year: point.year,
+            value: point.publishedCount,
+          }))}
+          cityAipsByYear={cityAipsByYear}
+          recentActivity={MOCK_RECENT_ACTIVITY}
+          onUploadCityAip={() => console.info("[UI-only] Upload City AIP clicked", { year: filters.year })}
+          onViewAudit={() => console.info("[UI-only] View audit clicked")}
+        />
+
+        <div className="space-y-6">
+          <CitizenEngagementPulseColumn
+            kpis={{
+              newThisWeek: data.engagementPulse.newThisWeek,
+              awaitingReply: data.engagementPulse.awaitingReply,
+              hidden: data.engagementPulse.moderated,
+            }}
+            trendSeries={data.engagementPulse.commentsTrend.map((point) => ({
+              label: point.label,
+              value: point.value,
+            }))}
+            targetsSeries={data.engagementPulse.commentTargets.map((point) => ({
+              label: point.category,
+              count: point.count,
+            }))}
+            recentFeedback={data.recentComments.map((comment) => ({
+              id: comment.id,
+              scopeTag: comment.sourceLabel,
+              title: comment.title,
+              snippet: comment.snippet,
+              author: comment.author,
+              timeAgo: comment.timestampLabel,
+            }))}
+          />
+
+          <RecentProjectUpdatesCard
+            items={MOCK_RECENT_PROJECT_UPDATES}
+            onItemClick={(id) => console.info("[UI-only] Recent project update clicked", { id })}
+          />
+        </div>
       </div>
     </div>
   );

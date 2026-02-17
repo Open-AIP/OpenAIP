@@ -7,7 +7,7 @@ import {
 } from "@/features/feedback/components/comment-thread-accordion-list";
 import { CommentThreadPanel } from "@/features/feedback/components/comment-thread-panel";
 import FeedbackComposer from "@/features/citizen/aips/components/FeedbackComposer";
-import { getFeedbackKindBadge } from "@/features/feedback/lib/kind";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 import type {
   FeedbackItem,
   FeedbackUser,

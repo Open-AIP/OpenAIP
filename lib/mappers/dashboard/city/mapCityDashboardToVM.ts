@@ -1,4 +1,3 @@
-import { Clock3, FileClock, GitPullRequestArrow, UserRoundCheck } from "lucide-react";
 import { getAipStatusLabel } from "@/lib/mappers/submissions";
 import { formatNumber } from "@/lib/formatting";
 import {
@@ -46,7 +45,7 @@ export function mapCityDashboardToVM({
       label: "Pending Review",
       value: formatNumber(data.queueMetrics.pendingReview),
       subtext: data.queueMetrics.asOfLabel,
-      icon: FileClock,
+      icon: "file-clock",
       tone: "warning",
     },
     {
@@ -54,7 +53,7 @@ export function mapCityDashboardToVM({
       label: "Under Review",
       value: formatNumber(data.queueMetrics.underReview),
       subtext: data.queueMetrics.asOfLabel,
-      icon: Clock3,
+      icon: "clock",
       tone: "info",
     },
     {
@@ -62,7 +61,7 @@ export function mapCityDashboardToVM({
       label: "For Revision",
       value: formatNumber(data.queueMetrics.forRevision),
       subtext: data.queueMetrics.asOfLabel,
-      icon: GitPullRequestArrow,
+      icon: "git-pull-request",
       tone: "warning",
     },
     {
@@ -70,7 +69,7 @@ export function mapCityDashboardToVM({
       label: "Available to Claim",
       value: formatNumber(data.queueMetrics.availableToClaim),
       subtext: data.queueMetrics.availableToClaimLabel,
-      icon: UserRoundCheck,
+      icon: "user-check",
       tone: "success",
     },
     {

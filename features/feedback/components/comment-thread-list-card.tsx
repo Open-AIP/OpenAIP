@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/ui/utils";
 
-import { formatCommentDate } from "../lib/format";
-import { getCommentStatusBadge } from "../lib/status";
+import { formatCommentDate } from "@/lib/formatting/feedback";
+import { getCommentStatusBadge } from "@/lib/ui/feedback-status";
 import type { CommentThreadStatus } from "../types";
 
 export function CommentThreadListCard({

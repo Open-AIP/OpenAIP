@@ -8,7 +8,7 @@ import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
-import { getFeedbackKindBadge } from "../lib/kind";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 
 export function CommentAipThreadList({
   aipId,

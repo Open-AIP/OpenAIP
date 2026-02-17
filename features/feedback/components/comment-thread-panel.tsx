@@ -6,10 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/ui/utils";
 
-import { formatCommentDate } from "../lib/format";
-import { getFeedbackKindBadge } from "../lib/kind";
+import { formatCommentDate } from "@/lib/formatting/feedback";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 import { getCommentRepo } from "@/lib/repos/feedback/repo";
-import { getCommentStatusBadge } from "../lib/status";
+import { getCommentStatusBadge } from "@/lib/ui/feedback-status";
 import type { CommentMessage, CommentThread } from "../types";
 
 const ROLE_LABELS: Record<string, string> = {

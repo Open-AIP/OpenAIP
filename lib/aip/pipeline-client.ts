@@ -1,4 +1,4 @@
-import type { AipProcessingRunView } from "@/features/aip/types";
+import type { AipProcessingRunView } from "@/lib/types/viewmodels/aip-processing.vm";
 
 async function handleResponse(response: Response) {
   if (!response.ok) {

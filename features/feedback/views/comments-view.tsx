@@ -15,7 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CATEGORY_KINDS, formatFeedbackKind, getFeedbackKindBadge } from "../lib/kind";
+import {
+  CATEGORY_KINDS,
+  formatFeedbackKind,
+  getFeedbackKindBadge,
+} from "@/lib/constants/feedback-kind";
 
 export default function CommentsView({
   scope = "barangay",

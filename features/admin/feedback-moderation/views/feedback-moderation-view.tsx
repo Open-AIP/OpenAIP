@@ -16,7 +16,7 @@ import {
 } from "@/lib/repos/feedback-moderation/mappers/feedback.mapper";
 import type { FeedbackModerationDataset } from "@/lib/repos/feedback-moderation/types";
 import { getFeedbackModerationRepo } from "@/lib/repos/feedback-moderation/repo";
-import { CATEGORY_KINDS, formatFeedbackKind } from "@/features/feedback/lib/kind";
+import { CATEGORY_KINDS, formatFeedbackKind } from "@/lib/constants/feedback-kind";
 
 const VIOLATION_OPTIONS = [
   "Spam",

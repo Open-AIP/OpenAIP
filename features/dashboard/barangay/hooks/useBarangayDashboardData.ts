@@ -65,18 +65,12 @@ export function useBarangayDashboardData() {
     };
   }, [repo, filters]);
 
-  const totalBudget = useMemo(() => {
-    if (!data) return 0;
-    return data.budgetBreakdown.reduce((sum, item) => sum + item.amount, 0);
-  }, [data]);
-
   return {
     scope,
     filters,
     setFilters,
     data,
     availableYears,
-    totalBudget,
     isLoading,
     error,
   };

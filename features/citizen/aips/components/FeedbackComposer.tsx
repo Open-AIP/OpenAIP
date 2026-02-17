@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FeedbackUser } from "@/features/citizen/aips/types";
-import { CATEGORY_KINDS, formatFeedbackKind, type CategoryKind } from "@/features/feedback/lib/kind";
+import { CATEGORY_KINDS, formatFeedbackKind, type CategoryKind } from "@/lib/constants/feedback-kind";
 
 type Props = {
   currentUser: FeedbackUser;

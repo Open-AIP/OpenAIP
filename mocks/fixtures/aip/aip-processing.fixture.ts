@@ -1,4 +1,4 @@
-import type { AipProcessingRunView } from "@/features/aip/types";
+import type { AipProcessingRunView } from "@/lib/types/viewmodels/aip-processing.vm";
 
 export const AIP_PROCESSING_RUNS_FIXTURE: AipProcessingRunView[] = [
   {

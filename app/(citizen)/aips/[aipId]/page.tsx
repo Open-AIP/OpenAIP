@@ -1,12 +1,16 @@
 import AipDetailsHeader from '@/features/citizen/aips/components/AipDetailsHeader';
 import AipDetailsTabs from '@/features/citizen/aips/components/AipDetailsTabs';
-import { getCitizenAipDetails, getCitizenAipFilters } from '@/features/citizen/aips/data/aips.data';
+import { getCitizenAipRepo } from '@/lib/repos/citizen-aips';
 import { getCitizenFeedbackSession, listCitizenFeedbackItems } from '@/lib/repos/feedback/citizen';
 
 const CitizenAipDetailsPage = async ({ params }: { params: Promise<{ aipId: string }> }) => {
   const { aipId } = await params;
-  const filters = await getCitizenAipFilters();
-  const aipDetails = await getCitizenAipDetails(aipId || filters.defaultAipId);
+  const repo = getCitizenAipRepo();
+  const [defaultAipId, aipDetailsFromParam] = await Promise.all([
+    repo.getDefaultAipId(),
+    aipId ? repo.getAipDetails(aipId) : Promise.resolve(null),
+  ]);
+  const aipDetails = aipDetailsFromParam ?? (await repo.getAipDetails(defaultAipId));
   const feedbackItems = await listCitizenFeedbackItems(aipDetails.id);
   const feedbackSession = await getCitizenFeedbackSession();
 

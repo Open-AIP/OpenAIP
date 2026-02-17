@@ -1,4 +1,8 @@
-import type { AipProcessingRunView, PipelineStageUi, PipelineStatusUi } from "@/features/aip/types";
+import type {
+  AipProcessingRunView,
+  PipelineStageUi,
+  PipelineStatusUi,
+} from "@/lib/types/viewmodels/aip-processing.vm";
 
 type RunRecord = {
   runId: string;

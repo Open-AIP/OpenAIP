@@ -5,7 +5,7 @@ import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBa
 import AipFiltersBar from '@/features/citizen/aips/components/AipFiltersBar';
 import AipIntroCard from '@/features/citizen/aips/components/AipIntroCard';
 import AipListCard from '@/features/citizen/aips/components/AipListCard';
-import { getCitizenAipFilters, getCitizenAipList } from '@/features/citizen/aips/data/aips.data';
+import { getCitizenAipRepo } from '@/lib/repos/citizen-aips';
 import type { AipListItem } from '@/features/citizen/aips/types';
 
 const CitizenAipsPage = () => {
@@ -20,13 +20,18 @@ const CitizenAipsPage = () => {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [items, filters] = await Promise.all([getCitizenAipList(), getCitizenAipFilters()]);
+      const repo = getCitizenAipRepo();
+      const [items, fiscalYearOptions, lguOptions] = await Promise.all([
+        repo.listAips(),
+        repo.listFiscalYearOptions(),
+        repo.listLguOptions(),
+      ]);
       if (!active) return;
       setListItems(items);
-      setFiscalYearOptions(filters.fiscalYearOptions);
-      setLguOptions(filters.lguOptions);
-      setSelectedYear((prev) => prev || filters.fiscalYearOptions[0] || '2026');
-      setSelectedLgu((prev) => prev || filters.lguOptions[0] || 'All LGUs');
+      setFiscalYearOptions(fiscalYearOptions);
+      setLguOptions(lguOptions);
+      setSelectedYear((prev) => prev || fiscalYearOptions[0] || '2026');
+      setSelectedLgu((prev) => prev || lguOptions[0] || 'All LGUs');
     };
     load();
     return () => {

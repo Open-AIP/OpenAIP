@@ -1,5 +1,5 @@
-import type { CommentThreadStatus } from "../types";
-import { COMMENT_STATUS_LABEL } from "../constants";
+import type { CommentThreadStatus } from "@/lib/types/domain/feedback.domain";
+import { COMMENT_STATUS_LABEL } from "@/lib/constants/feedback-comment-status";
 
 export function getCommentStatusBadge(status: CommentThreadStatus) {
   if (status === "responded") {

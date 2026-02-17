@@ -1,5 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Clock3,
+  FileClock,
+  FileText,
+  FolderKanban,
+  GitPullRequestArrow,
+  MessageSquare,
+  UserRoundCheck,
+  Wallet,
+} from "lucide-react";
 import type { KpiCardVM } from "../types";
 
 type KpiRowProps = {
@@ -13,11 +23,22 @@ const toneClass: Record<NonNullable<KpiCardVM["tone"]>, string> = {
   warning: "border-2 border-amber-200 border-l-4 border-l-amber-500 shadow-sm",
 };
 
+const iconMap = {
+  "file-clock": FileClock,
+  clock: Clock3,
+  "git-pull-request": GitPullRequestArrow,
+  "user-check": UserRoundCheck,
+  "file-text": FileText,
+  folder: FolderKanban,
+  wallet: Wallet,
+  "message-square": MessageSquare,
+} as const;
+
 export default function KpiRow({ cards }: KpiRowProps) {
   return (
     <div className="flex flex-wrap gap-4">
       {cards.map((card) => {
-        const Icon = card.icon;
+        const Icon = card.icon ? iconMap[card.icon] : undefined;
         return (
           <Card
             key={card.id}

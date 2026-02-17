@@ -1,6 +1,6 @@
 import { CommentThreadListCard } from "@/features/feedback/components/comment-thread-list-card";
 import type { FeedbackItem } from "@/features/citizen/aips/types";
-import { getFeedbackKindBadge } from "@/features/feedback/lib/kind";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 
 export default function FeedbackListItem({ item }: { item: FeedbackItem }) {
   const badge = getFeedbackKindBadge(item.kind);

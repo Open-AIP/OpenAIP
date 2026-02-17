@@ -1,4 +1,3 @@
-import { FileText, FolderKanban, MessageSquare, Wallet } from "lucide-react";
 import { getAipStatusLabel } from "@/lib/mappers/submissions";
 import { formatNumber, formatPeso } from "@/lib/formatting";
 import {
@@ -24,7 +23,6 @@ type MapBarangayDashboardVMInput = {
     scope_id: string;
   };
   availableYears: number[];
-  totalBudget: number;
 };
 
 export function mapBarangayDashboardToVM({
@@ -33,9 +31,9 @@ export function mapBarangayDashboardToVM({
   fiscal_year,
   scope,
   availableYears,
-  totalBudget,
 }: MapBarangayDashboardVMInput): BarangayDashboardVM | null {
   if (!data) return null;
+  const totalBudget = data.budgetBreakdown.reduce((sum, item) => sum + item.amount, 0);
 
   return {
     header: {
@@ -50,7 +48,7 @@ export function mapBarangayDashboardToVM({
         label: "AIP Status",
         value: getAipStatusLabel(data.aipStatus.status),
         subtext: `${data.aipStatus.asOfLabel} · ${data.aipStatus.lastUpdatedLabel}`,
-        icon: FileText,
+        icon: "file-text",
         tone: "warning",
       },
       {
@@ -58,7 +56,7 @@ export function mapBarangayDashboardToVM({
         label: "Total Projects",
         value: formatNumber(data.totalProjects.total),
         subtext: `Health: ${data.totalProjects.healthCount} · Infra: ${data.totalProjects.infrastructureCount}`,
-        icon: FolderKanban,
+        icon: "folder",
         tone: "info",
       },
       {
@@ -66,7 +64,7 @@ export function mapBarangayDashboardToVM({
         label: "Total Budget",
         value: formatPeso(totalBudget),
         subtext: `Based on project totals for ${fiscal_year}`,
-        icon: Wallet,
+        icon: "wallet",
         tone: "success",
       },
       {
@@ -74,7 +72,7 @@ export function mapBarangayDashboardToVM({
         label: "Citizen Feedback",
         value: `${formatNumber(data.citizenFeedback.totalComments)} Comments`,
         subtext: `${data.citizenFeedback.awaitingReply} awaiting replies`,
-        icon: MessageSquare,
+        icon: "message-square",
         tone: "warning",
         badgeText: data.citizenFeedback.awaitingReply > 0 ? data.citizenFeedback.actionRequiredLabel : undefined,
       },

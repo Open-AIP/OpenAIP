@@ -12,7 +12,6 @@ export function useBarangayDashboard() {
     setFilters,
     data,
     availableYears,
-    totalBudget,
     isLoading,
     error,
   } = useBarangayDashboardData();
@@ -57,9 +56,8 @@ export function useBarangayDashboard() {
           scope_id: scope.scope_id,
         },
         availableYears,
-        totalBudget,
       }),
-    [data, filters, scope.scope_id, scope.scope_type, availableYears, totalBudget]
+    [data, filters, scope.scope_id, scope.scope_type, availableYears]
   );
 
   return {
@@ -70,7 +68,6 @@ export function useBarangayDashboard() {
     isLoading,
     error,
     availableYears,
-    totalBudget,
     setYear,
     setGlobalSearch,
     setTableSearch,

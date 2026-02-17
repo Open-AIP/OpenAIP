@@ -1,7 +1,16 @@
-import type { LucideIcon } from "lucide-react";
 import type { AipStatus, ProjectCategory } from "@/lib/contracts/databasev2/enums";
 import type { ProjectStatus } from "@/lib/repos/projects/types";
 import type { DashboardSectorFilter } from "@/lib/constants/dashboard";
+
+export type DashboardKpiIcon =
+  | "file-clock"
+  | "clock"
+  | "git-pull-request"
+  | "user-check"
+  | "file-text"
+  | "folder"
+  | "wallet"
+  | "message-square";
 
 export type SelectOption = {
   label: string;
@@ -13,7 +22,7 @@ export type KpiCardVM = {
   label: string;
   value: string;
   subtext?: string;
-  icon?: LucideIcon;
+  icon?: DashboardKpiIcon;
   tone?: "neutral" | "info" | "success" | "warning";
   badgeText?: string;
   onClick?: () => void;

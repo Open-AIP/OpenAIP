@@ -4,3 +4,4 @@ export * from "./chat.vm";
 export * from "./submissions.vm";
 export * from "./feedback.vm";
 export * from "./aip-monitoring.vm";
+export * from "./aip-processing.vm";

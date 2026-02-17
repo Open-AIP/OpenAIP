@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPeso } from "@/lib/formatting";
 import type { BudgetBreakdownVM } from "../types";
 
@@ -18,6 +17,13 @@ export default function BudgetDonutCard({
   onViewAipDetails,
   onViewAllProjects,
 }: BudgetDonutCardProps) {
+  const dotColorByTextClass: Record<string, string> = {
+    "text-blue-500": "bg-blue-500",
+    "text-teal-700": "bg-teal-700",
+    "text-emerald-500": "bg-emerald-500",
+    "text-amber-500": "bg-amber-500",
+  };
+
   const radius = 78;
   const strokeWidth = 26;
   const circumference = 2 * Math.PI * radius;
@@ -111,30 +117,22 @@ export default function BudgetDonutCard({
               <div className="text-4xl font-semibold text-teal-800">{formatPeso(breakdown.totalBudget)}</div>
             </div>
 
-            <div className="rounded-lg border border-slate-200">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {breakdown.segments.map((item) => (
-                    <TableRow key={item.label}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${item.colorClass.replace("text", "bg")}`} />
-                          <span>{item.label}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{item.percent}%</TableCell>
-                      <TableCell className="text-right">{formatPeso(item.value)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="border-t border-slate-200 pt-4">
+              <div className="space-y-3">
+                {breakdown.segments.map((item) => (
+                  <div key={item.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 text-sm text-slate-700">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${dotColorByTextClass[item.colorClass] ?? "bg-slate-400"}`}
+                      />
+                      <span>{item.label}</span>
+                    </div>
+                    <div className="text-right text-slate-500">{item.percent}%</div>
+                    <div className="text-right font-semibold text-slate-800">{formatPeso(item.value)}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-6 text-xs italic text-slate-500">Categories derived from project classification.</p>
             </div>
           </div>
         </div>

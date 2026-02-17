@@ -17,8 +17,8 @@ export default function TopProjectsFilters({
   onFilterChange,
 }: TopProjectsFiltersProps) {
   return (
-    <div className="grid gap-3 xl:grid-cols-[1fr_170px_170px]">
-      <div className="relative">
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
+      <div className="relative xl:col-span-8">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input
           value={filters.search}
@@ -28,31 +28,35 @@ export default function TopProjectsFilters({
         />
       </div>
 
-      <Select value={filters.category} onValueChange={(value) => onFilterChange({ category: value })}>
-        <SelectTrigger className="h-9 border-slate-200 bg-slate-50">
-          <SelectValue placeholder="All Categories" />
-        </SelectTrigger>
-        <SelectContent>
-          {categoryOptions.map((option) => (
-            <SelectItem key={String(option.value)} value={String(option.value)}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="xl:col-span-2">
+        <Select value={filters.category} onValueChange={(value) => onFilterChange({ category: value })}>
+          <SelectTrigger className="h-9 w-full border-slate-200 bg-slate-50">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            {categoryOptions.map((option) => (
+              <SelectItem key={String(option.value)} value={String(option.value)}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Select value={filters.type} onValueChange={(value) => onFilterChange({ type: value })}>
-        <SelectTrigger className="h-9 border-slate-200 bg-slate-50">
-          <SelectValue placeholder="All Types" />
-        </SelectTrigger>
-        <SelectContent>
-          {typeOptions.map((option) => (
-            <SelectItem key={String(option.value)} value={String(option.value)}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="xl:col-span-2">
+        <Select value={filters.type} onValueChange={(value) => onFilterChange({ type: value })}>
+          <SelectTrigger className="h-9 w-full border-slate-200 bg-slate-50">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            {typeOptions.map((option) => (
+              <SelectItem key={String(option.value)} value={String(option.value)}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

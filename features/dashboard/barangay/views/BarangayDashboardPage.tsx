@@ -56,7 +56,7 @@ export default function BarangayDashboardPage() {
         onViewAllProjects={handlers.onViewAllProjects}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[7fr_3fr]">
         <TopFundedProjectsSection
           rows={viewModel.topFunded.rows}
           filters={viewModel.topFunded.filters}
@@ -67,7 +67,7 @@ export default function BarangayDashboardPage() {
         <RecentProjectUpdatesCard items={viewModel.recentProjectUpdates} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-2">
         <CityAipStatusColumn
           cityAipCoverage={viewModel.cityAipCoverage}
           publicationTimeline={viewModel.publicationTimeline}

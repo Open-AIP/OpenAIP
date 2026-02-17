@@ -86,6 +86,11 @@ function DonutChart({ data }: { data: BarangayDashboardData["budgetBreakdown"] }
             ))}
           </g>
         </svg>
+
+        <div className="absolute text-center">
+          <div className="text-[11px] text-slate-500">Total Budget</div>
+          <div className="text-2xl font-semibold text-slate-900">{formatPeso(total)}</div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
@@ -177,7 +182,8 @@ export default function BarangayDashboardView() {
     availableYears,
     totalBudget,
     setYear,
-    setSearch,
+    setGlobalSearch,
+    setTableSearch,
     setSector,
     setProjectType,
   } = useBarangayDashboard();
@@ -191,24 +197,28 @@ export default function BarangayDashboardView() {
         value: getAipStatusLabel(data.aipStatus.status),
         subtext: `${data.aipStatus.asOfLabel} · ${data.aipStatus.lastUpdatedLabel}`,
         icon: FileText,
+        toneClass: "border-blue-200",
       },
       {
         label: "Total Projects",
         value: formatNumber(data.totalProjects.total),
         subtext: `Health: ${data.totalProjects.healthCount} · Infra: ${data.totalProjects.infrastructureCount}`,
         icon: FolderKanban,
+        toneClass: "border-blue-200",
       },
       {
         label: "Total Budget",
         value: formatPeso(totalBudget),
         subtext: `Based on project totals for ${filters.year}`,
         icon: Wallet,
+        toneClass: "border-emerald-200",
       },
       {
         label: "Citizen Feedback",
         value: `${formatNumber(data.citizenFeedback.totalComments)} Comments`,
         subtext: `${data.citizenFeedback.awaitingReply} awaiting replies`,
         icon: MessageSquare,
+        toneClass: "border-amber-200",
       },
     ];
   }, [data, filters.year, totalBudget]);
@@ -226,19 +236,19 @@ export default function BarangayDashboardView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       {/* [DISCOVERY] Reuses the city dashboard composition from `features/city/dashboard/views/city-dashboard-view.tsx`
           and shared shadcn primitives in `components/ui/*` for cards, tables, badges, and selects. */}
       <div className="space-y-1">
-        <h1 className="text-4xl font-semibold text-slate-900">Welcome to OpenAIP</h1>
+        <h1 className="text-[40px] leading-none font-semibold text-slate-900">Welcome to OpenAIP</h1>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_180px]">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            value={filters.search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={filters.globalSearch}
+            onChange={(event) => setGlobalSearch(event.target.value)}
             className="h-10 border-slate-200 bg-slate-50 pl-9"
             placeholder={data.globalSearchPlaceholder}
           />
@@ -267,7 +277,7 @@ export default function BarangayDashboardView() {
           const isFeedback = kpi.label === "Citizen Feedback";
 
           return (
-            <Card key={kpi.label} className="gap-3 border-slate-200 py-4">
+            <Card key={kpi.label} className={`gap-3 py-4 ${kpi.toneClass}`}>
               <CardContent className="space-y-2 px-4">
                 <div className="flex items-center justify-between text-xs text-slate-500">
                   <span>{kpi.label}</span>
@@ -371,7 +381,7 @@ export default function BarangayDashboardView() {
             <CardContent className="space-y-3 px-4">
               {data.workingOn.isCaughtUp ? (
                 <div className="rounded-lg border border-slate-200 p-4 text-center">
-                  <div className="text-lg font-semibold text-teal-800">{data.workingOn.emptyLabel}</div>
+                  <div className="text-xl font-semibold text-teal-800">{data.workingOn.emptyLabel}</div>
                 </div>
               ) : (
                 data.workingOn.items.map((item) => (
@@ -398,8 +408,8 @@ export default function BarangayDashboardView() {
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
-                  value={filters.search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  value={filters.tableSearch}
+                  onChange={(event) => setTableSearch(event.target.value)}
                   className="h-9 border-slate-200 bg-slate-50 pl-9"
                   placeholder="Search projects..."
                 />

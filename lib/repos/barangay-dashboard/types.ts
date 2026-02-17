@@ -5,7 +5,8 @@ export type BarangayProjectSector = "General" | "Social" | "Economic" | "Other";
 
 export type BarangayDashboardFilters = {
   year: number;
-  search: string;
+  globalSearch: string;
+  tableSearch: string;
   sector: "all" | BarangayProjectSector;
   projectType: "all" | ProjectCategory;
 };

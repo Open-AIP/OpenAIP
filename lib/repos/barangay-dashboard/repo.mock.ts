@@ -51,7 +51,7 @@ function filterTopFundedProjects(
     .filter((row) => (filters.sector === "all" ? true : row.sector === filters.sector))
     .filter((row) => (filters.projectType === "all" ? true : row.projectType === filters.projectType))
     .filter((row) => {
-      const query = normalize(filters.search);
+      const query = normalize(filters.tableSearch);
       if (!query) return true;
 
       return [
@@ -79,6 +79,27 @@ function filterRecentProjectUpdates(query: string, titles: BarangayDashboardData
   });
 }
 
+function filterRecentActivity(query: string, rows: BarangayDashboardData["recentActivity"]) {
+  const needle = normalize(query);
+  if (!needle) return rows;
+
+  return rows.filter((item) => {
+    return [item.action, item.timestamp, item.tag].join(" ").toLowerCase().includes(needle);
+  });
+}
+
+function filterCityAipsByYear(query: string, rows: BarangayDashboardData["cityAipsByYear"]) {
+  const needle = normalize(query);
+  if (!needle) return rows;
+
+  return rows.filter((item) => {
+    return [String(item.year), item.uploadedBy, item.status, item.uploadDate]
+      .join(" ")
+      .toLowerCase()
+      .includes(needle);
+  });
+}
+
 export function createMockBarangayDashboardRepo(): BarangayDashboardRepo {
   return {
     async listAvailableYears() {
@@ -91,7 +112,9 @@ export function createMockBarangayDashboardRepo(): BarangayDashboardRepo {
       const data = cloneData(selected);
 
       data.topFundedProjects = filterTopFundedProjects(filters, data.topFundedProjects);
-      data.recentProjectUpdates = filterRecentProjectUpdates(filters.search, data.recentProjectUpdates);
+      data.recentProjectUpdates = filterRecentProjectUpdates(filters.globalSearch, data.recentProjectUpdates);
+      data.recentActivity = filterRecentActivity(filters.globalSearch, data.recentActivity);
+      data.cityAipsByYear = filterCityAipsByYear(filters.globalSearch, data.cityAipsByYear);
 
       return data;
     },

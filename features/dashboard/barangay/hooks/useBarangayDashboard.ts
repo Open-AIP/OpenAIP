@@ -10,7 +10,8 @@ import type { BarangayDashboardData, BarangayDashboardFilters } from "../types";
 
 const createDefaultFilters = (): BarangayDashboardFilters => ({
   year: BARANGAY_DASHBOARD_DEFAULT_YEAR,
-  search: "",
+  globalSearch: "",
+  tableSearch: "",
   sector: "all",
   projectType: "all",
 });
@@ -79,8 +80,12 @@ export function useBarangayDashboard() {
     setFilters((prev) => ({ ...prev, year }));
   };
 
-  const setSearch = (search: string) => {
-    setFilters((prev) => ({ ...prev, search }));
+  const setGlobalSearch = (globalSearch: string) => {
+    setFilters((prev) => ({ ...prev, globalSearch }));
+  };
+
+  const setTableSearch = (tableSearch: string) => {
+    setFilters((prev) => ({ ...prev, tableSearch }));
   };
 
   const setSector = (sector: BarangayDashboardFilters["sector"]) => {
@@ -101,7 +106,8 @@ export function useBarangayDashboard() {
     availableYears,
     totalBudget,
     setYear,
-    setSearch,
+    setGlobalSearch,
+    setTableSearch,
     setSector,
     setProjectType,
   };

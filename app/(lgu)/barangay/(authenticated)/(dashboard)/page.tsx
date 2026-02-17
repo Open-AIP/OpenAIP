@@ -1,4 +1,4 @@
-import { BarangayDashboardView } from "@/features/barangay-dashboard";
+import { BarangayDashboardView } from "@/features/dashboard/barangay";
 
 export default function BarangayDashboardPage() {
   return <BarangayDashboardView />;

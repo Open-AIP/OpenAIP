@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Clock3, FileClock, GitPullRequestArrow, UserRoundCheck } from "lucide-react";
-import { BarChartCard, DonutChartCard } from "@/features/dashboard/components/charts";
+import { BarChartCard, PieChartCard } from "@/features/dashboard/components/charts";
 import DashboardHeader from "@/features/dashboard/barangay/components/DashboardHeader";
 import KpiRow from "@/features/dashboard/barangay/components/KpiRow";
 import BudgetBreakdownSection from "@/features/dashboard/barangay/components/BudgetBreakdownSection";
@@ -341,20 +341,15 @@ export default function CityDashboardView() {
           onFilterChange={(change) => setTopProjectFilters((prev) => ({ ...prev, ...change }))}
         />
         <div className="space-y-4">
-          <DonutChartCard
+          <PieChartCard
             title="Status Distribution"
             series={{
               data: orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
-              innerRadius: 0,
               outerRadius: 92,
             }}
             palette={orderedStatusDistribution.map((item) => AIP_STATUS_COLOR[item.status])}
-            showLegend
+            showLabels
             height={230}
-            centerLabel={{
-              title: "Total",
-              value: formatNumber(orderedStatusDistribution.reduce((sum, item) => sum + item.count, 0)),
-            }}
           />
 
           <BarChartCard

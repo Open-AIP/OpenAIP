@@ -345,6 +345,8 @@ export default function CityDashboardView() {
             title="Status Distribution"
             series={{
               data: orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
+              innerRadius: 0,
+              outerRadius: 92,
             }}
             palette={orderedStatusDistribution.map((item) => AIP_STATUS_COLOR[item.status])}
             showLegend

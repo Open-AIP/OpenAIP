@@ -15,7 +15,7 @@ const toneClass: Record<NonNullable<KpiCardVM["tone"]>, string> = {
 
 export default function KpiRow({ cards }: KpiRowProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {cards.map((card) => {
         const Icon = card.icon;
         return (

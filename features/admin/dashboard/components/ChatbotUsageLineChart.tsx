@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ADMIN_CHATBOT_USAGE_STROKE } from "@/lib/constants/dashboard";
 import type { UsageMetricsVM } from "@/lib/repos/admin-dashboard/types";
 
 export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetricsVM }) {
@@ -48,7 +49,7 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
               })}
               <polyline
                 fill="none"
-                stroke="#0E5D6F"
+                stroke={ADMIN_CHATBOT_USAGE_STROKE}
                 strokeWidth={2}
                 points={points}
               />
@@ -57,7 +58,7 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
                 const y = chartHeight - (point.value / maxValue) * chartHeight;
                 return (
                   <g key={point.label}>
-                    <circle cx={x} cy={y} r={4} fill="#0E5D6F" />
+                    <circle cx={x} cy={y} r={4} fill={ADMIN_CHATBOT_USAGE_STROKE} />
                     <text
                       x={x}
                       y={chartHeight + 18}

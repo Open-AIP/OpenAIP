@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import BudgetBreakdownSection from "../components/BudgetBreakdownSection";
-import CitizenEngagementPulseColumn from "../components/CitizenEngagementPulseColumn";
-import CityAipStatusColumn from "../components/CityAipStatusColumn";
-import DashboardHeader from "../components/DashboardHeader";
-import KpiRow from "../components/KpiRow";
-import RecentProjectUpdatesCard from "../components/RecentProjectUpdatesCard";
-import TopFundedProjectsSection from "../components/TopFundedProjectsSection";
+import BudgetBreakdownSection from "@/features/dashboard/shared/components/BudgetBreakdownSection";
+import CitizenEngagementPulseColumn from "@/features/dashboard/shared/components/CitizenEngagementPulseColumn";
+import CityAipStatusColumn from "@/features/dashboard/shared/components/CityAipStatusColumn";
+import DashboardHeader from "@/features/dashboard/shared/components/DashboardHeader";
+import KpiRow from "@/features/dashboard/shared/components/KpiRow";
+import RecentProjectUpdatesCard from "@/features/dashboard/shared/components/RecentProjectUpdatesCard";
+import TopFundedProjectsSection from "@/features/dashboard/shared/components/TopFundedProjectsSection";
 import { useBarangayDashboard } from "../hooks/useBarangayDashboard";
 
 export default function BarangayDashboardPage() {

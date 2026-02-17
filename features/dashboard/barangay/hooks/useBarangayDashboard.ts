@@ -116,8 +116,6 @@ export function useBarangayDashboard() {
   const viewModel: BarangayDashboardVM | null = useMemo(() => {
     if (!data) return null;
 
-    const totalBudget = data.budgetBreakdown.reduce((sum, item) => sum + item.amount, 0);
-
     return {
       header: {
         title: "Welcome to OpenAIP",
@@ -248,7 +246,7 @@ export function useBarangayDashboard() {
       aipDetailsHref: data.budgetActions.aipDetailsHref,
       cityAipUploadLabel: `Upload City AIP for ${filters.year}`,
     };
-  }, [availableYears, data, filters.globalSearch, filters.projectType, filters.sector, filters.tableSearch, filters.year]);
+  }, [availableYears, data, filters.globalSearch, filters.projectType, filters.sector, filters.tableSearch, filters.year, totalBudget]);
 
   return {
     scope: BARANGAY_DASHBOARD_SCOPE,

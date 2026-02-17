@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ADMIN_ERROR_RATE_BAR_FILL } from "@/lib/constants/dashboard";
 import type { UsageMetricsVM } from "@/lib/repos/admin-dashboard/types";
 
 export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM }) {
@@ -55,7 +56,7 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
                       width={barWidth}
                       height={barHeight}
                       rx={4}
-                      fill="#ef4444"
+                      fill={ADMIN_ERROR_RATE_BAR_FILL}
                     />
                     <text
                       x={x + barWidth / 2}

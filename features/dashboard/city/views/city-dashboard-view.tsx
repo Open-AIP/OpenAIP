@@ -3,15 +3,22 @@
 import { useMemo, useState } from "react";
 import { Clock3, FileClock, GitPullRequestArrow, UserRoundCheck } from "lucide-react";
 import { BarChartCard, PieChartCard } from "@/features/dashboard/components/charts";
-import DashboardHeader from "@/features/dashboard/barangay/components/DashboardHeader";
-import KpiRow from "@/features/dashboard/barangay/components/KpiRow";
-import BudgetBreakdownSection from "@/features/dashboard/barangay/components/BudgetBreakdownSection";
-import TopFundedProjectsSection from "@/features/dashboard/barangay/components/TopFundedProjectsSection";
-import RecentProjectUpdatesCard from "@/features/dashboard/barangay/components/RecentProjectUpdatesCard";
-import CityAipStatusColumn from "@/features/dashboard/barangay/components/CityAipStatusColumn";
-import CitizenEngagementPulseColumn from "@/features/dashboard/barangay/components/CitizenEngagementPulseColumn";
+import DashboardHeader from "@/features/dashboard/shared/components/DashboardHeader";
+import KpiRow from "@/features/dashboard/shared/components/KpiRow";
+import BudgetBreakdownSection from "@/features/dashboard/shared/components/BudgetBreakdownSection";
+import TopFundedProjectsSection from "@/features/dashboard/shared/components/TopFundedProjectsSection";
+import RecentProjectUpdatesCard from "@/features/dashboard/shared/components/RecentProjectUpdatesCard";
+import CityAipStatusColumn from "@/features/dashboard/shared/components/CityAipStatusColumn";
+import CitizenEngagementPulseColumn from "@/features/dashboard/shared/components/CitizenEngagementPulseColumn";
 import { getAipStatusLabel } from "@/features/submissions/presentation/submissions.presentation";
 import { formatNumber } from "@/lib/formatting";
+import {
+  CITY_PENDING_REVIEW_AGING_BAR_FILL,
+  CITY_TOP_PROJECT_CATEGORY_OPTIONS,
+  CITY_TOP_PROJECT_TYPE_OPTIONS,
+  DASHBOARD_AIP_STATUS_COLORS,
+  DASHBOARD_AIP_STATUS_ORDER,
+} from "@/lib/constants/dashboard";
 import { useCityDashboard } from "../hooks/useCityDashboard";
 import type {
   CityAipByYearVM,
@@ -19,33 +26,10 @@ import type {
   KpiCardVM,
   SelectOption,
   TopProjectsFiltersVM,
-} from "@/features/dashboard/barangay/types";
-import type { AipStatus } from "@/lib/contracts/databasev2/enums";
+} from "@/features/dashboard/shared/types";
 
-const AIP_STATUS_ORDER: AipStatus[] = ["draft", "pending_review", "under_review", "for_revision", "published"];
-
-const AIP_STATUS_COLOR: Record<AipStatus, string> = {
-  draft: "#94a3b8",
-  pending_review: "#eab308",
-  under_review: "#3b82f6",
-  for_revision: "#f97316",
-  published: "#22c55e",
-};
-
-const TOP_PROJECT_CATEGORY_OPTIONS: SelectOption[] = [
-  { label: "All Categories", value: "all" },
-  { label: "Economic", value: "economic" },
-  { label: "Social", value: "social" },
-  { label: "General", value: "general" },
-  { label: "Other", value: "other" },
-];
-
-const TOP_PROJECT_TYPE_OPTIONS: SelectOption[] = [
-  { label: "All Types", value: "all" },
-  { label: "Health", value: "health" },
-  { label: "Infrastructure", value: "infrastructure" },
-  { label: "Other", value: "other" },
-];
+const TOP_PROJECT_CATEGORY_OPTIONS: SelectOption[] = CITY_TOP_PROJECT_CATEGORY_OPTIONS;
+const TOP_PROJECT_TYPE_OPTIONS: SelectOption[] = CITY_TOP_PROJECT_TYPE_OPTIONS;
 
 const DEFAULT_TOP_PROJECT_FILTERS: TopProjectsFiltersVM = {
   search: "",
@@ -172,7 +156,7 @@ export default function CityDashboardView() {
     () =>
       data
         ? [...data.statusDistribution].sort(
-            (a, b) => AIP_STATUS_ORDER.indexOf(a.status) - AIP_STATUS_ORDER.indexOf(b.status)
+            (a, b) => DASHBOARD_AIP_STATUS_ORDER.indexOf(a.status) - DASHBOARD_AIP_STATUS_ORDER.indexOf(b.status)
           )
         : [],
     [data]
@@ -222,7 +206,7 @@ export default function CityDashboardView() {
               data: orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
               outerRadius: 92,
             }}
-            palette={orderedStatusDistribution.map((item) => AIP_STATUS_COLOR[item.status])}
+            palette={orderedStatusDistribution.map((item) => DASHBOARD_AIP_STATUS_COLORS[item.status])}
             showLabels
             height={230}
           />
@@ -232,7 +216,7 @@ export default function CityDashboardView() {
             series={{
               data: data.pendingReviewAging.map((item) => ({ bucket: item.label, count: item.count })),
               xKey: "bucket",
-              bars: [{ key: "count", label: "Count", fill: "#0f766e" }],
+              bars: [{ key: "count", label: "Count", fill: CITY_PENDING_REVIEW_AGING_BAR_FILL }],
             }}
             showLegend={false}
             showGrid

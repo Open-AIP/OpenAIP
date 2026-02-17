@@ -5,14 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/ui/utils";
+import { DASHBOARD_TAG_TONE_STYLES } from "@/lib/ui/tokens";
 import type { LucideIcon } from "lucide-react";
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
-
-const tagToneStyles: Record<"info" | "warning" | "danger", string> = {
-  info: "bg-blue-50 text-blue-700 border-blue-200",
-  warning: "bg-amber-50 text-amber-700 border-amber-200",
-  danger: "bg-rose-50 text-rose-700 border-rose-200",
-};
 
 export default function KpiCard({
   title,
@@ -45,7 +40,7 @@ export default function KpiCard({
             <Icon className="h-4 w-4 text-slate-600" />
           </div>
           {tagLabel && (
-            <Badge className={cn("border", tagToneStyles[tagTone])}>{tagLabel}</Badge>
+            <Badge className={cn("border", DASHBOARD_TAG_TONE_STYLES[tagTone])}>{tagLabel}</Badge>
           )}
         </div>
         <div>

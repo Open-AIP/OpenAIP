@@ -8,12 +8,15 @@ type DonutSegment = AipStatusDistributionVM & {
   percentage: number;
 };
 
-const createSegments = (data: AipStatusDistributionVM[]): DonutSegment[] => {
+const createSegments = (data: AipStatusDistributionVM[]) => {
   const total = data.reduce((sum, item) => sum + item.count, 0);
-  return data.map((item) => ({
-    ...item,
-    percentage: total ? item.count / total : 0,
-  }));
+  return {
+    total,
+    segments: data.map((item) => ({
+      ...item,
+      percentage: total ? item.count / total : 0,
+    })),
+  };
 };
 
 export default function AipStatusDonutCard({
@@ -23,8 +26,7 @@ export default function AipStatusDonutCard({
   data: AipStatusDistributionVM[];
   onStatusClick: (status: string) => void;
 }) {
-  const segments = createSegments(data);
-  const total = data.reduce((sum, item) => sum + item.count, 0);
+  const { total, segments } = createSegments(data);
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
   const segmentsWithOffset = segments.map((segment, index) => {

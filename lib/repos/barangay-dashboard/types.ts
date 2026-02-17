@@ -1,5 +1,6 @@
 import type { AipStatus, ProjectCategory, RoleType } from "@/lib/contracts/databasev2/enums";
 import type { ProjectStatus } from "@/lib/repos/projects/types";
+import type { DashboardSectorCode, DashboardSectorFilter } from "@/lib/constants/dashboard";
 
 export type BarangayProjectSector = "General" | "Social" | "Economic" | "Other";
 
@@ -7,7 +8,7 @@ export type BarangayDashboardFilters = {
   year: number;
   globalSearch: string;
   tableSearch: string;
-  sector: "all" | BarangayProjectSector;
+  sector_code: DashboardSectorFilter;
   projectType: "all" | ProjectCategory;
 };
 
@@ -36,7 +37,7 @@ export type TopFundedProjectRow = {
   id: string;
   rank: number;
   projectName: string;
-  sector: BarangayProjectSector;
+  sector_code: DashboardSectorCode;
   projectType: ProjectCategory;
   budget: number;
   // TODO(DB): map to DBv2 lifecycle field once `public.projects` has an explicit status enum.

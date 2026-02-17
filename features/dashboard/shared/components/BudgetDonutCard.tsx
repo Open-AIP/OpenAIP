@@ -7,7 +7,7 @@ import type { BudgetBreakdownVM } from "../types";
 
 type BudgetDonutCardProps = {
   breakdown: BudgetBreakdownVM;
-  aipDetailsHref: string;
+  aipDetailsHref?: string;
   onViewAipDetails?: () => void;
   onViewAllProjects?: () => void;
 };
@@ -84,9 +84,15 @@ export default function BudgetDonutCard({
 
         <div className="border-t border-slate-200 pt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild className="bg-teal-700 text-white hover:bg-teal-800" onClick={onViewAipDetails}>
-              <Link href={aipDetailsHref}>View AIP Details</Link>
-            </Button>
+            {onViewAipDetails ? (
+              <Button className="bg-teal-700 text-white hover:bg-teal-800" type="button" onClick={onViewAipDetails}>
+                View AIP Details
+              </Button>
+            ) : (
+              <Button asChild className="bg-teal-700 text-white hover:bg-teal-800">
+                <Link href={aipDetailsHref ?? "#"}>View AIP Details</Link>
+              </Button>
+            )}
             <Button variant="outline" type="button" onClick={onViewAllProjects}>
               View All Projects
             </Button>

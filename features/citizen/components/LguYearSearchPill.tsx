@@ -6,22 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAvailableFiscalYears } from '@/features/shared/providers/yearOptions';
+import type { CitizenActions } from '@/features/citizen/types/citizen-actions';
 
 const PLACE_OPTIONS = [
-  { value: 'city-of-cabuyao', label: 'City of Cabuyao' },
-  { value: 'brgy-mamatid', label: 'Brgy. Mamatid' },
-  { value: 'brgy-pulo', label: 'Brgy. Pulo' },
-  { value: 'brgy-san-isidro', label: 'Brgy. San Isidro' },
-  { value: 'brgy-banaybanay', label: 'Brgy. Banaybanay' },
+  { value: 'city_001', label: 'City of Cabuyao', scope_type: 'city' as const, scope_id: 'city_001' },
+  { value: 'brgy_mamatid', label: 'Brgy. Mamatid', scope_type: 'barangay' as const, scope_id: 'brgy_mamatid' },
+  { value: 'brgy_pulo', label: 'Brgy. Pulo', scope_type: 'barangay' as const, scope_id: 'brgy_pulo' },
+  { value: 'brgy_san_isidro', label: 'Brgy. San Isidro', scope_type: 'barangay' as const, scope_id: 'brgy_san_isidro' },
+  { value: 'brgy_banaybanay', label: 'Brgy. Banaybanay', scope_type: 'barangay' as const, scope_id: 'brgy_banaybanay' },
 ];
 
-export default function LguYearSearchPill() {
+type LguYearSearchPillProps = {
+  onSearch: CitizenActions['onSearch'];
+};
+
+export default function LguYearSearchPill({ onSearch }: LguYearSearchPillProps) {
   const fiscalYearOptions = useMemo(() => getAvailableFiscalYears(), []);
   const [place, setPlace] = useState<string>(PLACE_OPTIONS[0].value);
   const [fiscalYear, setFiscalYear] = useState<string>(String(fiscalYearOptions[0] ?? new Date().getFullYear()));
 
-  const selectedPlaceLabel = useMemo(
-    () => PLACE_OPTIONS.find((option) => option.value === place)?.label ?? place,
+  const selectedPlace = useMemo(
+    () => PLACE_OPTIONS.find((option) => option.value === place) ?? PLACE_OPTIONS[0],
     [place]
   );
 
@@ -67,7 +72,11 @@ export default function LguYearSearchPill() {
         <Button
           type="button"
           onClick={() => {
-            console.log({ place: selectedPlaceLabel, fiscalYear });
+            onSearch({
+              scope_type: selectedPlace.scope_type,
+              scope_id: selectedPlace.scope_id,
+              fiscal_year: fiscalYear,
+            });
           }}
           className="h-10 bg-[#0E7490] px-6 text-white hover:bg-[#0C6078]"
         >

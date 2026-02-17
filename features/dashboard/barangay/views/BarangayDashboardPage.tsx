@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import BudgetBreakdownSection from "@/features/dashboard/shared/components/BudgetBreakdownSection";
 import CitizenEngagementPulseColumn from "@/features/dashboard/shared/components/CitizenEngagementPulseColumn";
 import CityAipStatusColumn from "@/features/dashboard/shared/components/CityAipStatusColumn";
@@ -9,24 +8,14 @@ import KpiRow from "@/features/dashboard/shared/components/KpiRow";
 import RecentProjectUpdatesCard from "@/features/dashboard/shared/components/RecentProjectUpdatesCard";
 import TopFundedProjectsSection from "@/features/dashboard/shared/components/TopFundedProjectsSection";
 import { useBarangayDashboard } from "../hooks/useBarangayDashboard";
+import type { BarangayDashboardActions } from "../types/dashboard-actions";
 
-export default function BarangayDashboardPage() {
+type BarangayDashboardPageProps = {
+  actions: BarangayDashboardActions;
+};
+
+export default function BarangayDashboardPage({ actions }: BarangayDashboardPageProps) {
   const { isLoading, error, viewModel, setYear, setGlobalSearch, setTopProjectsFilters } = useBarangayDashboard();
-
-  const handlers = useMemo(
-    () => ({
-      onViewAllProjects: () => {
-        console.info("[TODO] /barangay/projects route is not available yet; wire once route exists.");
-      },
-      onUploadCityAip: () => {
-        console.info("[TODO] Wire city AIP upload flow for barangay officials.");
-      },
-      onViewAudit: () => {
-        console.info("[TODO] Wire audit CTA if custom navigation is required.");
-      },
-    }),
-    []
-  );
 
   if (isLoading && !viewModel) {
     return <div className="text-sm text-slate-500">Loading barangay dashboard...</div>;
@@ -53,7 +42,8 @@ export default function BarangayDashboardPage() {
         dateCard={viewModel.dateCard}
         workingOn={viewModel.workingOn}
         aipDetailsHref={viewModel.aipDetailsHref}
-        onViewAllProjects={handlers.onViewAllProjects}
+        onViewAipDetails={() => actions.onViewAip({ fiscal_year: viewModel.header.year })}
+        onViewAllProjects={() => actions.onViewProjects({ fiscal_year: viewModel.header.year })}
       />
 
       <div className="grid gap-6 xl:grid-cols-[7fr_3fr]">
@@ -73,8 +63,8 @@ export default function BarangayDashboardPage() {
           publicationTimeline={viewModel.publicationTimeline}
           cityAipsByYear={viewModel.cityAipsByYear}
           recentActivity={viewModel.recentActivity}
-          onUploadCityAip={handlers.onUploadCityAip}
-          onViewAudit={handlers.onViewAudit}
+          onUploadCityAip={() => actions.onUploadAip({ fiscal_year: viewModel.header.year })}
+          onViewAudit={actions.onViewAuditTrail}
         />
 
         <CitizenEngagementPulseColumn

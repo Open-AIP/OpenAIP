@@ -13,8 +13,13 @@ import {
   DASHBOARD_AIP_STATUS_COLORS,
 } from "@/lib/constants/dashboard";
 import { useCityDashboard } from "../hooks/useCityDashboard";
+import type { CityDashboardActions } from "../types/dashboard-actions";
 
-export default function CityDashboardView() {
+type CityDashboardViewProps = {
+  actions: CityDashboardActions;
+};
+
+export default function CityDashboardView({ actions }: CityDashboardViewProps) {
   const {
     filters,
     data,
@@ -34,6 +39,11 @@ export default function CityDashboardView() {
     return <div className="text-sm text-rose-600">{error ?? "Unable to load dashboard."}</div>;
   }
 
+  const cityAipsByYear = viewModel.cityAipsByYear.map((row) => ({
+    ...row,
+    onView: () => actions.onViewAip({ aip_id: row.id, fiscal_year: row.year }),
+  }));
+
   return (
     <div className="space-y-6 pb-8">
       <DashboardHeader
@@ -51,8 +61,8 @@ export default function CityDashboardView() {
         dateCard={viewModel.dateCard}
         workingOn={viewModel.workingOn}
         aipDetailsHref="/city/aips"
-        onViewAipDetails={() => console.info("[UI-only] View AIP details clicked")}
-        onViewAllProjects={() => console.info("[UI-only] View all projects clicked")}
+        onViewAipDetails={() => actions.onViewAip({ fiscal_year: filters.year })}
+        onViewAllProjects={() => actions.onViewProjects({ fiscal_year: filters.year })}
       />
 
       <div className="grid gap-6 xl:grid-cols-[7fr_3fr]">
@@ -93,10 +103,10 @@ export default function CityDashboardView() {
         <CityAipStatusColumn
           cityAipCoverage={viewModel.cityAipCoverage}
           publicationTimeline={viewModel.publicationTimeline}
-          cityAipsByYear={viewModel.cityAipsByYear}
+          cityAipsByYear={cityAipsByYear}
           recentActivity={viewModel.recentActivity}
-          onUploadCityAip={() => console.info("[UI-only] Upload City AIP clicked", { year: filters.year })}
-          onViewAudit={() => console.info("[UI-only] View audit clicked")}
+          onUploadCityAip={() => actions.onUploadAip({ fiscal_year: filters.year })}
+          onViewAudit={actions.onViewAuditTrail}
         />
 
         <div className="space-y-6">
@@ -109,7 +119,7 @@ export default function CityDashboardView() {
 
           <RecentProjectUpdatesCard
             items={viewModel.recentProjectUpdates}
-            onItemClick={(id) => console.info("[UI-only] Recent project update clicked", { id })}
+            onItemClick={(id) => actions.onOpenProjectUpdate?.({ project_id: id })}
           />
         </div>
       </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import KpiCard from "../components/KpiCard";
 import DashboardFiltersRow from "../components/DashboardFiltersRow";
@@ -12,27 +11,17 @@ import MiniKpiStack from "../components/MiniKpiStack";
 import RecentActivityList from "../components/RecentActivityList";
 import { Users, Building2, MessageSquare, FileText } from "lucide-react";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
+import type { AdminDashboardActions } from "../types/dashboard-actions";
 
-export default function AdminDashboardView() {
-  const router = useRouter();
+type AdminDashboardViewProps = {
+  actions: AdminDashboardActions;
+};
+
+export default function AdminDashboardView({ actions }: AdminDashboardViewProps) {
   const { filters, setFilters, viewModel, loading, error, handleReset } = useAdminDashboard();
 
-  const buildQuery = (extra?: Record<string, string>) => {
-    const params = new URLSearchParams();
-    if (filters.dateFrom) params.set("from", filters.dateFrom);
-    if (filters.dateTo) params.set("to", filters.dateTo);
-    if (filters.lguScope !== "all") params.set("lguScope", filters.lguScope);
-    if (filters.lguId) params.set("lguId", filters.lguId);
-    if (filters.aipStatus !== "all") params.set("status", filters.aipStatus);
-    if (extra) {
-      Object.entries(extra).forEach(([key, value]) => params.set(key, value));
-    }
-    return params.toString();
-  };
-
   const handleStatusClick = (status: string) => {
-    const query = buildQuery({ status });
-    router.push(`/admin/aip-monitoring?${query}`);
+    actions.onOpenAipMonitoring?.({ filters, status });
   };
 
   return (
@@ -71,6 +60,7 @@ export default function AdminDashboardView() {
           iconClassName={viewModel.kpis[0].iconClassName}
           ctaLabel={viewModel.kpis[0].ctaLabel}
           ctaHref={viewModel.kpis[0].path}
+          onCtaClick={() => actions.onOpenLguManagement?.({ filters })}
         />
         <KpiCard
           title={viewModel.kpis[1].title}
@@ -80,6 +70,7 @@ export default function AdminDashboardView() {
           iconClassName={viewModel.kpis[1].iconClassName}
           ctaLabel={viewModel.kpis[1].ctaLabel}
           ctaHref={viewModel.kpis[1].path}
+          onCtaClick={() => actions.onOpenAccounts?.({ filters })}
         />
         <KpiCard
           title={viewModel.kpis[2].title}
@@ -89,6 +80,7 @@ export default function AdminDashboardView() {
           iconClassName={viewModel.kpis[2].iconClassName}
           ctaLabel={viewModel.kpis[2].ctaLabel}
           ctaHref={viewModel.kpis[2].path}
+          onCtaClick={() => actions.onOpenFeedbackModeration?.({ filters })}
           tagLabel={viewModel.kpis[2].tagLabel}
           tagTone="warning"
         />
@@ -100,6 +92,7 @@ export default function AdminDashboardView() {
           iconClassName={viewModel.kpis[3].iconClassName}
           ctaLabel={viewModel.kpis[3].ctaLabel}
           ctaHref={viewModel.kpis[3].path}
+          onCtaClick={() => actions.onOpenAipMonitoring?.({ filters })}
           tagLabel={viewModel.kpis[3].tagLabel}
           tagTone="warning"
         />
@@ -113,7 +106,7 @@ export default function AdminDashboardView() {
         {viewModel.reviewBacklog && (
           <ReviewBacklogCard
             backlog={viewModel.reviewBacklog}
-            onViewAips={() => router.push(`/admin/aip-monitoring?${buildQuery()}`)}
+            onViewAips={() => actions.onOpenAipMonitoring?.({ filters })}
           />
         )}
       </div>
@@ -130,7 +123,7 @@ export default function AdminDashboardView() {
 
       <RecentActivityList
         items={viewModel.recentActivity}
-        onViewAudit={() => router.push(`/admin/audit-logs?${buildQuery()}`)}
+        onViewAudit={() => actions.onOpenAuditLogs?.({ filters })}
       />
 
       {loading && (

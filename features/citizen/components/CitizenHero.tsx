@@ -1,7 +1,12 @@
 import Image from 'next/image';
 import LguYearSearchPill from '@/features/citizen/components/LguYearSearchPill';
+import type { CitizenActions } from '@/features/citizen/types/citizen-actions';
 
-export default function CitizenHero() {
+type CitizenHeroProps = {
+  actions: CitizenActions;
+};
+
+export default function CitizenHero({ actions }: CitizenHeroProps) {
   return (
     <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-[#022437] via-[#0B3440] to-[#114B59] px-6 py-10 text-white shadow-xl md:px-10 md:py-12">
       <div className="pointer-events-none absolute inset-0">
@@ -29,7 +34,7 @@ export default function CitizenHero() {
         <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-[1fr_auto_1fr] md:items-end">
           <p className="text-sm font-medium text-slate-100 md:self-end">City of Cabuyao</p>
           <div className="md:justify-self-center">
-            <LguYearSearchPill />
+            <LguYearSearchPill onSearch={actions.onSearch} />
           </div>
           <div />
         </div>

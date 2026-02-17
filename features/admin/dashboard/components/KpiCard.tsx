@@ -17,6 +17,7 @@ export default function KpiCard({
   iconClassName,
   ctaLabel,
   ctaHref,
+  onCtaClick,
   tagLabel,
   tagTone = "info",
 }: {
@@ -26,7 +27,8 @@ export default function KpiCard({
   icon: LucideIcon;
   iconClassName?: string;
   ctaLabel: string;
-  ctaHref: string;
+  ctaHref?: string;
+  onCtaClick?: () => void;
   tagLabel?: string;
   tagTone?: "info" | "warning" | "danger";
 }) {
@@ -51,12 +53,19 @@ export default function KpiCard({
           <TrendIcon className={cn("h-3.5 w-3.5", isNegative ? "text-rose-500" : "text-emerald-500")} />
           <span>{deltaLabel}</span>
         </div>
-        <Button variant="outline" className="w-full justify-between text-[12px]" asChild>
-          <Link href={ctaHref}>
+        {onCtaClick ? (
+          <Button variant="outline" className="w-full justify-between text-[12px]" type="button" onClick={onCtaClick}>
             <span>{ctaLabel}</span>
             <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
+          </Button>
+        ) : (
+          <Button variant="outline" className="w-full justify-between text-[12px]" asChild>
+            <Link href={ctaHref ?? "#"}>
+              <span>{ctaLabel}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

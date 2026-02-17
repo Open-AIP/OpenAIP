@@ -193,9 +193,7 @@ export function mapCityDashboardVM({
       status: row.status,
       uploadedBy: row.uploadedBy,
       uploadDate: row.uploadDate,
-      onView: () => {
-        console.info("[UI-only] View City AIP row clicked", { id: row.id, href: row.actionHref, scope });
-      },
+      onView: undefined,
     })),
     orderedStatusDistribution,
     publicationTimeline: data.publicationTimeline.map((point) => ({

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAvailableFiscalYears } from '@/features/shared/providers/yearOptions';
 import type { CitizenActions } from '@/features/citizen/types/citizen-actions';
+import { CITIZEN_DASHBOARD_TOKENS } from '@/lib/ui/tokens';
 
 const PLACE_OPTIONS = [
   { value: 'city_001', label: 'City of Cabuyao', scope_type: 'city' as const, scope_id: 'city_001' },
@@ -31,7 +32,7 @@ export default function LguYearSearchPill({ onSearch }: LguYearSearchPillProps) 
   );
 
   return (
-    <div className="w-full max-w-3xl rounded-2xl border border-white/30 bg-[#D3DBE0] p-3 shadow-lg md:rounded-full md:p-2">
+    <div className={`w-full max-w-3xl rounded-2xl border border-white/30 ${CITIZEN_DASHBOARD_TOKENS.searchPillSurfaceClass} p-3 shadow-lg md:rounded-full md:p-2`}>
       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center">
         <div className="space-y-1">
           <Label htmlFor="place-select" className="sr-only">
@@ -78,7 +79,7 @@ export default function LguYearSearchPill({ onSearch }: LguYearSearchPillProps) 
               fiscal_year: fiscalYear,
             });
           }}
-          className="h-10 bg-[#0E7490] px-6 text-white hover:bg-[#0C6078]"
+          className={`h-10 px-6 ${CITIZEN_DASHBOARD_TOKENS.primaryButtonClass}`}
         >
           <Search className="h-4 w-4" />
           Search

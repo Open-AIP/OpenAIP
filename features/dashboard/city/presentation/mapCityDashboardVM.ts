@@ -30,10 +30,6 @@ type MapCityDashboardVMInput = {
   data: CityDashboardData | null;
   filters: CityDashboardFilters;
   fiscal_year: number;
-  scope: {
-    scope_type: string;
-    scope_id: string;
-  };
   availableYears: number[];
   topProjectFilters: TopProjectsFiltersVM;
 };
@@ -85,7 +81,6 @@ export function mapCityDashboardVM({
   data,
   filters,
   fiscal_year,
-  scope,
   availableYears,
   topProjectFilters,
 }: MapCityDashboardVMInput): CityDashboardVM | null {

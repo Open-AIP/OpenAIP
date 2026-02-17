@@ -12,6 +12,10 @@ import {
 } from "recharts";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChartCardPropsBase, LineSeriesVM } from "./chartTypes";
+import {
+  DASHBOARD_CHART_PALETTE,
+  DASHBOARD_CHART_STROKES,
+} from "@/lib/ui/tokens";
 
 type LineChartCardProps = ChartCardPropsBase & {
   series: LineSeriesVM;
@@ -24,7 +28,7 @@ type LineChartCardProps = ChartCardPropsBase & {
   formatYAxis?: (value: unknown) => string;
 };
 
-const DEFAULT_PALETTE = ["#0f766e", "#2563eb", "#10b981", "#f59e0b", "#7c3aed"];
+const DEFAULT_PALETTE = DASHBOARD_CHART_PALETTE;
 
 export function LineChartCard({
   title,
@@ -61,14 +65,14 @@ export function LineChartCard({
           <div style={{ height }} aria-label={`${title} chart`} role="img">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={series.data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" /> : null}
+                {showGrid ? <CartesianGrid strokeDasharray="3 3" stroke={DASHBOARD_CHART_STROKES.grid} /> : null}
                 <XAxis
                   dataKey={series.xKey}
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   tickFormatter={formatXAxis}
-                  stroke="#64748b"
+                  stroke={DASHBOARD_CHART_STROKES.axis}
                   fontSize={12}
                 />
                 <YAxis
@@ -76,7 +80,7 @@ export function LineChartCard({
                   axisLine={false}
                   tickMargin={8}
                   tickFormatter={formatYAxis}
-                  stroke="#64748b"
+                  stroke={DASHBOARD_CHART_STROKES.axis}
                   fontSize={12}
                 />
                 <Tooltip

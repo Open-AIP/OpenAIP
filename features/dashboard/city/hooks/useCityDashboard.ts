@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useCityDashboardData } from "./useCityDashboardData";
-import { useScope } from "@/features/shared/providers/scope";
 import {
   DEFAULT_CITY_TOP_PROJECT_FILTERS,
   mapCityDashboardVM,
@@ -10,7 +9,6 @@ import {
 import type { TopProjectsFiltersVM } from "@/features/dashboard/shared/types";
 
 export function useCityDashboard() {
-  const scope = useScope();
   const {
     filters,
     setFilters,
@@ -38,14 +36,10 @@ export function useCityDashboard() {
         data,
         filters,
         fiscal_year: filters.year,
-        scope: {
-          scope_type: scope.scope_type,
-          scope_id: scope.scope_id,
-        },
         availableYears,
         topProjectFilters,
       }),
-    [data, filters, scope.scope_id, scope.scope_type, availableYears, topProjectFilters]
+    [data, filters, availableYears, topProjectFilters]
   );
 
   return {

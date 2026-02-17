@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock } from "lucide-react";
 import type { ReviewBacklogVM } from "@/lib/repos/admin-dashboard/types";
+import { CITIZEN_DASHBOARD_TOKENS } from "@/lib/ui/tokens";
 
 export default function ReviewBacklogCard({
   backlog,
@@ -51,7 +52,7 @@ export default function ReviewBacklogCard({
           Note: Stuck/Long-running items are derived from Current Status Duration exceeding {backlog.stuckOlderThanDays} days.
         </div>
 
-        <Button className="w-full bg-[#0E5D6F] text-white hover:bg-[#0E5D6F]/90" onClick={onViewAips}>
+        <Button className={CITIZEN_DASHBOARD_TOKENS.reviewBacklogButtonClass} onClick={onViewAips}>
           View AIPs
         </Button>
       </CardContent>

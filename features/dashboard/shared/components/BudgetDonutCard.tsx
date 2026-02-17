@@ -3,6 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DonutChartCard } from "@/features/dashboard/components/charts";
 import { formatPeso } from "@/lib/formatting";
+import {
+  DASHBOARD_BUDGET_SEGMENT_DOT_CLASS_BY_TEXT_CLASS,
+  DASHBOARD_BUDGET_SEGMENT_HEX_BY_TEXT_CLASS,
+  DASHBOARD_SEMANTIC_COLORS,
+} from "@/lib/ui/tokens";
 import type { BudgetBreakdownVM } from "../types";
 
 type BudgetDonutCardProps = {
@@ -18,20 +23,6 @@ export default function BudgetDonutCard({
   onViewAipDetails,
   onViewAllProjects,
 }: BudgetDonutCardProps) {
-  const paletteByTextClass: Record<string, string> = {
-    "text-blue-500": "#3b82f6",
-    "text-teal-700": "#0f766e",
-    "text-emerald-500": "#10b981",
-    "text-amber-500": "#f59e0b",
-  };
-
-  const dotColorByTextClass: Record<string, string> = {
-    "text-blue-500": "bg-blue-500",
-    "text-teal-700": "bg-teal-700",
-    "text-emerald-500": "bg-emerald-500",
-    "text-amber-500": "bg-amber-500",
-  };
-
   return (
     <Card className="w-full gap-4 border-slate-200 py-4">
       <CardHeader className="px-4">
@@ -48,7 +39,7 @@ export default function BudgetDonutCard({
                   innerRadius: 70,
                   outerRadius: 98,
                 }}
-                palette={breakdown.segments.map((item) => paletteByTextClass[item.colorClass] ?? "#94a3b8")}
+                palette={breakdown.segments.map((item) => DASHBOARD_BUDGET_SEGMENT_HEX_BY_TEXT_CLASS[item.colorClass] ?? DASHBOARD_SEMANTIC_COLORS.neutral)}
                 showLegend={false}
                 height={280}
                 className="gap-0 border-0 py-0 shadow-none [&_[data-slot=card-header]]:hidden [&_[data-slot=card-content]]:px-0"
@@ -68,7 +59,7 @@ export default function BudgetDonutCard({
                   <div key={item.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 text-sm text-slate-700">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`h-2.5 w-2.5 rounded-full ${dotColorByTextClass[item.colorClass] ?? "bg-slate-400"}`}
+                        className={`h-2.5 w-2.5 rounded-full ${DASHBOARD_BUDGET_SEGMENT_DOT_CLASS_BY_TEXT_CLASS[item.colorClass] ?? "bg-slate-400"}`}
                       />
                       <span>{item.label}</span>
                     </div>

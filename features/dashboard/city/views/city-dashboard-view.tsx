@@ -8,10 +8,8 @@ import TopFundedProjectsSection from "@/features/dashboard/shared/components/Top
 import RecentProjectUpdatesCard from "@/features/dashboard/shared/components/RecentProjectUpdatesCard";
 import CityAipStatusColumn from "@/features/dashboard/shared/components/CityAipStatusColumn";
 import CitizenEngagementPulseColumn from "@/features/dashboard/shared/components/CitizenEngagementPulseColumn";
-import {
-  CITY_PENDING_REVIEW_AGING_BAR_FILL,
-  DASHBOARD_AIP_STATUS_COLORS,
-} from "@/lib/constants/dashboard";
+import { DASHBOARD_AIP_STATUS_CHART_COLORS } from "@/lib/ui/tokens";
+import { DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 import { useCityDashboard } from "../hooks/useCityDashboard";
 import type { CityDashboardActions } from "../types/dashboard-actions";
 
@@ -80,7 +78,7 @@ export default function CityDashboardView({ actions }: CityDashboardViewProps) {
               data: viewModel.orderedStatusDistribution.map((item) => ({ name: item.status.replaceAll("_", " "), value: item.count })),
               outerRadius: 92,
             }}
-            palette={viewModel.orderedStatusDistribution.map((item) => DASHBOARD_AIP_STATUS_COLORS[item.status])}
+            palette={viewModel.orderedStatusDistribution.map((item) => DASHBOARD_AIP_STATUS_CHART_COLORS[item.status])}
             showLabels
             height={230}
           />
@@ -90,7 +88,7 @@ export default function CityDashboardView({ actions }: CityDashboardViewProps) {
             series={{
               data: data.pendingReviewAging.map((item) => ({ bucket: item.label, count: item.count })),
               xKey: "bucket",
-              bars: [{ key: "count", label: "Count", fill: CITY_PENDING_REVIEW_AGING_BAR_FILL }],
+              bars: [{ key: "count", label: "Count", fill: DASHBOARD_SEMANTIC_COLORS.teal700 }],
             }}
             showLegend={false}
             showGrid

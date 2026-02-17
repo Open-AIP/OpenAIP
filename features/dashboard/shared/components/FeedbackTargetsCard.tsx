@@ -1,4 +1,5 @@
 import { BarChartCard } from "@/features/dashboard/components/charts";
+import { DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 import type { TargetPointVM } from "../types";
 
 type FeedbackTargetsCardProps = {
@@ -12,7 +13,7 @@ export default function FeedbackTargetsCard({ targetsSeries }: FeedbackTargetsCa
       series={{
         data: targetsSeries.map((point) => ({ label: point.label, count: point.count })),
         xKey: "label",
-        bars: [{ key: "count", label: "Targets", fill: "#2563eb" }],
+        bars: [{ key: "count", label: "Targets", fill: DASHBOARD_SEMANTIC_COLORS.info }],
       }}
       height={190}
       showLegend={false}

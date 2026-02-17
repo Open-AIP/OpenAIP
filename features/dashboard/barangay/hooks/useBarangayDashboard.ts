@@ -59,7 +59,7 @@ export function useBarangayDashboard() {
         availableYears,
         totalBudget,
       }),
-    [data, filters, availableYears, totalBudget]
+    [data, filters, scope.scope_id, scope.scope_type, availableYears, totalBudget]
   );
 
   return {

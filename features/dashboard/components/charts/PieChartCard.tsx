@@ -3,6 +3,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChartCardPropsBase, DonutSeriesVM } from "./chartTypes";
+import { DASHBOARD_CHART_PALETTE } from "@/lib/ui/tokens";
 
 type PieChartCardProps = ChartCardPropsBase & {
   series: DonutSeriesVM;
@@ -13,7 +14,7 @@ type PieChartCardProps = ChartCardPropsBase & {
   centerLabel?: { title: string; value: string };
 };
 
-const DEFAULT_PALETTE = ["#0f766e", "#2563eb", "#10b981", "#f59e0b", "#7c3aed"];
+const DEFAULT_PALETTE = DASHBOARD_CHART_PALETTE;
 
 function createPieLabelRenderer(data: Array<{ name: string; value: number }>) {
   function PieLabelRenderer({

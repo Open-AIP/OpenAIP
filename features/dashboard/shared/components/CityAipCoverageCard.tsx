@@ -1,6 +1,7 @@
 import { AlertTriangle, Building2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CITY_AIP_COVERAGE_TONE_STYLES } from "@/lib/ui/status";
 import type { CityAipCoverageVM } from "../types";
 
 type CityAipCoverageCardProps = {
@@ -23,9 +24,7 @@ export default function CityAipCoverageCard({ cityAipCoverage, onUploadCityAip }
           <h3 className="text-md font-medium text-slate-800">City AIP Coverage</h3>
 
           <div
-            className={`rounded-lg border p-4 text-sm ${
-              missing ? "border-rose-200 bg-white text-rose-600" : "border-emerald-200 bg-white text-emerald-700"
-            }`}
+            className={`rounded-lg border p-4 text-sm ${missing ? CITY_AIP_COVERAGE_TONE_STYLES.missing : CITY_AIP_COVERAGE_TONE_STYLES.available}`}
           >
             {missing ? (
               <>

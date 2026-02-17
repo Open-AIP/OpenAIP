@@ -1,8 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ADMIN_ERROR_RATE_BAR_FILL } from "@/lib/constants/dashboard";
 import type { UsageMetricsVM } from "@/lib/repos/admin-dashboard/types";
+import { DASHBOARD_CHART_STROKES, DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 
 export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM }) {
   const data = metrics.errorRateTrend;
@@ -40,7 +40,7 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
                     y1={y}
                     x2={plotWidth}
                     y2={y}
-                    stroke="#e2e8f0"
+                    stroke={DASHBOARD_CHART_STROKES.svgGrid}
                     strokeWidth={1}
                   />
                 );
@@ -56,7 +56,7 @@ export default function ErrorRateBarChart({ metrics }: { metrics: UsageMetricsVM
                       width={barWidth}
                       height={barHeight}
                       rx={4}
-                      fill={ADMIN_ERROR_RATE_BAR_FILL}
+                      fill={DASHBOARD_SEMANTIC_COLORS.danger}
                     />
                     <text
                       x={x + barWidth / 2}

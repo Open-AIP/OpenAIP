@@ -7,8 +7,9 @@ import DashboardHeader from "@/features/dashboard/shared/components/DashboardHea
 import KpiRow from "@/features/dashboard/shared/components/KpiRow";
 import RecentProjectUpdatesCard from "@/features/dashboard/shared/components/RecentProjectUpdatesCard";
 import TopFundedProjectsSection from "@/features/dashboard/shared/components/TopFundedProjectsSection";
-import { useBarangayDashboard } from "../hooks/useBarangayDashboard";
+
 import type { BarangayDashboardActions } from "../types/dashboard-actions";
+import { useBarangayDashboard } from "../hooks/useBarangayDashboard";
 
 type BarangayDashboardPageProps = {
   actions: BarangayDashboardActions;

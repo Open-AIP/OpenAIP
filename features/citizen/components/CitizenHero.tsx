@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import LguYearSearchPill from '@/features/citizen/components/LguYearSearchPill';
 import type { CitizenActions } from '@/features/citizen/types/citizen-actions';
+import { CITIZEN_DASHBOARD_TOKENS } from '@/lib/ui/tokens';
 
 type CitizenHeroProps = {
   actions: CitizenActions;
@@ -8,7 +9,7 @@ type CitizenHeroProps = {
 
 export default function CitizenHero({ actions }: CitizenHeroProps) {
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-[#022437] via-[#0B3440] to-[#114B59] px-6 py-10 text-white shadow-xl md:px-10 md:py-12">
+    <section className={`relative overflow-hidden rounded-[28px] border border-slate-200 ${CITIZEN_DASHBOARD_TOKENS.heroGradientClass} px-6 py-10 text-white shadow-xl md:px-10 md:py-12`}>
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.16),transparent_45%)]" />
         <div className="absolute inset-x-0 bottom-0 h-44 bg-[linear-gradient(to_top,rgba(255,255,255,0.15),transparent)]" />
@@ -22,7 +23,7 @@ export default function CitizenHero({ actions }: CitizenHeroProps) {
           </div>
 
           <h2 className="text-4xl font-semibold tracking-tight md:text-5xl">
-            Open<span className="text-[#67E8F9]">AI</span>P
+            Open<span className={CITIZEN_DASHBOARD_TOKENS.heroAccentTextClass}>AI</span>P
           </h2>
           <p className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">See Where Public Funds Go</p>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-100 md:text-base">

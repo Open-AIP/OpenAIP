@@ -1,8 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ADMIN_CHATBOT_USAGE_STROKE } from "@/lib/constants/dashboard";
 import type { UsageMetricsVM } from "@/lib/repos/admin-dashboard/types";
+import { DASHBOARD_CHART_STROKES, DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 
 export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetricsVM }) {
   const data = metrics.chatbotUsageTrend;
@@ -42,14 +42,14 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
                     y1={y}
                     x2={plotWidth}
                     y2={y}
-                    stroke="#e2e8f0"
+                    stroke={DASHBOARD_CHART_STROKES.svgGrid}
                     strokeWidth={1}
                   />
                 );
               })}
               <polyline
                 fill="none"
-                stroke={ADMIN_CHATBOT_USAGE_STROKE}
+                stroke={DASHBOARD_SEMANTIC_COLORS.cyan800}
                 strokeWidth={2}
                 points={points}
               />
@@ -58,7 +58,7 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
                 const y = chartHeight - (point.value / maxValue) * chartHeight;
                 return (
                   <g key={point.label}>
-                    <circle cx={x} cy={y} r={4} fill={ADMIN_CHATBOT_USAGE_STROKE} />
+                    <circle cx={x} cy={y} r={4} fill={DASHBOARD_SEMANTIC_COLORS.cyan800} />
                     <text
                       x={x}
                       y={chartHeight + 18}

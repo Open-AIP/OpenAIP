@@ -12,13 +12,7 @@ import {
 } from "lucide-react";
 import type { RecentActivityItemVM } from "@/lib/repos/admin-dashboard/types";
 import { formatDate } from "@/lib/formatting";
-
-const toneStyles: Record<RecentActivityItemVM["tagTone"], string> = {
-  info: "bg-blue-50 text-blue-700 border-blue-200",
-  warning: "bg-amber-50 text-amber-700 border-amber-200",
-  danger: "bg-rose-50 text-rose-700 border-rose-200",
-  success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-};
+import { ADMIN_ACTIVITY_TONE_STYLES } from "@/lib/ui/status";
 
 const iconMap = {
   comment: MessageSquare,
@@ -63,7 +57,7 @@ export default function RecentActivityList({
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="text-[13px] font-semibold text-slate-900">{item.title}</div>
-                  <Badge className={`border ${toneStyles[item.tagTone]}`}>{item.tagLabel}</Badge>
+                  <Badge className={`border ${ADMIN_ACTIVITY_TONE_STYLES[item.tagTone]}`}>{item.tagLabel}</Badge>
                 </div>
                 <div className="text-[12px] text-slate-600">{item.reference}</div>
                 <div className="text-[11px] text-slate-500">

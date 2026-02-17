@@ -1,4 +1,8 @@
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
+import {
+  DASHBOARD_AIP_STATUS_CHART_COLORS,
+  DASHBOARD_SEMANTIC_COLORS,
+} from "@/lib/ui/tokens";
 
 type DashboardSelectOption = {
   label: string;
@@ -46,13 +50,7 @@ export const DASHBOARD_AIP_STATUS_ORDER: AipStatus[] = [
   "published",
 ];
 
-export const DASHBOARD_AIP_STATUS_COLORS: Record<AipStatus, string> = {
-  draft: "#94a3b8",
-  pending_review: "#eab308",
-  under_review: "#3b82f6",
-  for_revision: "#f97316",
-  published: "#22c55e",
-};
+export const DASHBOARD_AIP_STATUS_COLORS: Record<AipStatus, string> = DASHBOARD_AIP_STATUS_CHART_COLORS;
 
 export const SECTOR_OPTIONS = DBV2_SECTOR_CODES.map((code) => ({
   code,
@@ -89,6 +87,6 @@ export const CITY_TOP_PROJECT_TYPE_OPTIONS: DashboardSelectOption[] = [
   { label: "Other", value: "other" },
 ];
 
-export const CITY_PENDING_REVIEW_AGING_BAR_FILL = "#0f766e";
-export const ADMIN_ERROR_RATE_BAR_FILL = "#ef4444";
-export const ADMIN_CHATBOT_USAGE_STROKE = "#0E5D6F";
+export const CITY_PENDING_REVIEW_AGING_BAR_FILL = DASHBOARD_SEMANTIC_COLORS.teal700;
+export const ADMIN_ERROR_RATE_BAR_FILL = DASHBOARD_SEMANTIC_COLORS.danger;
+export const ADMIN_CHATBOT_USAGE_STROKE = DASHBOARD_SEMANTIC_COLORS.cyan800;

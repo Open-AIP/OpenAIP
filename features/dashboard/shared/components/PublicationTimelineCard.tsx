@@ -1,4 +1,5 @@
 import { BarChartCard } from "@/features/dashboard/components/charts";
+import { DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 import type { PublicationTimelinePointVM } from "../types";
 
 type PublicationTimelineCardProps = {
@@ -12,7 +13,7 @@ export default function PublicationTimelineCard({ publicationTimeline }: Publica
       series={{
         data: publicationTimeline.map((point) => ({ year: String(point.year), value: point.value })),
         xKey: "year",
-        bars: [{ key: "value", label: "Published", fill: "#22c55e" }],
+        bars: [{ key: "value", label: "Published", fill: DASHBOARD_SEMANTIC_COLORS.success }],
       }}
       height={190}
       showLegend={false}

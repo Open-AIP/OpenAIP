@@ -8,6 +8,7 @@
  */
 
 import type { AipStatus, Sector } from "./types";
+import { getAipStatusBadgeClass as getDashboardAipStatusBadgeClass } from "@/lib/ui/status";
 
 // Re-export formatting utility from shared location
 export { formatPeso as peso } from "@/lib/formatting";
@@ -52,19 +53,7 @@ export function editLockedMessage(status: AipStatus) {
  * @returns Tailwind CSS classes for the badge
  */
 export function getAipStatusBadgeClass(status: AipStatus): string {
-  switch (status) {
-    case "published":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "for_revision":
-      return "bg-amber-50 text-amber-800 border-amber-200";
-    case "under_review":
-      return "bg-sky-50 text-sky-700 border-sky-200";
-    case "pending_review":
-      return "bg-yellow-50 text-yellow-700 border-yellow-200";
-    case "draft":
-    default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
-  }
+  return getDashboardAipStatusBadgeClass(status);
 }
 
 

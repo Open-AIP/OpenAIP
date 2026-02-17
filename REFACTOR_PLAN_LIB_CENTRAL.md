@@ -27,6 +27,12 @@ Phase 0 only: inventory + move plan. No code changes.
 - `features/chat/mappers/chat.mapper.ts` → outputs `ChatSessionListItem` and `ChatMessageBubble` (chat VM contract)
 - `features/admin/aip-monitoring/mappers/aip-monitoring.mapper.ts` → outputs `AipMonitoringRow[]` and `CaseRow[]` (admin AIP monitoring VM contract)
 
+## Phase 4 — Repo candidates discovered
+
+- `features/dashboard/barangay/repo/barangayDashboard.repo.ts` → domain: `barangay-dashboard` → equivalent already exists in `lib/repos/barangay-dashboard/*`
+- `features/citizen/aips/data/aips.data.ts` → domain: `citizen-aips` data access wrapper → equivalent repo exists in `lib/repos/citizen-aips/*`
+- `features/audit/mock/auditLogs.mock.ts` → domain: `audit` raw mock rows → equivalent fixture/repo path exists in `mocks/fixtures/audit/*` and `lib/repos/audit/*`
+
 ## 1) Inventory table per feature
 
 | Feature | UI folders/files to keep | Non-UI folders/files to move | Duplicates already existing in lib |

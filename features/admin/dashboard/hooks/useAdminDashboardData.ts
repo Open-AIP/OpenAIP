@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getAdminDashboardRepo } from "@/lib/repos/admin-dashboard/repo";
+import { getAdminDashboardRepo } from "@/lib/repos/admin-dashboard";
 import {
   getDateDaysAgoInTimeZoneYmd,
   getTodayInTimeZoneYmd,

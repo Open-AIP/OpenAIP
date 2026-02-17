@@ -1,6 +1,6 @@
 import CitizenHealthProjectsView from "@/features/citizen/projects/views/health-projects-view";
 import { projectService } from "@/lib/repos/projects/queries";
-import { getCitizenAipRepo } from "@/lib/repos/citizen-aips/repo";
+import { getCitizenAipRepo } from "@/lib/repos/citizen-aips";
 
 const CitizenHealthProjects = async () => {
   const projects = await projectService.getHealthProjects();

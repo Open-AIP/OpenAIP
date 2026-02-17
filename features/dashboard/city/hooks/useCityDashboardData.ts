@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getCityDashboardRepo } from "@/lib/repos/city-dashboard/repo";
+import { getCityDashboardRepo } from "@/lib/repos/city-dashboard";
 import { getAvailableFiscalYears } from "@/features/shared/providers/yearOptions";
 import { useScope } from "@/features/shared/providers/scope";
 import type { CityDashboardData, CityDashboardFilters } from "../types";

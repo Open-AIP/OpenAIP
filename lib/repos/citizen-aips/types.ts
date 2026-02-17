@@ -1,4 +1,4 @@
-import type { AipDetails, AipListItem } from "@/features/citizen/aips/types";
+import type { AipDetails, AipListItem } from "@/lib/types/viewmodels/citizen-aips.vm";
 import type { AipProjectRow } from "@/lib/repos/aip/types";
 
 export type CitizenAipRepo = {

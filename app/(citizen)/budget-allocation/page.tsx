@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BudgetAllocationTable, buildBudgetAllocation } from "@/features/aip/components/budget-allocation-table";
-import { getCitizenAipRepo } from "@/lib/repos/citizen-aips/repo";
+import { getCitizenAipRepo } from "@/lib/repos/citizen-aips";
 import type { AipProjectRow } from "@/lib/repos/aip/types";
 
 const CitizenBudgetAllocationPage = () => {

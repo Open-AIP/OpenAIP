@@ -7,11 +7,7 @@ import SensitiveGuidelinesPanel from "./SensitiveGuidelinesPanel";
 import ProjectUpdateDetailsModal from "./modals/ProjectUpdateDetailsModal";
 import FlagForReviewModal from "./modals/FlagForReviewModal";
 import RemoveUpdateModal from "./modals/RemoveUpdateModal";
-import {
-  PROJECT_UPDATE_ACTIONS,
-  PROJECT_UPDATE_LOGS,
-  PROJECT_UPDATE_LGU_MAP,
-} from "@/mocks/fixtures/admin/feedback-moderation/projectUpdatesMedia.mock";
+import { getFeedbackModerationProjectUpdatesRepo } from "@/lib/repos/feedback-moderation-project-updates";
 import {
   mapProjectUpdateToDetails,
   mapProjectUpdatesToRows,
@@ -46,12 +42,17 @@ const ADMIN_ACTOR = {
 const createId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
 
 export default function ProjectUpdatesPage() {
+  const seedData = useMemo(
+    () => getFeedbackModerationProjectUpdatesRepo().getSeedData(),
+    []
+  );
+
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [lguFilter, setLguFilter] = useState("all");
 
-  const [actions, setActions] = useState<ModerationActionRecord[]>(PROJECT_UPDATE_ACTIONS);
+  const [actions, setActions] = useState<ModerationActionRecord[]>(seedData.actions);
 
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [flagId, setFlagId] = useState<string | null>(null);
@@ -63,16 +64,16 @@ export default function ProjectUpdatesPage() {
   const rows = useMemo(
     () =>
       mapProjectUpdatesToRows({
-        updates: PROJECT_UPDATE_LOGS,
+        updates: seedData.updates,
         actions,
-        projects: PROJECT_UPDATE_LGU_MAP.projects,
-        aips: PROJECT_UPDATE_LGU_MAP.aips,
-        profiles: PROJECT_UPDATE_LGU_MAP.profiles,
-        cities: PROJECT_UPDATE_LGU_MAP.cities,
-        barangays: PROJECT_UPDATE_LGU_MAP.barangays,
-        municipalities: PROJECT_UPDATE_LGU_MAP.municipalities,
+        projects: seedData.lguMap.projects,
+        aips: seedData.lguMap.aips,
+        profiles: seedData.lguMap.profiles,
+        cities: seedData.lguMap.cities,
+        barangays: seedData.lguMap.barangays,
+        municipalities: seedData.lguMap.municipalities,
       }),
-    [actions]
+    [actions, seedData]
   );
 
   const lguOptions = useMemo(
@@ -99,13 +100,13 @@ export default function ProjectUpdatesPage() {
     });
   }, [rows, query, typeFilter, statusFilter, lguFilter]);
 
-  const selectedUpdate = PROJECT_UPDATE_LOGS.find((row) => row.id === detailsId) ?? null;
+  const selectedUpdate = seedData.updates.find((row) => row.id === detailsId) ?? null;
   const selectedActions = actions.filter((row) => row.entity_id === detailsId);
-  const selectedProject = PROJECT_UPDATE_LGU_MAP.projects.find(
+  const selectedProject = seedData.lguMap.projects.find(
     (row) => row.id === selectedUpdate?.entity_id
   );
-  const selectedAip = PROJECT_UPDATE_LGU_MAP.aips.find((row) => row.id === selectedProject?.aip_id);
-  const selectedProfile = PROJECT_UPDATE_LGU_MAP.profiles.find(
+  const selectedAip = seedData.lguMap.aips.find((row) => row.id === selectedProject?.aip_id);
+  const selectedProfile = seedData.lguMap.profiles.find(
     (row) => row.id === selectedUpdate?.actor_id
   );
 
@@ -116,9 +117,9 @@ export default function ProjectUpdatesPage() {
         project: selectedProject,
         aip: selectedAip,
         profile: selectedProfile,
-        cities: PROJECT_UPDATE_LGU_MAP.cities,
-        barangays: PROJECT_UPDATE_LGU_MAP.barangays,
-        municipalities: PROJECT_UPDATE_LGU_MAP.municipalities,
+        cities: seedData.lguMap.cities,
+        barangays: seedData.lguMap.barangays,
+        municipalities: seedData.lguMap.municipalities,
       })
     : null;
 

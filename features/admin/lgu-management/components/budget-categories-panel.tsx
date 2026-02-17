@@ -4,7 +4,7 @@ import { Info, Lock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BUDGET_CATEGORIES } from "@/mocks/fixtures/lgu/budget-categories.fixture";
+import { BUDGET_CATEGORIES } from "@/lib/constants/budget-categories";
 
 export default function BudgetCategoriesPanel() {
   return (

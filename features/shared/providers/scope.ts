@@ -3,8 +3,10 @@
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import type { RoleType } from "@/lib/contracts/databasev2/enums";
-import { BARANGAY_DASHBOARD_SCOPE } from "@/mocks/fixtures/barangay/barangay-dashboard.fixture";
-import { CITY_DASHBOARD_SCOPE } from "@/mocks/fixtures/city/city-dashboard.fixture";
+import {
+  BARANGAY_DASHBOARD_SCOPE,
+  CITY_DASHBOARD_SCOPE,
+} from "@/lib/constants/mock-scope";
 
 export type ScopeType = "city" | "barangay" | "municipality" | "none";
 

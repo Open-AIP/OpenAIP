@@ -10,7 +10,7 @@ import {
 import type { ChatMessageBubble, ChatSessionListItem } from "@/lib/types/viewmodels/chat.vm";
 import { getChatRepo } from "@/lib/repos/chat/repo";
 import type { ChatMessage, ChatSession } from "@/lib/repos/chat/repo";
-import { CHAT_DEFAULT_USER_ID } from "@/mocks/fixtures/chat/chat.fixture";
+import { CHAT_DEFAULT_USER_ID } from "@/lib/constants/chat";
 
 const buildAssistantReply = (content: string): string => {
   if (content.toLowerCase().includes("budget")) {

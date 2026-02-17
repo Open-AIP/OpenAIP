@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getBarangayDashboardRepo } from "../repo/barangayDashboard.repo";
+import { getBarangayDashboardRepo } from "@/lib/repos/barangay-dashboard";
 import { getAvailableFiscalYears } from "@/features/shared/providers/yearOptions";
 import { useScope } from "@/features/shared/providers/scope";
 import type { BarangayDashboardData, BarangayDashboardFilters } from "../types";

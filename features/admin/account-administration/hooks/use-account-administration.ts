@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAccountsRepo } from "@/lib/repos/accounts/repo";
+import { getAccountsRepo } from "@/lib/repos/accounts";
 import type {
   AccountRecord,
   AccountRole,
   AccountStatus,
   AccountTab,
-} from "@/lib/repos/accounts/repo";
+} from "@/lib/repos/accounts";
 
 export type OpenModal =
   | "details"

@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getLguRepo } from "@/lib/repos/lgu/repo";
+import { getLguRepo } from "@/lib/repos/lgu";
 import type {
   CreateLguInput,
   LguRecord,
   LguStatus,
   LguType,
   UpdateLguInput,
-} from "@/lib/repos/lgu/repo";
+} from "@/lib/repos/lgu";
 
 export type TypeFilter = "all" | LguType;
 export type StatusFilter = "all" | LguStatus;

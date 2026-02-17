@@ -1,6 +1,6 @@
 
 import type { AipDetails, AipListItem } from "@/features/citizen/aips/types";
-import { getCitizenAipRepo } from "@/lib/repos/citizen-aips/repo";
+import { getCitizenAipRepo } from "@/lib/repos/citizen-aips";
 
 const repo = getCitizenAipRepo();
 

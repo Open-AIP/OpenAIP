@@ -1,7 +1,7 @@
-import type { AuditLogRecord } from "../types/audit.types";
+import type { AuditLogRecord } from "@/lib/types/domain/audit.domain";
 import { AIP_IDS, PROJECT_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
 
-export const AUDIT_LOGS_MOCK: AuditLogRecord[] = [
+export const AUDIT_LOGS_FIXTURE: AuditLogRecord[] = [
   {
     id: "log-admin-001",
     actor_id: "admin_001",

@@ -1,6 +1,6 @@
 import CitizenInfrastructureProjectsView from "@/features/citizen/projects/views/infrastructure-projects-view";
 import { projectService } from "@/lib/repos/projects/queries";
-import { getCitizenAipRepo } from "@/lib/repos/citizen-aips/repo";
+import { getCitizenAipRepo } from "@/lib/repos/citizen-aips";
 
 const CitizenInfrastructureProjects = async () => {
   const projects = await projectService.getInfrastructureProjects();

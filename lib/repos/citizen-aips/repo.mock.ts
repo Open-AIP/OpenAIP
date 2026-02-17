@@ -1,5 +1,10 @@
 import type { CitizenAipRepo } from "./types";
-import type { AipDetails, AipListItem, AipProjectRow as CitizenProjectRow, AipAccountability } from "@/features/citizen/aips/types";
+import type {
+  AipAccountability,
+  AipDetails,
+  AipListItem,
+  AipProjectRow as CitizenProjectRow,
+} from "@/lib/types/viewmodels/citizen-aips.vm";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 import { AIP_ACCOUNTABILITY_BY_ID } from "@/mocks/fixtures/aip/aip-accountability.fixture";

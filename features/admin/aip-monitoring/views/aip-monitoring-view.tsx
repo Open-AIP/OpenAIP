@@ -9,14 +9,7 @@ import AipDetailsModal from "../components/AipDetailsModal";
 import WorkflowActionModal, {
   WorkflowActionType,
 } from "../components/WorkflowActionModal";
-import {
-  AIP_MONITORING_ACTIVITY,
-  AIP_MONITORING_AIPS,
-  AIP_MONITORING_DETAILS,
-  AIP_MONITORING_LGU_NAMES,
-  AIP_MONITORING_REVIEWS,
-  REVIEWER_DIRECTORY,
-} from "@/mocks/fixtures/admin/aip-monitoring/aipMonitoring.mock";
+import { getAipMonitoringRepo } from "@/lib/repos/aip-monitoring";
 import type { AipMonitoringRow, CaseRow } from "../types/monitoring.types";
 import {
   mapActivityToCaseRows,
@@ -28,6 +21,8 @@ type WorkflowState = { actionType: WorkflowActionType; rowId: string } | null;
 const todayStamp = () => new Date().toISOString().slice(0, 10);
 
 export default function AipMonitoringView() {
+  const seedData = useMemo(() => getAipMonitoringRepo().getSeedData(), []);
+
   const [activeTab, setActiveTab] = useState<AipMonitoringTab>("aips");
   const [query, setQuery] = useState("");
   const [yearFilter, setYearFilter] = useState("all");
@@ -37,19 +32,19 @@ export default function AipMonitoringView() {
 
   const [aipRows] = useState<AipMonitoringRow[]>(() =>
     mapAipRowsToMonitoringRows({
-      aips: AIP_MONITORING_AIPS,
-      reviews: AIP_MONITORING_REVIEWS,
-      activity: AIP_MONITORING_ACTIVITY,
-      details: AIP_MONITORING_DETAILS,
-      lguNameByAipId: AIP_MONITORING_LGU_NAMES,
-      reviewerDirectory: REVIEWER_DIRECTORY,
+      aips: seedData.aips,
+      reviews: seedData.reviews,
+      activity: seedData.activity,
+      details: seedData.details,
+      lguNameByAipId: seedData.lguNameByAipId,
+      reviewerDirectory: seedData.reviewerDirectory,
     })
   );
   const [caseRows, setCaseRows] = useState<CaseRow[]>(() =>
     mapActivityToCaseRows({
-      activity: AIP_MONITORING_ACTIVITY,
-      aips: AIP_MONITORING_AIPS,
-      lguNameByAipId: AIP_MONITORING_LGU_NAMES,
+      activity: seedData.activity,
+      aips: seedData.aips,
+      lguNameByAipId: seedData.lguNameByAipId,
     })
   );
 

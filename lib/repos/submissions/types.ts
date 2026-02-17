@@ -1,38 +1,14 @@
-import type { AipStatus, ISODateTime, ReviewAction, UUID } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import type { AipHeader } from "@/lib/repos/aip/repo";
 
-export type AipSubmissionRow = {
-  id: UUID;
-  title: string;
-  year: number;
-  status: AipStatus;
-  scope: "barangay" | "city" | "municipality";
-  barangayName?: string | null;
-  uploadedAt: ISODateTime;
-  reviewerName?: string | null;
-};
+import type { AipStatus, AipReviewCounts, AipSubmissionRow, LatestReview } from "@/lib/types/domain/submissions.domain";
 
-export type AipReviewCounts = {
-  total: number;
-  published: number;
-  underReview: number;
-  pendingReview: number;
-  forRevision: number;
-};
+export type { AipStatus, AipSubmissionRow, AipReviewCounts, LatestReview } from "@/lib/types/domain/submissions.domain";
 
 export type ListSubmissionsResult = {
   rows: AipSubmissionRow[];
   counts: AipReviewCounts;
 };
-
-export type LatestReview = {
-  reviewerId: UUID;
-  reviewerName: string;
-  action: ReviewAction;
-  note: string | null;
-  createdAt: ISODateTime;
-} | null;
 
 export type CityReviewFilters = {
   year?: number;
@@ -72,5 +48,5 @@ export type GetLatestReviewParams = {
   aipId: string;
 };
 
-export type { AipHeader, ActorContext, AipStatus };
+export type { AipHeader, ActorContext };
 

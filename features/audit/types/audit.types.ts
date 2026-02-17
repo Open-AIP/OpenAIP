@@ -1,1 +1,1 @@
-export type AuditLogRecord = import("@/lib/contracts/databasev2").ActivityLogRow;
+export type { AuditLogRecord } from "@/lib/types/domain/audit.domain";

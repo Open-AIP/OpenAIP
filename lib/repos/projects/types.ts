@@ -1,59 +1,24 @@
-export type ProjectKind = "health" | "infrastructure";
+import type {
+  HealthProjectDetails,
+  InfrastructureProjectDetails,
+  ProjectKind,
+  ProjectMaster,
+  ProjectStatus,
+  ProjectUpdate,
+} from "@/lib/types/domain/projects.domain";
 
-export const PROJECT_STATUS_VALUES = [
-  "planning",
-  "ongoing",
-  "completed",
-  "on_hold",
-] as const;
+export {
+  PROJECT_STATUS_VALUES,
+} from "@/lib/types/domain/projects.domain";
 
-export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
-
-export type ProjectMaster = {
-  projectRefCode: string; // ✅ single join key
-  year: number;
-  kind: ProjectKind;
-
-  title: string;
-  status: ProjectStatus;
-  imageUrl?: string;
-};
-
-export type HealthProjectDetails = {
-  projectRefCode: string;
-  month: string;
-
-  totalTargetParticipants: number;
-  targetParticipants: string;
-
-  implementingOffice: string;
-  budgetAllocated: number;
-};
-
-export type InfrastructureProjectDetails = {
-  projectRefCode: string;
-
-  startDate: string;
-  targetCompletionDate: string;
-
-  implementingOffice: string;
-  fundingSource: string;
-  contractorName: string;
-  contractCost: number;
-};
-
-export type ProjectUpdate = {
-  id: string;
-  projectRefCode: string;
-
-  title: string;
-  date: string;
-  description: string;
-
-  progressPercent?: number;
-  attendanceCount?: number;
-  photoUrls?: string[];
-};
+export type {
+  ProjectKind,
+  ProjectStatus,
+  ProjectMaster,
+  HealthProjectDetails,
+  InfrastructureProjectDetails,
+  ProjectUpdate,
+} from "@/lib/types/domain/projects.domain";
 
 export type ProjectUpdateUi = {
   id: string;

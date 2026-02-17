@@ -3,6 +3,19 @@
 ## Scope
 Phase 0 only: inventory + move plan. No code changes.
 
+## Phase 2 — Domain types discovered
+
+- `lib/repos/aip/types.ts`
+- `lib/repos/projects/types.ts`
+- `lib/repos/feedback/types.ts`
+- `lib/repos/audit/types.ts`
+- `lib/repos/submissions/types.ts`
+- `lib/repos/chat/types.ts`
+- `lib/repos/lgu/types.ts`
+- `features/chat/types/chat.types.ts` (mixed domain + UI)
+- `features/audit/types/audit.types.ts` (domain alias)
+- `features/admin/aip-monitoring/types/monitoring.types.ts` (UI table row models; reviewed)
+
 ## 1) Inventory table per feature
 
 | Feature | UI folders/files to keep | Non-UI folders/files to move | Duplicates already existing in lib |

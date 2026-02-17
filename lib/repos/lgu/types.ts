@@ -1,18 +1,6 @@
-export type LguType = "city" | "barangay";
-export type LguStatus = "active" | "deactivated";
+import type { LguRecord, LguType } from "@/lib/types/domain/lgu.domain";
 
-export type LguRecord = {
-  id: string;
-  type: LguType;
-  name: string;
-  code: string;
-
-  parentCityId?: string | null;
-  parentCityName?: string | null;
-
-  status: LguStatus;
-  updatedAt: string; // YYYY-MM-DD
-};
+export type { LguType, LguStatus, LguRecord } from "@/lib/types/domain/lgu.domain";
 
 export type CreateLguInput = {
   type: LguType;

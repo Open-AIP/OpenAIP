@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import HealthProjectCard from "@/features/projects/health/components/health-project-card";
-import type { HealthProject } from "@/features/projects/types";
+import { HealthProjectCard } from "@/components/projects/health-project-card";
+import type { HealthProject } from "@/lib/repos/projects/types";
 import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
 import ProjectFilters from "@/features/citizen/projects/components/project-filters";
 import { Card, CardContent } from "@/components/ui/card";

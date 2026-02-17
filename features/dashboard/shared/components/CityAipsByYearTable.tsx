@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAipStatusBadgeClass } from "@/features/aip/utils";
+import { getAipStatusBadgeClass } from "@/lib/ui/status";
 import { getAipStatusLabel } from "@/lib/mappers/submissions";
 import { formatDate } from "@/lib/formatting";
 import type { CityAipByYearVM } from "../types";

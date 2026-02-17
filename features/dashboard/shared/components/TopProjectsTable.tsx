@@ -1,7 +1,7 @@
 import { Building2, HeartPulse } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
+import { getProjectStatusBadgeClass } from "@/lib/ui/project-status";
 import { formatPeso } from "@/lib/formatting";
 import type { TopProjectRowVM } from "../types";
 

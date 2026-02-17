@@ -16,7 +16,7 @@ import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { RemarksCard } from "../components/remarks-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import { Send } from "lucide-react";
-import { CommentThreadsSplitView } from "@/features/feedback";
+import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-split-view";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 

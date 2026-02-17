@@ -1,4 +1,4 @@
-import type { ProjectStatus } from "@/features/projects/types";
+import type { ProjectStatus } from "@/lib/repos/projects/types";
 
 export function getProjectStatusBadgeClass(status: ProjectStatus): string {
   switch (status) {
@@ -13,4 +13,3 @@ export function getProjectStatusBadgeClass(status: ProjectStatus): string {
       return "bg-amber-50 text-amber-800 border-amber-200";
   }
 }
-

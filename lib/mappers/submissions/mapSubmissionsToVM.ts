@@ -1,4 +1,5 @@
 import type { AipStatus } from "@/lib/contracts/databasev2";
+import { getAipStatusBadgeClass as getCanonicalAipStatusBadgeClass } from "@/lib/ui/status";
 
 export function getAipStatusLabel(status: AipStatus): string {
   switch (status) {
@@ -18,17 +19,5 @@ export function getAipStatusLabel(status: AipStatus): string {
 }
 
 export function getAipStatusBadgeClass(status: AipStatus): string {
-  switch (status) {
-    case "published":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "under_review":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    case "for_revision":
-      return "bg-orange-100 text-orange-700 border-orange-200";
-    case "pending_review":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "draft":
-    default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
-  }
+  return getCanonicalAipStatusBadgeClass(status);
 }

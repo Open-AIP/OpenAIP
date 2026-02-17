@@ -1,4 +1,4 @@
-import { CommentThreadListCard } from "@/features/feedback/components/comment-thread-list-card";
+import { CommentThreadListCard } from "@/components/feedback/comment-thread-list-card";
 import type { FeedbackItem } from "@/features/citizen/aips/types";
 import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 

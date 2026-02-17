@@ -1,4 +1,4 @@
-import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
+import { AipDetailsSummary } from "@/components/aip/aip-details-summary";
 import type { AipHeader } from "@/lib/repos/aip/types";
 import type { AipDetails } from "@/features/citizen/aips/types";
 

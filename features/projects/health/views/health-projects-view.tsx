@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import HealthProjectCard from "../components/health-project-card";
 import type { HealthProject } from "@/features/projects/types";
-import { getProjectYears } from "@/features/projects/utils";
+import { getProjectYears } from "@/lib/constants/project-years";
 import { Search } from "lucide-react";
 
 /**

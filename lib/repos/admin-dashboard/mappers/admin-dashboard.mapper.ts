@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import type { AipRecord, ActivityLogRecord, ChatMessageRecord, ProfileRecord } from "../types";
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
+import { DASHBOARD_AIP_STATUS_CHART_COLORS } from "@/lib/ui/tokens";
 
 const statusLabelMap: Record<AipStatus, string> = {
   draft: "Draft",
@@ -17,14 +18,6 @@ const statusLabelMap: Record<AipStatus, string> = {
   under_review: "Under Review",
   for_revision: "For Revision",
   published: "Approved",
-};
-
-const statusColorMap: Record<AipStatus, string> = {
-  draft: "#94a3b8",
-  pending_review: "#3b82f6",
-  under_review: "#f59e0b",
-  for_revision: "#f97316",
-  published: "#10b981",
 };
 
 const toDate = (value: string) => new Date(value);
@@ -155,7 +148,7 @@ export const deriveAipStatusDistribution = (
     status,
     label: statusLabelMap[status],
     count: counts[status],
-    color: statusColorMap[status],
+    color: DASHBOARD_AIP_STATUS_CHART_COLORS[status],
   }));
 };
 

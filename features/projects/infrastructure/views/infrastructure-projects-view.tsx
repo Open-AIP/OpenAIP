@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import InfrastructureProjectCard from "../components/infrastructure-project-card";
 import type { InfrastructureProject } from "@/features/projects/types";
-import { getProjectYears } from "@/features/projects/utils";
+import { getProjectYears } from "@/lib/constants/project-years";
 import { Search } from "lucide-react";
 
 /**

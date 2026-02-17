@@ -4,11 +4,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
-import { ProjectUpdatesSection } from "@/features/projects/shared/update-view";
-import { CommentThreadsSplitView } from "@/features/feedback";
-import ProjectInformationCard from "@/features/projects/health/components/project-information-card";
-import type { HealthProject, ProjectUpdateUi } from "@/features/projects/types";
+import { getProjectStatusBadgeClass } from "@/lib/ui/project-status";
+import { ProjectUpdatesSection } from "@/components/projects/update-view";
+import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-split-view";
+import { HealthProjectInformationCard } from "@/components/projects/health-project-information-card";
+import type { HealthProject, ProjectUpdateUi } from "@/lib/repos/projects/types";
 
 type Props = {
   aipYear: number;
@@ -56,7 +56,7 @@ export default function CitizenHealthProjectDetailView({ aipYear, project }: Pro
         </div>
       </div>
 
-      <ProjectInformationCard
+      <HealthProjectInformationCard
         aipYear={aipYear}
         project={project}
         mode="citizen"

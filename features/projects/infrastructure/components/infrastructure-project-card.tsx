@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import type { InfrastructureProject } from "@/features/projects/types";
 import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
-import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
+import { getProjectStatusBadgeClass } from "@/lib/ui/project-status";
 
 /**
  * InfrastructureProjectCard Component

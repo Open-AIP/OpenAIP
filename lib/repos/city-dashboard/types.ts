@@ -1,6 +1,7 @@
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
 import type { ProjectCategory } from "@/lib/contracts/databasev2/enums";
 import type { ProjectStatus } from "@/lib/repos/projects/types";
+import type { DashboardSectorCode } from "@/lib/constants/dashboard";
 
 export type CityDashboardFilters = {
   year: number;
@@ -86,7 +87,7 @@ export type TopFundedProject = {
   id: string;
   rank: number;
   projectName: string;
-  category: string;
+  sector_code: DashboardSectorCode;
   type: ProjectCategory;
   budget: number;
   status: ProjectStatus;

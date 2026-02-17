@@ -1,4 +1,4 @@
-import { BarChartCard } from "@/features/dashboard/components/charts";
+import { BarChartCard } from "@/features/dashboard/shared/components/charts";
 import { DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 import type { TargetPointVM } from "../types";
 

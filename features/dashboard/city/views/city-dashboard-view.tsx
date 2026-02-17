@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChartCard, PieChartCard } from "@/features/dashboard/components/charts";
+import { BarChartCard, PieChartCard } from "@/features/dashboard/shared/components/charts";
 import DashboardHeader from "@/features/dashboard/shared/components/DashboardHeader";
 import KpiRow from "@/features/dashboard/shared/components/KpiRow";
 import BudgetBreakdownSection from "@/features/dashboard/shared/components/BudgetBreakdownSection";

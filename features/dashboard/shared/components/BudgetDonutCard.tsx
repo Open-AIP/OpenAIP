@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DonutChartCard } from "@/features/dashboard/components/charts";
+import { DonutChartCard } from "@/features/dashboard/shared/components/charts";
 import { formatPeso } from "@/lib/formatting";
 import {
   DASHBOARD_BUDGET_SEGMENT_DOT_CLASS_BY_TEXT_CLASS,
   DASHBOARD_BUDGET_SEGMENT_HEX_BY_TEXT_CLASS,
   DASHBOARD_SEMANTIC_COLORS,
 } from "@/lib/ui/tokens";
-import type { BudgetBreakdownVM } from "../types";
+import { BudgetBreakdownVM } from "../types";
+
 
 type BudgetDonutCardProps = {
   breakdown: BudgetBreakdownVM;

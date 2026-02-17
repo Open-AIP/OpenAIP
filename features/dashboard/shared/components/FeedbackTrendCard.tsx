@@ -1,4 +1,4 @@
-import { LineChartCard } from "@/features/dashboard/components/charts";
+import { LineChartCard } from "@/features/dashboard/shared/components/charts";
 import { DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tokens";
 import type { TrendPointVM } from "../types";
 

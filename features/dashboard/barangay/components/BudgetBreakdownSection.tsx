@@ -21,14 +21,16 @@ export default function BudgetBreakdownSection({
   onViewAllProjects,
 }: BudgetBreakdownSectionProps) {
   return (
-    <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-      <BudgetDonutCard
-        breakdown={breakdown}
-        aipDetailsHref={aipDetailsHref}
-        onViewAipDetails={onViewAipDetails}
-        onViewAllProjects={onViewAllProjects}
-      />
-      <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+      <div className="xl:col-span-4">
+        <BudgetDonutCard
+          breakdown={breakdown}
+          aipDetailsHref={aipDetailsHref}
+          onViewAipDetails={onViewAipDetails}
+          onViewAllProjects={onViewAllProjects}
+        />
+      </div>
+      <div className="space-y-4 xl:col-span-1">
         <DateCard dateCard={dateCard} />
         <WorkingOnCard workingOn={workingOn} />
       </div>

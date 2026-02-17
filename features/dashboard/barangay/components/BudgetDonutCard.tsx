@@ -18,33 +18,54 @@ export default function BudgetDonutCard({
   onViewAipDetails,
   onViewAllProjects,
 }: BudgetDonutCardProps) {
-  const radius = 70;
+  const radius = 78;
+  const strokeWidth = 26;
   const circumference = 2 * Math.PI * radius;
+  const center = 140;
+
+  const polarToCartesian = (angleDeg: number, distance: number) => {
+    const rad = (angleDeg * Math.PI) / 180;
+    return {
+      x: center + Math.cos(rad) * distance,
+      y: center + Math.sin(rad) * distance,
+    };
+  };
 
   const segments = breakdown.segments.map((item, index) => {
     const ratio = breakdown.totalBudget > 0 ? item.value / breakdown.totalBudget : 0;
     const length = ratio * circumference;
-    const offset = breakdown.segments
+    const priorRatio = breakdown.segments
       .slice(0, index)
       .reduce(
-        (sum, current) => sum + (breakdown.totalBudget > 0 ? (current.value / breakdown.totalBudget) * circumference : 0),
+        (sum, current) => sum + (breakdown.totalBudget > 0 ? current.value / breakdown.totalBudget : 0),
         0
       );
+    const offset = priorRatio * circumference;
+    const startAngle = priorRatio * 360 - 90;
+    const midAngle = startAngle + ratio * 180;
 
-    return { ...item, ratio, length, offset };
+    const p1 = polarToCartesian(midAngle, radius + strokeWidth / 2 + 2);
+    const p2 = polarToCartesian(midAngle, radius + strokeWidth / 2 + 18);
+    const labelToRight = p2.x >= center;
+    const p3 = {
+      x: p2.x + (labelToRight ? 16 : -16),
+      y: p2.y,
+    };
+
+    return { ...item, ratio, length, offset, p1, p2, p3, labelToRight };
   });
 
   return (
-    <Card className="gap-4 border-slate-200 py-4">
+    <Card className="w-full gap-4 border-slate-200 py-4">
       <CardHeader className="px-4">
         <CardTitle className="text-sm font-semibold">Budget Breakdown</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 px-4">
-        <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-          <div className="space-y-3">
-            <div className="relative flex h-52 w-52 items-center justify-center">
-              <svg width="208" height="208" viewBox="0 0 208 208">
-                <g transform="translate(104,104) rotate(-90)">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="flex items-center justify-center">
+            <div className="relative w-full max-w-105">
+              <svg width="100%" height="280" viewBox="0 0 320 280" preserveAspectRatio="xMidYMid meet">
+                <g transform="translate(140,140) rotate(-90)">
                   {segments.map((segment) => (
                     <g key={segment.label} className={segment.colorClass}>
                       <circle
@@ -53,28 +74,34 @@ export default function BudgetDonutCard({
                         cy={0}
                         fill="transparent"
                         stroke="currentColor"
-                        strokeWidth={24}
+                        strokeWidth={strokeWidth}
                         strokeDasharray={`${segment.length} ${circumference - segment.length}`}
                         strokeDashoffset={-segment.offset}
+                        strokeLinecap="butt"
                       />
                     </g>
                   ))}
                 </g>
+                {segments.map((segment) => (
+                  <g key={`${segment.label}-label`} className={segment.colorClass}>
+                    <polyline
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.25"
+                      points={`${segment.p1.x},${segment.p1.y} ${segment.p2.x},${segment.p2.y} ${segment.p3.x},${segment.p3.y}`}
+                    />
+                    <text
+                      x={segment.p3.x + (segment.labelToRight ? 4 : -4)}
+                      y={segment.p3.y + 4}
+                      fontSize="10"
+                      textAnchor={segment.labelToRight ? "start" : "end"}
+                      fill="currentColor"
+                    >
+                      {segment.label} {Math.round(segment.ratio * 100)}%
+                    </text>
+                  </g>
+                ))}
               </svg>
-              <div className="absolute text-center">
-                <div className="text-[11px] text-slate-500">Total Budget</div>
-                <div className="text-2xl font-semibold text-slate-900">{formatPeso(breakdown.totalBudget)}</div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-              {segments.map((segment) => (
-                <div key={segment.label} className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${segment.colorClass.replace("text", "bg")}`} />
-                  <span>{segment.label}</span>
-                  <span className="font-semibold">{Math.round(segment.ratio * 100)}%</span>
-                </div>
-              ))}
             </div>
           </div>
 
@@ -109,15 +136,17 @@ export default function BudgetDonutCard({
                 </TableBody>
               </Table>
             </div>
+          </div>
+        </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild className="bg-teal-700 text-white hover:bg-teal-800" onClick={onViewAipDetails}>
-                <Link href={aipDetailsHref}>View AIP Details</Link>
-              </Button>
-              <Button variant="outline" type="button" onClick={onViewAllProjects}>
-                View All Projects
-              </Button>
-            </div>
+        <div className="border-t border-slate-200 pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild className="bg-teal-700 text-white hover:bg-teal-800" onClick={onViewAipDetails}>
+              <Link href={aipDetailsHref}>View AIP Details</Link>
+            </Button>
+            <Button variant="outline" type="button" onClick={onViewAllProjects}>
+              View All Projects
+            </Button>
           </div>
         </div>
       </CardContent>

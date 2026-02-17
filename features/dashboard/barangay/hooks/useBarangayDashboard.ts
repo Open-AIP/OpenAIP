@@ -132,7 +132,7 @@ export function useBarangayDashboard() {
           value: getAipStatusLabel(data.aipStatus.status),
           subtext: `${data.aipStatus.asOfLabel} · ${data.aipStatus.lastUpdatedLabel}`,
           icon: FileText,
-          tone: "info",
+          tone: "warning",
         },
         {
           id: "projects",

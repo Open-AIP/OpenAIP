@@ -7,10 +7,10 @@ type KpiRowProps = {
 };
 
 const toneClass: Record<NonNullable<KpiCardVM["tone"]>, string> = {
-  neutral: "border-slate-200",
-  info: "border-blue-200",
-  success: "border-emerald-200",
-  warning: "border-amber-200",
+  neutral: "border-2 border-slate-300 border-l-4 border-l-slate-400 shadow-sm",
+  info: "border-2 border-blue-200 border-l-4 border-l-blue-500 shadow-sm",
+  success: "border-2 border-emerald-200 border-l-4 border-l-emerald-500 shadow-sm",
+  warning: "border-2 border-amber-200 border-l-4 border-l-amber-500 shadow-sm",
 };
 
 export default function KpiRow({ cards }: KpiRowProps) {

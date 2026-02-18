@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { AipProjectRow } from "../types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { peso } from "../utils";
 
 function Panel({
   project,
@@ -89,9 +90,35 @@ export function ProjectReviewModal({
       setSubmitting(false);
     }
   }
+
+  function renderField(label: string, value: React.ReactNode) {
+    const display =
+      value === null ||
+      value === undefined ||
+      (typeof value === "string" && value.trim().length === 0)
+        ? "—"
+        : value;
+
+    return (
+      <div className="flex gap-2">
+        <dt className="w-56 text-slate-500">{label}</dt>
+        <dd className="text-slate-800">{display}</dd>
+      </div>
+    );
+  }
+
+  const totalBudget = (() => {
+    const psBudget = typeof project.psBudget === "number" ? project.psBudget : null;
+    const mooeBudget = typeof project.mooeBudget === "number" ? project.mooeBudget : null;
+    const coBudget = typeof project.coBudget === "number" ? project.coBudget : null;
+    if (psBudget !== null && mooeBudget !== null && coBudget !== null) {
+      return psBudget + mooeBudget + coBudget;
+    }
+    return project.amount;
+  })();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl w-[120vw]">
+      <DialogContent className="w-[98vw] sm:max-w-250">
         <DialogHeader>
           <DialogTitle>
             {project.reviewStatus === "ai_flagged" ? "Error Review - Project Details" : "Project Details"}
@@ -101,39 +128,34 @@ export function ProjectReviewModal({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left: project info */}
           <div className="md:col-span-2 border border-slate-200 rounded-lg p-4">
-            <div className="text-sm font-semibold text-slate-900">Project Information</div>
+            <div className="text-xs font-semibold text-slate-900">Project Information</div>
 
-            <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex gap-2">
-                <dt className="w-40 text-slate-500">AIP Reference Code</dt>
-                <dd className="text-slate-800 font-medium">{project.projectRefCode}</dd>
-              </div>
-
-              <div className="flex gap-2">
-                <dt className="w-40 text-slate-500">Description</dt>
-                <dd className="text-slate-800">{project.aipDescription}</dd>
-              </div>
-
-              <div className="flex gap-2">
-                <dt className="w-40 text-slate-500">Amount</dt>
-                <dd className="text-slate-800 font-medium">
-                  ₱{project.amount.toLocaleString()}
-                </dd>
-              </div>
-
-              <div className="flex gap-2">
-                <dt className="w-40 text-slate-500">Sector</dt>
-                <dd className="text-slate-800">{project.sector}</dd>
-              </div>
+            <dl className="mt-3 space-y-2 text-xs">
+              {renderField("AIP Reference Code", <span className="font-medium">{project.projectRefCode}</span>)}
+              {renderField("Program/Project/Activity", project.aipDescription)}
+              {renderField("Implementing Office/Department", project.implementingOffice)}
+              {renderField("Starting Date", project.startDate)}
+              {renderField("Completion Date", project.completionDate)}
+              {renderField("Expected Outputs", project.expectedOutputs)}
+              {renderField("Funding Source", project.fundingSource)}
+              {renderField("PS", typeof project.psBudget === "number" ? peso(project.psBudget) : null)}
+              {renderField("MOOE", typeof project.mooeBudget === "number" ? peso(project.mooeBudget) : null)}
+              {renderField("CO", typeof project.coBudget === "number" ? peso(project.coBudget) : null)}
+              {renderField("Total", <span className="font-medium">{peso(totalBudget)}</span>)}
+              {renderField("Climate Change Adaptation", project.climateChangeAdaptation)}
+              {renderField("Climate Change Mitigation", project.climateChangeMitigation)}
+              {renderField("CC Typology Code", project.ccTypologyCode)}
+              {renderField("PRM/NCR/LGU RM Objective-Results Indicator Code", project.rmObjectiveCode)}
+              {renderField("Sector", project.sector)}
             </dl>
           </div>
 
           {/* Right: review panel + comment */}
-          <div className="space-y-4">
+          <div className="space-y-4 text-xs">
             <Panel project={project} />
 
             <div className="border border-slate-200 rounded-lg p-4">
-              <div className="text-sm font-semibold text-slate-900">Official Comment</div>
+              <div className="text-xs font-semibold text-slate-900">Official Comment</div>
               {!canComment ? (
                 <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
                   Feedback can only be added when the AIP status is For Revision.
@@ -167,3 +189,4 @@ export function ProjectReviewModal({
     </Dialog>
   );
 }
+

@@ -51,6 +51,18 @@ export type AipProjectRow = {
   amount: number;
   reviewStatus: ReviewStatus;
   aipDescription: string;
+  implementingOffice?: string | null;
+  startDate?: string | null;
+  completionDate?: string | null;
+  expectedOutputs?: string | null;
+  fundingSource?: string | null;
+  psBudget?: number | null;
+  mooeBudget?: number | null;
+  coBudget?: number | null;
+  climateChangeAdaptation?: string | null;
+  climateChangeMitigation?: string | null;
+  ccTypologyCode?: string | null;
+  rmObjectiveCode?: string | null;
   aiIssues?: string[];
   officialComment?: string;
 };

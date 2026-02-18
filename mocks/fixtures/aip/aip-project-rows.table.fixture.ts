@@ -1,31 +1,59 @@
 import { AIP_IDS, AIP_ITEM_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
+import type { AipProjectRow } from "@/lib/types/domain/aip.domain";
 
-type ReviewStatus = "ai_flagged" | "reviewed" | "unreviewed";
-type ProjectKind = "health" | "infrastructure";
+type DetailOverrides = Partial<Pick<
+  AipProjectRow,
+  | "implementingOffice"
+  | "startDate"
+  | "completionDate"
+  | "expectedOutputs"
+  | "fundingSource"
+  | "psBudget"
+  | "mooeBudget"
+  | "coBudget"
+  | "climateChangeAdaptation"
+  | "climateChangeMitigation"
+  | "ccTypologyCode"
+  | "rmObjectiveCode"
+>>;
 
-type Sector =
-  | "General Sector"
-  | "Social Sector"
-  | "Economic Sector"
-  | "Other Services"
-  | "Unknown";
+const CITY_AIP_IDS = new Set<string>([
+  AIP_IDS.city_2026,
+  AIP_IDS.city_2025,
+]);
 
-type AipProjectRow = {
-  id: string;
-  aipId: string;
-  projectRefCode: string;
-  kind: ProjectKind;
-  sector: Sector;
-  amount: number;
-  reviewStatus: ReviewStatus;
-  aipDescription: string;
-  aiIssues?: string[];
-  officialComment?: string;
-};
+function splitBudget(amount: number) {
+  const ps = Math.round(amount * 0.2);
+  const mooe = Math.round(amount * 0.5);
+  const co = Math.max(0, amount - ps - mooe);
+  return { ps, mooe, co };
+}
+
+function withDetails(row: AipProjectRow, overrides: DetailOverrides = {}): AipProjectRow {
+  const isCity = CITY_AIP_IDS.has(row.aipId);
+  const { ps, mooe, co } = splitBudget(row.amount);
+
+  return {
+    ...row,
+    implementingOffice: isCity ? "Office of the City Mayor" : "Barangay Hall",
+    startDate: "January",
+    completionDate: "December",
+    expectedOutputs: row.aipDescription,
+    fundingSource: "Gen. Fund",
+    psBudget: ps,
+    mooeBudget: mooe,
+    coBudget: co,
+    climateChangeAdaptation: null,
+    climateChangeMitigation: null,
+    ccTypologyCode: null,
+    rmObjectiveCode: null,
+    ...overrides,
+  };
+}
 
 export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
   // aip-2026-mamadid projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2026_001,
     aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "GS-2026-001",
@@ -39,8 +67,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
       "Missing breakdown of material costs and labor allocation",
       "No mention of drainage considerations alongside road work",
     ],
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2026_002,
     aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "GS-2026-002",
@@ -51,8 +79,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
     officialComment:
       "Budget allocation confirmed. Construction will follow standard barangay specifications.",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2026_003,
     aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "SS-2026-001",
@@ -63,8 +91,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     reviewStatus: "reviewed",
     officialComment:
       "Approved. Budget includes vaccine procurement, storage, and medical personnel costs.",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2026_004,
     aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "ES-2026-001",
@@ -73,8 +101,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 800000,
     aipDescription: "Livelihood training program for local entrepreneurs",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2026_005,
     aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "OS-2026-001",
@@ -83,8 +111,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 350000,
     aipDescription: "Street lighting installation and maintenance program",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2026_006,
     aipId: AIP_IDS.barangay_mamadid_2026,
     projectRefCode: "GS-2026-003",
@@ -93,10 +121,10 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 700000,
     aipDescription: "Drainage system improvements and flood mitigation",
     reviewStatus: "reviewed",
-  },
+  }),
 
   // aip-2026-poblacion projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.poblacion_2026_010,
     aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "GS-2026-010",
@@ -105,8 +133,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 2500000,
     aipDescription: "Sports complex development with covered court and facilities",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.poblacion_2026_011,
     aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "SS-2026-010",
@@ -115,8 +143,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 3000000,
     aipDescription: "Health center expansion including new wings and equipment upgrade",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.poblacion_2026_012,
     aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "SS-2026-011",
@@ -125,8 +153,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 1200000,
     aipDescription: "Day care center construction with modern facilities",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.poblacion_2026_013,
     aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "SS-2026-012",
@@ -135,8 +163,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 800000,
     aipDescription: "Senior citizens facility improvement and activity center",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.poblacion_2026_014,
     aipId: AIP_IDS.barangay_poblacion_2026,
     projectRefCode: "OS-2026-010",
@@ -145,10 +173,10 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 1000000,
     aipDescription: "Community library setup with digital resources and reading area",
     reviewStatus: "reviewed",
-  },
+  }),
 
   // aip-2025-mamadid projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2025_020,
     aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "GS-2025-001",
@@ -157,8 +185,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 1800000,
     aipDescription: "Barangay road repairs covering 1.8km of priority routes",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2025_021,
     aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "ES-2025-001",
@@ -167,8 +195,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 900000,
     aipDescription: "Livelihood training programs for various skills development",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2025_022,
     aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "OS-2025-001",
@@ -177,8 +205,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 800000,
     aipDescription: "Water system improvement project for better access",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.mamadid_2025_023,
     aipId: AIP_IDS.barangay_mamadid_2025,
     projectRefCode: "SS-2025-001",
@@ -187,10 +215,10 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 700000,
     aipDescription: "Basketball court rehabilitation and facility upgrade",
     reviewStatus: "reviewed",
-  },
+  }),
 
   // aip-2026-city projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.city_2026_030,
     aipId: AIP_IDS.city_2026,
     projectRefCode: "GS-2026-C001",
@@ -199,8 +227,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 20000000,
     aipDescription: "Major road network expansion covering 15km of city roads",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2026_031,
     aipId: AIP_IDS.city_2026,
     projectRefCode: "ES-2026-C001",
@@ -209,8 +237,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 8000000,
     aipDescription: "Public market modernization and expansion project",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2026_032,
     aipId: AIP_IDS.city_2026,
     projectRefCode: "SS-2026-C001",
@@ -219,8 +247,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 6000000,
     aipDescription: "City hospital equipment upgrade and procurement",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2026_033,
     aipId: AIP_IDS.city_2026,
     projectRefCode: "SS-2026-C002",
@@ -229,8 +257,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 5000000,
     aipDescription: "Public school building construction and renovation",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2026_034,
     aipId: AIP_IDS.city_2026,
     projectRefCode: "ES-2026-C002",
@@ -239,8 +267,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 3000000,
     aipDescription: "Business development center establishment and support program",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2026_035,
     aipId: AIP_IDS.city_2026,
     projectRefCode: "OS-2026-C001",
@@ -249,10 +277,10 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 3000000,
     aipDescription: "Waste management facility construction and operations",
     reviewStatus: "reviewed",
-  },
+  }),
 
   // aip-2025-city projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.city_2025_040,
     aipId: AIP_IDS.city_2025,
     projectRefCode: "GS-2025-C001",
@@ -261,8 +289,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 12000000,
     aipDescription: "City hall annex construction for additional office space",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2025_041,
     aipId: AIP_IDS.city_2025,
     projectRefCode: "GS-2025-C002",
@@ -271,8 +299,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 10000000,
     aipDescription: "Flood control system phase 2 implementation",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2025_042,
     aipId: AIP_IDS.city_2025,
     projectRefCode: "OS-2025-C001",
@@ -281,8 +309,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 8000000,
     aipDescription: "Public transportation terminal upgrade and modernization",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2025_043,
     aipId: AIP_IDS.city_2025,
     projectRefCode: "SS-2025-C001",
@@ -291,8 +319,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 5000000,
     aipDescription: "Youth sports complex development with multiple facilities",
     reviewStatus: "reviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.city_2025_044,
     aipId: AIP_IDS.city_2025,
     projectRefCode: "OS-2025-C002",
@@ -301,10 +329,10 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 3000000,
     aipDescription: "Environmental protection programs and initiatives",
     reviewStatus: "reviewed",
-  },
+  }),
 
   // aip-2026-santamaria projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.santamaria_2026_050,
     aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "GS-2026-SM001",
@@ -313,8 +341,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 2400000,
     aipDescription: "Farm-to-market road construction covering 3km",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.santamaria_2026_051,
     aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "ES-2026-SM001",
@@ -323,8 +351,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 1500000,
     aipDescription: "Irrigation system extension to support agricultural productivity",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.santamaria_2026_052,
     aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "ES-2026-SM002",
@@ -333,8 +361,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 1200000,
     aipDescription: "Agricultural training center with demonstration farm",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.santamaria_2026_053,
     aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "ES-2026-SM003",
@@ -343,8 +371,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 600000,
     aipDescription: "Farmers cooperative building for storage and meetings",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.santamaria_2026_054,
     aipId: AIP_IDS.barangay_santamaria_2026,
     projectRefCode: "OS-2026-SM001",
@@ -353,10 +381,10 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 500000,
     aipDescription: "Solar street light installation along main roads",
     reviewStatus: "unreviewed",
-  },
+  }),
 
   // aip-2026-sanisidro projects
-  {
+  withDetails({
     id: AIP_ITEM_IDS.sanisidro_2026_060,
     aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "GS-2026-SI001",
@@ -370,8 +398,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
       "Expansion area specifications not clearly defined",
       "Accessibility compliance for persons with disability not mentioned",
     ],
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.sanisidro_2026_061,
     aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "OS-2026-SI001",
@@ -380,8 +408,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 800000,
     aipDescription: "Water refilling station setup for community use",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.sanisidro_2026_062,
     aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "OS-2026-SI002",
@@ -390,8 +418,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 600000,
     aipDescription: "Sanitation facilities construction in public areas",
     reviewStatus: "unreviewed",
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.sanisidro_2026_063,
     aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "SS-2026-SI001",
@@ -405,8 +433,8 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
       "Missing warranty and maintenance cost considerations",
       "Training costs for medical staff on new equipment not budgeted",
     ],
-  },
-  {
+  }),
+  withDetails({
     id: AIP_ITEM_IDS.sanisidro_2026_064,
     aipId: AIP_IDS.barangay_sanisidro_2026,
     projectRefCode: "SS-2026-SI002",
@@ -415,5 +443,5 @@ export const AIP_PROJECT_ROWS_TABLE: AipProjectRow[] = [
     amount: 400000,
     aipDescription: "Vaccination storage facility with temperature control",
     reviewStatus: "unreviewed",
-  },
+  }),
 ];

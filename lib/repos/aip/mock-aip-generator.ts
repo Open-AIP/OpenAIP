@@ -54,6 +54,13 @@ function randomBudget(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
+function splitBudget(amount: number) {
+  const ps = Math.round(amount * 0.2);
+  const mooe = Math.round(amount * 0.5);
+  const co = Math.max(0, amount - ps - mooe);
+  return { ps, mooe, co };
+}
+
 export function generateMockProjects(
   aipId: string,
   year: number,
@@ -81,15 +88,30 @@ export function generateMockProjects(
     const reviewStatus =
       reviewStatuses[Math.floor(Math.random() * reviewStatuses.length)];
 
+    const amount = randomBudget(300000, 5000000);
+    const { ps, mooe, co } = splitBudget(amount);
+
     const project: AipProjectRow = {
       id: `aiprow-mock-${aipId}-${i + 1}`,
       aipId,
       projectRefCode: `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`,
       sector: sectorData.sector,
-      amount: randomBudget(300000, 5000000),
+      amount,
       aipDescription: description,
       reviewStatus,
       kind: "health",
+      implementingOffice: "Barangay Hall",
+      startDate: "January",
+      completionDate: "December",
+      expectedOutputs: description,
+      fundingSource: "Gen. Fund",
+      psBudget: ps,
+      mooeBudget: mooe,
+      coBudget: co,
+      climateChangeAdaptation: null,
+      climateChangeMitigation: null,
+      ccTypologyCode: null,
+      rmObjectiveCode: null,
     };
 
     if (reviewStatus === "ai_flagged") {

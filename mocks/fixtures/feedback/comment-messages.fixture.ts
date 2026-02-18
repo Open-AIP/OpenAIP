@@ -4,7 +4,12 @@ import type { FeedbackKind } from "@/lib/contracts/databasev2";
 type CommentMessage = {
   id: string;
   threadId: string;
-  authorRole: "citizen" | "barangay_official" | "city_official" | "admin";
+  authorRole:
+    | "citizen"
+    | "barangay_official"
+    | "city_official"
+    | "municipal_official"
+    | "admin";
   authorId: string;
   kind: FeedbackKind;
   text: string;

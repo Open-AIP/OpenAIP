@@ -1,5 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  dbRoleToRouteRole,
+  normalizeToDbRole,
+  routeRoleToDbRole,
+  type RouteRole,
+} from "@/lib/auth/roles";
 // This is only temp for accessing the citizen routes without authentication. Remove this function if you want to protect the citizen routes as well.
 
 function isPublicCitizenPath(pathname: string) {
@@ -25,6 +31,21 @@ function isPublicCitizenPath(pathname: string) {
 
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
+
+function getPathRole(pathname: string): RouteRole {
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.includes("admin")) return "admin";
+  if (segments.includes("barangay")) return "barangay";
+  if (segments.includes("city")) return "city";
+  if (segments.includes("municipality")) return "municipality";
+  return "citizen";
+}
+
+function getRoleBasePath(role: RouteRole): string {
+  return role === "citizen" ? "" : `/${role}`;
+}
+
 //the changes ends here. The rest of the code is just the default code from the supabase auth middleware example. You can find the original code here:
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -63,17 +84,8 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims
 
   const pathname = request.nextUrl.pathname;
-  
-  const pathArray =
-    pathname.includes("/") && pathname.trim() !== "/" ? pathname.split("/") : [];
-
-  const pathRole = pathArray.includes("admin")
-    ? "admin"
-    : pathArray.includes("barangay")
-    ? "barangay"
-    : pathArray.includes("city")
-    ? "city"
-    : "citizen";
+  const pathRole = getPathRole(pathname);
+  const pathDbRole = routeRoleToDbRole(pathRole);
 
   if (pathRole === "admin" && process.env.NODE_ENV !== "production") {
     return supabaseResponse;
@@ -94,6 +106,10 @@ export async function updateSession(request: NextRequest) {
     'citizen';
   */
   const userRole = user?.user_metadata?.access?.role;
+  const normalizedUserDbRole = normalizeToDbRole(userRole);
+  const normalizedUserRouteRole = normalizedUserDbRole
+    ? dbRoleToRouteRole(normalizedUserDbRole)
+    : null;
   
 
   if (
@@ -104,14 +120,21 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.endsWith('/update-password') 
   ) {
     const url = request.nextUrl.clone()
-    url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/sign-in`
+    url.pathname = `${getRoleBasePath(pathRole)}/sign-in`
+    return NextResponse.redirect(url)
+  }
+
+  if (user && !normalizedUserDbRole) {
+    const url = request.nextUrl.clone()
+    url.pathname = `${getRoleBasePath(pathRole)}/sign-in`
     return NextResponse.redirect(url)
   }
   
   // signed in user accessing different role
-  if(user && userRole && pathRole !== userRole) {
+  if (user && normalizedUserDbRole && pathDbRole !== normalizedUserDbRole) {
     const url = request.nextUrl.clone()
-    url.pathname = `${userRole === 'citizen' ? '' : '/' + userRole}/unauthorized`
+    const unauthorizedRole = normalizedUserRouteRole ?? pathRole;
+    url.pathname = `${getRoleBasePath(unauthorizedRole)}/unauthorized`
     return NextResponse.redirect(url)
   }
   if (
@@ -122,7 +145,8 @@ export async function updateSession(request: NextRequest) {
     )
   ) {
     const url = request.nextUrl.clone()
-    url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/`
+    const destinationRole = normalizedUserRouteRole ?? pathRole;
+    url.pathname = `${getRoleBasePath(destinationRole)}/`
     return NextResponse.redirect(url)
   }
 

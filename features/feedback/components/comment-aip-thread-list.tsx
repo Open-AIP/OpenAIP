@@ -9,15 +9,20 @@ import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/rep
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
 import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 export function CommentAipThreadList({
   aipId,
   scope,
+  lguId,
+  visibility = "authenticated",
   activeThreadId,
   renderItem,
 }: {
   aipId: string;
-  scope: "city" | "barangay";
+  scope: LguScopeKind;
+  lguId?: string | null;
+  visibility?: "authenticated" | "public";
   activeThreadId?: string | null;
   renderItem?: (args: {
     item: CommentSidebarItem;
@@ -40,7 +45,9 @@ export function CommentAipThreadList({
 
       try {
         const allThreads = await repo.listThreadsForInbox({
-          lguId: "lgu_barangay_001",
+          scope,
+          lguId: lguId ?? null,
+          visibility,
         });
         const aipThreads = allThreads.filter((thread) => {
           if (thread.target.targetKind === "aip_item") {
@@ -72,7 +79,7 @@ export function CommentAipThreadList({
     return () => {
       active = false;
     };
-  }, [repo, aipId, scope]);
+  }, [repo, aipId, scope, lguId, visibility]);
 
   const threadMap = React.useMemo(
     () => new Map(threads.map((thread) => [thread.id, thread])),

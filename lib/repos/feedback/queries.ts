@@ -2,6 +2,7 @@ import type { CommentSidebarItem, CommentThread } from "./types";
 import type { CommentTargetLookup } from "./repo";
 import { dedupeByKey, findDuplicateKeys } from "./mappers";
 import { feedbackDebugLog } from "./debug";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 export async function resolveCommentSidebar({
   threads,
@@ -12,7 +13,7 @@ export async function resolveCommentSidebar({
   scope = "barangay",
 }: {
   threads: CommentThread[];
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 } & CommentTargetLookup): Promise<CommentSidebarItem[]> {
   const threadDuplicates = findDuplicateKeys(threads, (thread) => thread.id);
   if (threadDuplicates.length > 0) {

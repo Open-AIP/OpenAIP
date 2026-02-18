@@ -1,6 +1,8 @@
+import type { LguScopeKind } from "@/lib/auth/scope";
+
 export type CitizenActions = {
   onSearch: (args: {
-    scope_type: "city" | "barangay";
+    scope_type: LguScopeKind;
     scope_id: string;
     fiscal_year: number | string;
   }) => void;

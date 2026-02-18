@@ -24,6 +24,7 @@ import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-s
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 /**
  * HealthProjectDetailPageView Component
@@ -49,7 +50,7 @@ export default function HealthProjectDetailPageView({
 }: {
   aipYear: number;
   project: HealthProject;
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();

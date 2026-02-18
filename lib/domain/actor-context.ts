@@ -1,4 +1,5 @@
 import type { AipScopeRef, RoleType } from "@/lib/contracts/databasev2";
+import { normalizeToDbRole } from "@/lib/auth/roles";
 
 export type { RoleType } from "@/lib/contracts/databasev2";
 
@@ -24,13 +25,7 @@ export type GetUserOutput = {
 };
 
 export function isRoleType(value: unknown): value is RoleType {
-  return (
-    value === "citizen" ||
-    value === "barangay_official" ||
-    value === "city_official" ||
-    value === "municipal_official" ||
-    value === "admin"
-  );
+  return normalizeToDbRole(value) !== null;
 }
 
 function getIdValue(
@@ -47,7 +42,7 @@ function getIdValue(
 }
 
 export function mapUserToActorContext(user: GetUserOutput): ActorContext | null {
-  const role = isRoleType(user.userRole) ? user.userRole : null;
+  const role = normalizeToDbRole(user.userRole);
   if (!role) return null;
 
   const locale =

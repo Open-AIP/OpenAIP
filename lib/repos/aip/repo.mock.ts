@@ -3,6 +3,7 @@ import type { CreateMockAipRepoOptions } from "./types";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 import { generateMockAIP, generateMockProjects } from "./mock-aip-generator";
+import { canPublicReadAip } from "@/lib/repos/_shared/visibility";
 
 export function createMockAipRepoImpl({
   defaultScope = "barangay",
@@ -15,7 +16,7 @@ export function createMockAipRepoImpl({
       const effectiveScope = scope ?? defaultScope;
       const filtered = AIPS_TABLE.filter((aip) => aip.scope === effectiveScope);
       if (visibility === "public") {
-        return filtered.filter((aip) => aip.status !== "draft");
+        return filtered.filter((aip) => canPublicReadAip({ status: aip.status }));
       }
       return filtered;
     },

@@ -4,13 +4,14 @@ export type CommentAuthorRole =
   | "citizen"
   | "barangay_official"
   | "city_official"
+  | "municipal_official"
   | "admin";
 
 export type CommentMessage = {
   id: string;
   threadId: string;
   authorRole: CommentAuthorRole;
-  authorId: string;
+  authorId: string | null;
   kind: FeedbackKind;
   text: string;
   createdAt: string;

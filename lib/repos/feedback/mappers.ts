@@ -45,18 +45,17 @@ export function mapFeedbackThreadToComment(root: FeedbackThreadRow, threadMessag
     year,
     project_id: root.project_id ?? "unknown",
     project_title: "Unknown project",
-    commenter_name: root.author_id,
+    commenter_name: root.author_id ?? "Unknown commenter",
     commenter_scope_label: "Unknown",
     message: root.body,
     created_at: createdAt,
     response_status: oldestReply ? "responded" : "no_response",
     response: oldestReply
       ? {
-          responder_name: oldestReply.author_id,
+          responder_name: oldestReply.author_id ?? "Unknown responder",
           message: oldestReply.body,
           created_at: oldestReply.created_at,
         }
       : null,
   };
 }
-

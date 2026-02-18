@@ -17,16 +17,8 @@ import {
 } from "@/components/ui/table";
 import { AipPdfContainer } from "@/components/aip/aip-pdf-container";
 import { AipDetailsSummary } from "@/components/aip/aip-details-summary";
-import type { AipHeader, AipStatus } from "@/lib/repos/aip/types";
-import type { AipMonitoringRow, AipMonitoringStatus } from "../types/monitoring.types";
-
-const STATUS_MAP: Record<AipMonitoringStatus, AipStatus> = {
-  Pending: "pending_review",
-  "In Review": "under_review",
-  Approved: "published",
-  "For Revision": "for_revision",
-  Locked: "published",
-};
+import type { AipHeader } from "@/lib/repos/aip/types";
+import type { AipMonitoringRow } from "../types/monitoring.types";
 
 function toAipHeader(row: AipMonitoringRow): AipHeader {
   return {
@@ -38,7 +30,7 @@ function toAipHeader(row: AipMonitoringRow): AipHeader {
     budget: 0,
     uploadedAt: row.submittedDate,
     publishedAt: undefined,
-    status: STATUS_MAP[row.status],
+    status: row.aipStatus,
     fileName: row.fileName,
     pdfUrl: row.pdfUrl ?? "",
     summaryText: row.summaryText,

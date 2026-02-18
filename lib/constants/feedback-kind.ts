@@ -21,13 +21,32 @@ export const FEEDBACK_KIND_BADGE_CLASSES: Record<FeedbackKind, string> = {
 export const CATEGORY_KINDS = ["commend", "suggestion", "question", "concern"] as const;
 export type CategoryKind = (typeof CATEGORY_KINDS)[number];
 
-export function formatFeedbackKind(kind: FeedbackKind) {
-  return FEEDBACK_KIND_LABELS[kind] ?? kind;
+const DEFAULT_KIND_BADGE_CLASS = "border-slate-200 text-slate-600";
+
+function isFeedbackKind(value: string): value is FeedbackKind {
+  return value in FEEDBACK_KIND_LABELS;
 }
 
-export function getFeedbackKindBadge(kind: FeedbackKind) {
+function formatUnknownKind(kind: string): string {
+  return kind
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function formatFeedbackKind(kind: FeedbackKind | string) {
+  if (isFeedbackKind(kind)) {
+    return FEEDBACK_KIND_LABELS[kind];
+  }
+  return formatUnknownKind(kind);
+}
+
+export function getFeedbackKindBadge(kind: FeedbackKind | string) {
+  const className = isFeedbackKind(kind)
+    ? FEEDBACK_KIND_BADGE_CLASSES[kind]
+    : DEFAULT_KIND_BADGE_CLASS;
+
   return {
     label: formatFeedbackKind(kind),
-    className: FEEDBACK_KIND_BADGE_CLASSES[kind],
+    className,
   };
 }

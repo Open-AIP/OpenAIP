@@ -17,6 +17,7 @@ import type {
   ResolveThreadParams,
 } from "./repo";
 import type { CommentMessage, CommentThread } from "./types";
+import type { LguScopeKind } from "@/lib/auth/scope";
 import { COMMENT_MESSAGES_FIXTURE } from "@/mocks/fixtures/feedback/comment-messages.fixture";
 import { COMMENT_THREADS_FIXTURE } from "@/mocks/fixtures/feedback/comment-threads.fixture";
 import { validateMockIds } from "@/mocks/fixtures/shared/validate-mock-ids";
@@ -25,6 +26,8 @@ import { dedupeByKey, findDuplicateKeys } from "./mappers";
 import { getProjectsRepo } from "@/lib/repos/projects/repo";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
+import { MOCK_PROJECTS_ROWS } from "@/mocks/fixtures/projects/projects.mock.fixture";
+import { canPublicReadAip } from "@/lib/repos/_shared/visibility";
 
 let threadStore: CommentThread[] = [...COMMENT_THREADS_FIXTURE];
 let messageStore: CommentMessage[] = [...COMMENT_MESSAGES_FIXTURE];
@@ -40,6 +43,88 @@ function sortByCreatedAtAsc(a: CommentMessage, b: CommentMessage) {
   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }
 
+function getAipScopeById(aipId: string): LguScopeKind | null {
+  const aip = AIPS_TABLE.find((item) => item.id === aipId);
+  if (!aip) return null;
+  if (aip.scope === "barangay" || aip.scope === "city") return aip.scope;
+  return null;
+}
+
+function getAipStatusById(aipId: string): string | null {
+  const aip = AIPS_TABLE.find((item) => item.id === aipId);
+  return aip?.status ?? null;
+}
+
+function getThreadAipId(thread: CommentThread): string | null {
+  if (thread.target.targetKind !== "project") {
+    return thread.target.aipId;
+  }
+
+  const projectId = thread.target.projectId;
+  const projectRow = MOCK_PROJECTS_ROWS.find((row) => row.id === projectId);
+  if (projectRow?.aip_id) {
+    return projectRow.aip_id;
+  }
+
+  const aipItem = AIP_PROJECT_ROWS_TABLE.find((row) => row.projectRefCode === projectId);
+  if (aipItem) {
+    return aipItem.aipId;
+  }
+
+  return null;
+}
+
+function isThreadPubliclyVisible(thread: CommentThread): boolean {
+  const aipId = getThreadAipId(thread);
+  if (!aipId) return false;
+  return canPublicReadAip({ status: getAipStatusById(aipId) });
+}
+
+function getThreadScope(thread: CommentThread): LguScopeKind {
+  if (thread.target.targetKind !== "project") {
+    return getAipScopeById(thread.target.aipId) ?? "barangay";
+  }
+
+  const projectId = thread.target.projectId;
+  const projectRow = MOCK_PROJECTS_ROWS.find((row) => row.id === projectId);
+  if (projectRow?.aip_id) {
+    return getAipScopeById(projectRow.aip_id) ?? "barangay";
+  }
+
+  const aipItem = AIP_PROJECT_ROWS_TABLE.find((row) => row.projectRefCode === projectId);
+  if (aipItem) {
+    return getAipScopeById(aipItem.aipId) ?? "barangay";
+  }
+
+  return "barangay";
+}
+
+function includesScopeHint(lguId: string | null | undefined, scope: LguScopeKind): boolean {
+  if (!lguId) return true;
+
+  const normalized = lguId.toLowerCase();
+  if (normalized.includes("city")) return scope === "city";
+  if (normalized.includes("municipality")) return scope === "municipality";
+  if (normalized.includes("barangay") || normalized.includes("brgy")) {
+    return scope === "barangay";
+  }
+
+  return true;
+}
+
+function canAccessThreadScope(requestedScope: LguScopeKind, threadScope: LguScopeKind): boolean {
+  if (requestedScope === "city") {
+    return threadScope === "city" || threadScope === "barangay";
+  }
+  if (requestedScope === "barangay") {
+    return threadScope === "barangay";
+  }
+  if (requestedScope === "municipality") {
+    return threadScope === "municipality";
+  }
+  return false;
+}
+
 // [DATAFLOW] Mock implementation for the threaded feedback UI. This is NOT a DBV2 adapter; it simulates threads in memory.
 export function createMockCommentRepo(): CommentRepo {
   if (!mockIdsValidated && process.env.NODE_ENV !== "production") {
@@ -48,8 +133,16 @@ export function createMockCommentRepo(): CommentRepo {
   }
 
   return {
-    async listThreadsForInbox(_params: ListThreadsForInboxParams): Promise<CommentThread[]> {
-      const sorted = [...threadStore].sort(sortByUpdatedAtDesc);
+    async listThreadsForInbox(params: ListThreadsForInboxParams): Promise<CommentThread[]> {
+      const filteredByScope = threadStore.filter((thread) => {
+        const threadScope = getThreadScope(thread);
+        if (!canAccessThreadScope(params.scope, threadScope)) return false;
+        if (!includesScopeHint(params.lguId, threadScope)) return false;
+        if (params.visibility === "public" && !isThreadPubliclyVisible(thread)) return false;
+        return true;
+      });
+
+      const sorted = [...filteredByScope].sort(sortByUpdatedAtDesc);
       const duplicates = findDuplicateKeys(sorted, (thread) => thread.id);
       const unique = dedupeByKey(sorted, (thread) => thread.id);
 
@@ -61,6 +154,9 @@ export function createMockCommentRepo(): CommentRepo {
       }
 
       feedbackDebugLog("threaded.listThreadsForInbox", {
+        scope: params.scope,
+        lguId: params.lguId ?? null,
+        visibility: params.visibility ?? "authenticated",
         count: unique.length,
         ids: unique.map((t) => t.id),
       });

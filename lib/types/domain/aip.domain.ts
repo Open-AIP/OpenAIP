@@ -1,8 +1,9 @@
 import type { AipStatus } from "@/lib/contracts/databasev2";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 export type { AipStatus } from "@/lib/contracts/databasev2";
 
-export type LguScope = "barangay" | "city";
+export type LguScope = LguScopeKind;
 
 export type AipHeader = {
   id: string;

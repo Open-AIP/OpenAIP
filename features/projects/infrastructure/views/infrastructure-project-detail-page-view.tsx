@@ -23,6 +23,7 @@ import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-s
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 /**
  * InfrastructureProjectDetailPageView Component
@@ -48,7 +49,7 @@ export default function InfrastructureProjectDetailPageView({
 }: {
   aipYear: number;
   project: InfrastructureProject;
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -62,7 +63,11 @@ export default function InfrastructureProjectDetailPageView({
     { label: "Detail & Updates", href: "#" },
   ];
   const defaultImplementingOffice =
-    scope === "city" ? "City Engineering Office" : "Barangay Engineering Office";
+    scope === "city"
+      ? "City Engineering Office"
+      : scope === "municipality"
+      ? "Municipal Engineering Office"
+      : "Barangay Engineering Office";
 
   // ✅ Adapt Infrastructure updates to shared ProjectUpdate (only fields needed by shared UI)
   const initialUpdates: ProjectUpdateUi[] = (project.updates ?? []).map(

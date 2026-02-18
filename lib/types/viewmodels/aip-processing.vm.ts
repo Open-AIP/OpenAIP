@@ -1,6 +1,8 @@
-export type PipelineStageUi = "extract" | "validate" | "summarize" | "categorize";
+import type { PipelineStage, PipelineStatus } from "@/lib/contracts/databasev2";
 
-export type PipelineStatusUi = "queued" | "running" | "succeeded" | "failed";
+export type PipelineStageUi = PipelineStage;
+
+export type PipelineStatusUi = PipelineStatus;
 
 export type AipProcessingRunView = {
   runId: string;

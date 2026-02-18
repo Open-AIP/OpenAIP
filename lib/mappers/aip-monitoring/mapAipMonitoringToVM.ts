@@ -4,13 +4,13 @@ import type { AipMonitoringDetail } from "@/mocks/fixtures/admin/aip-monitoring/
 
 type ReviewDirectory = Record<string, { name: string }>;
 
-const STATUS_MAP: Record<AipStatus, AipMonitoringStatus> = {
-  draft: "Pending",
-  pending_review: "Pending",
-  under_review: "In Review",
-  for_revision: "For Revision",
-  published: "Approved",
-};
+function mapAipStatusToMonitoringStatus(status: AipStatus | string): AipMonitoringStatus {
+  if (status === "for_revision") return "For Revision";
+  if (status === "under_review") return "In Review";
+  if (status === "published") return "Approved";
+  if (status === "draft" || status === "pending_review") return "Pending";
+  return "Pending";
+}
 
 function formatIsoDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -73,13 +73,14 @@ export function mapAipRowsToMonitoringRows({
       ? reviewerDirectory[latestReview.reviewer_id]?.name ?? latestReview.reviewer_id
       : null;
 
-    const baseStatus = STATUS_MAP[row.status];
+    const baseStatus = mapAipStatusToMonitoringStatus(row.status);
     const status = lockedAipIds.has(row.id) ? "Locked" : baseStatus;
 
     return {
       id: row.id,
       year: row.fiscal_year,
       lguName: lguNameByAipId[row.id] ?? "Unknown LGU",
+      aipStatus: row.status,
       status,
       submittedDate: formatIsoDate(row.submitted_at ?? row.created_at),
       currentStatusSince: formatIsoDate(row.status_updated_at),

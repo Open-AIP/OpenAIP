@@ -29,6 +29,7 @@ import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
 import AipProcessingModal from "../components/AipProcessingModal";
 import { useAipProcessing } from "../hooks/use-aip-processing";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 /**
  * Props for AipManagementView component
@@ -37,7 +38,7 @@ type Props = {
   /** Array of AIP records to display */
   records: AipHeader[];
   /** Administrative scope for routing */
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 };
 
 /**
@@ -75,7 +76,7 @@ export default function AipManagementView({
     return activeRecords.filter((r) => r.year === y);
   }, [activeRecords, yearFilter]);
 
-  const scopeLabel = scope === "city" ? "city" : "barangay";
+  const scopeLabel = scope;
   const processing = useAipProcessing({
     aipId: processingAipId,
     enabled: Boolean(processingAipId),
@@ -160,7 +161,7 @@ export default function AipManagementView({
           if (!next) clearProcessing();
         }}
         onReviewOutput={() => {
-          const scopePath = scope === "city" ? "city" : "barangay";
+          const scopePath = scope;
           if (processingAipId) {
             router.push(`/${scopePath}/aips/${processingAipId}`);
           }

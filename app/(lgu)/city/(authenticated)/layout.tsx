@@ -1,5 +1,6 @@
 import LguShell from "@/components/layout/lgu-shell";
 import { getUser } from "@/lib/actions/auth.actions";
+import { normalizeToDbRole, routeRoleToDbRole } from "@/lib/auth/roles";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +15,9 @@ const CityLayout = async ({children} : {children: React.ReactNode}) => {
   }
 
   const { fullName, userRole } = userData;
+  const normalizedRole = normalizeToDbRole(userRole);
 
-  if (userRole !== "city") {
+  if (normalizedRole !== routeRoleToDbRole("city")) {
     redirect("/city/unauthorized");
   }
 
@@ -23,7 +25,7 @@ const CityLayout = async ({children} : {children: React.ReactNode}) => {
     <LguShell 
       variant="city" 
       userName={fullName}
-      roleLabel={userRole === "citizen" ? "Citizen" : "City Official"}
+      roleLabel="City Official"
     >
       {children}
     </LguShell>

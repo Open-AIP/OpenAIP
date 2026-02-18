@@ -7,7 +7,7 @@ import type { CommentRepo, FeedbackRepo, FeedbackThreadsRepo } from "./repo";
 // [DBV2] Canonical table: `public.feedback` (root + replies via `parent_feedback_id`).
 export function createSupabaseCommentRepo(): CommentRepo {
   return {
-    async listThreadsForInbox() {
+    async listThreadsForInbox(_params) {
       // TODO(DBV2): list thread roots by scope/context from public.feedback (parent_feedback_id IS NULL).
       throw new NotImplementedError("Supabase comment repo not implemented yet.");
     },

@@ -5,7 +5,7 @@ import type { AipProcessingRunView } from "@/features/aip/types";
 import { createRun, getRun, getRunByAip } from "@/lib/aip/pipeline-client";
 
 const isComplete = (run: AipProcessingRunView | null) =>
-  !!run && run.status === "succeeded" && run.stage === "categorize" && run.progressByStage.categorize >= 100;
+  !!run && run.status === "succeeded" && run.stage === "embed" && run.progressByStage.embed >= 100;
 
 const isFailed = (run: AipProcessingRunView | null) => !!run && run.status === "failed";
 
@@ -104,6 +104,7 @@ export function useAipProcessing({
                 validate: 0,
                 summarize: 0,
                 categorize: 0,
+                embed: 0,
               },
               message:
                 error instanceof Error

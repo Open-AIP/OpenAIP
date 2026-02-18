@@ -25,6 +25,7 @@ import InfrastructureProjectCard from "../components/infrastructure-project-card
 import type { InfrastructureProject } from "@/features/projects/types";
 import { getProjectYears } from "@/lib/constants/project-years";
 import { Search } from "lucide-react";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 /**
  * InfrastructureProjectsView Component
@@ -45,7 +46,7 @@ export default function InfrastructureProjectsView({
   scope = "barangay"
 }: {
   projects: InfrastructureProject[];
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 }) {
   const years = useMemo(() => getProjectYears(projects), [projects]);
 

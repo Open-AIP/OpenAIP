@@ -29,7 +29,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         const health = kind === "health" ? getHealthDetails(row.id) : null;
         const infra = kind === "infrastructure" ? getInfraDetails(row.id) : null;
         const mapped = mapProjectRowToUiModel(row, health, infra, {
-          status: row.status ?? null,
+          status: row.ui_status ?? null,
           imageUrl: row.image_url ?? null,
         });
         return attachUpdates(mapped);
@@ -43,7 +43,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
       const health = kind === "health" ? getHealthDetails(row.id) : null;
       const infra = kind === "infrastructure" ? getInfraDetails(row.id) : null;
       const mapped = mapProjectRowToUiModel(row, health, infra, {
-        status: row.status ?? null,
+        status: row.ui_status ?? null,
         imageUrl: row.image_url ?? null,
       });
       return attachUpdates(mapped);
@@ -57,7 +57,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
           throw new Error(`Health details not found for ${row.id}`);
         }
         const mapped = mapProjectRowToUiModel(row, details, null, {
-          status: row.status ?? null,
+          status: row.ui_status ?? null,
           imageUrl: row.image_url ?? null,
         });
         if (mapped.kind !== "health") {
@@ -77,7 +77,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
           throw new Error(`Infrastructure details not found for ${row.id}`);
         }
         const mapped = mapProjectRowToUiModel(row, null, details, {
-          status: row.status ?? null,
+          status: row.ui_status ?? null,
           imageUrl: row.image_url ?? null,
         });
         if (mapped.kind !== "infrastructure") {

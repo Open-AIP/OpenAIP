@@ -2,14 +2,31 @@ import type { AipRow, AipReviewRow, ActivityLogRow } from "@/lib/contracts/datab
 import { AIP_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
 
 export const ADMIN_CITY_IDS = {
-  cabuyao: "city_cabuyao",
+  cabuyao: "00000000-0000-0000-0000-000000000401",
 } as const;
 
 export const ADMIN_BARANGAY_IDS = {
-  mamadid: "brgy_mamadid",
-  poblacion: "brgy_poblacion",
-  sanisidro: "brgy_sanisidro",
+  mamadid: "00000000-0000-0000-0000-000000000501",
+  poblacion: "00000000-0000-0000-0000-000000000502",
+  sanisidro: "00000000-0000-0000-0000-000000000503",
 } as const;
+
+const AIP_CREATED_BY_IDS = {
+  city001: "00000000-0000-0000-0000-000000000601",
+  brgy001: "00000000-0000-0000-0000-000000000602",
+  city002: "00000000-0000-0000-0000-000000000603",
+  brgy003: "00000000-0000-0000-0000-000000000604",
+  brgy004: "00000000-0000-0000-0000-000000000605",
+} as const;
+
+const REVIEWER_IDS = {
+  reviewer001: "00000000-0000-0000-0000-000000000701",
+  reviewer002: "00000000-0000-0000-0000-000000000702",
+  reviewer003: "00000000-0000-0000-0000-000000000703",
+  reviewer004: "00000000-0000-0000-0000-000000000704",
+} as const;
+
+const ADMIN_ACTOR_ID = "00000000-0000-0000-0000-000000000801";
 
 export const AIP_MONITORING_LGU_NAMES: Record<string, string> = {
   [AIP_IDS.city_2026]: "City of Cabuyao",
@@ -30,7 +47,7 @@ export const AIP_MONITORING_AIPS: AipRow[] = [
     status_updated_at: "2026-01-03T00:00:00.000Z",
     submitted_at: "2025-12-28T00:00:00.000Z",
     published_at: null,
-    created_by: "user_city_001",
+    created_by: AIP_CREATED_BY_IDS.city001,
     created_at: "2025-12-20T00:00:00.000Z",
     updated_at: "2026-02-05T00:00:00.000Z",
   },
@@ -44,7 +61,7 @@ export const AIP_MONITORING_AIPS: AipRow[] = [
     status_updated_at: "2026-01-10T00:00:00.000Z",
     submitted_at: "2026-01-10T00:00:00.000Z",
     published_at: null,
-    created_by: "user_brgy_001",
+    created_by: AIP_CREATED_BY_IDS.brgy001,
     created_at: "2026-01-10T00:00:00.000Z",
     updated_at: "2026-01-20T00:00:00.000Z",
   },
@@ -58,7 +75,7 @@ export const AIP_MONITORING_AIPS: AipRow[] = [
     status_updated_at: "2025-01-12T00:00:00.000Z",
     submitted_at: "2024-12-22T00:00:00.000Z",
     published_at: "2025-01-12T00:00:00.000Z",
-    created_by: "user_city_002",
+    created_by: AIP_CREATED_BY_IDS.city002,
     created_at: "2024-12-22T00:00:00.000Z",
     updated_at: "2025-01-12T00:00:00.000Z",
   },
@@ -72,7 +89,7 @@ export const AIP_MONITORING_AIPS: AipRow[] = [
     status_updated_at: "2026-01-15T00:00:00.000Z",
     submitted_at: "2025-12-30T00:00:00.000Z",
     published_at: null,
-    created_by: "user_brgy_003",
+    created_by: AIP_CREATED_BY_IDS.brgy003,
     created_at: "2025-12-30T00:00:00.000Z",
     updated_at: "2026-01-18T00:00:00.000Z",
   },
@@ -86,58 +103,58 @@ export const AIP_MONITORING_AIPS: AipRow[] = [
     status_updated_at: "2025-12-20T00:00:00.000Z",
     submitted_at: "2025-12-05T00:00:00.000Z",
     published_at: null,
-    created_by: "user_brgy_004",
+    created_by: AIP_CREATED_BY_IDS.brgy004,
     created_at: "2025-12-05T00:00:00.000Z",
     updated_at: "2026-02-07T00:00:00.000Z",
   },
 ];
 
 export const REVIEWER_DIRECTORY: Record<string, { name: string }> = {
-  reviewer_001: { name: "Maria Santos" },
-  reviewer_002: { name: "Jose Reyes" },
-  reviewer_003: { name: "Ana Garcia" },
-  reviewer_004: { name: "Carmen Lopez" },
+  [REVIEWER_IDS.reviewer001]: { name: "Maria Santos" },
+  [REVIEWER_IDS.reviewer002]: { name: "Jose Reyes" },
+  [REVIEWER_IDS.reviewer003]: { name: "Ana Garcia" },
+  [REVIEWER_IDS.reviewer004]: { name: "Carmen Lopez" },
 };
 
 export const AIP_MONITORING_REVIEWS: AipReviewRow[] = [
   {
-    id: "review-001",
+    id: "00000000-0000-0000-0000-000000000901",
     aip_id: AIP_IDS.city_2026,
     action: "request_revision",
     note: "Missing procurement schedule attachments.",
-    reviewer_id: "reviewer_001",
+    reviewer_id: REVIEWER_IDS.reviewer001,
     created_at: "2026-01-17T08:30:00.000Z",
   },
   {
-    id: "review-002",
+    id: "00000000-0000-0000-0000-000000000902",
     aip_id: AIP_IDS.city_2025,
     action: "approve",
     note: null,
-    reviewer_id: "reviewer_002",
+    reviewer_id: REVIEWER_IDS.reviewer002,
     created_at: "2025-01-10T10:00:00.000Z",
   },
   {
-    id: "review-003",
+    id: "00000000-0000-0000-0000-000000000903",
     aip_id: AIP_IDS.barangay_sanisidro_2026,
     action: "request_revision",
     note: "Itemize the medical equipment budget.",
-    reviewer_id: "reviewer_003",
+    reviewer_id: REVIEWER_IDS.reviewer003,
     created_at: "2026-01-14T13:45:00.000Z",
   },
   {
-    id: "review-004",
+    id: "00000000-0000-0000-0000-000000000904",
     aip_id: AIP_IDS.barangay_poblacion_2026,
     action: "request_revision",
     note: "Awaiting workflow integrity review.",
-    reviewer_id: "reviewer_004",
+    reviewer_id: REVIEWER_IDS.reviewer004,
     created_at: "2026-01-20T09:10:00.000Z",
   },
 ];
 
 export const AIP_MONITORING_ACTIVITY: ActivityLogRow[] = [
   {
-    id: "case-activity-001",
-    actor_id: "admin_001",
+    id: "00000000-0000-0000-0000-000000001001",
+    actor_id: ADMIN_ACTOR_ID,
     actor_role: "admin",
     action: "workflow_case",
     entity_table: "aips",
@@ -156,8 +173,8 @@ export const AIP_MONITORING_ACTIVITY: ActivityLogRow[] = [
     created_at: "2026-02-02T08:00:00.000Z",
   },
   {
-    id: "case-activity-002",
-    actor_id: "admin_001",
+    id: "00000000-0000-0000-0000-000000001002",
+    actor_id: ADMIN_ACTOR_ID,
     actor_role: "admin",
     action: "workflow_case",
     entity_table: "aips",
@@ -176,8 +193,8 @@ export const AIP_MONITORING_ACTIVITY: ActivityLogRow[] = [
     created_at: "2026-01-26T07:00:00.000Z",
   },
   {
-    id: "case-activity-003",
-    actor_id: "admin_001",
+    id: "00000000-0000-0000-0000-000000001003",
+    actor_id: ADMIN_ACTOR_ID,
     actor_role: "admin",
     action: "workflow_case",
     entity_table: "aips",

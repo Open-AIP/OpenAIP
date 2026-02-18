@@ -1,12 +1,14 @@
+import type { RouteRole } from "@/lib/auth/roles";
+
 export type LGUAccount = {
   email: string,
   fullName: string,
-  role: string,
+  role: RouteRole,
   locale: string
 };
 
 export type AuthParameters = {
-  role: string,
+  role: RouteRole,
   baseURL: string;
 }
 

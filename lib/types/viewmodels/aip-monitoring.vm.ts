@@ -1,3 +1,5 @@
+import type { AipStatus } from "@/lib/contracts/databasev2";
+
 export type AipMonitoringStatus =
   | "Pending"
   | "In Review"
@@ -9,6 +11,7 @@ export type AipMonitoringRow = {
   id: string;
   year: number;
   lguName: string;
+  aipStatus: AipStatus;
   status: AipMonitoringStatus;
   submittedDate: string;
   currentStatusSince: string;

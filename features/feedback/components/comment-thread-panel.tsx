@@ -16,6 +16,7 @@ const ROLE_LABELS: Record<string, string> = {
   citizen: "Citizen",
   barangay_official: "Barangay Official",
   city_official: "City Official",
+  municipal_official: "Municipal Official",
   admin: "Admin",
 };
 

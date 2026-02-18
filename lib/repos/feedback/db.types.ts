@@ -8,7 +8,7 @@ export type FeedbackThreadRow = {
   parent_feedback_id?: string | null;
   kind: FeedbackKind;
   body: string;
-  author_id: string;
+  author_id: string | null;
   created_at: string;
 };
 
@@ -22,13 +22,13 @@ export type CreateRootInput = {
   target: FeedbackTarget;
   body: string;
   kind: FeedbackKind;
-  authorId: string;
+  authorId: string | null;
 };
 
 export type CreateReplyInput = {
   parentId: string;
   body: string;
   kind: FeedbackKind;
-  authorId: string;
+  authorId: string | null;
   target?: FeedbackTarget;
 };

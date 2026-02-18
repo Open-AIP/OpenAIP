@@ -5,6 +5,7 @@
  */
 
 import type { AipHeader, AipProjectRow } from "./repo";
+import type { LguScope } from "./repo";
 
 const SAMPLE_PROJECTS = [
   {
@@ -113,7 +114,7 @@ export function generateMockAIP(
   aipId: string,
   fileName: string,
   year: number,
-  scope: "city" | "barangay",
+  scope: LguScope,
   barangayName?: string
 ): AipHeader {
   const currentDate = new Date().toISOString().split("T")[0];
@@ -151,4 +152,3 @@ export function generateMockAIP(
     },
   };
 }
-

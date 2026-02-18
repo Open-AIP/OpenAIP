@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {UpdatePasswordForm} from "./update-password-form";
+import type { RouteRole } from "@/lib/auth/roles";
 
 /**
  * User account information type
@@ -24,7 +25,7 @@ type AccountUser = {
   email: string;
   position: string;
   office: string;
-  role: string;
+  role: RouteRole;
   baseURL: string;
 };
 

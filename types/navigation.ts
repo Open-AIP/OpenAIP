@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 
-export type LguVariant = "barangay" | "city";
+import type { LguScopeKind } from "@/lib/auth/scope";
+
+export type LguVariant = LguScopeKind;
 
 export type NavItem = {
   label: string;

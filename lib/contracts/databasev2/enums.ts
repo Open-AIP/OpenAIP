@@ -54,3 +54,18 @@ export type ChatMessageRole = "user" | "assistant" | "system";
  * Mirrors: public.project_category enum
  */
 export type ProjectCategory = "health" | "infrastructure" | "other";
+
+/**
+ * Mirrors: public.pipeline_stage enum
+ */
+export type PipelineStage =
+  | "extract"
+  | "validate"
+  | "summarize"
+  | "categorize"
+  | "embed";
+
+/**
+ * Mirrors: public.pipeline_status enum
+ */
+export type PipelineStatus = "queued" | "running" | "succeeded" | "failed";

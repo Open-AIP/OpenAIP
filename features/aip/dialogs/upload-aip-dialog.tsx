@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 /**
  * Props for UploadAipDialog component
@@ -44,7 +45,7 @@ type Props = {
   /** Callback when upload succeeds with new AIP ID */
   onSuccess?: (aipId: string) => void;
   /** Administrative scope for context */
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 };
 
 /** Maximum allowed file size in bytes (10MB) */
@@ -98,7 +99,7 @@ export default function UploadAipDialog({
 
   const years = React.useMemo(() => buildYears(7).sort((a, b) => b - a), []);
 
-  const scopeLabel = scope === "city" ? "city" : "barangay";
+  const scopeLabel = scope;
 
   function reset() {
     setFile(null);

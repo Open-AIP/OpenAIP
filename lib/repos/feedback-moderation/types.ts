@@ -1,12 +1,13 @@
-﻿import type {
+import type {
   ActivityLogRow,
   AipRow,
+  BarangayRow,
+  CityRow,
   FeedbackRow,
+  MunicipalityRow,
   ProfileRow,
   ProjectRow,
   RoleType,
-  UUID,
-  ISODateTime,
 } from "@/lib/contracts/databasev2";
 
 export type Dbv2FeedbackRow = FeedbackRow;
@@ -15,35 +16,9 @@ export type Dbv2ProfileRow = ProfileRow;
 export type Dbv2AipRow = AipRow;
 export type Dbv2ProjectRow = ProjectRow;
 
-export type Dbv2CityRow = {
-  id: UUID;
-  region_id: UUID;
-  province_id: UUID | null;
-  psgc_code: string;
-  name: string;
-  is_independent: boolean;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
-
-export type Dbv2BarangayRow = {
-  id: UUID;
-  city_id: UUID | null;
-  municipality_id: UUID | null;
-  psgc_code: string;
-  name: string;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
-
-export type Dbv2MunicipalityRow = {
-  id: UUID;
-  province_id: UUID;
-  psgc_code: string;
-  name: string;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
+export type Dbv2CityRow = CityRow;
+export type Dbv2BarangayRow = BarangayRow;
+export type Dbv2MunicipalityRow = MunicipalityRow;
 
 export type FeedbackModerationDataset = {
   feedback: Dbv2FeedbackRow[];
@@ -76,4 +51,3 @@ export type FeedbackModerationRepo = {
   hideFeedback: (input: FeedbackModerationActionInput) => Promise<FeedbackModerationDataset>;
   unhideFeedback: (input: FeedbackModerationActionInput) => Promise<FeedbackModerationDataset>;
 };
-

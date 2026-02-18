@@ -1,10 +1,11 @@
 import type {
   ActivityLogRow,
   AipRow,
+  BarangayRow,
+  CityRow,
+  MunicipalityRow,
   ProfileRow,
   ProjectRow,
-  UUID,
-  ISODateTime,
 } from "@/lib/contracts/databasev2";
 
 export type ProjectUpdateRecord = ActivityLogRow;
@@ -15,35 +16,9 @@ export type AipRecord = AipRow;
 export type ProjectRecord = ProjectRow;
 export type ProfileRecord = ProfileRow;
 
-export type CityRecord = {
-  id: UUID;
-  region_id: UUID;
-  province_id: UUID | null;
-  psgc_code: string;
-  name: string;
-  is_independent: boolean;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
-
-export type BarangayRecord = {
-  id: UUID;
-  city_id: UUID | null;
-  municipality_id: UUID | null;
-  psgc_code: string;
-  name: string;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
-
-export type MunicipalityRecord = {
-  id: UUID;
-  province_id: UUID;
-  psgc_code: string;
-  name: string;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
+export type CityRecord = CityRow;
+export type BarangayRecord = BarangayRow;
+export type MunicipalityRecord = MunicipalityRow;
 
 export type ProjectUpdateStatus = "Active" | "Removed" | "Flagged";
 export type ProjectUpdateType = "Update" | "Photo";

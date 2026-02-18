@@ -2,7 +2,7 @@ import { UpdatePasswordForm } from '@/components/update-password-form'
 
 export default function Page() {
 
-  const role:string = 'barangay';
+  const role = 'barangay' as const;
   const baseURL = process.env.BASE_URL;
   if (!baseURL) {
     throw new Error('BASE_URL environment variable is not defined');

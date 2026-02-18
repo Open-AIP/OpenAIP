@@ -11,6 +11,7 @@ import { AIP_ACCOUNTABILITY_BY_ID } from "@/mocks/fixtures/aip/aip-accountabilit
 import { CITIZEN_AIP_COMMENTS } from "@/mocks/fixtures/aip/aip-comments.fixture";
 import type { AipHeader, AipProjectRow } from "@/lib/repos/aip/types";
 import { formatDate } from "@/lib/formatting";
+import { canPublicReadAip } from "@/lib/repos/_shared/visibility";
 
 const DEFAULT_DETAILED_BULLETS = [
   "Road concreting and rehabilitation for key access roads",
@@ -76,9 +77,10 @@ const toCitizenProjectRow = (row: AipProjectRow): CitizenProjectRow => ({
   totalAmount: formatCurrency(row.amount),
 });
 
-const SOURCE_AIPS = [...AIPS_TABLE].sort((a, b) => b.year - a.year).slice(0, 5);
+const VISIBLE_AIPS = AIPS_TABLE.filter((aip) => canPublicReadAip({ status: aip.status }));
+const SOURCE_AIPS = [...VISIBLE_AIPS].sort((a, b) => b.year - a.year).slice(0, 5);
 const LIST_ITEMS = SOURCE_AIPS.map(toCitizenListItem);
-const DETAILS_BY_ID = new Map(AIPS_TABLE.map((aip) => [aip.id, aip]));
+const DETAILS_BY_ID = new Map(VISIBLE_AIPS.map((aip) => [aip.id, aip]));
 
 const FISCAL_YEAR_OPTIONS = Array.from(new Set(LIST_ITEMS.map((item) => item.year))).sort(
   (a, b) => Number(b) - Number(a)
@@ -86,7 +88,7 @@ const FISCAL_YEAR_OPTIONS = Array.from(new Set(LIST_ITEMS.map((item) => item.yea
 
 const LGU_OPTIONS = ["All LGUs", ...Array.from(new Set(LIST_ITEMS.map((item) => item.lguName)))];
 
-const DEFAULT_AIP_ID = LIST_ITEMS[0]?.id ?? AIPS_TABLE[0]?.id ?? "";
+const DEFAULT_AIP_ID = LIST_ITEMS[0]?.id ?? VISIBLE_AIPS[0]?.id ?? "";
 
 const buildAccountability = (header: AipHeader) => {
   const fixtureAccountability = AIP_ACCOUNTABILITY_BY_ID[header.id as keyof typeof AIP_ACCOUNTABILITY_BY_ID];
@@ -122,7 +124,10 @@ export function createMockCitizenAipRepo(): CitizenAipRepo {
       return LIST_ITEMS;
     },
     async getAipDetails(aipId: string) {
-      const header = DETAILS_BY_ID.get(aipId) ?? DETAILS_BY_ID.get(DEFAULT_AIP_ID)!;
+      const header = DETAILS_BY_ID.get(aipId) ?? DETAILS_BY_ID.get(DEFAULT_AIP_ID);
+      if (!header) {
+        throw new Error("No published AIP is available for citizen view.");
+      }
       const listItem = toCitizenListItem(header);
 
       const rawRows = AIP_PROJECT_ROWS_TABLE.filter((row) => row.aipId === header.id);
@@ -152,11 +157,14 @@ export function createMockCitizenAipRepo(): CitizenAipRepo {
       return DEFAULT_AIP_ID;
     },
     async getLatestAipProjectRows() {
-      const latest = AIPS_TABLE.reduce((current, next) => (next.year > current.year ? next : current), AIPS_TABLE[0]);
+      if (VISIBLE_AIPS.length === 0) return [];
+      const latest = VISIBLE_AIPS.reduce((current, next) =>
+        next.year > current.year ? next : current
+      );
       return AIP_PROJECT_ROWS_TABLE.filter((row) => row.aipId === latest.id);
     },
     async getDefaultLguLabel() {
-      const barangayAips = AIPS_TABLE.filter((aip) => aip.scope === "barangay");
+      const barangayAips = VISIBLE_AIPS.filter((aip) => aip.scope === "barangay");
       const latest = barangayAips.sort((a, b) => b.year - a.year)[0];
       return latest?.barangayName ?? "Barangay";
     },

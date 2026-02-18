@@ -3,6 +3,7 @@ import type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadR
 import type { CommentAuthorRole, CommentMessage, CommentTarget, CommentThread } from "./types";
 import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
+import type { LguScopeKind } from "@/lib/auth/scope";
 import {
   createMockCommentRepo,
   createMockCommentTargetLookup,
@@ -14,7 +15,9 @@ export type { Comment, CommentAuthorRole, CommentMessage, CommentSidebarItem, Co
 export type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 
 export type ListThreadsForInboxParams = {
-  lguId: string;
+  scope: LguScopeKind;
+  lguId?: string | null;
+  visibility?: "authenticated" | "public";
 };
 
 export type GetThreadParams = {

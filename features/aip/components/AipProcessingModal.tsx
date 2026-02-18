@@ -16,6 +16,7 @@ const STAGES: { key: PipelineStageUi; label: string; message: string }[] = [
   { key: "validate", label: "Validation", message: "Validating extracted information..." },
   { key: "summarize", label: "Summarization", message: "Generating summary and insights..." },
   { key: "categorize", label: "Categorization", message: "Categorizing projects and entries..." },
+  { key: "embed", label: "Embedding", message: "Generating semantic embeddings..." },
 ];
 
 const clampProgress = (value: number) => Math.min(100, Math.max(0, value));

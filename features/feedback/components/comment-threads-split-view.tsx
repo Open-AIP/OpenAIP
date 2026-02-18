@@ -9,6 +9,7 @@ import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/rep
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentSidebarItem, CommentThread } from "../types";
 import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 type Target =
   | { kind: "aip"; aipId: string }
@@ -16,11 +17,13 @@ type Target =
 
 export function CommentThreadsSplitView({
   scope,
+  lguId,
   target,
   selectedThreadId,
   mode = "lgu",
 }: {
-  scope: "city" | "barangay";
+  scope: LguScopeKind;
+  lguId?: string | null;
   target: Target;
   selectedThreadId?: string | null;
   mode?: "lgu" | "citizen";
@@ -48,7 +51,9 @@ export function CommentThreadsSplitView({
 
       try {
         const allThreads = await repo.listThreadsForInbox({
-          lguId: "lgu_barangay_001",
+          scope,
+          lguId: lguId ?? null,
+          visibility: mode === "citizen" ? "public" : "authenticated",
         });
         const filtered = allThreads.filter((thread) => {
           if (targetKind === "aip") {
@@ -89,7 +94,7 @@ export function CommentThreadsSplitView({
     return () => {
       active = false;
     };
-  }, [repo, scope, targetKind, targetAipId, targetProjectId]);
+  }, [repo, scope, lguId, targetKind, targetAipId, targetProjectId]);
 
   const threadMap = React.useMemo(
     () => new Map(threads.map((thread) => [thread.id, thread])),

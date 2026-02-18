@@ -1,11 +1,12 @@
 import type {
   ActivityLogRow,
   AipRow,
+  BarangayRow,
+  CityRow,
   ChatMessageRow,
   FeedbackRow,
+  MunicipalityRow,
   ProfileRow,
-  UUID,
-  ISODateTime,
 } from "@/lib/contracts/databasev2";
 import type { AipStatus } from "@/lib/contracts/databasev2/enums";
 
@@ -15,35 +16,9 @@ export type FeedbackRecord = FeedbackRow;
 export type ProfileRecord = ProfileRow;
 export type ChatMessageRecord = ChatMessageRow;
 
-export type CityRecord = {
-  id: UUID;
-  region_id: UUID;
-  province_id: UUID | null;
-  psgc_code: string;
-  name: string;
-  is_independent: boolean;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
-
-export type MunicipalityRecord = {
-  id: UUID;
-  province_id: UUID;
-  psgc_code: string;
-  name: string;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
-
-export type BarangayRecord = {
-  id: UUID;
-  city_id: UUID | null;
-  municipality_id: UUID | null;
-  psgc_code: string;
-  name: string;
-  is_active: boolean;
-  created_at: ISODateTime;
-};
+export type CityRecord = CityRow;
+export type MunicipalityRecord = MunicipalityRow;
+export type BarangayRecord = BarangayRow;
 
 export type AdminDashboardFilters = {
   dateFrom: string | null;
@@ -136,4 +111,3 @@ export type AdminDashboardRepo = {
   getRecentActivity: (filters: AdminDashboardFilters) => Promise<RecentActivityItemVM[]>;
   listLguOptions: () => Promise<LguOptionVM[]>;
 };
-

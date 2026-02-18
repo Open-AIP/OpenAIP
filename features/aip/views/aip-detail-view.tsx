@@ -19,6 +19,7 @@ import { Send } from "lucide-react";
 import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-split-view";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAipProjectRepo } from "@/lib/repos/aip/repo";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 export default function AipDetailView({
   aip,
@@ -30,7 +31,7 @@ export default function AipDetailView({
   onSubmit,
 }: {
   aip: AipHeader;
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
   onEdit?: () => void;
   onResubmit?: () => void;
   onCancel?: () => void;
@@ -131,7 +132,7 @@ export default function AipDetailView({
             <>
               <AipDetailsSummary
                 aip={aip}
-                communityLabel={scope === "city" ? "city" : "barangay"}
+                communityLabel={scope}
               />
 
               <AipDetailsTableView

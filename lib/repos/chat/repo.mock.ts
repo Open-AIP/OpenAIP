@@ -37,13 +37,13 @@ let sessionsStore: ChatSession[] = CHAT_SESSIONS_FIXTURE.map(mapSessionRecord);
 let messagesStore: ChatMessage[] = CHAT_MESSAGES_FIXTURE.map(mapMessageRecord);
 
 function nextSessionId() {
-  const id = `chat_${String(sessionSequence).padStart(3, "0")}`;
+  const id = `00000000-0000-0000-0000-${String(200 + sessionSequence).padStart(12, "0")}`;
   sessionSequence += 1;
   return id;
 }
 
 function nextMessageId() {
-  const id = `cmsg_${String(messageSequence).padStart(4, "0")}`;
+  const id = `00000000-0000-0000-0000-${String(300 + messageSequence).padStart(12, "0")}`;
   messageSequence += 1;
   return id;
 }

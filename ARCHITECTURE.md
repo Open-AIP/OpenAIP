@@ -2,6 +2,13 @@
 
 This repository follows a layered architecture to keep domain logic stable and UI implementation replaceable.
 
+## DBv2 Contract Lock (Phase 8)
+
+- Canonical data flow is now locked to: `DB contract row -> mapper -> UI view model -> component`.
+- Authorization and route gating must normalize to DBv2 role semantics before decisions.
+- Scope and visibility decisions are actor-derived and DBv2-aligned (published-only public/citizen reads).
+- Detailed enforcement rules are documented in `lib/ARCHITECTURE_RULES.md`.
+
 ## Layer Boundaries
 
 - `lib/` is the source of truth for:

@@ -2,6 +2,9 @@ import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/rep
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
 import type { CommentThread } from "@/lib/repos/feedback/types";
 import type { FeedbackKind } from "@/lib/contracts/databasev2";
+import type { LguScopeKind } from "@/lib/auth/scope";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
+import { canPublicReadAip } from "@/lib/repos/_shared/visibility";
 
 export type FeedbackCategoryKind = Extract<
   FeedbackKind,
@@ -51,10 +54,23 @@ const CATEGORY_KINDS: FeedbackCategoryKind[] = [
 const isCategoryKind = (kind: FeedbackKind): kind is FeedbackCategoryKind =>
   CATEGORY_KINDS.includes(kind as FeedbackCategoryKind);
 
-export async function listCitizenFeedbackItems(aipId: string): Promise<FeedbackItem[]> {
+export async function listCitizenFeedbackItems(
+  aipId: string,
+  options: { scope?: LguScopeKind; lguId?: string | null } = {}
+): Promise<FeedbackItem[]> {
+  const aip = AIPS_TABLE.find((item) => item.id === aipId);
+  if (!aip || !canPublicReadAip({ status: aip.status })) {
+    return [];
+  }
+
   const repo = getCommentRepo();
   const lookup = getCommentTargetLookup();
-  const threads = await repo.listThreadsForInbox({ lguId: "lgu_barangay_001" });
+  const scope = options.scope ?? "barangay";
+  const threads = await repo.listThreadsForInbox({
+    scope,
+    lguId: options.lguId ?? null,
+    visibility: "public",
+  });
 
   const aipThreads = threads.filter((thread) => {
     if (thread.target.targetKind === "aip_item" && thread.target.aipId === aipId) {
@@ -74,7 +90,7 @@ export async function listCitizenFeedbackItems(aipId: string): Promise<FeedbackI
 
   const resolved = await resolveCommentSidebar({
     threads: selected,
-    scope: "city",
+    scope,
     ...lookup,
   });
 

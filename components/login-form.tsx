@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
+import { dbRoleToRouteRole, normalizeToDbRole, routeRoleToDbRole } from "@/lib/auth/roles";
 
 export function LoginForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -41,13 +42,17 @@ export function LoginForm({role, baseURL}:AuthParameters) {
 
       // check if user role matches the referrer role
       const signedInRole = data?.user?.user_metadata?.access?.role;
-      if(signedInRole !== role) {
+      const normalizedSignedInRole = normalizeToDbRole(signedInRole);
+      const expectedDbRole = routeRoleToDbRole(role);
+
+      if (normalizedSignedInRole !== expectedDbRole) {
         await supabase.auth.signOut();
         throw new Error('Invalid Login Credentials')
       }; 
 
       // route to redirect to an authenticated route. The user already has an active session.
-      router.push(`/${role ===  'citizen' ? '' : role}`);
+      const resolvedRouteRole = dbRoleToRouteRole(normalizedSignedInRole);
+      router.push(`/${resolvedRouteRole ===  'citizen' ? '' : resolvedRouteRole}`);
 
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')

@@ -25,6 +25,7 @@ import HealthProjectCard from "../components/health-project-card";
 import type { HealthProject } from "@/features/projects/types";
 import { getProjectYears } from "@/lib/constants/project-years";
 import { Search } from "lucide-react";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 /**
  * HealthProjectsView Component
@@ -45,7 +46,7 @@ export default function HealthProjectsView({
   scope = "barangay"
 }: { 
   projects: HealthProject[];
-  scope?: "city" | "barangay";
+  scope?: LguScopeKind;
 }) {
   const years = useMemo(() => getProjectYears(projects), [projects]);
 

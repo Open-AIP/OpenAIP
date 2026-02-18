@@ -20,13 +20,14 @@ import {
   formatFeedbackKind,
   getFeedbackKindBadge,
 } from "@/lib/constants/feedback-kind";
+import type { LguScopeKind } from "@/lib/auth/scope";
 
 export default function CommentsView({
   scope = "barangay",
-  lguId = "lgu_barangay_001",
+  lguId = null,
 }: {
-  scope?: "city" | "barangay";
-  lguId?: string;
+  scope?: LguScopeKind;
+  lguId?: string | null;
 } = {}) {
   const repo = useMemo(() => getCommentRepo(), []);
   const [threads, setThreads] = useState<CommentThread[]>([]);
@@ -50,7 +51,9 @@ export default function CommentsView({
 
       try {
         const threadList = await repo.listThreadsForInbox({
+          scope,
           lguId,
+          visibility: "authenticated",
         });
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({

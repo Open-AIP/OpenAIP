@@ -32,8 +32,8 @@ export default function CategoryOverviewSection({ scopeLabel, cards }: CategoryO
             <Card key={card.categoryKey} className={`border ${categoryAccentClass(card.categoryKey)} shadow-sm`}>
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-center gap-2">
-                  <div className={`grid h-10 w-10 place-items-center rounded-md bg-transparent ${categoryIconClass(card.categoryKey)}`}>
-                    <Icon className="h-5 w-5" />
+                  <div className={`grid h-20 w-20 place-items-center rounded-md bg-transparent ${categoryIconClass(card.categoryKey)}`}>
+                    <Icon className="h-10 w-10" />
                   </div>
                   <div>
                     <p className="text-base font-semibold leading-none">{card.label}</p>

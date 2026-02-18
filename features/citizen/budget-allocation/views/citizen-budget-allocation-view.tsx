@@ -25,6 +25,7 @@ import {
 } from "../utils";
 
 const DEFAULT_TAB: BudgetCategoryKey = "general";
+const DEFAULT_CONTEXT: "all" | BudgetCategoryKey = "all";
 
 export default function CitizenBudgetAllocationView() {
   const router = useRouter();
@@ -44,6 +45,7 @@ export default function CitizenBudgetAllocationView() {
 
   const [activeTab, setActiveTab] = useState<BudgetCategoryKey>(DEFAULT_TAB);
   const [detailsSearch, setDetailsSearch] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | BudgetCategoryKey>(DEFAULT_CONTEXT);
 
   useEffect(() => {
     if (!viewModel) return;
@@ -111,6 +113,30 @@ export default function CitizenBudgetAllocationView() {
     return <BudgetAllocationErrorState message={error ?? "Unable to load budget allocation."} />;
   }
 
+  const categoryOptions = [
+    { key: "all" as const, label: "All Categories" },
+    ...viewModel.categoryOverview.cards.map((card) => ({
+      key: card.categoryKey,
+      label: card.label,
+    })),
+  ];
+
+  const selectedContext = (() => {
+    if (selectedCategory === "all") return viewModel.allocationContext.selectedContext;
+    const card = viewModel.categoryOverview.cards.find((item) => item.categoryKey === selectedCategory);
+    const change = viewModel.changesFromLastYear.categories.find((item) => item.categoryKey === selectedCategory);
+    if (!card) return viewModel.allocationContext.selectedContext;
+
+    return {
+      ...viewModel.allocationContext.selectedContext,
+      totalAllocation: card.totalAmount,
+      totalProjects: card.projectCount,
+      yoyAbs: change?.deltaAbs ?? null,
+      yoyPct: change?.deltaPct ?? null,
+      hasPriorYear: change?.priorTotal !== null && change?.priorTotal !== undefined,
+    };
+  })();
+
   const aipParams = filtersToParams({
     scope_type: viewModel.filters.selectedScopeType,
     scope_id: viewModel.filters.selectedScopeId,
@@ -171,7 +197,10 @@ export default function CitizenBudgetAllocationView() {
       <CategoryOverviewSection scopeLabel={viewModel.categoryOverview.scopeLabel} cards={viewModel.categoryOverview.cards} />
       <AllocationAndContextSection
         chart={viewModel.allocationContext.chart}
-        selectedContext={viewModel.allocationContext.selectedContext}
+        selectedContext={selectedContext}
+        categoryOptions={categoryOptions}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
       />
       <AipDetailsSection
         vm={detailsVm}

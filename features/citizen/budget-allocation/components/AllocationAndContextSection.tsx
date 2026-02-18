@@ -1,18 +1,35 @@
 import { ArrowDownRight, ArrowUpRight, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChartCard } from "@/features/dashboard/shared/components/charts";
 import { formatPeso } from "@/lib/formatting";
-import type { AllocationChartVM, SelectedContextVM } from "@/lib/types/viewmodels/citizen-budget-allocation.vm";
+import type { AllocationChartVM, BudgetCategoryKey, SelectedContextVM } from "@/lib/types/viewmodels/citizen-budget-allocation.vm";
 import { formatCompactPeso, formatPercent } from "../utils";
+
+type CategoryOption = {
+  key: "all" | BudgetCategoryKey;
+  label: string;
+};
 
 type AllocationAndContextSectionProps = {
   chart: AllocationChartVM;
   selectedContext: SelectedContextVM;
+  categoryOptions: CategoryOption[];
+  selectedCategory: CategoryOption["key"];
+  onCategoryChange: (value: CategoryOption["key"]) => void;
 };
 
-export default function AllocationAndContextSection({ chart, selectedContext }: AllocationAndContextSectionProps) {
+export default function AllocationAndContextSection({
+  chart,
+  selectedContext,
+  categoryOptions,
+  selectedCategory,
+  onCategoryChange,
+}: AllocationAndContextSectionProps) {
   const trendUp = (selectedContext.yoyAbs ?? 0) >= 0;
   const colorByLabel = new Map(chart.legend.map((item) => [item.label.toLowerCase(), item.color]));
+  const selectedLabel =
+    categoryOptions.find((option) => option.key === selectedCategory)?.label ?? "All Categories";
 
   return (
     <section className="grid gap-4 lg:grid-cols-[62%_38%]">
@@ -62,7 +79,18 @@ export default function AllocationAndContextSection({ chart, selectedContext }: 
         <CardContent className="space-y-4">
           <div>
             <p className="text-xs text-white/70">Viewing</p>
-            <p className="text-sm font-semibold">All Categories</p>
+            <Select value={selectedCategory} onValueChange={(value) => onCategoryChange(value as CategoryOption["key"])}>
+              <SelectTrigger className="mt-2 h-9 w-fit rounded-full border border-white/30 bg-white/10 px-3 text-xs font-semibold text-white">
+                <SelectValue placeholder={selectedLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((option) => (
+                  <SelectItem key={option.key} value={option.key}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/5 p-4">
             <p className="text-xs text-white/70">Total Allocation</p>

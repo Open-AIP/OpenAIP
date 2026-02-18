@@ -3,15 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, Menu } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { CITIZEN_NAV } from '@/features/citizen/constants/nav';
 import { cn } from '@/ui/utils';
 
@@ -22,6 +16,32 @@ function isActivePath(pathname: string, href: string) {
 
 export default function CitizenTopNav() {
   const pathname = usePathname();
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const projectsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent) {
+      if (!projectsRef.current) return;
+      if (!projectsRef.current.contains(event.target as Node)) {
+        setProjectsOpen(false);
+      }
+    }
+
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setProjectsOpen(false);
+        setMobileOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#D3DBE0]">
@@ -39,29 +59,40 @@ export default function CitizenTopNav() {
 
             if (item.children && item.children.length > 0) {
               return (
-                <DropdownMenu key={item.href}>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium transition-colors',
-                        active
-                          ? 'border-b-2 border-[#0E7490] text-slate-900'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      )}
+                <div key={item.href} className="relative" ref={projectsRef}>
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={projectsOpen}
+                    onClick={() => setProjectsOpen((prev) => !prev)}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium transition-colors',
+                      active
+                        ? 'border-b-2 border-[#0E7490] text-slate-900'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    )}
+                  >
+                    {item.label}
+                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', projectsOpen ? 'rotate-180' : 'rotate-0')} />
+                  </button>
+                  {projectsOpen ? (
+                    <div
+                      role="menu"
+                      className="absolute left-0 mt-2 min-w-[170px] rounded-md border border-slate-200 bg-white p-1 shadow-md"
                     >
-                      {item.label}
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {item.children.map((child) => (
-                      <DropdownMenuItem key={child.href} asChild>
-                        <Link href={child.href}>{child.label}</Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      {item.children.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className="block rounded-md px-3 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                          onClick={() => setProjectsOpen(false)}
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               );
             }
 
@@ -69,6 +100,7 @@ export default function CitizenTopNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setProjectsOpen(false)}
                 className={cn(
                   'rounded-md px-3 py-2 text-xs font-medium transition-colors',
                   active
@@ -88,15 +120,34 @@ export default function CitizenTopNav() {
           </Button>
         </div>
 
-        <Sheet>
-          <SheetTrigger asChild className="md:hidden">
-            <Button variant="outline" size="icon" aria-label="Open menu">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[280px]">
-            <SheetTitle className="sr-only">Citizen navigation</SheetTitle>
-            <div className="mt-8 flex flex-col gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Open menu"
+          className="md:hidden"
+          onClick={() => setMobileOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {mobileOpen ? (
+        <div className="md:hidden">
+          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="fixed right-0 top-0 z-50 h-full w-[280px] border-l border-slate-200 bg-white p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-900">Menu</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Close menu"
+                onClick={() => setMobileOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="mt-6 flex flex-col gap-2">
               {CITIZEN_NAV.map((item) => {
                 const active =
                   isActivePath(pathname, item.href) ||
@@ -106,9 +157,10 @@ export default function CitizenTopNav() {
                     <Link
                       href={item.href}
                       className={cn(
-                        'rounded-md px-3 py-2 text-xs font-medium transition-colors',
+                        'w-full rounded-md px-3 py-2 text-left text-xs font-medium transition-colors',
                         active ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'
                       )}
+                      onClick={() => setMobileOpen(false)}
                     >
                       {item.label}
                     </Link>
@@ -124,6 +176,7 @@ export default function CitizenTopNav() {
                                 ? 'bg-slate-100 text-slate-900'
                                 : 'text-slate-600 hover:bg-slate-100'
                             )}
+                            onClick={() => setMobileOpen(false)}
                           >
                             {child.label}
                           </Link>
@@ -136,12 +189,14 @@ export default function CitizenTopNav() {
             </div>
             <div className="mt-6 border-t border-slate-200 pt-6">
               <Button asChild className="w-full bg-[#0E7490] text-white hover:bg-[#0C6078] text-xs">
-                <Link href="/sign-in">Sign In</Link>
+                <Link href="/sign-in" onClick={() => setMobileOpen(false)}>
+                  Sign In
+                </Link>
               </Button>
             </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+          </aside>
+        </div>
+      ) : null}
     </header>
   );
 }

@@ -89,6 +89,12 @@ const { AIPS_TABLE } = require("@/mocks/fixtures/aip/aips.table.fixture");
 const {
   runRepoSelectorOverrideTests,
 } = require("@/tests/repo-smoke/shared/selector.override.test");
+const {
+  runCitizenDashboardRepoTests,
+} = require("@/tests/repo-smoke/citizen-dashboard/citizen-dashboard.repo.mock.test");
+const {
+  runCitizenDashboardMapperTests,
+} = require("@/tests/repo-smoke/citizen-dashboard/citizen-dashboard.mapper.test");
 
 function assert(condition, message) {
   if (!condition) {
@@ -396,6 +402,18 @@ const tests = [
       } finally {
         process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
       }
+    },
+  },
+  {
+    name: "citizenDashboard.repo.mock tests",
+    async run() {
+      await runCitizenDashboardRepoTests();
+    },
+  },
+  {
+    name: "citizenDashboard.mapper tests",
+    async run() {
+      await runCitizenDashboardMapperTests();
     },
   },
   {

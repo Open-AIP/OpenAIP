@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { mapCitizenDashboardToVM } from "@/lib/mappers/dashboard/citizen";
 import { getCitizenDashboardRepo } from "@/lib/repos/citizen-dashboard";
 import type { CitizenDashboardFilters } from "@/lib/repos/citizen-dashboard";
-import type { CitizenDashboardVM } from "@/lib/types/viewmodels/dashboard";
+import type { CitizenDashboardHighlightProjectVM, CitizenDashboardVM } from "@/lib/types/viewmodels/dashboard";
 import { CITIZEN_DASHBOARD_TOKENS } from "@/lib/ui/tokens";
 import {
   AipStatusSection,
@@ -119,6 +119,34 @@ export default function CitizenDashboardView() {
     fiscal_year: String(viewModel.controls.selectedFiscalYear),
   }).toString();
 
+  const highlightProjectsByType = (() => {
+    const makeHighlight = (
+      project: (typeof viewModel.topProjects)[number]
+    ): CitizenDashboardHighlightProjectVM => ({
+      projectId: project.projectId,
+      title: project.title,
+      projectType: project.projectType,
+      sectorLabel: project.sectorLabel,
+      budget: project.budget,
+      scopeName: viewModel.hero.scopeLabel,
+      fiscalYear: viewModel.controls.selectedFiscalYear,
+      publishedAt: project.publishedAt,
+      imageUrl: "/default/default-no-image.jpg",
+      href: project.href,
+    });
+
+    const healthProject = viewModel.topProjects.find((project) => project.projectType === "health");
+    const infrastructureProject = viewModel.topProjects.find(
+      (project) => project.projectType === "infrastructure"
+    );
+
+    const selected: CitizenDashboardHighlightProjectVM[] = [];
+    if (healthProject) selected.push(makeHighlight(healthProject));
+    if (infrastructureProject) selected.push(makeHighlight(infrastructureProject));
+
+    return selected.length > 0 ? selected : viewModel.highlightProjects;
+  })();
+
   return (
     <section className="space-y-14 pb-12">
       <HeroSearchSection
@@ -152,7 +180,7 @@ export default function CitizenDashboardView() {
       />
 
       <section className="space-y-6 px-2 md:px-6">
-        <TopFundedHighlightsSection projects={viewModel.highlightProjects} />
+        <TopFundedHighlightsSection projects={highlightProjectsByType} />
         <TopFundedProjectsSection projects={viewModel.topProjects} />
       </section>
 

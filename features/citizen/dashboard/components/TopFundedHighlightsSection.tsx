@@ -24,10 +24,16 @@ export default function TopFundedHighlightsSection({ projects }: TopFundedHighli
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {projects.slice(0, 2).map((project) => {
-            const isHealth = project.projectType === "health";
-            return (
-              <Card key={project.projectId} className="overflow-hidden border-slate-200">
+            {projects.slice(0, 2).map((project) => {
+              const isHealth = project.projectType === "health";
+              const typeLabel =
+                project.projectType === "health"
+                  ? "Health"
+                  : project.projectType === "infrastructure"
+                    ? "Infrastructure"
+                    : "Other";
+              return (
+                <Card key={project.projectId} className="overflow-hidden border-slate-200">
                 <div
                   className={
                     isHealth
@@ -36,7 +42,7 @@ export default function TopFundedHighlightsSection({ projects }: TopFundedHighli
                   }
                 >
                   <div className="absolute left-4 top-4">
-                    <Badge className={isHealth ? "bg-pink-600 text-white" : "bg-blue-600 text-white"}>{project.sectorLabel}</Badge>
+                    <Badge className={isHealth ? "bg-pink-600 text-white" : "bg-blue-600 text-white"}>{typeLabel}</Badge>
                   </div>
                   <div className="absolute right-4 top-4">
                     <Badge variant="outline" className="rounded-full border-none bg-white px-3 py-1 text-base font-semibold text-[#0b5188]">

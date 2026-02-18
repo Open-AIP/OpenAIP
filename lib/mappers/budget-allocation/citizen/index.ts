@@ -1,0 +1,1 @@
+export { mapCitizenBudgetAllocationToVM } from "./mapCitizenBudgetAllocationToVM";

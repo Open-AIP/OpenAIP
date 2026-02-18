@@ -1,14 +1,15 @@
-import { Briefcase, Layers, Users, Wallet } from "lucide-react";
+import { Box, Building2, Users, Wallet } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatPeso } from "@/lib/formatting";
 import type { CategoryCardVM } from "@/lib/types/viewmodels/citizen-budget-allocation.vm";
 import { categoryAccentClass, categoryIconClass, formatCompactPeso } from "../utils";
 
-const CATEGORY_ICON: Record<string, typeof Wallet> = {
-  general: Wallet,
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  general: Building2,
   social: Users,
-  economic: Briefcase,
-  other: Layers,
+  economic: Wallet,
+  other: Box,
 };
 
 type CategoryOverviewSectionProps = {
@@ -31,8 +32,8 @@ export default function CategoryOverviewSection({ scopeLabel, cards }: CategoryO
             <Card key={card.categoryKey} className={`border ${categoryAccentClass(card.categoryKey)} shadow-sm`}>
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-center gap-2">
-                  <div className={`grid h-8 w-8 place-items-center rounded-md bg-white/70 ${categoryIconClass(card.categoryKey)}`}>
-                    <Icon className="h-4 w-4" />
+                  <div className={`grid h-10 w-10 place-items-center rounded-md bg-transparent ${categoryIconClass(card.categoryKey)}`}>
+                    <Icon className="h-5 w-5" />
                   </div>
                   <div>
                     <p className="text-base font-semibold leading-none">{card.label}</p>
@@ -44,7 +45,7 @@ export default function CategoryOverviewSection({ scopeLabel, cards }: CategoryO
                     {formatCompactPeso(card.totalAmount)}
                   </p>
                   <p className="mt-2 text-sm text-slate-700">Projects</p>
-                  <p className="text-2xl font-semibold leading-none">{card.projectCount}</p>
+                  <p className="text-2xl font-semibold leading-none text-black">{card.projectCount}</p>
                 </div>
               </CardContent>
             </Card>

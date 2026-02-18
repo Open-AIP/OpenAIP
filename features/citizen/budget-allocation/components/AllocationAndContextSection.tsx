@@ -12,6 +12,7 @@ type AllocationAndContextSectionProps = {
 
 export default function AllocationAndContextSection({ chart, selectedContext }: AllocationAndContextSectionProps) {
   const trendUp = (selectedContext.yoyAbs ?? 0) >= 0;
+  const colorByLabel = new Map(chart.legend.map((item) => [item.label.toLowerCase(), item.color]));
 
   return (
     <section className="grid gap-4 lg:grid-cols-[62%_38%]">
@@ -32,9 +33,10 @@ export default function AllocationAndContextSection({ chart, selectedContext }: 
               data: chart.labels.map((label, index) => ({
                 category: label,
                 value: chart.values[index] ?? 0,
+                color: colorByLabel.get(label.toLowerCase()) ?? "#0f5d8e",
               })),
               xKey: "category",
-              bars: [{ key: "value", label: "Budget", fill: "#0f5d8e" }],
+              bars: [{ key: "value", label: "Budget", fillKey: "color" }],
             }}
             showLegend={false}
             showGrid

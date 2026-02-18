@@ -57,7 +57,7 @@ export function categoryAccentClass(key: BudgetCategoryKey): string {
   if (key === "general") return "border-[#BEDBFF] bg-[#BEDBFF] text-[#0b4f87]";
   if (key === "social") return "border-[#B9F8CF] bg-[#B9F8CF] text-[#1f9f56]";
   if (key === "economic") return "border-[#FFF085] bg-[#FFF085] text-[#d39d02]";
-  return "border-[#E5E7EB] bg-[#E5E7EB] text-slate-600";
+  return "border-[#E5E7EB] bg-[#F9FAFB] text-slate-600";
 }
 
 export function categoryIconClass(key: BudgetCategoryKey): string {

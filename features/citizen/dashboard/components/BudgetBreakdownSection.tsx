@@ -99,9 +99,10 @@ export default function BudgetBreakdownSection({
               data: categoryAllocation.map((item) => ({
                 sector: item.sectorLabel.replace(" Services", ""),
                 amount: item.amount,
+                color: categoryChartColor(item.sectorLabel),
               })),
               xKey: "sector",
-              bars: [{ key: "amount", label: "Budget", fill: "#0f5d8e" }],
+              bars: [{ key: "amount", label: "Budget", fillKey: "color" }],
             }}
             showLegend={false}
             showGrid

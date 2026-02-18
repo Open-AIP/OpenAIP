@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -81,16 +82,27 @@ export function BarChartCard({
                   }
                 />
                 {showLegend ? <Legend /> : null}
-                {series.bars.map((bar, index) => (
-                  <Bar
-                    key={bar.key}
-                    dataKey={bar.key}
-                    name={bar.label}
-                    fill={bar.fill ?? chartPalette[index % chartPalette.length]}
-                    stackId={bar.stackId}
-                    radius={[6, 6, 0, 0]}
-                  />
-                ))}
+                {series.bars.map((bar, index) => {
+                  const fillKey = bar.fillKey;
+                  return (
+                    <Bar
+                      key={bar.key}
+                      dataKey={bar.key}
+                      name={bar.label}
+                      fill={bar.fill ?? chartPalette[index % chartPalette.length]}
+                      stackId={bar.stackId}
+                      radius={[6, 6, 0, 0]}
+                    >
+                      {fillKey
+                        ? series.data.map((entry, cellIndex) => {
+                            const value = entry[fillKey];
+                            const cellFill = typeof value === "string" && value ? value : undefined;
+                            return <Cell key={`${bar.key}-${cellIndex}`} fill={cellFill} />;
+                          })
+                        : null}
+                    </Bar>
+                  );
+                })}
               </BarChart>
             </ResponsiveContainer>
           </div>

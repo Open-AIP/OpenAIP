@@ -26,7 +26,7 @@ export type LineSeriesVM = {
 export type BarSeriesVM = {
   data: ChartDatum[];
   xKey: string;
-  bars: Array<ChartMetric & { fill?: string; stackId?: string }>;
+  bars: Array<ChartMetric & { fill?: string; fillKey?: string; stackId?: string }>;
 };
 
 export type DonutSeriesVM = {

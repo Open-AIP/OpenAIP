@@ -32,7 +32,7 @@ import type {
   CitizenDashboardVM,
 } from "@/lib/types/viewmodels/dashboard";
 import { CITIZEN_DASHBOARD_TOKENS } from "@/lib/ui/tokens";
-
+You MUST separate each major dashboard section into its own component inside a dedicated “components” folder within the feature module.
 const CATEGORY_LAYOUT = ["General Services", "Social Services", "Economic Services", "Other Services"] as const;
 
 function parseScopeType(value: string | null): CitizenScopeType {
@@ -338,7 +338,7 @@ export default function CitizenDashboardView() {
           <p className="text-base text-slate-500">Total budget and allocation by category for FY {viewModel.budgetSummary.fiscalYear}</p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[40%_60%]">
           <Card className="overflow-hidden border-0 bg-gradient-to-b from-[#0f5d8e] to-[#0a3f63] text-white shadow-xl">
             <CardContent className="space-y-5 p-6">
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-xl font-semibold">$</div>

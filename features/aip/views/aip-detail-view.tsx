@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,6 @@ import { AipDetailsTableView } from "./aip-details-table";
 import { Send } from "lucide-react";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 
 export default function AipDetailView({
   aip,
@@ -37,7 +36,6 @@ export default function AipDetailView({
   onCancelSubmission?: () => void;
   onSubmit?: () => void;
 }) {
-  const projectRepo = useMemo(() => getAipProjectRepo(), []);
   const showFeedback = aip.status === "for_revision";
   const showRemarks = aip.status !== "draft";
   const searchParams = useSearchParams();
@@ -199,7 +197,6 @@ export default function AipDetailView({
               <AipDetailsTableView
                 aipId={aip.id}
                 year={aip.year}
-                repo={projectRepo}
                 aipStatus={aip.status}
                 focusedRowId={focusedRowId}
               />

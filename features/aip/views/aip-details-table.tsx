@@ -2,23 +2,23 @@
 "use client";
 
 import * as React from "react";
-import type { AipProjectRepo } from "@/lib/repos/aip/repo";
 import type { AipProjectRow, AipStatus } from "../types";
 import { AipDetailsTableCard } from "../components/aip-details-table-card";
 import { BudgetAllocationTable, buildBudgetAllocation } from "../components/budget-allocation-table";
 import { ProjectReviewModal } from "../dialogs/project-review-modal";
-
+import {
+  listAipProjectsAction,
+  submitAipProjectReviewAction,
+} from "../actions/aip-projects.actions";
 
 export function AipDetailsTableView({
   aipId,
   year,
-  repo,
   aipStatus,
   focusedRowId,
 }: {
   aipId: string;
   year: number;
-  repo: AipProjectRepo;
   aipStatus: AipStatus;
   focusedRowId?: string;
 }) {
@@ -26,31 +26,42 @@ export function AipDetailsTableView({
   const [selected, setSelected] = React.useState<AipProjectRow | null>(null);
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let alive = true;
 
     (async () => {
       setLoading(true);
-      const data = await repo.listByAip(aipId);
-
-      if (alive) {
-        setRows(data);
-        setLoading(false);
+      setError(null);
+      try {
+        const data = await listAipProjectsAction(aipId);
+        if (alive) {
+          setRows(data);
+        }
+      } catch (err) {
+        if (alive) {
+          setError(err instanceof Error ? err.message : "Failed to load projects.");
+          setRows([]);
+        }
+      } finally {
+        if (alive) {
+          setLoading(false);
+        }
       }
     })();
 
     return () => {
       alive = false;
     };
-  }, [aipId, repo]);
+  }, [aipId]);
 
   async function handleSubmitReview(
     payload: { comment: string; resolution: "disputed" | "confirmed" | "comment_only" }
   ) {
     if (!selected) return;
 
-    await repo.submitReview({
+    await submitAipProjectReviewAction({
       projectId: selected.id,
       aipId: selected.aipId,
       comment: payload.comment,
@@ -78,7 +89,10 @@ export function AipDetailsTableView({
   const allocation = React.useMemo(() => buildBudgetAllocation(rows), [rows]);
 
   if (loading) {
-    return <div className="text-sm text-slate-500">Loading projects…</div>;
+    return <div className="text-sm text-slate-500">Loading projects...</div>;
+  }
+  if (error) {
+    return <div className="text-sm text-rose-600">{error}</div>;
   }
 
   // Allow commenting when AIP is in draft or for_revision status

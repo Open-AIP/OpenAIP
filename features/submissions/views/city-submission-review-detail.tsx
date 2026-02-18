@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AipHeader } from "@/features/aip/types";
@@ -10,7 +10,6 @@ import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
 import { RemarksCard } from "@/features/aip/components/remarks-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
-import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,6 @@ export default function CitySubmissionReviewDetail({
   result?: string;
 }) {
   const router = useRouter();
-  const projectRepo = useMemo(() => getAipProjectRepo(), []);
   const isReviewMode = mode === "review";
   const [publishedSuccess, setPublishedSuccess] = useState(false);
   const showSuccess = (isReviewMode && result === "published") || publishedSuccess;
@@ -146,7 +144,6 @@ export default function CitySubmissionReviewDetail({
           <AipDetailsTableView
             aipId={aip.id}
             year={aip.year}
-            repo={projectRepo}
             aipStatus={aip.status}
             focusedRowId={undefined}
           />

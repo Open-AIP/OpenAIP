@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isTempAdminBypassEnabled } from "@/lib/auth/dev-bypass";
 import {
   dbRoleToRouteRole,
   normalizeToDbRole,
@@ -87,7 +88,7 @@ export async function updateSession(request: NextRequest) {
   const pathRole = getPathRole(pathname);
   const pathDbRole = routeRoleToDbRole(pathRole);
 
-  if (pathRole === "admin" && process.env.NODE_ENV !== "production") {
+  if (pathRole === "admin" && isTempAdminBypassEnabled()) {
     return supabaseResponse;
   }
   // remove this condition if you want to protect the citizen routes as well

@@ -8,6 +8,12 @@ import type { InfrastructureProject } from "@/lib/repos/projects/types";
 import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
 import ProjectFilters from "@/features/citizen/projects/components/project-filters";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  filterProjectsByScopeOption,
+  filterProjectsByYearAndQuery,
+  getProjectYearsDescending,
+  prefixProjectTitles,
+} from "@/lib/selectors/projects/project-list";
 
 type Props = {
   projects: InfrastructureProject[];
@@ -20,36 +26,26 @@ export default function CitizenInfrastructureProjectsView({
   lguLabel,
   lguOptions,
 }: Props) {
-  const years = useMemo(
-    () => Array.from(new Set(projects.map((project) => project.year))).sort((a, b) => b - a),
-    [projects]
-  );
+  const years = useMemo(() => getProjectYearsDescending(projects), [projects]);
 
   const [fiscalYearFilter, setFiscalYearFilter] = useState<string>(String(years[0] ?? "all"));
   const [scopeFilter, setScopeFilter] = useState<string>(lguOptions[1] ?? "All LGUs");
   const [query, setQuery] = useState<string>("");
 
   const displayProjects = useMemo(
-    () =>
-      projects.map((project) => ({
-        ...project,
-        title: `${lguLabel} - ${project.title}`,
-      })),
+    () => prefixProjectTitles(projects, lguLabel),
     [projects, lguLabel]
   );
 
   const filteredProjects = useMemo(() => {
-    const loweredQuery = query.trim().toLowerCase();
-    return displayProjects.filter((project) => {
-      const yearOk = fiscalYearFilter === "all" || project.year === Number(fiscalYearFilter);
-      const lguOk = scopeFilter === "All LGUs" || scopeFilter === lguLabel;
-      const queryOk =
-        !loweredQuery ||
-        project.title.toLowerCase().includes(loweredQuery) ||
-        project.description?.toLowerCase().includes(loweredQuery) ||
-        project.implementingOffice?.toLowerCase().includes(loweredQuery);
-
-      return yearOk && lguOk && queryOk;
+    const scopedProjects = filterProjectsByScopeOption(
+      displayProjects,
+      scopeFilter,
+      lguLabel
+    );
+    return filterProjectsByYearAndQuery(scopedProjects, {
+      yearFilter: fiscalYearFilter,
+      query,
     });
   }, [displayProjects, fiscalYearFilter, scopeFilter, query, lguLabel]);
 

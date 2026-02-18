@@ -15,7 +15,7 @@ Routes:
 
 Feature components/services:
 - `features/submissions/index.ts` (public boundary exports)
-- `features/submissions/views/SubmissionsView.tsx`
+- `features/submissions/views/submissions-view.tsx`
 - `features/submissions/views/city-submission-review-detail.tsx`
 - Server actions: `features/submissions/actions/submissionsReview.actions.ts`
 
@@ -33,7 +33,7 @@ Feed page
 → adapter:
   - today: `createMockAipSubmissionsReviewRepo()` (`lib/repos/submissions/repo.mock.ts`)
   - future: Supabase adapter (`lib/repos/submissions/repo.supabase.ts`)
-→ `SubmissionsView` (`features/submissions/views/SubmissionsView.tsx`)
+→ `SubmissionsView` (`features/submissions/views/submissions-view.tsx`)
 
 Detail/review page
 → (server component) `getAipSubmissionsReviewRepo()` and `startReviewIfNeeded()` (`app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx`)

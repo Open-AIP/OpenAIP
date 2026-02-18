@@ -11,7 +11,7 @@ import { getFeedbackModerationProjectUpdatesRepo } from "@/lib/repos/feedback-mo
 import {
   mapProjectUpdateToDetails,
   mapProjectUpdatesToRows,
-} from "@/lib/repos/feedback-moderation-project-updates/mappers/project-updates.mapper";
+} from "@/lib/mappers/feedback-moderation-project-updates";
 import type { ModerationActionRecord } from "@/lib/repos/feedback-moderation-project-updates/types";
 
 const TYPE_OPTIONS = [

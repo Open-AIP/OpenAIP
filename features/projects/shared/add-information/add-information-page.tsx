@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
-import { FormField } from "./FormField";
+import { FormField } from "./form-field";
 import { healthFieldConfig, infraFieldConfig } from "./field-config";
 import {
   healthAddInfoSchema,
@@ -90,6 +90,7 @@ export default function AddInformationPage({
   projectInfo?: ProjectInfo;
 }) {
   const router = useRouter();
+  const [fileError, setFileError] = React.useState<string | null>(null);
 
   // Select schema and config based on project type
   const schema = kind === "health" ? healthAddInfoSchema : infraAddInfoSchema;
@@ -177,9 +178,10 @@ export default function AddInformationPage({
                       onChange={(e) => {
                         const file = e.target.files?.[0] ?? null;
                         if (file && file.size > 5 * 1024 * 1024) {
-                          alert("File size must be under 5MB");
+                          setFileError("File size must be under 5MB.");
                           return;
                         }
+                        setFileError(null);
                         onChange(file);
                       }}
                     />
@@ -195,6 +197,7 @@ export default function AddInformationPage({
                   </label>
                 )}
               />
+              {fileError ? <div className="text-xs text-rose-600">{fileError}</div> : null}
             </div>
 
             {/* Dynamic Fields - Config-driven rendering */}

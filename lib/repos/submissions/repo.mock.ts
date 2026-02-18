@@ -17,12 +17,13 @@ type MockAipReviewRow = {
   createdAt: string;
 };
 
-const MOCK_CITY_ID = "city_001";
+const MOCK_CITY_SCOPE_ID = "00000000-0000-0000-0000-000000000401";
+const LEGACY_CITY_SCOPE_ID = "city_001";
 const MOCK_REVIEWER_ID = "profile_city_001";
 const MOCK_REVIEWER_NAME = "Juan Dela Cruz";
 
 const MOCK_CITY_BY_AIP_ID: Record<string, string> = Object.fromEntries(
-  AIPS_TABLE.filter((aip) => aip.scope === "barangay").map((aip) => [aip.id, MOCK_CITY_ID])
+  AIPS_TABLE.filter((aip) => aip.scope === "barangay").map((aip) => [aip.id, MOCK_CITY_SCOPE_ID])
 );
 
 const SEED_REVIEW_NOTES_BY_AIP_ID: Record<string, string> = {
@@ -87,8 +88,7 @@ seedReviewStore();
 
 function requireCityReviewer(actor: ActorContext | null, cityId: string) {
   if (!actor) {
-    // Dev UX: allow mock browsing when auth context is missing.
-    return;
+    throw new Error("Unauthorized.");
   }
 
   if (actor.role !== "admin" && actor.role !== "city_official") {
@@ -99,7 +99,7 @@ function requireCityReviewer(actor: ActorContext | null, cityId: string) {
     if (actor.scope.kind !== "city" || !actor.scope.id) {
       throw new Error("Unauthorized.");
     }
-    if (actor.scope.id !== cityId) {
+    if (normalizeCityScopeId(actor.scope.id) !== normalizeCityScopeId(cityId)) {
       throw new Error("Unauthorized.");
     }
   }
@@ -151,6 +151,12 @@ function getBarangayCityId(aipId: string): string | null {
   return MOCK_CITY_BY_AIP_ID[aipId] ?? null;
 }
 
+function normalizeCityScopeId(cityId: string | null | undefined): string | null {
+  if (!cityId) return null;
+  if (cityId === LEGACY_CITY_SCOPE_ID) return MOCK_CITY_SCOPE_ID;
+  return cityId;
+}
+
 function assertInJurisdiction(aip: AipHeader, cityId: string) {
   if (aip.scope !== "barangay") {
     throw new Error("AIP is not a barangay submission.");
@@ -183,12 +189,13 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       actor,
     }): Promise<ListSubmissionsResult> {
       requireCityReviewer(actor, cityId);
+      const requestedCityId = normalizeCityScopeId(cityId);
 
       const baseRows = AIPS_TABLE.filter(
         (aip) =>
           aip.scope === "barangay" &&
           aip.status !== "draft" &&
-          getBarangayCityId(aip.id) === cityId
+          (actor?.role === "admin" || getBarangayCityId(aip.id) === requestedCityId)
       ).map((aip) => {
         const latest = latestReviewForAip(aip.id);
         return {
@@ -213,9 +220,11 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
 
       // Determine jurisdiction context:
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
-          ? actor.scope.id
-          : MOCK_CITY_ID;
+        actor?.role === "city_official" && actor.scope.kind === "city" && actor.scope.id
+          ? normalizeCityScopeId(actor.scope.id)
+          : actor?.role === "admin"
+          ? getBarangayCityId(aip.id)
+          : null;
       if (!cityId) return null;
 
       requireCityReviewer(actor, cityId);
@@ -230,9 +239,11 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       if (!aip) throw new Error("AIP not found.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
-          ? actor.scope.id
-          : MOCK_CITY_ID;
+        actor?.role === "city_official" && actor.scope.kind === "city" && actor.scope.id
+          ? normalizeCityScopeId(actor.scope.id)
+          : actor?.role === "admin"
+          ? getBarangayCityId(aip.id)
+          : null;
       if (!cityId) throw new Error("Unauthorized.");
 
       requireCityReviewer(actor, cityId);
@@ -253,9 +264,11 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       if (!aip) throw new Error("AIP not found.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
-          ? actor.scope.id
-          : MOCK_CITY_ID;
+        actor?.role === "city_official" && actor.scope.kind === "city" && actor.scope.id
+          ? normalizeCityScopeId(actor.scope.id)
+          : actor?.role === "admin"
+          ? getBarangayCityId(aip.id)
+          : null;
       if (!cityId) throw new Error("Unauthorized.");
 
       requireCityReviewer(actor, cityId);
@@ -290,9 +303,11 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       if (!aip) throw new Error("AIP not found.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
-          ? actor.scope.id
-          : MOCK_CITY_ID;
+        actor?.role === "city_official" && actor.scope.kind === "city" && actor.scope.id
+          ? normalizeCityScopeId(actor.scope.id)
+          : actor?.role === "admin"
+          ? getBarangayCityId(aip.id)
+          : null;
       if (!cityId) throw new Error("Unauthorized.");
 
       requireCityReviewer(actor, cityId);

@@ -411,18 +411,15 @@ const tests = [
     },
   },
   {
-    name: "submissionsService dev fallback for null actor",
+    name: "submissionsService null actor returns empty feed",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
       process.env.NEXT_PUBLIC_APP_ENV = "dev";
       try {
         const result = await getCitySubmissionsFeedForActor(null);
-        const expected = AIPS_TABLE.filter(
-          (row) => row.scope === "barangay" && row.status !== "draft"
-        ).length;
         assert(
-          result.rows.length === expected,
-          "Expected null-actor dev feed to return mock submissions"
+          result.rows.length === 0,
+          "Expected null actor to receive empty submissions feed"
         );
       } finally {
         process.env.NEXT_PUBLIC_APP_ENV = oldEnv;

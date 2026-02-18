@@ -1,6 +1,9 @@
 import LguShell from "@/components/layout/lgu-shell";
+import { ScopeProvider } from "@/features/shared/providers/scope";
 import { getUser } from "@/lib/actions/auth.actions";
 import { normalizeToDbRole, routeRoleToDbRole } from "@/lib/auth/roles";
+import { mapUserToActorContext } from "@/lib/domain/actor-context";
+import { buildScopeContextValue } from "@/lib/domain/scope-context";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -14,21 +17,31 @@ const BarangayLayout = async ({children} : {children: React.ReactNode}) => {
     redirect("/barangay/sign-in");
   }
 
-  const { fullName, userRole } = userData;
+  const { fullName, userRole, userLocale } = userData;
   const normalizedRole = normalizeToDbRole(userRole);
 
-  if (normalizedRole !== routeRoleToDbRole("barangay")) {
+  if (!normalizedRole || normalizedRole !== routeRoleToDbRole("barangay")) {
     redirect("/barangay/unauthorized");
   }
+
+  const actor = mapUserToActorContext(userData);
+  const scopeContext = buildScopeContextValue({
+    actor,
+    fallbackRole: normalizedRole,
+    fallbackScope: "barangay",
+    userLocale,
+  });
   
   return (
-    <LguShell 
-      variant="barangay" 
-      userName={fullName}
-      roleLabel="Barangay Official"
-    >
-      {children}
-    </LguShell>
+    <ScopeProvider value={scopeContext}>
+      <LguShell 
+        variant="barangay" 
+        userName={fullName}
+        roleLabel="Barangay Official"
+      >
+        {children}
+      </LguShell>
+    </ScopeProvider>
   );
 }
 

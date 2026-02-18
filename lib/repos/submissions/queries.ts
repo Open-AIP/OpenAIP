@@ -2,7 +2,6 @@ import "server-only";
 
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import { getAppEnv } from "@/lib/config/appEnv";
 import type { ListSubmissionsResult } from "./repo";
 import { getAipSubmissionsReviewRepo } from "./repo.server";
 
@@ -30,28 +29,17 @@ export async function getCitySubmissionsFeedForActor(
   actor: ActorContext | null
 ): Promise<ListSubmissionsResult> {
   if (!actor) {
-    // Dev UX: allow viewing mock submissions even if auth context is missing.
-    // This keeps the page usable while auth/session wiring is in flux.
-    if (getAppEnv() === "dev") {
-      const repo = getAipSubmissionsReviewRepo();
-      return repo.listSubmissionsForCity({ cityId: "city_001", actor: null });
-    }
-    return emptyResult();
-  }
-
-  if (actor.role !== "admin" && actor.role !== "city_official") {
-    return emptyResult();
-  }
-
-  const cityId =
-    actor.role === "city_official" && actor.scope.kind === "city"
-      ? actor.scope.id
-      : "city_001";
-
-  if (!cityId) {
     return emptyResult();
   }
 
   const repo = getAipSubmissionsReviewRepo();
-  return repo.listSubmissionsForCity({ cityId, actor });
+  if (actor.role === "city_official" && actor.scope.kind === "city" && actor.scope.id) {
+    return repo.listSubmissionsForCity({ cityId: actor.scope.id, actor });
+  }
+
+  if (actor.role === "admin") {
+    return repo.listSubmissionsForCity({ cityId: "admin", actor });
+  }
+
+  return emptyResult();
 }

@@ -9,14 +9,14 @@ This feature is intentionally UI-focused today; it does not own a repository/ser
 
 ## B. UI Surfaces
 - Route: `app/(lgu)/barangay/(authenticated)/account/page.tsx`
-- View: `features/account/account-view.tsx`
-- Form: `features/account/update-password-form.tsx`
+- View: `features/account/views/account-view.tsx`
+- Form: `features/account/components/update-password-form.tsx`
 
 ## C. Data Flow (diagram in text)
 `app/(lgu)/.../account/page.tsx`
 → `getUser()` (auth action; existing auth flow)
-→ `features/account/account-view.tsx`
-→ `features/account/update-password-form.tsx`
+→ `features/account/views/account-view.tsx`
+→ `features/account/components/update-password-form.tsx`
 → (client) `supabase.auth.updateUser({ password })`
 
 ## D. databasev2 Alignment

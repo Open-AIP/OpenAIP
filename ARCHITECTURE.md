@@ -7,6 +7,7 @@ This repository follows a layered architecture to keep domain logic stable and U
 - Canonical data flow is now locked to: `DB contract row -> mapper -> UI view model -> component`.
 - Authorization and route gating must normalize to DBv2 role semantics before decisions.
 - Scope and visibility decisions are actor-derived and DBv2-aligned (published-only public/citizen reads).
+- Municipality remains part of DBv2 role/scope contract types, but municipality route/page rollout is deferred for this cycle.
 - Detailed enforcement rules are documented in `lib/ARCHITECTURE_RULES.md`.
 
 ## Layer Boundaries
@@ -57,6 +58,9 @@ A change is considered architecture-safe when all of the following pass:
    - no direct `features -> mocks/fixtures` imports
    - no cross-feature imports
    - no React/hooks usage in `lib/mappers`
+   - no path-derived scope authorization checks
+   - no hardcoded jurisdiction IDs in authorization/data-access paths
+   - no municipality route scaffolding in `app/(lgu)/municipality/**` for this cycle
 
 ## Practical Guidance
 

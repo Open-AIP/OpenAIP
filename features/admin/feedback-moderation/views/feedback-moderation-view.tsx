@@ -13,7 +13,7 @@ import ProjectUpdatesPage from "@/features/admin/feedback-moderation-project-upd
 import {
   mapFeedbackModerationRows,
   type FeedbackModerationRow,
-} from "@/lib/repos/feedback-moderation/mappers/feedback.mapper";
+} from "@/lib/mappers/feedback-moderation";
 import type { FeedbackModerationDataset } from "@/lib/repos/feedback-moderation/types";
 import { getFeedbackModerationRepo } from "@/lib/repos/feedback-moderation/repo";
 import { CATEGORY_KINDS, formatFeedbackKind } from "@/lib/constants/feedback-kind";

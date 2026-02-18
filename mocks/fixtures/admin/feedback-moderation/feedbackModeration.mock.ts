@@ -204,7 +204,7 @@ const PROFILE_FIXTURE: Dbv2ProfileRow[] = [
   },
   {
     id: "profile_elena",
-    role: "citizen",
+    role: "city_official",
     full_name: "Elena Reyes",
     email: "elena.reyes@example.com",
     barangay_id: null,

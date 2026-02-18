@@ -1,4 +1,4 @@
-type ScopeType = "city" | "barangay" | "municipality" | "none";
+import type { CanonicalScopeKind as ScopeType } from "@/lib/auth/scope";
 
 const DEFAULT_FISCAL_YEARS = [2026, 2025, 2024, 2023] as const;
 

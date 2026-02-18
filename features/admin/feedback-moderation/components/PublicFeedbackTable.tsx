@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/ui/utils";
-import type { FeedbackModerationRow } from "@/lib/repos/feedback-moderation/mappers/feedback.mapper";
+import type { FeedbackModerationRow } from "@/lib/mappers/feedback-moderation";
 
 const statusBadgeClass = (status: "Visible" | "Hidden") => {
   if (status === "Visible") return "bg-sky-50 text-sky-700 border-sky-200";

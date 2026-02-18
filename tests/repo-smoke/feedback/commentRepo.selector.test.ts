@@ -11,6 +11,7 @@ function assert(condition: boolean, message: string) {
 
 export async function runCommentRepoSelectorTests() {
   const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+  const oldMockEnv = process.env.NEXT_PUBLIC_USE_MOCKS;
 
   try {
     process.env.NEXT_PUBLIC_APP_ENV = "dev";
@@ -49,17 +50,23 @@ export async function runCommentRepoSelectorTests() {
     );
 
     process.env.NEXT_PUBLIC_APP_ENV = "staging";
+    delete process.env.NEXT_PUBLIC_USE_MOCKS;
     let threw = false;
     try {
       getCommentRepo();
     } catch (error) {
-      threw = /server-only|not implemented/i.test(
+      threw = /server-only|not implemented|mock-only/i.test(
         error instanceof Error ? error.message : String(error)
       );
     }
     assert(threw, "Expected client-safe repo getter to throw outside mock mode");
   } finally {
     process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+    if (typeof oldMockEnv === "string") {
+      process.env.NEXT_PUBLIC_USE_MOCKS = oldMockEnv;
+    } else {
+      delete process.env.NEXT_PUBLIC_USE_MOCKS;
+    }
   }
 }
 

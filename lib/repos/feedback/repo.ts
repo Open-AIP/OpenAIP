@@ -2,7 +2,7 @@ import type { FeedbackKind, FeedbackTargetType } from "@/lib/contracts/databasev
 import type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 import type { CommentAuthorRole, CommentMessage, CommentTarget, CommentThread } from "./types";
 import { NotImplementedError } from "@/lib/core/errors";
-import { selectRepo } from "@/lib/repos/_shared/selector";
+import { isMockEnabled } from "@/lib/config/appEnv";
 import type { LguScopeKind } from "@/lib/auth/scope";
 import {
   createMockCommentRepo,
@@ -134,50 +134,27 @@ export interface FeedbackThreadsRepo {
   createReply(input: CreateReplyInput): Promise<FeedbackThreadRow>;
 }
 
+function selectFeedbackMockRepo<T>(label: string, factory: () => T): T {
+  if (!isMockEnabled()) {
+    throw new NotImplementedError(
+      `${label} is currently mock-only in client/runtime paths. Import from \`@/lib/repos/feedback/repo.server\` for server usage.`
+    );
+  }
+  return factory();
+}
+
 export function getCommentRepo(): CommentRepo {
-  return selectRepo({
-    label: "CommentRepo",
-    mock: () => createMockCommentRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "CommentRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
-  });
+  return selectFeedbackMockRepo("CommentRepo", () => createMockCommentRepo());
 }
 
 export function getCommentTargetLookup(): CommentTargetLookup {
-  return selectRepo({
-    label: "CommentTargetLookup",
-    mock: () => createMockCommentTargetLookup(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "CommentTargetLookup is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
-  });
+  return selectFeedbackMockRepo("CommentTargetLookup", () => createMockCommentTargetLookup());
 }
 
 export function getFeedbackRepo(): FeedbackRepo {
-  return selectRepo({
-    label: "FeedbackRepo",
-    mock: () => createMockFeedbackRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "FeedbackRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
-  });
+  return selectFeedbackMockRepo("FeedbackRepo", () => createMockFeedbackRepo());
 }
 
 export function getFeedbackThreadsRepo(): FeedbackThreadsRepo {
-  return selectRepo({
-    label: "FeedbackThreadsRepo",
-    mock: () => createMockFeedbackThreadsRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "FeedbackThreadsRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
-  });
+  return selectFeedbackMockRepo("FeedbackThreadsRepo", () => createMockFeedbackThreadsRepo());
 }

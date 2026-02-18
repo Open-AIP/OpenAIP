@@ -27,7 +27,7 @@ import type { AipHeader } from "../types";
 import { getAipYears } from "../utils";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
-import AipProcessingModal from "../components/AipProcessingModal";
+import AipProcessingModal from "../components/aip-processing-modal";
 import { useAipProcessing } from "../hooks/use-aip-processing";
 import type { LguScopeKind } from "@/lib/auth/scope";
 

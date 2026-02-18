@@ -12,6 +12,7 @@
 - Route role segments are UI aliases only (`citizen`, `barangay`, `city`, `municipality`, `admin`).
 - All route/layout/middleware guard checks must normalize to DB role semantics before decisions.
 - Scope must be actor-derived (`barangay|city|municipality|none`), not path-derived for data access decisions.
+- Municipality route/page rollout is deferred this cycle; keep municipality only in shared types/contracts and role normalization.
 
 ## Visibility Rules
 
@@ -38,3 +39,5 @@
   2. `npm run build`
   3. `node scripts/repo-smoke/run.js`
   4. `powershell -ExecutionPolicy Bypass -File scripts/architecture-check.ps1 -Strict`
+  5. `powershell -ExecutionPolicy Bypass -File scripts/feature-structure-check.ps1 -Strict`
+  6. `powershell -ExecutionPolicy Bypass -File scripts/naming-check.ps1 -Strict`

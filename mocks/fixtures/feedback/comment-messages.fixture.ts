@@ -1,20 +1,5 @@
 import { COMMENT_THREAD_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
-import type { FeedbackKind } from "@/lib/contracts/databasev2";
-
-type CommentMessage = {
-  id: string;
-  threadId: string;
-  authorRole:
-    | "citizen"
-    | "barangay_official"
-    | "city_official"
-    | "municipal_official"
-    | "admin";
-  authorId: string;
-  kind: FeedbackKind;
-  text: string;
-  createdAt: string;
-};
+import type { CommentMessage } from "@/lib/types/domain/feedback.domain";
 
 export const COMMENT_MESSAGES_FIXTURE: CommentMessage[] = [
   {

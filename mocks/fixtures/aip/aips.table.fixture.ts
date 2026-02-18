@@ -1,39 +1,5 @@
 import { AIP_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
-
-type AipStatus =
-  | "draft"
-  | "pending_review"
-  | "under_review"
-  | "for_revision"
-  | "published";
-
-type LguScope = "barangay" | "city";
-
-type AipHeader = {
-  id: string;
-  scope: LguScope;
-  barangayName?: string;
-  title: string;
-  description: string;
-  year: number;
-  budget: number;
-  uploadedAt: string;
-  publishedAt?: string;
-  status: AipStatus;
-  fileName: string;
-  pdfUrl: string;
-  tablePreviewUrl?: string;
-  summaryText?: string;
-  detailedBullets?: string[];
-  sectors: string[];
-  uploader: {
-    name: string;
-    role: string;
-    uploadDate: string;
-    budgetAllocated: number;
-  };
-  feedback?: string;
-};
+import type { AipHeader } from "@/lib/types/domain/aip.domain";
 
 export const AIPS_TABLE: AipHeader[] = [
   {

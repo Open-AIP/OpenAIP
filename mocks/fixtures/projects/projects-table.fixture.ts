@@ -1,7 +1,5 @@
 import { PROJECT_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
-
-type ProjectKind = "health" | "infrastructure";
-type ProjectStatus = "planning" | "ongoing" | "completed" | "on_hold";
+import type { ProjectKind, ProjectStatus } from "@/lib/types/domain/projects.domain";
 
 type ProjectMaster = {
   projectRefCode: string;

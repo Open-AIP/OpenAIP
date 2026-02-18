@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { FeedbackModerationRow } from "@/lib/repos/feedback-moderation/mappers/feedback.mapper";
+import type { FeedbackModerationRow } from "@/lib/mappers/feedback-moderation";
 
 export default function FeedbackDetailsModal({
   open,

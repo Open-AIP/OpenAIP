@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import CitizenFooter from '@/features/citizen/components/CitizenFooter';
-import FloatingChatButton from '@/features/citizen/components/FloatingChatButton';
+import { CitizenChatWidget } from '@/features/citizen/chat-widget';
 import CitizenTopNav from '@/features/citizen/components/CitizenTopNav';
 
 const CitizenLayout = ({ children }: { children: ReactNode }) => {
@@ -9,7 +9,7 @@ const CitizenLayout = ({ children }: { children: ReactNode }) => {
       <CitizenTopNav />
       <main className="mx-auto w-full max-w-full px-10 py-6 md:px-10 md:py-8">{children}</main>
       <CitizenFooter />
-      <FloatingChatButton />
+      <CitizenChatWidget />
     </div>
   );
 };

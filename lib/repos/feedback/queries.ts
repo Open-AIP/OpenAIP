@@ -75,6 +75,31 @@ export async function resolveCommentSidebar({
       if (thread.target.targetKind === "aip") {
         const aip = await getAip(thread.target.aipId);
 
+        if (thread.target.fieldKey) {
+          const aipItem = await getAipItem(thread.target.aipId, thread.target.fieldKey);
+
+          const contextTitle = aip?.title ?? "AIP Detail";
+          const contextSubtitleParts = [
+            aip?.barangayName,
+            aipItem?.projectRefCode,
+            aipItem?.aipDescription,
+          ].filter(Boolean) as string[];
+          const contextSubtitle =
+            contextSubtitleParts.length > 0
+              ? contextSubtitleParts.join(" • ")
+              : `${thread.target.aipId} / ${thread.target.fieldKey}`;
+
+          return {
+            threadId: thread.id,
+            snippet: thread.preview.text,
+            updatedAt: thread.preview.updatedAt,
+            status: thread.preview.status,
+            contextTitle,
+            contextSubtitle,
+            href: `/${scope}/aips/${thread.target.aipId}?focus=${thread.target.fieldKey}&tab=comments&thread=${thread.id}`,
+          } satisfies CommentSidebarItem;
+        }
+
         const contextTitle = aip?.title ?? "AIP Detail";
         const contextSubtitleParts = [
           aip?.barangayName,
@@ -96,29 +121,7 @@ export async function resolveCommentSidebar({
         } satisfies CommentSidebarItem;
       }
 
-      const aip = await getAip(thread.target.aipId);
-      const aipItem = await getAipItem(thread.target.aipId, thread.target.aipItemId);
-
-      const contextTitle = aip?.title ?? "AIP Detail";
-      const contextSubtitleParts = [
-        aip?.barangayName,
-        aipItem?.projectRefCode,
-        aipItem?.aipDescription,
-      ].filter(Boolean) as string[];
-      const contextSubtitle =
-        contextSubtitleParts.length > 0
-          ? contextSubtitleParts.join(" • ")
-          : `${thread.target.aipId} / ${thread.target.aipItemId}`;
-
-      return {
-        threadId: thread.id,
-        snippet: thread.preview.text,
-        updatedAt: thread.preview.updatedAt,
-        status: thread.preview.status,
-        contextTitle,
-        contextSubtitle,
-        href: `/${scope}/aips/${thread.target.aipId}?focus=${thread.target.aipItemId}&tab=comments&thread=${thread.id}`,
-      } satisfies CommentSidebarItem;
+      throw new Error("Unsupported feedback target");
     })
   );
 

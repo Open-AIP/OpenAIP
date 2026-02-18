@@ -49,12 +49,9 @@ export function CommentAipThreadList({
           lguId: lguId ?? null,
           visibility,
         });
-        const aipThreads = allThreads.filter((thread) => {
-          if (thread.target.targetKind === "aip_item") {
-            return thread.target.aipId === aipId;
-          }
-          return thread.target.targetKind === "aip" && thread.target.aipId === aipId;
-        });
+        const aipThreads = allThreads.filter(
+          (thread) => thread.target.targetKind === "aip" && thread.target.aipId === aipId
+        );
 
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({

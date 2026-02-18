@@ -72,12 +72,9 @@ export async function listCitizenFeedbackItems(
     visibility: "public",
   });
 
-  const aipThreads = threads.filter((thread) => {
-    if (thread.target.targetKind === "aip_item" && thread.target.aipId === aipId) {
-      return true;
-    }
-    return thread.target.targetKind === "aip" && thread.target.aipId === aipId;
-  });
+  const aipThreads = threads.filter(
+    (thread) => thread.target.targetKind === "aip" && thread.target.aipId === aipId
+  );
 
   const remainingThreads = threads.filter((thread) => !aipThreads.includes(thread));
   const sortedAipThreads = [...aipThreads].sort(sortByUpdatedAtDesc);
@@ -99,7 +96,7 @@ export async function listCitizenFeedbackItems(
   return selected.map((thread) => {
     const context = resolvedMap.get(thread.id);
     const contextLine =
-      context && (thread.target.targetKind === "aip_item" || thread.target.targetKind === "aip")
+      context && thread.target.targetKind === "aip"
         ? `Submitted feedback on the ${context.contextTitle}`
         : undefined;
 

@@ -1,4 +1,4 @@
-export type ProjectKind = "health" | "infrastructure";
+export type ProjectKind = "health" | "infrastructure" | "other";
 
 export const PROJECT_STATUS_VALUES = [
   "planning",

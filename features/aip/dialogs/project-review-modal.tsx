@@ -55,7 +55,7 @@ export function ProjectReviewModal({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   project: AipProjectRow | null;
-  onSubmit: (payload: { comment: string; resolution: "disputed" | "confirmed" | "comment_only" }) => Promise<void>;
+  onSubmit: (payload: { comment: string }) => Promise<void>;
   canComment?: boolean;
 }) {
   const [comment, setComment] = React.useState("");
@@ -69,18 +69,13 @@ export function ProjectReviewModal({
 
   if (!project) return null;
 
-  // For red rows, you may want a "resolution" toggle later.
-  // For now: treat submit as "disputed" for ai_flagged, otherwise "comment_only".
-  const defaultResolution =
-    project.reviewStatus === "ai_flagged" ? "disputed" : "comment_only";
-
   async function handleSubmit() {
     const trimmed = comment.trim();
     if (!trimmed) return;
 
     try {
       setSubmitting(true);
-      await onSubmit({ comment: trimmed, resolution: defaultResolution });
+      await onSubmit({ comment: trimmed });
       onOpenChange(false);
     } catch (error) {
       // Surface error to user (e.g., toast notification)

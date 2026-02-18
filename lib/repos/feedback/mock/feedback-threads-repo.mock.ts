@@ -61,36 +61,95 @@ function buildSeedRows(): FeedbackThreadRow[] {
 
     const targetType: FeedbackThreadRow["target_type"] =
       thread.target.targetKind === "project" ? "project" : "aip";
-    const aipId =
-      thread.target.targetKind === "aip_item" || thread.target.targetKind === "aip"
-        ? thread.target.aipId
-        : null;
+    const aipId = thread.target.targetKind === "aip" ? thread.target.aipId : null;
     const projectId = thread.target.targetKind === "project" ? thread.target.projectId : null;
+    const fieldKey =
+      thread.target.targetKind === "aip" ? thread.target.fieldKey ?? null : null;
 
-    rows.push({
-      id: thread.id,
-      target_type: targetType,
-      project_id: projectId,
-      aip_id: aipId,
-      parent_feedback_id: null,
-      kind: rootMessage.kind,
-      body: rootMessage.text,
-      author_id: rootMessage.authorId,
-      created_at: rootMessage.createdAt,
-    });
+    if (targetType === "project") {
+      assert(projectId, `Expected projectId for threadId="${thread.id}"`);
 
-    for (const message of messages.slice(1)) {
       rows.push({
-        id: message.id,
-        target_type: targetType,
+        id: thread.id,
+        target_type: "project",
         project_id: projectId,
-        aip_id: aipId,
-        parent_feedback_id: thread.id,
-        kind: message.kind,
-        body: message.text,
-        author_id: message.authorId,
-        created_at: message.createdAt,
+        aip_id: null,
+        field_key: null,
+        parent_feedback_id: null,
+        source: "human",
+        kind: rootMessage.kind,
+        extraction_run_id: null,
+        extraction_artifact_id: null,
+        severity: null,
+        body: rootMessage.text,
+        is_public: true,
+        author_id: rootMessage.authorId,
+        created_at: rootMessage.createdAt,
+        updated_at: rootMessage.createdAt,
       });
+
+      for (const message of messages.slice(1)) {
+        rows.push({
+          id: message.id,
+          target_type: "project",
+          project_id: projectId,
+          aip_id: null,
+          field_key: null,
+          parent_feedback_id: thread.id,
+          source: "human",
+          kind: message.kind,
+          extraction_run_id: null,
+          extraction_artifact_id: null,
+          severity: null,
+          body: message.text,
+          is_public: true,
+          author_id: message.authorId,
+          created_at: message.createdAt,
+          updated_at: message.createdAt,
+        });
+      }
+    } else {
+      assert(aipId, `Expected aipId for threadId="${thread.id}"`);
+
+      rows.push({
+        id: thread.id,
+        target_type: "aip",
+        project_id: null,
+        aip_id: aipId,
+        field_key: fieldKey,
+        parent_feedback_id: null,
+        source: "human",
+        kind: rootMessage.kind,
+        extraction_run_id: null,
+        extraction_artifact_id: null,
+        severity: null,
+        body: rootMessage.text,
+        is_public: true,
+        author_id: rootMessage.authorId,
+        created_at: rootMessage.createdAt,
+        updated_at: rootMessage.createdAt,
+      });
+
+      for (const message of messages.slice(1)) {
+        rows.push({
+          id: message.id,
+          target_type: "aip",
+          project_id: null,
+          aip_id: aipId,
+          field_key: fieldKey,
+          parent_feedback_id: thread.id,
+          source: "human",
+          kind: message.kind,
+          extraction_run_id: null,
+          extraction_artifact_id: null,
+          severity: null,
+          body: message.text,
+          is_public: true,
+          author_id: message.authorId,
+          created_at: message.createdAt,
+          updated_at: message.createdAt,
+        });
+      }
     }
   }
 
@@ -115,7 +174,12 @@ function matchTarget(row: FeedbackThreadRow, target: FeedbackTarget) {
   }
 
   const aipId = target.aip_id ?? null;
-  return row.target_type === "aip" && (aipId === null || (row.aip_id ?? null) === aipId);
+  const fieldKey = target.field_key ?? null;
+  return (
+    row.target_type === "aip"
+    && (aipId === null || (row.aip_id ?? null) === aipId)
+    && (fieldKey === null || (row.field_key ?? null) === fieldKey)
+  );
 }
 
 export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
@@ -136,17 +200,41 @@ export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
 
     async createRoot(input: CreateRootInput): Promise<FeedbackThreadRow> {
       const now = new Date().toISOString();
-      const row: FeedbackThreadRow = {
+      const base = {
         id: nextId(store),
-        target_type: input.target.target_type,
-        aip_id: input.target.aip_id ?? null,
-        project_id: input.target.project_id ?? null,
         parent_feedback_id: null,
+        source: input.source ?? "human",
         kind: input.kind,
+        extraction_run_id: input.extractionRunId ?? null,
+        extraction_artifact_id: input.extractionArtifactId ?? null,
+        severity: input.severity ?? null,
         body: input.body,
+        is_public: input.isPublic ?? true,
         author_id: input.authorId,
         created_at: now,
+        updated_at: now,
       };
+
+      let row: FeedbackThreadRow;
+      if (input.target.target_type === "project") {
+        assert(input.target.project_id, "project_id is required for project feedback.");
+        row = {
+          ...base,
+          target_type: "project",
+          project_id: input.target.project_id,
+          aip_id: null,
+          field_key: null,
+        };
+      } else {
+        assert(input.target.aip_id, "aip_id is required for AIP feedback.");
+        row = {
+          ...base,
+          target_type: "aip",
+          project_id: null,
+          aip_id: input.target.aip_id,
+          field_key: input.target.field_key ?? null,
+        };
+      }
       store.rows = [...store.rows, row];
       return row;
     },
@@ -161,24 +249,47 @@ export function createMockFeedbackThreadsRepo(): FeedbackThreadsRepo {
         const matchesTarget =
           input.target.target_type === parent.target_type &&
           (input.target.aip_id ?? null) === (parent.aip_id ?? null) &&
-          (input.target.project_id ?? null) === (parent.project_id ?? null);
+          (input.target.project_id ?? null) === (parent.project_id ?? null) &&
+          (input.target.field_key ?? null) === (parent.field_key ?? null);
         if (!matchesTarget) {
           throw new Error("reply feedback must match parent target");
         }
       }
 
       const now = new Date().toISOString();
-      const row: FeedbackThreadRow = {
+      const base = {
         id: nextId(store),
-        target_type: parent.target_type,
-        aip_id: parent.aip_id ?? null,
-        project_id: parent.project_id ?? null,
         parent_feedback_id: parent.id,
+        source: input.source ?? "human",
         kind: input.kind,
+        extraction_run_id: null,
+        extraction_artifact_id: null,
+        severity: null,
         body: input.body,
+        is_public: input.isPublic ?? true,
         author_id: input.authorId,
         created_at: now,
+        updated_at: now,
       };
+
+      let row: FeedbackThreadRow;
+      if (parent.target_type === "project") {
+        row = {
+          ...base,
+          target_type: "project",
+          project_id: parent.project_id,
+          aip_id: null,
+          field_key: null,
+        };
+      } else {
+        row = {
+          ...base,
+          target_type: "aip",
+          project_id: null,
+          aip_id: parent.aip_id,
+          field_key: parent.field_key ?? null,
+        };
+      }
 
       store.rows = [...store.rows, row];
       return row;

@@ -45,16 +45,13 @@ export function AipDetailsTableView({
     };
   }, [aipId, repo]);
 
-  async function handleSubmitReview(
-    payload: { comment: string; resolution: "disputed" | "confirmed" | "comment_only" }
-  ) {
+  async function handleSubmitReview(payload: { comment: string }) {
     if (!selected) return;
 
     await repo.submitReview({
       projectId: selected.id,
       aipId: selected.aipId,
       comment: payload.comment,
-      resolution: payload.resolution,
     });
 
     // Optimistic UI update

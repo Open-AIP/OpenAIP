@@ -25,15 +25,14 @@ export type ProjectCommentTarget = {
 export type AipCommentTarget = {
   targetKind: "aip";
   aipId: string;
+  /**
+   * Optional row-level identifier for AIP item feedback.
+   * Maps to dbv2 `feedback.field_key` when target_type = 'aip'.
+   */
+  fieldKey?: string | null;
 };
 
-export type AipItemCommentTarget = {
-  targetKind: "aip_item";
-  aipId: string;
-  aipItemId: string;
-};
-
-export type CommentTarget = ProjectCommentTarget | AipCommentTarget | AipItemCommentTarget;
+export type CommentTarget = ProjectCommentTarget | AipCommentTarget;
 
 export type CommentThreadStatus = "no_response" | "responded";
 

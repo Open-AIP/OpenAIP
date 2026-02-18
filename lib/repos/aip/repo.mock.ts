@@ -1,5 +1,5 @@
 import type { AipProjectRepo, AipRepo, AipStatus, LguScope } from "./repo";
-import type { CreateMockAipRepoOptions } from "./types";
+import type { CreateMockAipRepoOptions, SubmitReviewInput } from "./types";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 import { generateMockAIP, generateMockProjects } from "./mock-aip-generator";
@@ -68,7 +68,7 @@ export function createMockAipProjectRepo(): AipProjectRepo {
 
       return existingProjects;
     },
-    async submitReview() {
+    async submitReview(_input: SubmitReviewInput) {
       // No-op for mock data; UI updates optimistically.
     },
   };

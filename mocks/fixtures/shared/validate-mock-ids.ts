@@ -29,22 +29,17 @@ export function validateMockIds() {
           message: `Missing AIP for thread ${thread.id}: aipId=${thread.target.aipId}`,
         });
       }
-    } else {
-      if (!aipIds.has(thread.target.aipId)) {
-        issues.push({
-          message: `Missing AIP for thread ${thread.id}: aipId=${thread.target.aipId}`,
-        });
-      }
-
-      const aipItemOwner = aipItemsById.get(thread.target.aipItemId);
-      if (!aipItemOwner) {
-        issues.push({
-          message: `Missing AIP item for thread ${thread.id}: aipItemId=${thread.target.aipItemId}`,
-        });
-      } else if (aipItemOwner !== thread.target.aipId) {
-        issues.push({
-          message: `AIP item mismatch for thread ${thread.id}: aipItemId=${thread.target.aipItemId} belongs to ${aipItemOwner}`,
-        });
+      if (thread.target.fieldKey) {
+        const aipItemOwner = aipItemsById.get(thread.target.fieldKey);
+        if (!aipItemOwner) {
+          issues.push({
+            message: `Missing AIP item for thread ${thread.id}: fieldKey=${thread.target.fieldKey}`,
+          });
+        } else if (aipItemOwner !== thread.target.aipId) {
+          issues.push({
+            message: `AIP item mismatch for thread ${thread.id}: fieldKey=${thread.target.fieldKey} belongs to ${aipItemOwner}`,
+          });
+        }
       }
     }
   }

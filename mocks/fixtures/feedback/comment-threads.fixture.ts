@@ -8,8 +8,7 @@ import type { FeedbackKind } from "@/lib/contracts/databasev2";
 
 type CommentTarget =
   | { targetKind: "project"; projectId: string }
-  | { targetKind: "aip"; aipId: string }
-  | { targetKind: "aip_item"; aipId: string; aipItemId: string };
+  | { targetKind: "aip"; aipId: string; fieldKey?: string | null };
 
 type CommentThread = {
   id: string;
@@ -66,9 +65,9 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
     createdAt: "2026-01-16T09:15:00.000Z",
     createdByUserId: "citizen_ana",
     target: {
-      targetKind: "aip_item",
+      targetKind: "aip",
       aipId: AIP_IDS.barangay_mamadid_2026,
-      aipItemId: AIP_ITEM_IDS.mamadid_2026_001,
+      fieldKey: AIP_ITEM_IDS.mamadid_2026_001,
     },
     preview: {
       text: "Can you share the material breakdown for this road project?",
@@ -84,9 +83,9 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
     createdAt: "2026-01-20T03:00:00.000Z",
     createdByUserId: "citizen_joanna",
     target: {
-      targetKind: "aip_item",
+      targetKind: "aip",
       aipId: AIP_IDS.barangay_sanisidro_2026,
-      aipItemId: AIP_ITEM_IDS.sanisidro_2026_063,
+      fieldKey: AIP_ITEM_IDS.sanisidro_2026_063,
     },
     preview: {
       text: "Will the procurement include training for staff on new equipment?",
@@ -136,9 +135,9 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
     createdAt: "2026-01-25T08:15:00.000Z",
     createdByUserId: "citizen_anton",
     target: {
-      targetKind: "aip_item",
+      targetKind: "aip",
       aipId: AIP_IDS.barangay_poblacion_2026,
-      aipItemId: AIP_ITEM_IDS.poblacion_2026_013,
+      fieldKey: AIP_ITEM_IDS.poblacion_2026_013,
     },
     preview: {
       text: "Is there a separate budget for senior citizen facilities?",
@@ -154,9 +153,9 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
     createdAt: "2026-01-26T05:55:00.000Z",
     createdByUserId: "citizen_janelle",
     target: {
-      targetKind: "aip_item",
+      targetKind: "aip",
       aipId: AIP_IDS.city_2026,
-      aipItemId: AIP_ITEM_IDS.city_2026_031,
+      fieldKey: AIP_ITEM_IDS.city_2026_031,
     },
     preview: {
       text: "Please confirm if stall upgrades include improved drainage.",

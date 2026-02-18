@@ -57,12 +57,7 @@ export function CommentThreadsSplitView({
         });
         const filtered = allThreads.filter((thread) => {
           if (targetKind === "aip") {
-            return (
-              (thread.target.targetKind === "aip_item" &&
-                thread.target.aipId === targetAipId) ||
-              (thread.target.targetKind === "aip" &&
-                thread.target.aipId === targetAipId)
-            );
+            return thread.target.targetKind === "aip" && thread.target.aipId === targetAipId;
           }
 
           return (

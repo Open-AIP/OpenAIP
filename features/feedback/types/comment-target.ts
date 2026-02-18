@@ -1,5 +1,5 @@
 export type {
-  AipItemCommentTarget,
+  AipCommentTarget,
   CommentTarget,
   ProjectCommentTarget,
 } from "@/lib/repos/feedback/types";

@@ -5,7 +5,6 @@ export type {
   CommentMessage,
   ProjectCommentTarget,
   AipCommentTarget,
-  AipItemCommentTarget,
   CommentTarget,
   CommentThreadStatus,
   CommentThreadPreview,

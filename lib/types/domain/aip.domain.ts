@@ -40,7 +40,7 @@ export type Sector =
 
 export type ReviewStatus = "ai_flagged" | "reviewed" | "unreviewed";
 export type reviewStatus = ReviewStatus;
-export type ProjectKind = "health" | "infrastructure";
+export type ProjectKind = "health" | "infrastructure" | "other";
 
 export type AipProjectRow = {
   id: string;

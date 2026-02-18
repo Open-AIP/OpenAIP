@@ -1,4 +1,8 @@
-import type { FeedbackKind, FeedbackTargetType } from "@/lib/contracts/databasev2";
+import type {
+  FeedbackKind,
+  FeedbackSource,
+  FeedbackTargetType,
+} from "@/lib/contracts/databasev2";
 import type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 import type { CommentAuthorRole, CommentMessage, CommentTarget, CommentThread } from "./types";
 import { NotImplementedError } from "@/lib/core/errors";
@@ -84,7 +88,7 @@ export type CommentTargetLookup = {
   getAip: (id: string) => Promise<CommentTargetAipSummary | null>;
   getAipItem: (
     aipId: string,
-    aipItemId: string
+    fieldKey: string
   ) => Promise<CommentTargetAipItemSummary | null>;
   findAipItemByProjectRefCode?: (
     projectRefCode: string
@@ -96,10 +100,15 @@ export type FeedbackItem = {
   targetType: FeedbackTargetType;
   aipId: string | null;
   projectId: string | null;
+  fieldKey?: string | null;
   parentFeedbackId: string | null;
+  source: FeedbackSource;
   kind: FeedbackKind;
   body: string;
   authorId: string | null;
+  extractionRunId?: string | null;
+  extractionArtifactId?: string | null;
+  severity?: number | null;
   createdAt: string;
   updatedAt: string;
   isPublic: boolean;
@@ -108,8 +117,13 @@ export type FeedbackItem = {
 export type CreateFeedbackInput = {
   kind: FeedbackKind;
   body: string;
+  source?: FeedbackSource;
   authorId?: string | null;
   isPublic?: boolean;
+  fieldKey?: string | null;
+  extractionRunId?: string | null;
+  extractionArtifactId?: string | null;
+  severity?: number | null;
 };
 
 // [DATAFLOW] DBV2-aligned repository shape: one `FeedbackItem` maps to one row in `public.feedback`.

@@ -16,19 +16,27 @@ function buildInitialStore(threads: CommentThread[], messages: CommentMessage[])
 
     const firstMessageId = threadMessages[0]?.id ?? null;
 
+    const fieldKey =
+      thread.target.targetKind === "aip" ? thread.target.fieldKey ?? null : null;
+
     for (const message of threadMessages) {
       store.push({
         id: message.id,
         targetType: thread.target.targetKind === "project" ? "project" : "aip",
         aipId:
-          thread.target.targetKind === "aip_item" || thread.target.targetKind === "aip"
+          thread.target.targetKind === "aip"
             ? thread.target.aipId
             : null,
         projectId: thread.target.targetKind === "project" ? thread.target.projectId : null,
+        fieldKey,
         parentFeedbackId: firstMessageId && message.id !== firstMessageId ? firstMessageId : null,
+        source: "human",
         kind: message.kind,
         body: message.text,
         authorId: message.authorId ?? null,
+        extractionRunId: null,
+        extractionArtifactId: null,
+        severity: null,
         createdAt: message.createdAt,
         updatedAt: message.createdAt,
         isPublic: true,
@@ -79,15 +87,28 @@ export function createMockFeedbackRepo(): FeedbackRepo {
 
     async createForAip(aipId: string, payload: CreateFeedbackInput): Promise<FeedbackItem> {
       const now = new Date().toISOString();
+      const source = payload.source ?? "human";
+      if (source === "human" && !payload.authorId) {
+        throw new Error("authorId is required for human feedback.");
+      }
+      if (source === "ai" && payload.authorId) {
+        throw new Error("authorId must be null for ai feedback.");
+      }
+
       const item: FeedbackItem = {
         id: nextFeedbackId(),
         targetType: "aip",
         aipId,
         projectId: null,
+        fieldKey: payload.fieldKey ?? null,
         parentFeedbackId: null,
+        source,
         kind: payload.kind,
         body: payload.body,
         authorId: payload.authorId ?? null,
+        extractionRunId: payload.extractionRunId ?? null,
+        extractionArtifactId: payload.extractionArtifactId ?? null,
+        severity: payload.severity ?? null,
         createdAt: now,
         updatedAt: now,
         isPublic: payload.isPublic ?? true,
@@ -99,15 +120,28 @@ export function createMockFeedbackRepo(): FeedbackRepo {
 
     async createForProject(projectId: string, payload: CreateFeedbackInput): Promise<FeedbackItem> {
       const now = new Date().toISOString();
+      const source = payload.source ?? "human";
+      if (source === "human" && !payload.authorId) {
+        throw new Error("authorId is required for human feedback.");
+      }
+      if (source === "ai" && payload.authorId) {
+        throw new Error("authorId must be null for ai feedback.");
+      }
+
       const item: FeedbackItem = {
         id: nextFeedbackId(),
         targetType: "project",
         aipId: null,
         projectId,
+        fieldKey: payload.fieldKey ?? null,
         parentFeedbackId: null,
+        source,
         kind: payload.kind,
         body: payload.body,
         authorId: payload.authorId ?? null,
+        extractionRunId: payload.extractionRunId ?? null,
+        extractionArtifactId: payload.extractionArtifactId ?? null,
+        severity: payload.severity ?? null,
         createdAt: now,
         updatedAt: now,
         isPublic: payload.isPublic ?? true,
@@ -124,15 +158,28 @@ export function createMockFeedbackRepo(): FeedbackRepo {
       }
 
       const now = new Date().toISOString();
+      const source = payload.source ?? "human";
+      if (source === "human" && !payload.authorId) {
+        throw new Error("authorId is required for human feedback.");
+      }
+      if (source === "ai" && payload.authorId) {
+        throw new Error("authorId must be null for ai feedback.");
+      }
+
       const item: FeedbackItem = {
         id: nextFeedbackId(),
         targetType: parent.targetType,
         aipId: parent.aipId,
         projectId: parent.projectId,
+        fieldKey: parent.fieldKey ?? null,
         parentFeedbackId: parent.id,
+        source,
         kind: payload.kind,
         body: payload.body,
         authorId: payload.authorId ?? null,
+        extractionRunId: payload.extractionRunId ?? null,
+        extractionArtifactId: payload.extractionArtifactId ?? null,
+        severity: payload.severity ?? null,
         createdAt: now,
         updatedAt: now,
         isPublic: payload.isPublic ?? true,

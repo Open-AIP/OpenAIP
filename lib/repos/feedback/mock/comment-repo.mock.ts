@@ -330,8 +330,8 @@ export function createMockCommentTargetLookup(): CommentTargetLookup {
       };
     },
 
-    async getAipItem(aipId, aipItemId) {
-      const item = AIP_PROJECT_ROWS_TABLE.find((row) => row.aipId === aipId && row.id === aipItemId);
+    async getAipItem(aipId, fieldKey) {
+      const item = AIP_PROJECT_ROWS_TABLE.find((row) => row.aipId === aipId && row.id === fieldKey);
       if (!item) return null;
       return {
         id: item.id,

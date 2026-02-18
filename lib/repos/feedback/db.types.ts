@@ -1,21 +1,21 @@
-import type { FeedbackKind, FeedbackTargetType } from "@/lib/contracts/databasev2";
+import type {
+  FeedbackKind,
+  FeedbackSource,
+  FeedbackTargetType,
+  FeedbackRow,
+} from "@/lib/contracts/databasev2";
 
-export type FeedbackThreadRow = {
-  id: string;
-  target_type: FeedbackTargetType;
-  aip_id?: string | null;
-  project_id?: string | null;
-  parent_feedback_id?: string | null;
-  kind: FeedbackKind;
-  body: string;
-  author_id: string | null;
-  created_at: string;
-};
+export type FeedbackThreadRow = FeedbackRow;
 
 export type FeedbackTarget = {
   target_type: FeedbackTargetType;
   aip_id?: string | null;
   project_id?: string | null;
+  /**
+   * Optional row-level identifier for AIP item feedback.
+   * Maps to dbv2 `feedback.field_key`.
+   */
+  field_key?: string | null;
 };
 
 export type CreateRootInput = {
@@ -23,6 +23,11 @@ export type CreateRootInput = {
   body: string;
   kind: FeedbackKind;
   authorId: string | null;
+  source?: FeedbackSource;
+  isPublic?: boolean;
+  extractionRunId?: string | null;
+  extractionArtifactId?: string | null;
+  severity?: number | null;
 };
 
 export type CreateReplyInput = {
@@ -30,5 +35,7 @@ export type CreateReplyInput = {
   body: string;
   kind: FeedbackKind;
   authorId: string | null;
+  source?: FeedbackSource;
+  isPublic?: boolean;
   target?: FeedbackTarget;
 };

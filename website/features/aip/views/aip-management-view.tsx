@@ -156,9 +156,9 @@ export default function AipManagementView({
             status: payload.status,
           };
         }}
-        onSuccess={({ aipId, runId }) => {
+        onSuccess={({ aipId }) => {
           const scopePath = scope === "city" ? "city" : "barangay";
-          router.push(`/${scopePath}/aips/${aipId}?run=${encodeURIComponent(runId)}`);
+          router.push(`/${scopePath}/aips/${aipId}`);
         }}
       />
     </div>

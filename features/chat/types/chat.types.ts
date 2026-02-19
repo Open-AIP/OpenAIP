@@ -1,1 +1,1 @@
-export type { ChatSessionListItem, ChatMessageBubble } from "./chat.ui";
+export type { ChatSessionListItem, ChatMessageBubble } from "@/lib/types/viewmodels/chat.vm";

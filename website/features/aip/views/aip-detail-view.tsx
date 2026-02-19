@@ -35,6 +35,10 @@ const PIPELINE_STAGES: PipelineStageUi[] = [
 ];
 
 const PIPELINE_STATUS: PipelineStatusUi[] = ["queued", "running", "succeeded", "failed"];
+const FINALIZE_REFRESH_MAX_ATTEMPTS = 5;
+const FINALIZE_REFRESH_INTERVAL_MS = 1500;
+const FINALIZE_PROGRESS_MESSAGE =
+  "Saving processed data to the database. You will be redirected shortly.";
 
 type RunStatusPayload = {
   runId: string;
@@ -75,6 +79,16 @@ function mapRunStatusToProcessingState(status: PipelineStatusUi): AipProcessingS
 function clampProgress(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function hasSummaryText(summaryText: string | undefined): boolean {
+  return typeof summaryText === "string" && summaryText.trim().length > 0;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 function buildProgressByStage(
@@ -172,6 +186,9 @@ export default function AipDetailView({
   const [dismissedFailedRunId, setDismissedFailedRunId] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [isFinalizingAfterSuccess, setIsFinalizingAfterSuccess] = useState(false);
+  const [finalizingNotice, setFinalizingNotice] = useState<string | null>(null);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // `focus` is only meaningful in the context of the feedback/comments UI.
   // Avoid showing a "focused row" outline in the AIP details table (Summary tab).
@@ -195,12 +212,20 @@ export default function AipDetailView({
     if (!isBarangayScope) {
       setIsCheckingRun(false);
       setActiveRunId(null);
+      setIsFinalizingAfterSuccess(false);
+      return;
+    }
+
+    if (isFinalizingAfterSuccess) {
+      setIsCheckingRun(false);
       return;
     }
 
     if (runIdFromQuery) {
       setIsCheckingRun(false);
       setActiveRunId(runIdFromQuery);
+      setIsFinalizingAfterSuccess(false);
+      setFinalizingNotice(null);
       return;
     }
 
@@ -222,9 +247,11 @@ export default function AipDetailView({
         if (payload.run?.runId) {
           setActiveRunId(payload.run.runId);
           setProcessingState("processing");
+          setIsFinalizingAfterSuccess(false);
           setFailedRun(null);
           setDismissedFailedRunId(null);
           setRetryError(null);
+          setFinalizingNotice(null);
         } else {
           setActiveRunId(null);
           setProcessingState("idle");
@@ -246,12 +273,12 @@ export default function AipDetailView({
     return () => {
       cancelled = true;
     };
-  }, [aip.id, isBarangayScope, runIdFromQuery]);
+  }, [aip.id, isBarangayScope, isFinalizingAfterSuccess, runIdFromQuery]);
 
   useEffect(() => {
     if (!isBarangayScope || !activeRunId) {
-      setProcessingRun(null);
-      if (!isCheckingRun) {
+      if (!isFinalizingAfterSuccess) {
+        setProcessingRun(null);
         setProcessingState("idle");
       }
       return;
@@ -261,6 +288,8 @@ export default function AipDetailView({
     let cancelled = false;
     let timer: number | null = null;
     setProcessingState("processing");
+    setIsFinalizingAfterSuccess(false);
+    setFinalizingNotice(null);
     setRunNotice(null);
     setRetryError(null);
 
@@ -313,11 +342,23 @@ export default function AipDetailView({
         if (timer) window.clearInterval(timer);
 
         if (nextState === "complete") {
-          setProcessingRun(null);
-          setProcessingState("idle");
           setActiveRunId(null);
           setFailedRun(null);
+          setDismissedFailedRunId(null);
           setRetryError(null);
+          setRunNotice(null);
+          setProcessingState("processing");
+          setIsFinalizingAfterSuccess(true);
+          setFinalizingNotice(null);
+          setProcessingRun({
+            stage: "categorize",
+            status: "running",
+            message: FINALIZE_PROGRESS_MESSAGE,
+            progressByStage: buildProgressByStage("categorize", "running", 100),
+            overallProgressPct: 100,
+            stageProgressPct: 100,
+            progressMessage: FINALIZE_PROGRESS_MESSAGE,
+          });
           if (runIdFromQuery) {
             clearRunQuery();
           }
@@ -326,6 +367,7 @@ export default function AipDetailView({
 
         setProcessingRun(null);
         setProcessingState("idle");
+        setIsFinalizingAfterSuccess(false);
         setActiveRunId(null);
         setFailedRun({
           runId: currentRunId,
@@ -341,6 +383,7 @@ export default function AipDetailView({
         if (timer) window.clearInterval(timer);
         setProcessingRun(null);
         setProcessingState("idle");
+        setIsFinalizingAfterSuccess(false);
         setActiveRunId(null);
         setRunNotice("Unable to fetch extraction status right now. Showing AIP details.");
         if (runIdFromQuery) {
@@ -358,7 +401,69 @@ export default function AipDetailView({
       cancelled = true;
       if (timer) window.clearInterval(timer);
     };
-  }, [activeRunId, clearRunQuery, isBarangayScope, isCheckingRun, runIdFromQuery]);
+  }, [
+    activeRunId,
+    clearRunQuery,
+    isBarangayScope,
+    isCheckingRun,
+    isFinalizingAfterSuccess,
+    runIdFromQuery,
+  ]);
+
+  useEffect(() => {
+    if (!isFinalizingAfterSuccess) return;
+
+    if (hasSummaryText(aip.summaryText)) {
+      setIsFinalizingAfterSuccess(false);
+      setProcessingRun(null);
+      setProcessingState("idle");
+      setFinalizingNotice(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function refreshUntilSummaryIsReady() {
+      for (
+        let attempt = 1;
+        attempt <= FINALIZE_REFRESH_MAX_ATTEMPTS;
+        attempt += 1
+      ) {
+        if (cancelled) return;
+        router.refresh();
+        await wait(FINALIZE_REFRESH_INTERVAL_MS);
+      }
+
+      if (cancelled) return;
+
+      setIsFinalizingAfterSuccess(false);
+      setProcessingRun(null);
+      setProcessingState("idle");
+      setFinalizingNotice(
+        "Processing completed, but the updated summary is still syncing. Click refresh to load the latest output."
+      );
+    }
+
+    void refreshUntilSummaryIsReady();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [aip.summaryText, isFinalizingAfterSuccess, router]);
+
+  useEffect(() => {
+    if (!finalizingNotice) return;
+    if (!hasSummaryText(aip.summaryText)) return;
+    setFinalizingNotice(null);
+  }, [aip.summaryText, finalizingNotice]);
+
+  const handleManualRefresh = useCallback(() => {
+    setIsManualRefreshing(true);
+    router.refresh();
+    window.setTimeout(() => {
+      setIsManualRefreshing(false);
+    }, 1200);
+  }, [router]);
 
   const handleRetryFailedRun = useCallback(async () => {
     if (!failedRun) return;
@@ -386,6 +491,8 @@ export default function AipDetailView({
       setDismissedFailedRunId(null);
       setActiveRunId(payload.runId);
       setProcessingState("processing");
+      setIsFinalizingAfterSuccess(false);
+      setFinalizingNotice(null);
     } catch (error) {
       setRetryError(
         error instanceof Error ? error.message : "Failed to retry extraction run."
@@ -402,19 +509,9 @@ export default function AipDetailView({
 
   const shouldBlockWithProcessingUi =
     isBarangayScope &&
-    (isCheckingRun || (Boolean(activeRunId) && processingState === "processing"));
-
-  if (shouldBlockWithProcessingUi) {
-    if (isCheckingRun) {
-      return (
-        <div className="mx-auto w-full max-w-[900px] rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
-          Checking extraction status...
-        </div>
-      );
-    }
-
-    return <AipProcessingInlineStatus run={processingRun} state="processing" />;
-  }
+    (isCheckingRun ||
+      isFinalizingAfterSuccess ||
+      (Boolean(activeRunId) && processingState === "processing"));
 
   const failedNoticeRun =
     failedRun && dismissedFailedRunId !== failedRun.runId ? failedRun : null;
@@ -423,180 +520,211 @@ export default function AipDetailView({
     <div className="space-y-6">
       <BreadcrumbNav items={breadcrumb} />
 
-      {/* title bar */}
-      <Card className="border-slate-200">
-        <CardContent className="flex items-center justify-between gap-4 p-6">
-          <h1 className="text-2xl font-bold text-slate-900">{aip.title}</h1>
+      {shouldBlockWithProcessingUi ? (
+        isCheckingRun ? (
+          <div className="mx-auto w-full max-w-[900px] rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
+            Checking extraction status...
+          </div>
+        ) : (
+          <AipProcessingInlineStatus run={processingRun} state="processing" />
+        )
+      ) : (
+        <>
+          {/* title bar */}
+          <Card className="border-slate-200">
+            <CardContent className="flex items-center justify-between gap-4 p-6">
+              <h1 className="text-2xl font-bold text-slate-900">{aip.title}</h1>
 
-          <Badge
-            variant="outline"
-            className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
+              <Badge
+                variant="outline"
+                className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
+              >
+                {aip.status}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {runNotice ? (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-800">{runNotice}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {finalizingNotice ? (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTitle className="text-amber-900">Processing Complete</AlertTitle>
+              <AlertDescription className="space-y-3 text-amber-800">
+                <p>{finalizingNotice}</p>
+                <div className="flex justify-start">
+                  <Button
+                    variant="outline"
+                    className="border-amber-300 text-amber-900 hover:bg-amber-100"
+                    onClick={handleManualRefresh}
+                    disabled={isManualRefreshing}
+                  >
+                    {isManualRefreshing ? "Refreshing..." : "Refresh now"}
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {failedNoticeRun ? (
+            <Alert className="border-rose-200 bg-rose-50">
+              <AlertTitle className="text-rose-900">Extraction Failed</AlertTitle>
+              <AlertDescription className="space-y-3 text-rose-800">
+                <p>
+                  {failedNoticeRun.message ??
+                    "We were unable to complete the AIP extraction pipeline."}
+                </p>
+                {retryError ? <p>{retryError}</p> : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="bg-rose-600 hover:bg-rose-700"
+                    onClick={handleRetryFailedRun}
+                    disabled={isRetrying}
+                  >
+                    {isRetrying ? "Retrying..." : "Retry Extraction"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setDismissedFailedRunId(failedNoticeRun.runId)}
+                    disabled={isRetrying}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div
+            className={
+              showRemarks ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"
+            }
           >
-            {aip.status}
-          </Badge>
-        </CardContent>
-      </Card>
+            <div className="space-y-6">
+              <AipPdfContainer aip={aip} />
 
-      {runNotice ? (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertDescription className="text-amber-800">{runNotice}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {failedNoticeRun ? (
-        <Alert className="border-rose-200 bg-rose-50">
-          <AlertTitle className="text-rose-900">Extraction Failed</AlertTitle>
-          <AlertDescription className="space-y-3 text-rose-800">
-            <p>
-              {failedNoticeRun.message ??
-                "We were unable to complete the AIP extraction pipeline."}
-            </p>
-            {retryError ? <p>{retryError}</p> : null}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                className="bg-rose-600 hover:bg-rose-700"
-                onClick={handleRetryFailedRun}
-                disabled={isRetrying}
-              >
-                {isRetrying ? "Retrying..." : "Retry Extraction"}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setDismissedFailedRunId(failedNoticeRun.runId)}
-                disabled={isRetrying}
-              >
-                Dismiss
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      <div
-        className={
-          showRemarks ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"
-        }
-      >
-        <div className="space-y-6">
-          <AipPdfContainer aip={aip} />
-
-          <div className="flex items-center gap-3">
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (value === "comments") {
-                  params.set("tab", "comments");
-                  params.delete("thread");
-                } else {
-                  params.delete("tab");
-                  params.delete("thread");
-                  params.delete("focus");
-                }
-                const query = params.toString();
-                router.replace(query ? `${pathname}?${query}` : pathname, {
-                  scroll: false,
-                });
-              }}
-            >
-              <TabsList className="h-10 gap-2 bg-transparent p-0">
-                <TabsTrigger
-                  value="summary"
-                  className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                >
-                  Summary
-                </TabsTrigger>
-                <TabsTrigger
-                  value="comments"
-                  className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                  onClick={() => {
-                    if (activeTab !== "comments") return;
+              <div className="flex items-center gap-3">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) => {
                     const params = new URLSearchParams(searchParams.toString());
-                    params.set("tab", "comments");
-                    params.delete("thread");
+                    if (value === "comments") {
+                      params.set("tab", "comments");
+                      params.delete("thread");
+                    } else {
+                      params.delete("tab");
+                      params.delete("thread");
+                      params.delete("focus");
+                    }
                     const query = params.toString();
                     router.replace(query ? `${pathname}?${query}` : pathname, {
                       scroll: false,
                     });
                   }}
                 >
-                  Feedback
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+                  <TabsList className="h-10 gap-2 bg-transparent p-0">
+                    <TabsTrigger
+                      value="summary"
+                      className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                    >
+                      Summary
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="comments"
+                      className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                      onClick={() => {
+                        if (activeTab !== "comments") return;
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set("tab", "comments");
+                        params.delete("thread");
+                        const query = params.toString();
+                        router.replace(query ? `${pathname}?${query}` : pathname, {
+                          scroll: false,
+                        });
+                      }}
+                    >
+                      Feedback
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
 
-          {activeTab === "summary" ? (
-            <>
-              <AipDetailsSummary aip={aip} scope={scope} />
+              {activeTab === "summary" ? (
+                <>
+                  <AipDetailsSummary aip={aip} scope={scope} />
 
-              <AipDetailsTableView
-                aipId={aip.id}
-                year={aip.year}
-                aipStatus={aip.status}
-                focusedRowId={focusedRowId}
-              />
+                  <AipDetailsTableView
+                    aipId={aip.id}
+                    year={aip.year}
+                    aipStatus={aip.status}
+                    focusedRowId={focusedRowId}
+                  />
 
-              <AipUploaderInfo aip={aip} />
-            </>
-          ) : (
-            <div className="space-y-6">
-              <CommentThreadsSplitView
-                scope={scope}
-                target={{ kind: "aip", aipId: aip.id }}
-                selectedThreadId={threadId}
-              />
+                  <AipUploaderInfo aip={aip} />
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <CommentThreadsSplitView
+                    scope={scope}
+                    target={{ kind: "aip", aipId: aip.id }}
+                    selectedThreadId={threadId}
+                  />
+                </div>
+              )}
+
+              {/* Bottom action */}
+              <div className="flex justify-end gap-3">
+                {showFeedback ? (
+                  <>
+                    <Button variant="outline" onClick={onEdit} disabled={!onEdit}>
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      className="bg-teal-600 hover:bg-teal-700"
+                      onClick={onResubmit}
+                      disabled={!onResubmit}
+                    >
+                      <RotateCw className="h-4 w-4" />
+                      Resubmit
+                    </Button>
+                  </>
+                ) : null}
+
+                {aip.status === "draft" ? (
+                  <>
+                    <Button variant="outline" onClick={handleCancelDraft}>
+                      <X className="h-4 w-4" />
+                      Cancel Draft
+                    </Button>
+                    <Button
+                      className="bg-[#022437] hover:bg-[#022437]/90"
+                      onClick={handleSubmitForReview}
+                    >
+                      <Send className="h-4 w-4" />
+                      Submit for Review
+                    </Button>
+                  </>
+                ) : null}
+              </div>
             </div>
-          )}
 
-          {/* Bottom action */}
-          <div className="flex justify-end gap-3">
-            {showFeedback ? (
-              <>
-                <Button variant="outline" onClick={onEdit} disabled={!onEdit}>
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  className="bg-teal-600 hover:bg-teal-700"
-                  onClick={onResubmit}
-                  disabled={!onResubmit}
-                >
-                  <RotateCw className="h-4 w-4" />
-                  Resubmit
-                </Button>
-              </>
-            ) : null}
-
-            {aip.status === "draft" ? (
-              <>
-                <Button variant="outline" onClick={handleCancelDraft}>
-                  <X className="h-4 w-4" />
-                  Cancel Draft
-                </Button>
-                <Button
-                  className="bg-[#022437] hover:bg-[#022437]/90"
-                  onClick={handleSubmitForReview}
-                >
-                  <Send className="h-4 w-4" />
-                  Submit for Review
-                </Button>
-              </>
+            {showRemarks ? (
+              <div className="h-fit lg:sticky lg:top-6">
+                <RemarksCard
+                  status={aip.status}
+                  reviewerMessage={aip.feedback}
+                  onCancelSubmission={onCancelSubmission ?? onCancel}
+                  onResubmit={onResubmit}
+                />
+              </div>
             ) : null}
           </div>
-        </div>
-
-        {showRemarks ? (
-          <div className="h-fit lg:sticky lg:top-6">
-            <RemarksCard
-              status={aip.status}
-              reviewerMessage={aip.feedback}
-              onCancelSubmission={onCancelSubmission ?? onCancel}
-              onResubmit={onResubmit}
-            />
-          </div>
-        ) : null}
-      </div>
+        </>
+      )}
     </div>
   );
 }

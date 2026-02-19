@@ -518,7 +518,13 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             batch_size=int(os.getenv("PIPELINE_BATCH_SIZE", "25")),
             on_progress=categorize_progress,
         )
-        set_run_progress(client, run_id, current_stage, 100, "Categorization complete.")
+        set_run_progress(
+            client,
+            run_id,
+            current_stage,
+            100,
+            "Categorization complete. Saving categorized artifacts to the database...",
+        )
 
         categorize_artifact_id = insert_artifact(
             client,
@@ -529,11 +535,27 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             artifact_text=summary_res.summary_text,
         )
 
+        set_run_progress(
+            client,
+            run_id,
+            current_stage,
+            100,
+            "Artifacts saved. Writing categorized projects to the database...",
+        )
+
         upsert_projects(
             client,
             aip_id=aip_id,
             extraction_artifact_id=categorize_artifact_id,
             projects=categorized_res.categorized_obj.get("projects", []),
+        )
+
+        set_run_progress(
+            client,
+            run_id,
+            current_stage,
+            100,
+            "Finalizing processing run. Redirecting shortly...",
         )
 
         set_run_succeeded(client, run_id)

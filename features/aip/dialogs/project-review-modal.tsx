@@ -91,11 +91,11 @@ function Panel({
 }) {
   if (project.reviewStatus === "ai_flagged") {
     return (
-      <div className="border border-red-200 bg-red-50 rounded-lg p-2.5 text-sm">
+      <div className="h-fit border border-red-200 bg-red-50 rounded-lg p-2.5 text-sm">
         <div className="font-semibold text-red-700">Detected Issues (AI)</div>
         <ul className="mt-2 list-disc pl-5 text-red-700/90 space-y-1">
           {project.aiIssues && project.aiIssues.length ? (
-            project.aiIssues.map((issue, i) => <li key={i}>{issue}</li>)
+            project.aiIssues.map((issue, i) => <li key={i} className="wrap-break-word">{issue}</li>)
           ) : (
             <li>No issues listed (check extraction)</li>
           )}
@@ -106,9 +106,9 @@ function Panel({
 
   if (project.reviewStatus === "reviewed") {
     return (
-      <div className="border border-blue-200 bg-blue-50 rounded-lg p-2.5 text-sm">
+      <div className="h-fit border border-blue-200 bg-blue-50 rounded-lg p-2.5 text-sm">
         <div className="font-semibold text-blue-700">Official Review Comment</div>
-        <p className="mt-2 text-blue-800">
+        <p className="mt-2 text-blue-800 whitespace-pre-wrap wrap-break-word">
           {project.officialComment ?? "No comment recorded."}
         </p>
       </div>
@@ -116,7 +116,7 @@ function Panel({
   }
 
   return (
-    <div className="border border-slate-200 bg-white rounded-lg p-2.5 text-sm text-slate-600">
+    <div className="h-fit border border-slate-200 bg-white rounded-lg p-2.5 text-sm text-slate-600">
       No issues detected.
     </div>
   );
@@ -498,10 +498,10 @@ export function ProjectReviewModal({
           </div>
 
           {/* Right: review panel + comment */}
-          <div className="space-y-3 text-xs">
+          <div className="space-y-3 text-xs self-start h-fit">
             <Panel project={project} />
 
-            <div className="border border-slate-200 rounded-lg p-2.5">
+            <div className="h-fit border border-slate-200 rounded-lg p-2.5">
               <div className="text-xs font-semibold text-slate-900">Official Comment</div>
               {!canComment ? (
                 <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">

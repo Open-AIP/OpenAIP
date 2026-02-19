@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+aip-extraction-pipeline/.venv/
+aip-extraction-pipeline/__pycache__/
+aip-extraction-pipeline/outputs/
+aip-extraction-pipeline/.env

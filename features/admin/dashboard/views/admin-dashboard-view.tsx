@@ -1,0 +1,134 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import KpiCard from "../components/KpiCard";
+import DashboardFiltersRow from "../components/DashboardFiltersRow";
+import AipStatusDonutCard from "../components/AipStatusDonutCard";
+import ReviewBacklogCard from "../components/ReviewBacklogCard";
+import ErrorRateBarChart from "../components/ErrorRateBarChart";
+import ChatbotUsageLineChart from "../components/ChatbotUsageLineChart";
+import MiniKpiStack from "../components/MiniKpiStack";
+import RecentActivityList from "../components/RecentActivityList";
+import { Users, Building2, MessageSquare, FileText } from "lucide-react";
+import { useAdminDashboard } from "../hooks/useAdminDashboard";
+import type { AdminDashboardActions } from "../types/dashboard-actions";
+
+type AdminDashboardViewProps = {
+  actions: AdminDashboardActions;
+};
+
+export default function AdminDashboardView({ actions }: AdminDashboardViewProps) {
+  const { filters, setFilters, viewModel, loading, error, handleReset } = useAdminDashboard();
+
+  const handleStatusClick = (status: string) => {
+    actions.onOpenAipMonitoring?.({ filters, status });
+  };
+
+  return (
+    <div className="space-y-8 text-[13.5px] text-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-semibold text-slate-900">Dashboard</h1>
+          <p className="mt-2 text-[14px] text-muted-foreground">
+            Read-only operational overview with drill-down access to oversight areas.
+          </p>
+        </div>
+        <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-700">
+          Read-only
+        </Badge>
+      </div>
+
+      <DashboardFiltersRow
+        filters={filters}
+        lguOptions={viewModel.lguOptions}
+        onChange={setFilters}
+        onReset={handleReset}
+      />
+
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title={viewModel.kpis[0].title}
+          value={viewModel.kpis[0].value}
+          deltaLabel={viewModel.kpis[0].deltaLabel}
+          icon={Building2}
+          iconClassName={viewModel.kpis[0].iconClassName}
+          ctaLabel={viewModel.kpis[0].ctaLabel}
+          ctaHref={viewModel.kpis[0].path}
+          onCtaClick={() => actions.onOpenLguManagement?.({ filters })}
+        />
+        <KpiCard
+          title={viewModel.kpis[1].title}
+          value={viewModel.kpis[1].value}
+          deltaLabel={viewModel.kpis[1].deltaLabel}
+          icon={Users}
+          iconClassName={viewModel.kpis[1].iconClassName}
+          ctaLabel={viewModel.kpis[1].ctaLabel}
+          ctaHref={viewModel.kpis[1].path}
+          onCtaClick={() => actions.onOpenAccounts?.({ filters })}
+        />
+        <KpiCard
+          title={viewModel.kpis[2].title}
+          value={viewModel.kpis[2].value}
+          deltaLabel={viewModel.kpis[2].deltaLabel}
+          icon={MessageSquare}
+          iconClassName={viewModel.kpis[2].iconClassName}
+          ctaLabel={viewModel.kpis[2].ctaLabel}
+          ctaHref={viewModel.kpis[2].path}
+          onCtaClick={() => actions.onOpenFeedbackModeration?.({ filters })}
+          tagLabel={viewModel.kpis[2].tagLabel}
+          tagTone="warning"
+        />
+        <KpiCard
+          title={viewModel.kpis[3].title}
+          value={viewModel.kpis[3].value}
+          deltaLabel={viewModel.kpis[3].deltaLabel}
+          icon={FileText}
+          iconClassName={viewModel.kpis[3].iconClassName}
+          ctaLabel={viewModel.kpis[3].ctaLabel}
+          ctaHref={viewModel.kpis[3].path}
+          onCtaClick={() => actions.onOpenAipMonitoring?.({ filters })}
+          tagLabel={viewModel.kpis[3].tagLabel}
+          tagTone="warning"
+        />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <AipStatusDonutCard
+          data={viewModel.distribution}
+          onStatusClick={handleStatusClick}
+        />
+        {viewModel.reviewBacklog && (
+          <ReviewBacklogCard
+            backlog={viewModel.reviewBacklog}
+            onViewAips={() => actions.onOpenAipMonitoring?.({ filters })}
+          />
+        )}
+      </div>
+
+      {viewModel.usageMetrics && (
+        <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+          <div className="space-y-6">
+            <ErrorRateBarChart metrics={viewModel.usageMetrics} />
+            <ChatbotUsageLineChart metrics={viewModel.usageMetrics} />
+          </div>
+          <MiniKpiStack metrics={viewModel.usageMetrics} />
+        </div>
+      )}
+
+      <RecentActivityList
+        items={viewModel.recentActivity}
+        onViewAudit={() => actions.onOpenAuditLogs?.({ filters })}
+      />
+
+      {loading && (
+        <div className="text-[12px] text-slate-500">Refreshing dashboard metrics…</div>
+      )}
+    </div>
+  );
+}

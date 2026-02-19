@@ -106,8 +106,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  console.log(userRole, pathRole)
-  
   if (userId && !userRole && pathRole !== 'citizen') {
     const url = request.nextUrl.clone()
     url.pathname = `/${pathRole}/unauthorized`

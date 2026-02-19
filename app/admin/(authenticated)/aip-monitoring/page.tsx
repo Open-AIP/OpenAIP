@@ -1,6 +1,5 @@
-import Placeholder from "@/components/layout/placeholder";
+import { AipMonitoringView } from "@/features/admin";
 
 export default function AipMonitoringPage() {
-  return <Placeholder title="AIP Monitoring" description="This module is under development." />;
+  return <AipMonitoringView />;
 }
-

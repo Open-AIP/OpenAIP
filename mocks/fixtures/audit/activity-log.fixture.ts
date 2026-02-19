@@ -1,9 +1,4 @@
-type RoleType =
-  | "citizen"
-  | "barangay_official"
-  | "city_official"
-  | "municipal_official"
-  | "admin";
+import type { RoleType } from "@/lib/contracts/databasev2";
 
 type ActivityScopeSnapshot =
   | {

@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import LguYearSearchPill from '@/features/citizen/components/LguYearSearchPill';
-import type { CitizenActions } from '@/features/citizen/types/citizen-actions';
+import type { CitizenActions } from '@/features/citizen/actions/citizen-actions';
 import { CITIZEN_DASHBOARD_TOKENS } from '@/lib/ui/tokens';
 
 type CitizenHeroProps = {

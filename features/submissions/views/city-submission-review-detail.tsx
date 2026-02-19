@@ -18,8 +18,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { LatestReview } from "@/lib/repos/submissions/repo";
 import { getAipStatusLabel } from "@/lib/mappers/submissions";
 import { PublishSuccessCard } from "../components/PublishSuccessCard";
-import { ReviewActionsCard } from "../components/review-actions-card";
-import { ReviewConfirmDialogs } from "../components/review-confirm-dialogs";
+import { ReviewActionsCard } from "../components/reviewActionsCard";
+import { ReviewConfirmDialogs } from "../components/reviewConfirmDialogs";
 import { useSubmissionReview } from "../hooks/use-submission-review";
 
 export default function CitySubmissionReviewDetail({

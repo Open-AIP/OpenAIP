@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getAvailableFiscalYears } from '@/features/shared/providers/yearOptions';
-import type { CitizenActions } from '@/features/citizen/types/citizen-actions';
+import type { CitizenActions } from '@/features/citizen/actions/citizen-actions';
 import { CITIZEN_DASHBOARD_TOKENS } from '@/lib/ui/tokens';
 
 const PLACE_OPTIONS = [

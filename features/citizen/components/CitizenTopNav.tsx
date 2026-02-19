@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CITIZEN_NAV } from '@/features/citizen/constants/nav';
+import { CITIZEN_NAV } from '@/constants/citizen-nav';
 import { cn } from '@/ui/utils';
 
 function isActivePath(pathname: string, href: string) {

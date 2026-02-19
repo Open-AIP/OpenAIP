@@ -6,7 +6,7 @@ import type { AipProjectRepo } from "@/lib/repos/aip/repo";
 import type { AipProjectRow, AipStatus } from "../types";
 import { AipDetailsTableCard } from "../components/aip-details-table-card";
 import { BudgetAllocationTable, buildBudgetAllocation } from "../components/budget-allocation-table";
-import { ProjectReviewModal } from "../dialogs/project-review-modal";
+import { ProjectReviewModal, type ProjectReviewSubmitPayload } from "../dialogs/project-review-modal";
 
 
 export function AipDetailsTableView({
@@ -45,13 +45,14 @@ export function AipDetailsTableView({
     };
   }, [aipId, repo]);
 
-  async function handleSubmitReview(payload: { comment: string }) {
+  async function handleSubmitReview(payload: ProjectReviewSubmitPayload) {
     if (!selected) return;
 
     await repo.submitReview({
       projectId: selected.id,
       aipId: selected.aipId,
       comment: payload.comment,
+      projectUpdates: payload.projectUpdates,
     });
 
     // Optimistic UI update
@@ -59,16 +60,24 @@ export function AipDetailsTableView({
       prev.map((r) => {
         if (r.id !== selected.id) return r;
 
-        if (r.reviewStatus === "ai_flagged") {
-          return {
-            ...r,
+        return {
+          ...r,
+          ...payload.projectUpdates,
+          reviewStatus: "reviewed",
+          officialComment: payload.comment,
+        };
+      })
+    );
+
+    setSelected((prev) =>
+      prev
+        ? {
+            ...prev,
+            ...payload.projectUpdates,
             reviewStatus: "reviewed",
             officialComment: payload.comment,
-          };
-        }
-
-        return { ...r, officialComment: payload.comment };
-      })
+          }
+        : prev
     );
   }
 

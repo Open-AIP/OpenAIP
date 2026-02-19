@@ -68,8 +68,18 @@ export function createMockAipProjectRepo(): AipProjectRepo {
 
       return existingProjects;
     },
-    async submitReview(_input: SubmitReviewInput) {
-      // No-op for mock data; UI updates optimistically.
+    async submitReview(input: SubmitReviewInput) {
+      const rowIndex = AIP_PROJECT_ROWS_TABLE.findIndex(
+        (row) => row.id === input.projectId && row.aipId === input.aipId
+      );
+      if (rowIndex === -1) return;
+
+      AIP_PROJECT_ROWS_TABLE[rowIndex] = {
+        ...AIP_PROJECT_ROWS_TABLE[rowIndex],
+        ...input.projectUpdates,
+        officialComment: input.comment,
+        reviewStatus: "reviewed",
+      };
     },
   };
 }

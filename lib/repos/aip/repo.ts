@@ -11,6 +11,7 @@ import type {
   LguScope,
   ListVisibleAipsInput,
   SubmitReviewInput,
+  SubmitReviewProjectUpdates,
 } from "./types";
 
 export type {
@@ -27,6 +28,7 @@ export type {
   reviewStatus,
   Sector,
   SubmitReviewInput,
+  SubmitReviewProjectUpdates,
 } from "./types";
 
 // [DATAFLOW] UI/pages should depend on this interface, not on a concrete adapter.

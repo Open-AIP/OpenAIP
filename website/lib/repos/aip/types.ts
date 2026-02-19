@@ -36,6 +36,12 @@ export type AipHeader = {
   };
 
   feedback?: string;
+  processing?: {
+    state: "processing" | "finalizing";
+    overallProgressPct: number;
+    message?: string | null;
+    runId?: string;
+  };
 };
 
 export type Sector =

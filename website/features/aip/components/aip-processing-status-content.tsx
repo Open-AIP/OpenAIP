@@ -41,34 +41,6 @@ const isStageComplete = (
   return clampProgress(progressByStage[stage]) >= 100 || status === "succeeded";
 };
 
-const STAGE_WEIGHTS: Record<Exclude<PipelineStageUi, "embed">, number> = {
-  extract: 40,
-  validate: 20,
-  summarize: 15,
-  categorize: 25,
-};
-
-function getOverallProgress(run: AipProcessingRunView | null, state: AipProcessingState): number {
-  if (state === "complete") return 100;
-  if (typeof run?.overallProgressPct === "number") {
-    return clampProgress(run.overallProgressPct);
-  }
-  const byStage = run?.progressByStage;
-  if (!byStage) return 0;
-
-  const totalWeight = Object.values(STAGE_WEIGHTS).reduce((sum, weight) => sum + weight, 0);
-  if (totalWeight <= 0) return 0;
-
-  const weighted =
-    (clampProgress(byStage.extract ?? 0) * STAGE_WEIGHTS.extract +
-      clampProgress(byStage.validate ?? 0) * STAGE_WEIGHTS.validate +
-      clampProgress(byStage.summarize ?? 0) * STAGE_WEIGHTS.summarize +
-      clampProgress(byStage.categorize ?? 0) * STAGE_WEIGHTS.categorize) /
-    totalWeight;
-
-  return clampProgress(weighted);
-}
-
 type Props = {
   run: AipProcessingRunView | null;
   state: AipProcessingState;
@@ -95,7 +67,6 @@ export function AipProcessingStatusContent({
     run?.message ||
     (shouldShowSyncingMessage ? "Syncing live progress..." : null) ||
     getStatusMessage(run?.stage ?? null);
-  const overallProgress = getOverallProgress(run, state);
 
   return (
     <>
@@ -145,13 +116,6 @@ export function AipProcessingStatusContent({
       ) : (
         <>
           <div className="bg-gradient-to-b from-[#F1FAFF] to-white px-10 pb-10">
-            <div className="mx-auto mb-8 max-w-[360px] space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <span>Overall Progress</span>
-                <span>{overallProgress}%</span>
-              </div>
-              <Progress value={overallProgress} className="h-2.5" />
-            </div>
             <div className="flex items-center justify-between gap-4">
               {STAGES.map((stage, index) => {
                 const completed = isStageComplete(stage.key, run?.progressByStage ?? null, run?.status ?? null);

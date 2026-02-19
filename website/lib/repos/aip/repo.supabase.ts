@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { Json } from "@/lib/contracts/databasev2";
 import type { AipProjectRepo, AipRepo } from "./repo";
+import type { AipHeader } from "./types";
 
 type ScopeRow = { name: string | null } | null;
 
@@ -53,6 +54,15 @@ type ProjectSelectRow = {
 type AipReviewNoteRow = {
   aip_id: string;
   note: string | null;
+  created_at: string;
+};
+
+type ExtractionRunSelectRow = {
+  id: string;
+  aip_id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  overall_progress_pct: number | null;
+  progress_message: string | null;
   created_at: string;
 };
 
@@ -130,6 +140,47 @@ function parseSummary(row: ArtifactSelectRow | undefined): string | undefined {
     const candidate = (row.artifact_json as Record<string, unknown>).summary;
     if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
   }
+  return undefined;
+}
+
+const FINALIZING_PROGRESS_MESSAGE = "Finalizing processed output...";
+
+function clampProgress(value: number | null | undefined, fallback = 0): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function toProgressMessage(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const message = value.trim();
+  return message ? message : null;
+}
+
+function buildAipProcessing(input: {
+  run: ExtractionRunSelectRow | undefined;
+  summary: string | undefined;
+}): AipHeader["processing"] | undefined {
+  const { run, summary } = input;
+  if (!run) return undefined;
+
+  if (run.status === "queued" || run.status === "running") {
+    return {
+      state: "processing",
+      overallProgressPct: clampProgress(run.overall_progress_pct, 0),
+      message: toProgressMessage(run.progress_message),
+      runId: run.id,
+    };
+  }
+
+  if (run.status === "succeeded" && !summary) {
+    return {
+      state: "finalizing",
+      overallProgressPct: 100,
+      message: toProgressMessage(run.progress_message) ?? FINALIZING_PROGRESS_MESSAGE,
+      runId: run.id,
+    };
+  }
+
   return undefined;
 }
 
@@ -234,6 +285,26 @@ async function getLatestRevisionNotes(aipIds: string[]): Promise<Map<string, str
   return map;
 }
 
+async function getLatestRunsByAipIds(aipIds: string[]): Promise<Map<string, ExtractionRunSelectRow>> {
+  const map = new Map<string, ExtractionRunSelectRow>();
+  if (!aipIds.length) return map;
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("extraction_runs")
+    .select("id,aip_id,status,overall_progress_pct,progress_message,created_at")
+    .in("aip_id", aipIds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as ExtractionRunSelectRow[]) {
+    if (!map.has(row.aip_id)) {
+      map.set(row.aip_id, row);
+    }
+  }
+  return map;
+}
+
 async function createSignedUrl(file: UploadedFileSelectRow | undefined): Promise<string> {
   if (!file) return "";
   const admin = supabaseAdmin();
@@ -252,8 +323,9 @@ function buildAipHeader(input: {
   uploader?: ProfileRow;
   pdfUrl?: string;
   revisionNote?: string;
+  processing?: AipHeader["processing"];
 }) {
-  const { aip, currentFile, summary, projects, uploader, pdfUrl, revisionNote } = input;
+  const { aip, currentFile, summary, projects, uploader, pdfUrl, revisionNote, processing } = input;
 
   const budget = projects.reduce((acc, p) => acc + (p.total ?? 0), 0);
   const sectors = Array.from(new Set(projects.map((p) => toSectorLabel(p.sector_code)).filter((s) => s !== "Unknown")));
@@ -301,6 +373,7 @@ function buildAipHeader(input: {
       budgetAllocated: budget,
     },
     feedback: revisionNote,
+    processing,
   };
 }
 
@@ -342,11 +415,14 @@ export function createSupabaseAipRepo(): AipRepo {
       const aips = (data ?? []) as AipSelectRow[];
       const aipIds = aips.map((a) => a.id);
 
-      const [filesByAip, projectsByAip, summariesByAip, revisionNotes] = await Promise.all([
+      const [filesByAip, projectsByAip, summariesByAip, revisionNotes, latestRunsByAip] = await Promise.all([
         getCurrentFiles(aipIds),
         getProjectsByAipIds(aipIds),
         getLatestSummaries(aipIds),
         getLatestRevisionNotes(aipIds),
+        scope === "barangay"
+          ? getLatestRunsByAipIds(aipIds)
+          : Promise.resolve(new Map<string, ExtractionRunSelectRow>()),
       ]);
 
       const uploaderIds = Array.from(
@@ -358,19 +434,29 @@ export function createSupabaseAipRepo(): AipRepo {
       );
       const profilesById = await getProfilesByIds(uploaderIds);
 
-      return aips.map((aip) =>
-        buildAipHeader({
+      return aips.map((aip) => {
+        const summary = parseSummary(summariesByAip.get(aip.id));
+        const processing =
+          scope === "barangay"
+            ? buildAipProcessing({
+                run: latestRunsByAip.get(aip.id),
+                summary,
+              })
+            : undefined;
+
+        return buildAipHeader({
           aip,
           currentFile: filesByAip.get(aip.id),
           projects: projectsByAip.get(aip.id) ?? [],
-          summary: parseSummary(summariesByAip.get(aip.id)),
+          summary,
           uploader: (() => {
             const file = filesByAip.get(aip.id);
             return file ? profilesById.get(file.uploaded_by) : undefined;
           })(),
           revisionNote: revisionNotes.get(aip.id),
-        })
-      );
+          processing,
+        });
+      });
     },
 
     async getAipDetail(aipId) {

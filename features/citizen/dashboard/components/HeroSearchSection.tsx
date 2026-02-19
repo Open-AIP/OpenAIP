@@ -63,66 +63,70 @@ export default function HeroSearchSection({
         </div>
       </div>
 
-      <div className="absolute -bottom-8 left-1/2 z-20 w-full max-w-3xl -translate-x-1/2 px-4">
+      <div className="relative z-20 -mt-6 mx-auto w-full max-w-4xl px-4 md:-mt-8">
         <form
-          className={`grid grid-cols-1 gap-2 rounded-full border border-slate-200 ${searchSurfaceClass} p-2 shadow-lg md:grid-cols-[1fr_170px_auto]`}
+          className={`flex flex-col gap-2 rounded-3xl border border-slate-200 ${searchSurfaceClass} p-2 shadow-lg md:flex-row md:items-center md:gap-3`}
           onSubmit={(event) => {
             event.preventDefault();
             onSubmit();
           }}
         >
-          <Select
-            value={`${draftFilters.scope_type}:${draftFilters.scope_id}`}
-            onValueChange={(value) => {
-              const [scopeType, scopeId] = value.split(":");
-              onScopeChange(parseScopeType(scopeType), scopeId ?? "");
-            }}
-          >
-            <SelectTrigger className="h-10 rounded-full border-slate-200 bg-white text-xs md:text-sm">
-              <SelectValue placeholder="Choose Place" />
-            </SelectTrigger>
-            <SelectContent>
-              {locationOptions.map((option) => (
-                <SelectItem key={`${option.scope_type}:${option.value}`} value={`${option.scope_type}:${option.value}`}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="grid grid-cols-2 gap-2">
+          <div className="w-full md:flex-1">
             <Select
-              value={String(draftFilters.fiscal_year)}
-              onValueChange={(value) => onFiscalYearChange(parseFiscalYear(value))}
+              value={`${draftFilters.scope_type}:${draftFilters.scope_id}`}
+              onValueChange={(value) => {
+                const [scopeType, scopeId] = value.split(":");
+                onScopeChange(parseScopeType(scopeType), scopeId ?? "");
+              }}
             >
-              <SelectTrigger className="h-10 rounded-full border-slate-200 bg-white text-xs md:text-sm">
-                <SelectValue placeholder="FY" />
+              <SelectTrigger className="h-10 w-full rounded-full border-slate-200 bg-white text-xs md:text-sm">
+                <SelectValue placeholder="Choose Place" />
               </SelectTrigger>
               <SelectContent>
-                {fiscalYearOptions.map((year) => (
-                  <SelectItem key={year} value={String(year)}>
-                    FY {year}
+                {locationOptions.map((option) => (
+                  <SelectItem key={`${option.scope_type}:${option.value}`} value={`${option.scope_type}:${option.value}`}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex w-full gap-2 md:flex-2 md:gap-3">
+            <div className="w-1/3 md:w-1/4">
+              <Select
+                value={String(draftFilters.fiscal_year)}
+                onValueChange={(value) => onFiscalYearChange(parseFiscalYear(value))}
+              >
+                <SelectTrigger className="h-10 w-full rounded-full border-slate-200 bg-white text-xs md:text-sm">
+                  <SelectValue placeholder="FY" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fiscalYearOptions.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      FY {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <Input
               value={draftFilters.search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Search"
-              className="h-10 rounded-full border-slate-200 bg-white text-xs md:text-sm"
+              className="h-10 flex-1 rounded-full border-slate-200 bg-white text-xs md:text-sm"
             />
           </div>
 
-          <Button type="submit" className={`h-10 rounded-full px-6 ${primaryButtonClass}`}>
+          <Button type="submit" className={`h-10 w-full rounded-full px-6 md:w-auto md:flex-none ${primaryButtonClass}`}>
             <Search className="mr-1 h-4 w-4" />
             Search
           </Button>
         </form>
       </div>
 
-      <div className="space-y-1 pt-3 text-center">
+      <div className="space-y-1 pt-4 text-center md:pt-5">
         <p className="text-sm text-[#0f5f90]">See how your city prioritizes infrastructure, healthcare, and services.</p>
         <p className="text-xs text-[#7ca3bd]">Scroll to explore</p>
       </div>

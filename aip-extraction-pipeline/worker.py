@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from dotenv import load_dotenv
 
@@ -19,9 +20,95 @@ from supabase_client import SupabaseRestClient
 
 load_dotenv()
 
+ACTIVE_STAGE_ORDER = ["extract", "validate", "summarize", "categorize"]
+STAGE_WEIGHTS: Dict[str, int] = {
+    "extract": 40,
+    "validate": 20,
+    "summarize": 15,
+    "categorize": 25,
+}
+STAGE_START_MESSAGES: Dict[str, str] = {
+    "extract": "Starting extraction...",
+    "validate": "Starting validation...",
+    "summarize": "Starting summarization...",
+    "categorize": "Starting categorization...",
+}
+HEARTBEAT_INTERVAL_SECONDS = 5.0
+HEARTBEAT_STAGE_CAP_PCT = 95
+
 
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def read_positive_float_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def clamp_pct(value: float) -> int:
+    return max(0, min(100, int(round(value))))
+
+
+def compute_overall_pct(stage: str, stage_progress_pct: int) -> int:
+    stage_progress_pct = clamp_pct(stage_progress_pct)
+    if stage not in STAGE_WEIGHTS:
+        return 100 if stage_progress_pct >= 100 else 0
+
+    completed_weight = 0.0
+    for ordered_stage in ACTIVE_STAGE_ORDER:
+        if ordered_stage == stage:
+            break
+        completed_weight += STAGE_WEIGHTS[ordered_stage]
+
+    current_weight = STAGE_WEIGHTS[stage]
+    overall = completed_weight + (current_weight * (stage_progress_pct / 100.0))
+    return clamp_pct(overall)
+
+
+def set_run_progress(
+    client: SupabaseRestClient,
+    run_id: str,
+    stage: str,
+    stage_progress_pct: int,
+    progress_message: Optional[str] = None,
+) -> None:
+    patch: Dict[str, Any] = {
+        "stage": stage,
+        "status": "running",
+        "stage_progress_pct": clamp_pct(stage_progress_pct),
+        "overall_progress_pct": compute_overall_pct(stage, stage_progress_pct),
+        "progress_updated_at": now_utc_iso(),
+    }
+    if progress_message is not None:
+        patch["progress_message"] = progress_message
+    client.update("extraction_runs", patch, filters={"id": f"eq.{run_id}"})
+
+
+def assert_progress_tracking_ready(client: SupabaseRestClient) -> None:
+    # Fail fast if progress columns are unavailable on the target database.
+    try:
+        client.select(
+            "extraction_runs",
+            select=(
+                "id,overall_progress_pct,stage_progress_pct,progress_message,"
+                "progress_updated_at"
+            ),
+            order="created_at.desc",
+            limit=1,
+        )
+    except Exception as error:
+        raise RuntimeError(
+            "Progress tracking columns are unavailable or unreadable in extraction_runs. "
+            "Apply migration website/docs/sql/2026-02-19_extraction_run_progress.sql "
+            "before starting the worker."
+        ) from error
 
 
 def to_float_or_none(value: Any) -> Optional[float]:
@@ -32,7 +119,7 @@ def to_float_or_none(value: Any) -> Optional[float]:
     s = str(value).strip()
     if not s:
         return None
-    s = s.replace("₱", "").replace(",", "").replace(" ", "")
+    s = s.replace("\u20b1", "").replace(",", "").replace(" ", "")
     if s.startswith("(") and s.endswith(")"):
         s = "-" + s[1:-1]
     try:
@@ -83,6 +170,10 @@ def claim_next_queued_run(client: SupabaseRestClient) -> Optional[Dict[str, Any]
             "finished_at": None,
             "error_code": None,
             "error_message": None,
+            "overall_progress_pct": 0,
+            "stage_progress_pct": 0,
+            "progress_message": "Starting extraction...",
+            "progress_updated_at": now_utc_iso(),
         },
         filters={"id": f"eq.{candidate['id']}", "status": "eq.queued"},
         select="id,aip_id,uploaded_file_id,model_name,status,stage,created_at",
@@ -125,6 +216,8 @@ def set_run_failed(client: SupabaseRestClient, run_id: str, stage: str, error: E
             "stage": stage,
             "finished_at": now_utc_iso(),
             "error_message": str(error),
+            "progress_message": str(error),
+            "progress_updated_at": now_utc_iso(),
         },
         filters={"id": f"eq.{run_id}"},
     )
@@ -139,17 +232,68 @@ def set_run_succeeded(client: SupabaseRestClient, run_id: str) -> None:
             "finished_at": now_utc_iso(),
             "error_code": None,
             "error_message": None,
+            "overall_progress_pct": 100,
+            "stage_progress_pct": 100,
+            "progress_message": None,
+            "progress_updated_at": now_utc_iso(),
         },
         filters={"id": f"eq.{run_id}"},
     )
 
 
 def set_run_stage(client: SupabaseRestClient, run_id: str, stage: str) -> None:
-    client.update(
-        "extraction_runs",
-        {"stage": stage, "status": "running"},
-        filters={"id": f"eq.{run_id}"},
+    set_run_progress(
+        client,
+        run_id,
+        stage,
+        0,
+        STAGE_START_MESSAGES.get(stage, f"Starting {stage}..."),
     )
+
+
+def run_with_heartbeat(
+    *,
+    client: SupabaseRestClient,
+    run_id: str,
+    stage: str,
+    expected_seconds: float,
+    message_prefix: str,
+    fn: Callable[[], Any],
+) -> Any:
+    expected_seconds = max(1.0, expected_seconds)
+    heartbeat_interval = read_positive_float_env(
+        "PIPELINE_PROGRESS_HEARTBEAT_SECONDS",
+        HEARTBEAT_INTERVAL_SECONDS,
+    )
+    heartbeat_interval = max(1.0, heartbeat_interval)
+
+    started = time.perf_counter()
+    last_write = 0.0
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(fn)
+        while not future.done():
+            now = time.perf_counter()
+            elapsed = now - started
+            estimated = (elapsed / expected_seconds) * HEARTBEAT_STAGE_CAP_PCT
+            stage_pct = clamp_pct(max(1, min(HEARTBEAT_STAGE_CAP_PCT, estimated)))
+
+            if now - last_write >= heartbeat_interval:
+                set_run_progress(
+                    client,
+                    run_id,
+                    stage,
+                    stage_pct,
+                    f"{message_prefix} ({stage_pct}%)",
+                )
+                last_write = now
+
+            time.sleep(0.5)
+
+        result = future.result()
+
+    set_run_progress(client, run_id, stage, 100, f"{message_prefix} complete.")
+    return result
 
 
 def insert_artifact(
@@ -265,7 +409,26 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             tmp_pdf_path = tmp.name
 
         set_run_stage(client, run_id, "extract")
-        extraction_res = run_extraction(tmp_pdf_path, model=model_name, job_id=run_id)
+
+        def extraction_progress(done_pages: int, total_pages: int) -> None:
+            if total_pages <= 0:
+                return
+            pct = clamp_pct((done_pages * 100) / total_pages)
+            set_run_progress(
+                client,
+                run_id,
+                "extract",
+                pct,
+                f"Extracting page {done_pages}/{total_pages}...",
+            )
+
+        extraction_res = run_extraction(
+            tmp_pdf_path,
+            model=model_name,
+            job_id=run_id,
+            on_progress=extraction_progress,
+        )
+        set_run_progress(client, run_id, "extract", 100, "Extraction complete.")
         insert_artifact(
             client,
             run_id=run_id,
@@ -276,7 +439,14 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
 
         current_stage = "validate"
         set_run_stage(client, run_id, current_stage)
-        validation_res = validate_projects_json_str(extraction_res.json_str, model=model_name)
+        validation_res = run_with_heartbeat(
+            client=client,
+            run_id=run_id,
+            stage=current_stage,
+            expected_seconds=read_positive_float_env("PIPELINE_VALIDATE_EXPECTED_SECONDS", 90.0),
+            message_prefix="Validating extracted data",
+            fn=lambda: validate_projects_json_str(extraction_res.json_str, model=model_name),
+        )
         insert_artifact(
             client,
             run_id=run_id,
@@ -287,7 +457,14 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
 
         current_stage = "summarize"
         set_run_stage(client, run_id, current_stage)
-        summary_res = summarize_aip_overall_json_str(validation_res.validated_json_str, model=model_name)
+        summary_res = run_with_heartbeat(
+            client=client,
+            run_id=run_id,
+            stage=current_stage,
+            expected_seconds=read_positive_float_env("PIPELINE_SUMMARIZE_EXPECTED_SECONDS", 60.0),
+            message_prefix="Generating summary",
+            fn=lambda: summarize_aip_overall_json_str(validation_res.validated_json_str, model=model_name),
+        )
         insert_artifact(
             client,
             run_id=run_id,
@@ -303,11 +480,36 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             validation_res.validated_json_str,
             summary_res.summary_text,
         )
+
+        def categorize_progress(
+            categorized_count: int,
+            total_count: int,
+            batch_no: int,
+            total_batches: int,
+        ) -> None:
+            if total_count <= 0:
+                pct = 100
+            else:
+                pct = clamp_pct((categorized_count * 100) / total_count)
+            set_run_progress(
+                client,
+                run_id,
+                current_stage,
+                pct,
+                (
+                    f"Categorizing projects {categorized_count}/{total_count} "
+                    f"(batch {batch_no}/{total_batches})..."
+                ),
+            )
+
         categorized_res = categorize_from_summarized_json_str(
             summarized_doc,
             model=model_name,
             batch_size=int(os.getenv("PIPELINE_BATCH_SIZE", "25")),
+            on_progress=categorize_progress,
         )
+        set_run_progress(client, run_id, current_stage, 100, "Categorization complete.")
+
         categorize_artifact_id = insert_artifact(
             client,
             run_id=run_id,
@@ -342,6 +544,7 @@ def run_worker() -> None:
     run_once = os.getenv("PIPELINE_WORKER_RUN_ONCE", "false").lower() == "true"
 
     client = SupabaseRestClient()
+    assert_progress_tracking_ready(client)
     print("[WORKER] started")
 
     while True:

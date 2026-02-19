@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CommentThreadAccordionList,
   type CommentThreadAccordionItem,
-} from "@/components/feedback/comment-thread-accordion-list";
 } from "@/features/feedback/components/comment-thread-accordion-list";
 import { CommentThreadPanel } from "@/features/feedback/components/comment-thread-panel";
 import FeedbackComposer from "@/features/citizen/aips/components/FeedbackComposer";

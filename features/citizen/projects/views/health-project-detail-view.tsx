@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getProjectStatusBadgeClass } from "@/lib/ui/project-status";
-import { ProjectUpdatesSection } from "@/components/projects/update-view";
+import { ProjectUpdatesSection } from "@/features/projects/shared/update-view";
 import { CommentThreadsSplitView } from "@/features/feedback/components/comment-threads-split-view";
-import { HealthProjectInformationCard } from "@/components/projects/health-project-information-card";
+import HealthProjectInformationCard from "@/features/projects/health/components/project-information-card";
 import type { HealthProject, ProjectUpdateUi } from "@/lib/repos/projects/types";
 
 type Props = {

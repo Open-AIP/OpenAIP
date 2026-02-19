@@ -84,7 +84,7 @@ export default function AipDetailsModal({
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
               <div className="space-y-6">
                 <AipPdfContainer aip={header} />
-                <AipDetailsSummary aip={header} scope={header.scope} />
+                <AipDetailsSummary aip={header} />
 
                 <Card className="border-slate-200">
                   <CardHeader className="pb-0">

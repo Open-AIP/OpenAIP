@@ -654,7 +654,7 @@ export default function AipDetailView({
 
               {activeTab === "summary" ? (
                 <>
-                  <AipDetailsSummary aip={aip} scope={scope} />
+                  <AipDetailsSummary aip={aip} />
 
                   <AipDetailsTableView
                     aipId={aip.id}

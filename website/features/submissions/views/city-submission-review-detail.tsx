@@ -140,7 +140,7 @@ export default function CitySubmissionReviewDetail({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <AipPdfContainer aip={aip} />
-          <AipDetailsSummary aip={aip} scope="city" />
+          <AipDetailsSummary aip={aip} />
           <AipDetailsTableView
             aipId={aip.id}
             year={aip.year}

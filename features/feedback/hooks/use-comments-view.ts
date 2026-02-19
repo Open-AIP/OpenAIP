@@ -3,10 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
-import {
-  CATEGORY_KINDS,
-  type FeedbackKind,
-} from "@/lib/constants/feedback-kind";
+import { CATEGORY_KINDS } from "@/lib/constants/feedback-kind";
 import type { LguScopeKind } from "@/lib/auth/scope";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
@@ -27,7 +24,7 @@ export function useCommentsView({
   const [year, setYear] = useState("all");
   const [status, setStatus] = useState<"all" | "no_response" | "responded">("all");
   const [context, setContext] = useState("all");
-  const [category, setCategory] = useState<"all" | FeedbackKind>("all");
+  const [category, setCategory] = useState<"all" | (typeof CATEGORY_KINDS)[number]>("all");
   const [query, setQuery] = useState("");
 
   useEffect(() => {

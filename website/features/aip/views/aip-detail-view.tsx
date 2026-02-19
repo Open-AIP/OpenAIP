@@ -25,6 +25,11 @@ import { RemarksCard } from "../components/remarks-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  cancelAipSubmissionAction,
+  deleteAipDraftAction,
+  submitAipForReviewAction,
+} from "../actions/aip-workflow.actions";
 
 const PIPELINE_STAGES: PipelineStageUi[] = [
   "extract",
@@ -189,13 +194,16 @@ export default function AipDetailView({
   const [isFinalizingAfterSuccess, setIsFinalizingAfterSuccess] = useState(false);
   const [finalizingNotice, setFinalizingNotice] = useState<string | null>(null);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [unresolvedAiCount, setUnresolvedAiCount] = useState(0);
+  const [workflowPendingAction, setWorkflowPendingAction] = useState<
+    "delete_draft" | "cancel_submission" | "submit_review" | null
+  >(null);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+  const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
-
-  const handleCancelDraft =
-    onCancel ?? (() => console.log("Canceling AIP draft:", aip.id));
-  const handleSubmitForReview =
-    onSubmit ?? (() => console.log("Submitting AIP for review:", aip.id));
 
   const clearRunQuery = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -499,6 +507,166 @@ export default function AipDetailView({
     }
   }, [failedRun]);
 
+  useEffect(() => {
+    setWorkflowPendingAction(null);
+    setWorkflowError(null);
+    setWorkflowSuccess(null);
+    setProjectsLoading(true);
+    setProjectsError(null);
+    setUnresolvedAiCount(0);
+  }, [aip.id]);
+
+  const isWorkflowBusy = workflowPendingAction !== null;
+  const canSubmitForReview =
+    !projectsLoading && !projectsError && unresolvedAiCount === 0;
+  const submitBlockedReason = projectsLoading
+    ? "Loading project review statuses before submission."
+    : projectsError
+      ? "Project review statuses are unavailable right now. Please refresh and try again."
+      : unresolvedAiCount > 0
+        ? `${unresolvedAiCount} AI-flagged project(s) still need an official response before submission.`
+        : null;
+
+  const handleProjectsStateChange = useCallback(
+    (state: {
+      loading: boolean;
+      error: string | null;
+      unresolvedAiCount: number;
+    }) => {
+      setProjectsLoading(state.loading);
+      setProjectsError(state.error);
+      setUnresolvedAiCount(state.unresolvedAiCount);
+    },
+    []
+  );
+
+  const submitForReview = useCallback(async () => {
+    if (!isBarangayScope) {
+      onSubmit?.();
+      return;
+    }
+    if (isWorkflowBusy || !canSubmitForReview) return;
+
+    try {
+      setWorkflowPendingAction("submit_review");
+      setWorkflowError(null);
+      setWorkflowSuccess(null);
+
+      const result = await submitAipForReviewAction({ aipId: aip.id });
+      if (!result.ok) {
+        setWorkflowError(result.message);
+        if (typeof result.unresolvedAiCount === "number") {
+          setUnresolvedAiCount(result.unresolvedAiCount);
+        }
+        return;
+      }
+
+      setWorkflowSuccess(result.message);
+      router.refresh();
+    } catch (error) {
+      setWorkflowError(
+        error instanceof Error
+          ? error.message
+          : "Failed to submit AIP for review."
+      );
+    } finally {
+      setWorkflowPendingAction(null);
+    }
+  }, [
+    aip.id,
+    canSubmitForReview,
+    isBarangayScope,
+    isWorkflowBusy,
+    onSubmit,
+    router,
+  ]);
+
+  const deleteDraft = useCallback(async () => {
+    if (!isBarangayScope) {
+      onCancel?.();
+      return;
+    }
+    if (isWorkflowBusy) return;
+
+    const confirmed = window.confirm(
+      "Delete this draft AIP? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      setWorkflowPendingAction("delete_draft");
+      setWorkflowError(null);
+      setWorkflowSuccess(null);
+
+      const result = await deleteAipDraftAction({ aipId: aip.id });
+      if (!result.ok) {
+        setWorkflowError(result.message);
+        return;
+      }
+
+      setWorkflowSuccess(result.message);
+      router.push("/barangay/aips");
+    } catch (error) {
+      setWorkflowError(
+        error instanceof Error ? error.message : "Failed to delete draft AIP."
+      );
+    } finally {
+      setWorkflowPendingAction(null);
+    }
+  }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, router]);
+
+  const cancelSubmission = useCallback(async () => {
+    if (!isBarangayScope) {
+      (onCancelSubmission ?? onCancel)?.();
+      return;
+    }
+    if (isWorkflowBusy) return;
+
+    const confirmed = window.confirm(
+      "Cancel this submission and move the AIP back to Draft?"
+    );
+    if (!confirmed) return;
+
+    try {
+      setWorkflowPendingAction("cancel_submission");
+      setWorkflowError(null);
+      setWorkflowSuccess(null);
+
+      const result = await cancelAipSubmissionAction({ aipId: aip.id });
+      if (!result.ok) {
+        setWorkflowError(result.message);
+        return;
+      }
+
+      setWorkflowSuccess(result.message);
+      router.refresh();
+    } catch (error) {
+      setWorkflowError(
+        error instanceof Error
+          ? error.message
+          : "Failed to cancel AIP submission."
+      );
+    } finally {
+      setWorkflowPendingAction(null);
+    }
+  }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, onCancelSubmission, router]);
+
+  const effectiveResubmitHandler = isBarangayScope
+    ? aip.status === "for_revision" && canSubmitForReview && !isWorkflowBusy
+      ? () => {
+          void submitForReview();
+        }
+      : undefined
+    : onResubmit;
+
+  const effectiveCancelSubmissionHandler = isBarangayScope
+    ? aip.status === "pending_review" && !isWorkflowBusy
+      ? () => {
+          void cancelSubmission();
+        }
+      : undefined
+    : onCancelSubmission ?? onCancel;
+
   const breadcrumb = [
     { label: "AIP Management", href: `/${scope}/aips` },
     { label: aip.title, href: "#" },
@@ -544,6 +712,22 @@ export default function AipDetailView({
           {runNotice ? (
             <Alert className="border-amber-200 bg-amber-50">
               <AlertDescription className="text-amber-800">{runNotice}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {workflowError ? (
+            <Alert className="border-rose-200 bg-rose-50">
+              <AlertDescription className="text-rose-800">
+                {workflowError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {workflowSuccess ? (
+            <Alert className="border-emerald-200 bg-emerald-50">
+              <AlertDescription className="text-emerald-800">
+                {workflowSuccess}
+              </AlertDescription>
             </Alert>
           ) : null}
 
@@ -660,9 +844,20 @@ export default function AipDetailView({
                     scope={scope}
                     focusedRowId={focusedRowId}
                     enablePagination={scope === "barangay"}
+                    onProjectsStateChange={handleProjectsStateChange}
                   />
 
                   <AipUploaderInfo aip={aip} />
+
+                  {isBarangayScope &&
+                  (aip.status === "draft" || aip.status === "for_revision") &&
+                  submitBlockedReason ? (
+                    <Alert className="border-amber-200 bg-amber-50">
+                      <AlertDescription className="text-amber-800">
+                        {submitBlockedReason}
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
                 </>
               ) : (
                 <div className="space-y-6">
@@ -684,27 +879,50 @@ export default function AipDetailView({
                     </Button>
                     <Button
                       className="bg-teal-600 hover:bg-teal-700"
-                      onClick={onResubmit}
-                      disabled={!onResubmit}
+                      onClick={effectiveResubmitHandler}
+                      disabled={!effectiveResubmitHandler}
                     >
                       <RotateCw className="h-4 w-4" />
-                      Resubmit
+                      {workflowPendingAction === "submit_review"
+                        ? "Submitting..."
+                        : "Resubmit"}
                     </Button>
                   </>
                 ) : null}
 
                 {aip.status === "draft" ? (
                   <>
-                    <Button variant="outline" onClick={handleCancelDraft}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        void deleteDraft();
+                      }}
+                      disabled={
+                        isBarangayScope
+                          ? isWorkflowBusy
+                          : !onCancel
+                      }
+                    >
                       <X className="h-4 w-4" />
-                      Cancel Draft
+                      {workflowPendingAction === "delete_draft"
+                        ? "Deleting..."
+                        : "Cancel Draft"}
                     </Button>
                     <Button
                       className="bg-[#022437] hover:bg-[#022437]/90"
-                      onClick={handleSubmitForReview}
+                      onClick={() => {
+                        void submitForReview();
+                      }}
+                      disabled={
+                        isBarangayScope
+                          ? isWorkflowBusy || !canSubmitForReview
+                          : !onSubmit
+                      }
                     >
                       <Send className="h-4 w-4" />
-                      Submit for Review
+                      {workflowPendingAction === "submit_review"
+                        ? "Submitting..."
+                        : "Submit for Review"}
                     </Button>
                   </>
                 ) : null}
@@ -716,8 +934,8 @@ export default function AipDetailView({
                 <RemarksCard
                   status={aip.status}
                   reviewerMessage={aip.feedback}
-                  onCancelSubmission={onCancelSubmission ?? onCancel}
-                  onResubmit={onResubmit}
+                  onCancelSubmission={effectiveCancelSubmissionHandler}
+                  onResubmit={effectiveResubmitHandler}
                 />
               </div>
             ) : null}

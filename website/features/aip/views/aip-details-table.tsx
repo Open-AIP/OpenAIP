@@ -12,6 +12,13 @@ import {
   submitAipProjectReviewAction,
 } from "../actions/aip-projects.actions";
 
+type ProjectsStateSnapshot = {
+  rows: AipProjectRow[];
+  loading: boolean;
+  error: string | null;
+  unresolvedAiCount: number;
+};
+
 export function AipDetailsTableView({
   aipId,
   year,
@@ -19,6 +26,7 @@ export function AipDetailsTableView({
   scope,
   focusedRowId,
   enablePagination = false,
+  onProjectsStateChange,
 }: {
   aipId: string;
   year: number;
@@ -26,6 +34,7 @@ export function AipDetailsTableView({
   scope: "city" | "barangay";
   focusedRowId?: string;
   enablePagination?: boolean;
+  onProjectsStateChange?: (state: ProjectsStateSnapshot) => void;
 }) {
   const router = useRouter();
   const [rows, setRows] = React.useState<AipProjectRow[]>([]);
@@ -82,6 +91,20 @@ export function AipDetailsTableView({
     setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setSelected(updated);
   }
+
+  const unresolvedAiCount = React.useMemo(
+    () => rows.filter((row) => row.reviewStatus === "ai_flagged").length,
+    [rows]
+  );
+
+  React.useEffect(() => {
+    onProjectsStateChange?.({
+      rows,
+      loading,
+      error,
+      unresolvedAiCount,
+    });
+  }, [error, loading, onProjectsStateChange, rows, unresolvedAiCount]);
 
   const allocation = React.useMemo(() => buildBudgetAllocation(rows), [rows]);
 

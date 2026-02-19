@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import List, Optional, Literal, Tuple, Dict, Any
+from typing import Callable, List, Optional, Literal, Tuple, Dict, Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -150,6 +150,7 @@ def categorize_all_projects(
     projects_raw: List[dict],
     model: str = "gpt-5.2",
     batch_size: int = 25,
+    on_progress: Optional[Callable[[int, int, int, int], None]] = None,
 ) -> Tuple[List[dict], Dict[str, Any]]:
     """
     Returns:
@@ -209,6 +210,8 @@ def categorize_all_projects(
                 usage_total[k] = None
 
         print(f"[CATEGORIZATION] Progress: categorized {end}/{total}", flush=True)
+        if on_progress:
+            on_progress(end, total, batch_i, total_batches)
 
     return projects_raw, usage_total
 
@@ -240,6 +243,7 @@ def categorize_from_summarized_json_str(
     model: str = "gpt-5.2",
     batch_size: int = 25,
     heartbeat_seconds: float = 10.0,  # best-effort heartbeat between batches
+    on_progress: Optional[Callable[[int, int, int, int], None]] = None,
 ) -> CategorizationResult:
     """
     Input: summarized JSON string from summarization stage.
@@ -274,6 +278,7 @@ def categorize_from_summarized_json_str(
         projects_raw=projects,
         model=model,
         batch_size=batch_size,
+        on_progress=on_progress,
     )
 
     doc["projects"] = updated_projects

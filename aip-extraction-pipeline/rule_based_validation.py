@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -79,6 +80,97 @@ OUTPUT RULE:
 # ----------------------------
 # helpers
 # ----------------------------
+def _read_positive_float_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    if not math.isfinite(value) or value <= 0:
+        return default
+    return value
+
+
+def _read_positive_int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    if value <= 0:
+        return default
+    return value
+
+
+def _normalize_errors(value: Any) -> Optional[List[str]]:
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        msg = value.strip()
+        return [msg] if msg else None
+
+    if isinstance(value, list):
+        cleaned = [str(item).strip() for item in value if str(item).strip()]
+        return cleaned or None
+
+    msg = str(value).strip()
+    return [msg] if msg else None
+
+
+def _require_valid_input_shape(extraction_obj: Any) -> List[Dict[str, Any]]:
+    if not isinstance(extraction_obj, dict):
+        raise ValueError("Input JSON must be an object with top-level 'projects' array.")
+
+    projects = extraction_obj.get("projects")
+    if not isinstance(projects, list):
+        raise ValueError("Input JSON must contain top-level 'projects' array.")
+
+    for idx, row in enumerate(projects):
+        if not isinstance(row, dict):
+            raise ValueError(f"Input projects[{idx}] must be a JSON object.")
+
+    return projects
+
+
+def _merge_errors_only(
+    extraction_obj: Dict[str, Any],
+    response_obj: Any,
+) -> Dict[str, Any]:
+    if not isinstance(response_obj, dict):
+        raise ValueError("Validation response must be a JSON object.")
+
+    source_projects = extraction_obj.get("projects", [])
+    candidate_projects = response_obj.get("projects")
+    if not isinstance(candidate_projects, list):
+        raise ValueError("Validation response must contain top-level 'projects' array.")
+
+    if len(candidate_projects) != len(source_projects):
+        raise ValueError(
+            f"Validation response project count mismatch: expected {len(source_projects)}, "
+            f"got {len(candidate_projects)}."
+        )
+
+    merged = dict(extraction_obj)
+    merged_projects = []
+
+    for idx, source_row in enumerate(source_projects):
+        candidate_row = candidate_projects[idx]
+        if not isinstance(candidate_row, dict):
+            raise ValueError(f"Validation response projects[{idx}] must be a JSON object.")
+
+        merged_row = dict(source_row)
+        merged_row["errors"] = _normalize_errors(candidate_row.get("errors"))
+        merged_projects.append(merged_row)
+
+    merged["projects"] = merged_projects
+    return merged
+
+
 def _safe_usage_dict(response: Any) -> Dict[str, Any]:
     usage = getattr(response, "usage", None)
     if not usage:
@@ -124,6 +216,9 @@ def validate_projects_json_str(
     extraction_json_str: str,
     model: str = "gpt-5.2",
     heartbeat_seconds: float = 5.0,  # prints status every N seconds (best-effort)
+    request_timeout_seconds: float = _read_positive_float_env("VALIDATION_TIMEOUT_SECONDS", 180.0),
+    max_input_chars: int = _read_positive_int_env("VALIDATION_MAX_INPUT_CHARS", 1_000_000),
+    max_projects: int = _read_positive_int_env("VALIDATION_MAX_PROJECTS", 2_000),
 ) -> ValidationResult:
     """
     Accepts extraction output as a JSON string.
@@ -131,11 +226,43 @@ def validate_projects_json_str(
 
     Adds progress monitoring prints + elapsed timer for visibility.
     """
+    if not isinstance(extraction_json_str, str) or not extraction_json_str.strip():
+        raise ValueError("Input extraction_json_str must be a non-empty JSON string.")
+
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError("model must be a non-empty string.")
+
+    if not isinstance(heartbeat_seconds, (int, float)) or not math.isfinite(heartbeat_seconds) or heartbeat_seconds <= 0:
+        raise ValueError("heartbeat_seconds must be a positive number.")
+
+    if (
+        not isinstance(request_timeout_seconds, (int, float))
+        or not math.isfinite(request_timeout_seconds)
+        or request_timeout_seconds <= 0
+    ):
+        raise ValueError("request_timeout_seconds must be a positive number.")
+
+    if not isinstance(max_input_chars, int) or max_input_chars <= 0:
+        raise ValueError("max_input_chars must be a positive integer.")
+
+    if not isinstance(max_projects, int) or max_projects <= 0:
+        raise ValueError("max_projects must be a positive integer.")
+
+    if len(extraction_json_str) > max_input_chars:
+        raise ValueError(
+            f"Input JSON too large for validation: {len(extraction_json_str)} chars "
+            f"(max {max_input_chars})."
+        )
+
     # Ensure it's valid JSON before sending
     try:
         extraction_obj = json.loads(extraction_json_str)
     except json.JSONDecodeError as e:
         raise ValueError(f"Input is not valid JSON string: {e}") from e
+
+    projects = _require_valid_input_shape(extraction_obj)
+    if len(projects) > max_projects:
+        raise ValueError(f"Input has too many projects for validation: {len(projects)} (max {max_projects}).")
 
     start_ts = time.perf_counter()
     last_beat = start_ts
@@ -148,26 +275,60 @@ def validate_projects_json_str(
             last_beat = now
 
     print(f"[VALIDATION] Started (model={model})", flush=True)
+    print(
+        f"[VALIDATION] Input sanity OK | projects={len(projects)} | chars={len(extraction_json_str)}",
+        flush=True,
+    )
+
+    if not projects:
+        elapsed = round(time.perf_counter() - start_ts, 4)
+        print(f"[VALIDATION] No projects found; skipping model call | elapsed={elapsed:.2f}s", flush=True)
+        return ValidationResult(
+            validated_obj=extraction_obj,
+            validated_json_str=json.dumps(extraction_obj, ensure_ascii=False, indent=2),
+            usage={"input_tokens": None, "output_tokens": None, "total_tokens": None},
+            elapsed_seconds=elapsed,
+            model=model,
+        )
+
     beat("Preparing request")
 
-    print("[VALIDATION] Sending request to OpenAI...", flush=True)
+    print(f"[VALIDATION] Sending request to OpenAI... (timeout={request_timeout_seconds:.1f}s)", flush=True)
 
     # NOTE: This call is blocking; heartbeat cannot print during the in-flight request
-    response = client.responses.create(
-        model=model,
-        input=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(extraction_obj, ensure_ascii=False)},
-        ],
-        text={"format": {"type": "json_object"}},
-    )
+    try:
+        response = client.responses.create(
+            model=model,
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(extraction_obj, ensure_ascii=False)},
+            ],
+            text={"format": {"type": "json_object"}},
+            timeout=request_timeout_seconds,
+        )
+    except Exception as e:
+        elapsed = round(time.perf_counter() - start_ts, 4)
+        raise RuntimeError(
+            f"Validation request failed after {elapsed:.2f}s "
+            f"(timeout={request_timeout_seconds:.1f}s): {e}"
+        ) from e
 
     beat("Response received")
 
     elapsed = round(time.perf_counter() - start_ts, 4)
 
+    output_text = getattr(response, "output_text", None)
+    if not isinstance(output_text, str) or not output_text.strip():
+        raise ValueError("Validation response was empty or missing output_text.")
+
     # Responses API returns JSON as text; parse into dict
-    validated_obj = json.loads(response.output_text)
+    try:
+        response_obj = json.loads(output_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Validation response is not valid JSON: {e}") from e
+
+    # Enforce pipeline contract: only 'errors' may change.
+    validated_obj = _merge_errors_only(extraction_obj, response_obj)
 
     # Make a canonical JSON string for downstream stages
     validated_json_str = json.dumps(validated_obj, ensure_ascii=False, indent=2)

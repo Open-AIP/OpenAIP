@@ -2,12 +2,15 @@
 
 import * as React from "react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AipProjectRow } from "../types";
 import { SECTOR_TABS } from "../utils";
+
+const PAGE_SIZE = 10;
 
 function LegendItem({ colorClass, label }: { colorClass: string; label: string }) {
   return (
@@ -24,15 +27,18 @@ export function AipDetailsTableCard({
   onRowClick,
   canComment = true,
   focusedRowId,
+  enablePagination = false,
 }: {
   year: number;
   rows: AipProjectRow[];
   onRowClick: (row: AipProjectRow) => void;
   canComment?: boolean;
   focusedRowId?: string;
+  enablePagination?: boolean;
 }) {
   const [activeSector, setActiveSector] = React.useState<(typeof SECTOR_TABS)[number]>("General Sector");
   const [query, setQuery] = React.useState("");
+  const [page, setPage] = React.useState(1);
 
   React.useEffect(() => {
     if (!focusedRowId) return;
@@ -54,6 +60,34 @@ export function AipDetailsTableCard({
         );
       });
   }, [rows, activeSector, query]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [activeSector, query]);
+
+  const totalPages = React.useMemo(() => {
+    return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  }, [filtered.length]);
+
+  React.useEffect(() => {
+    if (!enablePagination) return;
+    setPage((prev) => Math.max(1, Math.min(prev, totalPages)));
+  }, [enablePagination, totalPages]);
+
+  React.useEffect(() => {
+    if (!enablePagination || !focusedRowId) return;
+    const focusedIndex = filtered.findIndex((row) => row.id === focusedRowId);
+    if (focusedIndex < 0) return;
+    const nextPage = Math.floor(focusedIndex / PAGE_SIZE) + 1;
+    setPage(nextPage);
+  }, [enablePagination, filtered, focusedRowId]);
+
+  const currentPage = enablePagination ? Math.max(1, Math.min(page, totalPages)) : 1;
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
+  const visibleRows = enablePagination ? filtered.slice(pageStart, pageEnd) : filtered;
+  const showingStart = filtered.length === 0 ? 0 : pageStart + 1;
+  const showingEnd = filtered.length === 0 ? 0 : pageEnd;
 
   return (
     <Card className="border-slate-200">
@@ -110,7 +144,7 @@ export function AipDetailsTableCard({
             </TableHeader>
 
             <TableBody>
-              {filtered.map((r) => {
+              {visibleRows.map((r) => {
                 const rowClass =
                   r.reviewStatus === "ai_flagged"
                     ? "bg-red-50 hover:bg-red-100"
@@ -137,7 +171,7 @@ export function AipDetailsTableCard({
                 );
               })}
 
-              {filtered.length === 0 && (
+              {visibleRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
                     No projects found.
@@ -147,6 +181,34 @@ export function AipDetailsTableCard({
             </TableBody>
           </Table>
         </div>
+
+        {enablePagination && (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-slate-600">
+              {`Showing ${showingStart}-${showingEnd} of ${filtered.length} projects`}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-slate-600">{`Page ${currentPage} of ${totalPages}`}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
           <LegendItem colorClass="bg-red-500" label="GPT detected a potential error" />

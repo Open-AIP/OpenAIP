@@ -16,11 +16,13 @@ export function AipDetailsTableView({
   year,
   aipStatus,
   focusedRowId,
+  enablePagination = false,
 }: {
   aipId: string;
   year: number;
   aipStatus: AipStatus;
   focusedRowId?: string;
+  enablePagination?: boolean;
 }) {
   const [rows, setRows] = React.useState<AipProjectRow[]>([]);
   const [selected, setSelected] = React.useState<AipProjectRow | null>(null);
@@ -115,6 +117,7 @@ export function AipDetailsTableView({
         }}
         canComment={canComment}
         focusedRowId={focusedRowId}
+        enablePagination={enablePagination}
       />
 
       <ProjectReviewModal

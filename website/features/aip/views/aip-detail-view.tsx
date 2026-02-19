@@ -661,6 +661,7 @@ export default function AipDetailView({
                     year={aip.year}
                     aipStatus={aip.status}
                     focusedRowId={focusedRowId}
+                    enablePagination={scope === "barangay"}
                   />
 
                   <AipUploaderInfo aip={aip} />

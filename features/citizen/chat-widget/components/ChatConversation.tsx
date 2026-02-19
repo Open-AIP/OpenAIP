@@ -24,9 +24,9 @@ export default function ChatConversation({
   threadRef: RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <MessageLimitIndicator count={messageCount} limit={messageLimit} />
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <MessageList messages={messages} isTyping={isSending} threadRef={threadRef} />
       </div>
       <ChatComposer

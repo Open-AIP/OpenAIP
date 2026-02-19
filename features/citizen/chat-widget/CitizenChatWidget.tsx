@@ -326,7 +326,7 @@ export default function CitizenChatWidget() {
         <div className="flex h-full flex-col">
           <ChatHeader vm={HEADER_VM} />
           <ChatNoticeBanner vm={notice} />
-          <div className="flex flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col">
             {errorMessage ? (
               <div className="mx-4 mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
                 {errorMessage}

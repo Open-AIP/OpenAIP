@@ -39,13 +39,21 @@ export function AipDetailsTableCard({
   const [activeSector, setActiveSector] = React.useState<(typeof SECTOR_TABS)[number]>("General Sector");
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const lastAppliedFocusRowIdRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    if (!focusedRowId) return;
+    if (!focusedRowId) {
+      lastAppliedFocusRowIdRef.current = null;
+      return;
+    }
+    if (lastAppliedFocusRowIdRef.current === focusedRowId) return;
+
     const match = rows.find((row) => row.id === focusedRowId);
     if (match && match.sector !== "Unknown" && match.sector !== activeSector) {
       setActiveSector(match.sector);
     }
+
+    lastAppliedFocusRowIdRef.current = focusedRowId;
   }, [focusedRowId, rows, activeSector]);
 
   const filtered = React.useMemo(() => {
@@ -149,7 +157,7 @@ export function AipDetailsTableCard({
                   r.reviewStatus === "ai_flagged"
                     ? "bg-red-50 hover:bg-red-100"
                     : r.reviewStatus === "reviewed"
-                    ? "bg-blue-50 hover:bg-blue-100"
+                    ? "bg-amber-50 hover:bg-amber-100"
                     : "hover:bg-slate-50";
 
                 return (
@@ -212,7 +220,7 @@ export function AipDetailsTableCard({
 
         <div className="mt-4 flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
           <LegendItem colorClass="bg-red-500" label="GPT detected a potential error" />
-          <LegendItem colorClass="bg-blue-500" label="Error reviewed and commented by official" />
+          <LegendItem colorClass="bg-amber-500" label="Reviewed and commented by official" />
           <LegendItem colorClass="bg-slate-300" label="No issues detected" />
         </div>
       </CardContent>

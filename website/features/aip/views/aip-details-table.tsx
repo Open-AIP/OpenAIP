@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from "react";
-import type { AipProjectRow, AipStatus } from "../types";
+import { useRouter } from "next/navigation";
+import type { AipProjectEditPatch, AipProjectRow, AipStatus } from "../types";
 import { AipDetailsTableCard } from "../components/aip-details-table-card";
 import { BudgetAllocationTable, buildBudgetAllocation } from "../components/budget-allocation-table";
 import { ProjectReviewModal } from "../dialogs/project-review-modal";
@@ -15,15 +16,18 @@ export function AipDetailsTableView({
   aipId,
   year,
   aipStatus,
+  scope,
   focusedRowId,
   enablePagination = false,
 }: {
   aipId: string;
   year: number;
   aipStatus: AipStatus;
+  scope: "city" | "barangay";
   focusedRowId?: string;
   enablePagination?: boolean;
 }) {
+  const router = useRouter();
   const [rows, setRows] = React.useState<AipProjectRow[]>([]);
   const [selected, setSelected] = React.useState<AipProjectRow | null>(null);
   const [open, setOpen] = React.useState(false);
@@ -59,33 +63,24 @@ export function AipDetailsTableView({
   }, [aipId]);
 
   async function handleSubmitReview(
-    payload: { comment: string; resolution: "disputed" | "confirmed" | "comment_only" }
+    payload: {
+      reason: string;
+      changes?: AipProjectEditPatch;
+      resolution: "disputed" | "confirmed" | "comment_only";
+    }
   ) {
     if (!selected) return;
 
-    await submitAipProjectReviewAction({
+    const updated = await submitAipProjectReviewAction({
       projectId: selected.id,
       aipId: selected.aipId,
-      comment: payload.comment,
+      reason: payload.reason,
+      changes: payload.changes,
       resolution: payload.resolution,
     });
 
-    // Optimistic UI update
-    setRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== selected.id) return r;
-
-        if (r.reviewStatus === "ai_flagged") {
-          return {
-            ...r,
-            reviewStatus: "reviewed",
-            officialComment: payload.comment,
-          };
-        }
-
-        return { ...r, officialComment: payload.comment };
-      })
-    );
+    setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    setSelected(updated);
   }
 
   const allocation = React.useMemo(() => buildBudgetAllocation(rows), [rows]);
@@ -112,6 +107,12 @@ export function AipDetailsTableView({
         year={year}
         rows={rows}
         onRowClick={(row) => {
+          if (scope === "barangay") {
+            router.push(
+              `/barangay/aips/${encodeURIComponent(aipId)}/${encodeURIComponent(row.id)}`
+            );
+            return;
+          }
           setSelected(row);
           setOpen(true);
         }}
@@ -120,13 +121,15 @@ export function AipDetailsTableView({
         enablePagination={enablePagination}
       />
 
-      <ProjectReviewModal
-        open={open}
-        onOpenChange={setOpen}
-        project={selected}
-        onSubmit={handleSubmitReview}
-        canComment={canComment}
-      />
+      {scope === "city" ? (
+        <ProjectReviewModal
+          open={open}
+          onOpenChange={setOpen}
+          project={selected}
+          onSubmit={handleSubmitReview}
+          canComment={canComment}
+        />
+      ) : null}
     </>
   );
 }

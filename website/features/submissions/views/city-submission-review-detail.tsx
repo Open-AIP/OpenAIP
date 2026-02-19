@@ -145,6 +145,7 @@ export default function CitySubmissionReviewDetail({
             aipId={aip.id}
             year={aip.year}
             aipStatus={aip.status}
+            scope="city"
             focusedRowId={undefined}
           />
           <AipUploaderInfo aip={aip} />

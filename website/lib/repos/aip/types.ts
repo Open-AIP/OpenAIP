@@ -1,4 +1,8 @@
-import type { AipStatus } from "@/lib/contracts/databasev2";
+import type {
+  AipStatus,
+  FeedbackKind,
+  FeedbackSource,
+} from "@/lib/contracts/databasev2";
 
 export type { AipStatus } from "@/lib/contracts/databasev2";
 
@@ -54,26 +58,89 @@ export type Sector =
 export type ReviewStatus = "ai_flagged" | "reviewed" | "unreviewed";
 // Back-compat type alias (some feature barrels re-export this name).
 export type reviewStatus = ReviewStatus;
-export type ProjectKind = "health" | "infrastructure";
+export type ProjectCategory = "health" | "infrastructure" | "other";
+export type ProjectKind = ProjectCategory;
+
+export type AipProjectEditableFields = {
+  // Maps to public.projects.aip_ref_code
+  aipRefCode: string;
+  // Maps to public.projects.program_project_description
+  programProjectDescription: string;
+  // Maps to public.projects.implementing_agency
+  implementingAgency: string | null;
+  // Maps to public.projects.start_date
+  startDate: string | null;
+  // Maps to public.projects.completion_date
+  completionDate: string | null;
+  // Maps to public.projects.expected_output
+  expectedOutput: string | null;
+  // Maps to public.projects.source_of_funds
+  sourceOfFunds: string | null;
+  // Maps to public.projects.personal_services
+  personalServices: number | null;
+  // Maps to public.projects.maintenance_and_other_operating_expenses
+  maintenanceAndOtherOperatingExpenses: number | null;
+  // Maps to public.projects.financial_expenses
+  financialExpenses: number | null;
+  // Maps to public.projects.capital_outlay
+  capitalOutlay: number | null;
+  // Maps to public.projects.total
+  total: number | null;
+  // Maps to public.projects.climate_change_adaptation
+  climateChangeAdaptation: string | null;
+  // Maps to public.projects.climate_change_mitigation
+  climateChangeMitigation: string | null;
+  // Maps to public.projects.cc_topology_code
+  ccTopologyCode: string | null;
+  // Maps to public.projects.category
+  category: ProjectCategory;
+  // Maps to public.projects.errors
+  errors: string[] | null;
+};
 
 /**
  * One row inside the AIP extracted table.
  * Connects to a project via projectRefCode.
  */
-export type AipProjectRow = {
+export type AipProjectRow = AipProjectEditableFields & {
   id: string; // row id
-  aipId: string; // fk → AipHeader.id
-  projectRefCode: string; // join key → Projects
-  kind: ProjectKind;
+  aipId: string; // fk -> AipHeader.id
 
+  // Compatibility aliases consumed by existing AIP/project UI.
+  projectRefCode: string; // alias of aipRefCode
+  kind: ProjectKind; // alias of category
   sector: Sector;
-  amount: number;
+  amount: number; // alias of total
   reviewStatus: ReviewStatus;
 
-  aipDescription: string;
+  aipDescription: string; // alias of programProjectDescription
 
-  aiIssues?: string[];
+  aiIssues?: string[]; // alias of errors
   officialComment?: string;
+};
+
+export type AipProjectEditPatch = Partial<AipProjectEditableFields>;
+
+export type AipProjectFeedbackMessage = {
+  id: string;
+  parentFeedbackId: string | null;
+  kind: FeedbackKind;
+  source: FeedbackSource;
+  body: string;
+  authorId: string | null;
+  authorName: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AipProjectFeedbackThread = {
+  root: AipProjectFeedbackMessage;
+  replies: AipProjectFeedbackMessage[];
+};
+
+export type AipProjectReviewDetail = {
+  project: AipProjectRow;
+  feedbackThreads: AipProjectFeedbackThread[];
 };
 
 export type AipListItem = AipHeader;
@@ -87,7 +154,8 @@ export type ListVisibleAipsInput = {
 export type SubmitReviewInput = {
   projectId: string;
   aipId: string;
-  comment: string;
+  reason: string;
+  changes?: AipProjectEditPatch;
   resolution?: "disputed" | "confirmed" | "comment_only";
 };
 

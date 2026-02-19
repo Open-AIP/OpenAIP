@@ -190,10 +190,7 @@ export default function AipDetailView({
   const [finalizingNotice, setFinalizingNotice] = useState<string | null>(null);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
-  // `focus` is only meaningful in the context of the feedback/comments UI.
-  // Avoid showing a "focused row" outline in the AIP details table (Summary tab).
-  const focusedRowId =
-    activeTab === "comments" ? searchParams.get("focus") ?? undefined : undefined;
+  const focusedRowId = searchParams.get("focus") ?? undefined;
 
   const handleCancelDraft =
     onCancel ?? (() => console.log("Canceling AIP draft:", aip.id));
@@ -660,6 +657,7 @@ export default function AipDetailView({
                     aipId={aip.id}
                     year={aip.year}
                     aipStatus={aip.status}
+                    scope={scope}
                     focusedRowId={focusedRowId}
                     enablePagination={scope === "barangay"}
                   />

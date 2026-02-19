@@ -79,23 +79,47 @@ export function generateMockProjects(
     ];
     const reviewStatus =
       reviewStatuses[Math.floor(Math.random() * reviewStatuses.length)];
+    const categoryPool = ["health", "infrastructure", "other"] as const;
+    const category = categoryPool[Math.floor(Math.random() * categoryPool.length)];
+    const aipRefCode = `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`;
+    const total = randomBudget(300000, 5000000);
 
     const project: AipProjectRow = {
       id: `aiprow-mock-${aipId}-${i + 1}`,
       aipId,
-      projectRefCode: `${sectorCode}S-${year}-${String(i + 1).padStart(3, "0")}`,
+      aipRefCode,
+      programProjectDescription: description,
+      implementingAgency: null,
+      startDate: null,
+      completionDate: null,
+      expectedOutput: null,
+      sourceOfFunds: null,
+      personalServices: null,
+      maintenanceAndOtherOperatingExpenses: null,
+      financialExpenses: null,
+      capitalOutlay: null,
+      total,
+      climateChangeAdaptation: null,
+      climateChangeMitigation: null,
+      ccTopologyCode: null,
+      category,
+      errors: null,
+
+      projectRefCode: aipRefCode,
       sector: sectorData.sector,
-      amount: randomBudget(300000, 5000000),
+      amount: total,
       aipDescription: description,
       reviewStatus,
-      kind: "health",
+      kind: category,
     };
 
     if (reviewStatus === "ai_flagged") {
-      project.aiIssues = [
+      const issues = [
         "Budget allocation needs verification against market rates",
         "Missing detailed cost breakdown for materials and labor",
       ];
+      project.errors = issues;
+      project.aiIssues = issues;
     }
 
     if (reviewStatus === "reviewed") {

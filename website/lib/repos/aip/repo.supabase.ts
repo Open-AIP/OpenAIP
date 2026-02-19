@@ -4,7 +4,24 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { Json } from "@/lib/contracts/databasev2";
 import type { AipProjectRepo, AipRepo } from "./repo";
-import type { AipHeader } from "./types";
+import {
+  applyProjectEditPatch,
+  buildProjectReviewBody,
+  deriveSectorFromRefCode,
+  diffProjectEditableFields,
+  normalizeProjectEditPatch,
+  normalizeProjectErrors,
+  projectEditableFieldsFromRow,
+} from "./project-review";
+import type {
+  AipHeader,
+  AipProjectFeedbackMessage,
+  AipProjectFeedbackThread,
+  AipProjectEditPatch,
+  AipProjectReviewDetail,
+  AipProjectRow,
+  ProjectCategory,
+} from "./types";
 
 type ScopeRow = { name: string | null } | null;
 
@@ -45,10 +62,25 @@ type ProjectSelectRow = {
   aip_id: string;
   aip_ref_code: string;
   program_project_description: string;
+  implementing_agency: string | null;
+  start_date: string | null;
+  completion_date: string | null;
+  expected_output: string | null;
+  source_of_funds: string | null;
+  personal_services: number | null;
+  maintenance_and_other_operating_expenses: number | null;
+  financial_expenses: number | null;
+  capital_outlay: number | null;
   total: number | null;
-  category: "health" | "infrastructure" | "other";
+  climate_change_adaptation: string | null;
+  climate_change_mitigation: string | null;
+  cc_topology_code: string | null;
+  category: ProjectCategory;
   sector_code: string;
   errors: Json | null;
+  is_human_edited?: boolean;
+  edited_by?: string | null;
+  edited_at?: string | null;
 };
 
 type AipReviewNoteRow = {
@@ -129,6 +161,139 @@ function toSectorLabel(sectorCode: string): "General Sector" | "Social Sector" |
   if (sectorCode.startsWith("8000")) return "Economic Sector";
   if (sectorCode.startsWith("9000")) return "Other Services";
   return "Unknown";
+}
+
+const PROJECT_SELECT_COLUMNS = [
+  "id",
+  "aip_id",
+  "aip_ref_code",
+  "program_project_description",
+  "implementing_agency",
+  "start_date",
+  "completion_date",
+  "expected_output",
+  "source_of_funds",
+  "personal_services",
+  "maintenance_and_other_operating_expenses",
+  "financial_expenses",
+  "capital_outlay",
+  "total",
+  "climate_change_adaptation",
+  "climate_change_mitigation",
+  "cc_topology_code",
+  "category",
+  "sector_code",
+  "errors",
+  "is_human_edited",
+  "edited_by",
+  "edited_at",
+].join(",");
+
+type DbProjectReviewNoteRow = {
+  project_id: string | null;
+  body: string;
+  created_at: string;
+};
+
+type AipStatusRow = {
+  status: "draft" | "pending_review" | "under_review" | "for_revision" | "published";
+};
+
+type ProjectFeedbackSelectRow = {
+  id: string;
+  parent_feedback_id: string | null;
+  kind:
+    | "question"
+    | "suggestion"
+    | "concern"
+    | "lgu_note"
+    | "ai_finding"
+    | "commend";
+  source: "human" | "ai";
+  body: string;
+  author_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapProjectSelectRowToAipProjectRow(
+  row: ProjectSelectRow,
+  officialComment?: string
+): AipProjectRow {
+  const errors = normalizeProjectErrors(row.errors);
+  const aiIssues = errors ?? undefined;
+  const reviewStatus = officialComment
+    ? "reviewed"
+    : aiIssues && aiIssues.length
+      ? "ai_flagged"
+      : "unreviewed";
+
+  return {
+    id: row.id,
+    aipId: row.aip_id,
+
+    aipRefCode: row.aip_ref_code,
+    programProjectDescription: row.program_project_description,
+    implementingAgency: row.implementing_agency,
+    startDate: row.start_date,
+    completionDate: row.completion_date,
+    expectedOutput: row.expected_output,
+    sourceOfFunds: row.source_of_funds,
+    personalServices: row.personal_services,
+    maintenanceAndOtherOperatingExpenses: row.maintenance_and_other_operating_expenses,
+    financialExpenses: row.financial_expenses,
+    capitalOutlay: row.capital_outlay,
+    total: row.total,
+    climateChangeAdaptation: row.climate_change_adaptation,
+    climateChangeMitigation: row.climate_change_mitigation,
+    ccTopologyCode: row.cc_topology_code,
+    category: row.category,
+    errors,
+
+    // Compatibility aliases
+    projectRefCode: row.aip_ref_code,
+    kind: row.category,
+    sector: deriveSectorFromRefCode(row.aip_ref_code),
+    amount: row.total ?? 0,
+    aipDescription: row.program_project_description,
+    aiIssues,
+    officialComment,
+    reviewStatus,
+  };
+}
+
+function mapEditPatchToProjectUpdateColumns(
+  patch: AipProjectEditPatch
+): Record<string, unknown> {
+  const update: Record<string, unknown> = {};
+
+  if ("aipRefCode" in patch) update.aip_ref_code = patch.aipRefCode;
+  if ("programProjectDescription" in patch) {
+    update.program_project_description = patch.programProjectDescription;
+  }
+  if ("implementingAgency" in patch) update.implementing_agency = patch.implementingAgency;
+  if ("startDate" in patch) update.start_date = patch.startDate;
+  if ("completionDate" in patch) update.completion_date = patch.completionDate;
+  if ("expectedOutput" in patch) update.expected_output = patch.expectedOutput;
+  if ("sourceOfFunds" in patch) update.source_of_funds = patch.sourceOfFunds;
+  if ("personalServices" in patch) update.personal_services = patch.personalServices;
+  if ("maintenanceAndOtherOperatingExpenses" in patch) {
+    update.maintenance_and_other_operating_expenses = patch.maintenanceAndOtherOperatingExpenses;
+  }
+  if ("financialExpenses" in patch) update.financial_expenses = patch.financialExpenses;
+  if ("capitalOutlay" in patch) update.capital_outlay = patch.capitalOutlay;
+  if ("total" in patch) update.total = patch.total;
+  if ("climateChangeAdaptation" in patch) {
+    update.climate_change_adaptation = patch.climateChangeAdaptation;
+  }
+  if ("climateChangeMitigation" in patch) {
+    update.climate_change_mitigation = patch.climateChangeMitigation;
+  }
+  if ("ccTopologyCode" in patch) update.cc_topology_code = patch.ccTopologyCode;
+  if ("category" in patch) update.category = patch.category;
+  if ("errors" in patch) update.errors = patch.errors;
+
+  return update;
 }
 
 function parseSummary(row: ArtifactSelectRow | undefined): string | undefined {
@@ -253,12 +418,12 @@ async function getProjectsByAipIds(aipIds: string[]): Promise<Map<string, Projec
   const client = await supabaseServer();
   const { data, error } = await client
     .from("projects")
-    .select("id,aip_id,aip_ref_code,program_project_description,total,category,sector_code,errors")
+    .select(PROJECT_SELECT_COLUMNS)
     .in("aip_id", aipIds)
     .order("aip_ref_code", { ascending: true });
   if (error) throw new Error(error.message);
 
-  for (const row of (data ?? []) as ProjectSelectRow[]) {
+  for (const row of (data ?? []) as unknown as ProjectSelectRow[]) {
     const list = map.get(row.aip_id) ?? [];
     list.push(row);
     map.set(row.aip_id, list);
@@ -503,66 +668,274 @@ export function createSupabaseAipRepo(): AipRepo {
   };
 }
 
+async function getLatestProjectComments(
+  client: Awaited<ReturnType<typeof supabaseServer>>,
+  projectIds: string[]
+): Promise<Map<string, string>> {
+  const commentsByProject = new Map<string, string>();
+  if (!projectIds.length) return commentsByProject;
+
+  const { data: notes, error } = await client
+    .from("feedback")
+    .select("project_id,body,created_at")
+    .eq("target_type", "project")
+    .eq("kind", "lgu_note")
+    .in("project_id", projectIds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  for (const row of (notes ?? []) as DbProjectReviewNoteRow[]) {
+    if (row.project_id && !commentsByProject.has(row.project_id)) {
+      commentsByProject.set(row.project_id, row.body);
+    }
+  }
+  return commentsByProject;
+}
+
+const REVIEWABLE_AIP_STATUSES = new Set<AipStatusRow["status"]>(["draft", "for_revision"]);
+
+async function assertProjectReviewIsEditable(
+  client: Awaited<ReturnType<typeof supabaseServer>>,
+  aipId: string
+) {
+  const { data, error } = await client
+    .from("aips")
+    .select("status")
+    .eq("id", aipId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("AIP not found.");
+
+  const status = (data as AipStatusRow).status;
+  if (!REVIEWABLE_AIP_STATUSES.has(status)) {
+    throw new Error(
+      "Project reviews can only be submitted when the AIP status is Draft or For Revision."
+    );
+  }
+}
+
+function toFeedbackAuthorName(
+  row: ProjectFeedbackSelectRow,
+  profilesById: Map<string, ProfileRow>
+): string | null {
+  if (row.source === "ai") return "AI";
+  if (!row.author_id) return null;
+  const profile = profilesById.get(row.author_id);
+  if (!profile?.full_name) return null;
+  const fullName = profile.full_name.trim();
+  return fullName.length ? fullName : null;
+}
+
+function sortFeedbackMessageByCreatedAtAsc(
+  left: AipProjectFeedbackMessage,
+  right: AipProjectFeedbackMessage
+) {
+  const leftAt = new Date(left.createdAt).getTime();
+  const rightAt = new Date(right.createdAt).getTime();
+  if (leftAt !== rightAt) return leftAt - rightAt;
+  return left.id.localeCompare(right.id);
+}
+
+function sortFeedbackThreadByRootCreatedAtDesc(
+  left: AipProjectFeedbackThread,
+  right: AipProjectFeedbackThread
+) {
+  const leftAt = new Date(left.root.createdAt).getTime();
+  const rightAt = new Date(right.root.createdAt).getTime();
+  if (leftAt !== rightAt) return rightAt - leftAt;
+  return right.root.id.localeCompare(left.root.id);
+}
+
+function resolveRootMessageId(
+  messageId: string,
+  messagesById: Map<string, AipProjectFeedbackMessage>
+): string {
+  const origin = messagesById.get(messageId);
+  if (!origin) return messageId;
+
+  const visited = new Set<string>();
+  let current = origin;
+  while (current.parentFeedbackId) {
+    const parentId = current.parentFeedbackId;
+    if (visited.has(parentId)) break;
+    visited.add(parentId);
+
+    const parent = messagesById.get(parentId);
+    if (!parent) break;
+    current = parent;
+  }
+  return current.id;
+}
+
+function buildProjectFeedbackThreads(
+  rows: ProjectFeedbackSelectRow[],
+  profilesById: Map<string, ProfileRow>
+): AipProjectFeedbackThread[] {
+  const messages = rows
+    .map<AipProjectFeedbackMessage>((row) => ({
+      id: row.id,
+      parentFeedbackId: row.parent_feedback_id,
+      kind: row.kind,
+      source: row.source,
+      body: row.body,
+      authorId: row.author_id,
+      authorName: toFeedbackAuthorName(row, profilesById),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }))
+    .sort(sortFeedbackMessageByCreatedAtAsc);
+
+  if (!messages.length) return [];
+
+  const messagesById = new Map(messages.map((message) => [message.id, message]));
+  const threadsByRootId = new Map<string, AipProjectFeedbackThread>();
+
+  for (const message of messages) {
+    const rootId = resolveRootMessageId(message.id, messagesById);
+    const root = messagesById.get(rootId) ?? message;
+    const thread = threadsByRootId.get(rootId) ?? { root, replies: [] };
+    if (message.id !== thread.root.id) {
+      thread.replies.push(message);
+    }
+    threadsByRootId.set(rootId, thread);
+  }
+
+  return Array.from(threadsByRootId.values())
+    .map((thread) => ({
+      root: thread.root,
+      replies: [...thread.replies].sort(sortFeedbackMessageByCreatedAtAsc),
+    }))
+    .sort(sortFeedbackThreadByRootCreatedAtDesc);
+}
+
 export function createSupabaseAipProjectRepo(): AipProjectRepo {
   return {
     async listByAip(aipId) {
       const client = await supabaseServer();
       const { data: projects, error } = await client
         .from("projects")
-        .select("id,aip_id,aip_ref_code,program_project_description,total,category,sector_code,errors")
+        .select(PROJECT_SELECT_COLUMNS)
         .eq("aip_id", aipId)
         .order("aip_ref_code", { ascending: true });
 
       if (error) throw new Error(error.message);
-      const rows = (projects ?? []) as ProjectSelectRow[];
+      const rows = (projects ?? []) as unknown as ProjectSelectRow[];
       const projectIds = rows.map((p) => p.id);
+      const commentsByProject = await getLatestProjectComments(client, projectIds);
+      return rows.map((row) => mapProjectSelectRowToAipProjectRow(row, commentsByProject.get(row.id)));
+    },
 
-      const commentsByProject = new Map<string, string>();
-      if (projectIds.length) {
-        const { data: notes, error: notesError } = await client
-          .from("feedback")
-          .select("id,project_id,body,created_at")
-          .eq("target_type", "project")
-          .eq("kind", "lgu_note")
-          .in("project_id", projectIds)
-          .order("created_at", { ascending: false });
-        if (notesError) throw new Error(notesError.message);
-        for (const n of (notes ?? []) as Array<{ project_id: string | null; body: string; created_at: string }>) {
-          if (n.project_id && !commentsByProject.has(n.project_id)) commentsByProject.set(n.project_id, n.body);
-        }
-      }
+    async getReviewDetail(aipId, projectId): Promise<AipProjectReviewDetail | null> {
+      const client = await supabaseServer();
+      const { data: projectData, error: projectError } = await client
+        .from("projects")
+        .select(PROJECT_SELECT_COLUMNS)
+        .eq("id", projectId)
+        .eq("aip_id", aipId)
+        .maybeSingle();
 
-      return rows.map((row) => {
-        const aiIssues =
-          Array.isArray(row.errors) && row.errors.every((v) => typeof v === "string")
-            ? (row.errors as string[])
-            : undefined;
-        const officialComment = commentsByProject.get(row.id);
-        const reviewStatus = officialComment
-          ? "reviewed"
-          : aiIssues && aiIssues.length
-          ? "ai_flagged"
-          : "unreviewed";
+      if (projectError) throw new Error(projectError.message);
+      if (!projectData) return null;
 
-        return {
-          id: row.id,
-          aipId: row.aip_id,
-          projectRefCode: row.aip_ref_code,
-          kind: row.category === "health" ? "health" : "infrastructure",
-          sector: toSectorLabel(row.sector_code),
-          amount: row.total ?? 0,
-          reviewStatus,
-          aipDescription: row.program_project_description,
-          aiIssues,
-          officialComment,
-        };
-      });
+      const { data: feedbackData, error: feedbackError } = await client
+        .from("feedback")
+        .select("id,parent_feedback_id,kind,source,body,author_id,created_at,updated_at")
+        .eq("target_type", "project")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (feedbackError) throw new Error(feedbackError.message);
+
+      const feedbackRows = (feedbackData ?? []) as ProjectFeedbackSelectRow[];
+      const authorIds = Array.from(
+        new Set(
+          feedbackRows
+            .map((row) => row.author_id)
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+        )
+      );
+      const profilesById = await getProfilesByIds(authorIds);
+
+      const latestLguNoteBody =
+        [...feedbackRows]
+          .filter((row) => row.kind === "lgu_note")
+          .sort((left, right) => {
+            const leftAt = new Date(left.created_at).getTime();
+            const rightAt = new Date(right.created_at).getTime();
+            if (leftAt !== rightAt) return rightAt - leftAt;
+            return right.id.localeCompare(left.id);
+          })[0]?.body ?? undefined;
+
+      return {
+        project: mapProjectSelectRowToAipProjectRow(
+          projectData as unknown as ProjectSelectRow,
+          latestLguNoteBody
+        ),
+        feedbackThreads: buildProjectFeedbackThreads(feedbackRows, profilesById),
+      };
     },
 
     async submitReview(input) {
+      const reason = input.reason.trim();
+      if (!reason) {
+        throw new Error("Review comment is required.");
+      }
+
       const client = await supabaseServer();
       const { data: authData, error: authError } = await client.auth.getUser();
       if (authError || !authData.user?.id) throw new Error("Unauthorized");
+      await assertProjectReviewIsEditable(client, input.aipId);
+
+      const { data: currentRowData, error: currentRowError } = await client
+        .from("projects")
+        .select(PROJECT_SELECT_COLUMNS)
+        .eq("id", input.projectId)
+        .eq("aip_id", input.aipId)
+        .maybeSingle();
+
+      if (currentRowError) throw new Error(currentRowError.message);
+      if (!currentRowData) throw new Error("Project not found.");
+
+      const currentRow = currentRowData as unknown as ProjectSelectRow;
+      const baseRow = mapProjectSelectRowToAipProjectRow(currentRow);
+      const baseFields = projectEditableFieldsFromRow(baseRow);
+      const normalizedPatch = normalizeProjectEditPatch(input.changes, baseFields);
+      const nextFields = applyProjectEditPatch(baseFields, normalizedPatch);
+      const diff = diffProjectEditableFields(baseFields, nextFields);
+      const hasAiIssues = (baseRow.errors?.length ?? 0) > 0;
+
+      if (!hasAiIssues && diff.length === 0) {
+        throw new Error("No changes detected. Edit at least one field before saving.");
+      }
+
+      let persistedRow = currentRow;
+      if (diff.length > 0) {
+        const updatePayload = {
+          ...mapEditPatchToProjectUpdateColumns(normalizedPatch),
+          is_human_edited: true,
+          edited_by: authData.user.id,
+          edited_at: new Date().toISOString(),
+        };
+
+        const { data: updatedData, error: updateError } = await client
+          .from("projects")
+          .update(updatePayload)
+          .eq("id", input.projectId)
+          .eq("aip_id", input.aipId)
+          .select(PROJECT_SELECT_COLUMNS)
+          .single();
+
+        if (updateError) throw new Error(updateError.message);
+        persistedRow = updatedData as unknown as ProjectSelectRow;
+      }
+
+      const commentBody = buildProjectReviewBody({
+        reason,
+        diff,
+      });
 
       const { error } = await client.from("feedback").insert({
         target_type: "project",
@@ -575,12 +948,14 @@ export function createSupabaseAipProjectRepo(): AipProjectRepo {
         extraction_artifact_id: null,
         field_key: input.resolution ?? null,
         severity: null,
-        body: input.comment,
+        body: commentBody,
         is_public: true,
         author_id: authData.user.id,
       });
 
       if (error) throw new Error(error.message);
+
+      return mapProjectSelectRowToAipProjectRow(persistedRow, commentBody);
     },
   };
 }

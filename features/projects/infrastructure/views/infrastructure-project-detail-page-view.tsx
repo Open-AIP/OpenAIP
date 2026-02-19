@@ -19,7 +19,7 @@ import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/lib/ui/project-status";
 import InfrastructureProjectInformationCard from "../components/project-information-card";
 import { ProjectUpdatesSection } from "../../shared/update-view";
-import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-split-view";
+import { CommentThreadsSplitView } from "@/features/feedback/components/comment-threads-split-view";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";

@@ -15,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AipPdfContainer } from "@/components/aip/aip-pdf-container";
-import { AipDetailsSummary } from "@/components/aip/aip-details-summary";
+import { AipPdfContainer } from "@/features/aip/components/aip-pdf-container";
+import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
 import type { AipHeader } from "@/lib/repos/aip/types";
 import type { AipMonitoringRow } from "../types/monitoring.types";
 

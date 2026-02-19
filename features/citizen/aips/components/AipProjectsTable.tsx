@@ -1,4 +1,4 @@
-import { AipDetailsTableCard } from "@/components/aip/aip-details-table-card";
+import { AipDetailsTableCard } from "@/features/aip/components/aip-details-table-card";
 import type { AipProjectRow } from "@/lib/repos/aip/types";
 import type { AipDetails } from "@/features/citizen/aips/types";
 

@@ -6,7 +6,7 @@ import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getProjectStatusBadgeClass } from "@/lib/ui/project-status";
 import { ProjectUpdatesSection } from "@/components/projects/update-view";
-import { CommentThreadsSplitView } from "@/components/feedback/comment-threads-split-view";
+import { CommentThreadsSplitView } from "@/features/feedback/components/comment-threads-split-view";
 import { HealthProjectInformationCard } from "@/components/projects/health-project-information-card";
 import type { HealthProject, ProjectUpdateUi } from "@/lib/repos/projects/types";
 

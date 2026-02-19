@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 
 import type { AipHeader } from "@/lib/repos/aip/types";
 import { getAipStatusBadgeClass } from "@/lib/ui/status";
-import { AipPdfContainer } from "@/components/aip/aip-pdf-container";
-import { AipDetailsSummary } from "@/components/aip/aip-details-summary";
-import { AipUploaderInfo } from "@/components/aip/aip-uploader-info";
-import { RemarksCard } from "@/components/aip/remarks-card";
-import { AipDetailsTableView } from "@/components/aip/aip-details-table-view";
+import { AipPdfContainer } from "@/features/aip/components/aip-pdf-container";
+import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
+import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
+import { RemarksCard } from "@/features/aip/components/remarks-card";
+import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
 import { getAipProjectRepo } from "@/lib/repos/aip/repo";
 
 import { Badge } from "@/components/ui/badge";

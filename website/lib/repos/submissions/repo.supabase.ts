@@ -1,7 +1,215 @@
 import "server-only";
 
-import { NotImplementedError } from "@/lib/core/errors";
+import { getAipRepo } from "@/lib/repos/aip/repo.server";
+import { supabaseServer } from "@/lib/supabase/server";
 import type { AipSubmissionsReviewRepo } from "./repo";
+import type {
+  AipReviewCounts,
+  AipStatus,
+  AipSubmissionRow,
+  LatestReview,
+  ListSubmissionsResult,
+} from "./types";
+
+type AipStatusRow = {
+  id: string;
+  fiscal_year: number;
+  status: AipStatus;
+  barangay_id: string | null;
+  submitted_at: string | null;
+  created_at: string;
+};
+
+type BarangayNameRow = {
+  id: string;
+  city_id: string | null;
+  name: string | null;
+};
+
+type ReviewSelectRow = {
+  aip_id: string;
+  reviewer_id: string;
+  action: "approve" | "request_revision";
+  note: string | null;
+  created_at: string;
+};
+
+type ProfileNameRow = {
+  id: string;
+  full_name: string | null;
+};
+
+const UNAUTHORIZED_ERROR = "Unauthorized.";
+
+function assertAuthorizedActor(
+  actor: import("@/lib/domain/actor-context").ActorContext | null
+): asserts actor is import("@/lib/domain/actor-context").ActorContext {
+  if (!actor) throw new Error(UNAUTHORIZED_ERROR);
+  if (actor.role !== "admin" && actor.role !== "city_official") {
+    throw new Error(UNAUTHORIZED_ERROR);
+  }
+}
+
+function assertCityScope(
+  actor: import("@/lib/domain/actor-context").ActorContext,
+  cityId: string
+) {
+  if (actor.role !== "city_official") return;
+  if (actor.scope.kind !== "city" || !actor.scope.id) {
+    throw new Error(UNAUTHORIZED_ERROR);
+  }
+  if (actor.scope.id !== cityId) {
+    throw new Error(UNAUTHORIZED_ERROR);
+  }
+}
+
+function toAipTitle(year: number): string {
+  return `Annual Investment Program ${year}`;
+}
+
+function newestFirstRows(rows: AipSubmissionRow[]): AipSubmissionRow[] {
+  return [...rows].sort((left, right) =>
+    left.uploadedAt < right.uploadedAt ? 1 : -1
+  );
+}
+
+function buildCounts(rows: AipSubmissionRow[]): AipReviewCounts {
+  return {
+    total: rows.length,
+    published: rows.filter((row) => row.status === "published").length,
+    underReview: rows.filter((row) => row.status === "under_review").length,
+    pendingReview: rows.filter((row) => row.status === "pending_review").length,
+    forRevision: rows.filter((row) => row.status === "for_revision").length,
+  };
+}
+
+function toLatestReview(
+  review: ReviewSelectRow | null,
+  profileById: Map<string, ProfileNameRow>
+): LatestReview {
+  if (!review) return null;
+  const profile = profileById.get(review.reviewer_id);
+  return {
+    reviewerId: review.reviewer_id,
+    reviewerName:
+      profile?.full_name?.trim() ||
+      review.reviewer_id,
+    action: review.action,
+    note: review.note,
+    createdAt: review.created_at,
+  };
+}
+
+async function loadAipStatusRow(aipId: string): Promise<AipStatusRow | null> {
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("aips")
+    .select("id,fiscal_year,status,barangay_id,submitted_at,created_at")
+    .eq("id", aipId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as AipStatusRow | null) ?? null;
+}
+
+async function loadBarangayRows(ids: string[]): Promise<BarangayNameRow[]> {
+  if (!ids.length) return [];
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("barangays")
+    .select("id,city_id,name")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as BarangayNameRow[];
+}
+
+async function loadLatestReviewsForAips(
+  aipIds: string[]
+): Promise<Map<string, ReviewSelectRow>> {
+  const latestByAip = new Map<string, ReviewSelectRow>();
+  if (!aipIds.length) return latestByAip;
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("aip_reviews")
+    .select("aip_id,reviewer_id,action,note,created_at")
+    .in("aip_id", aipIds)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  for (const row of (data ?? []) as ReviewSelectRow[]) {
+    if (!latestByAip.has(row.aip_id)) {
+      latestByAip.set(row.aip_id, row);
+    }
+  }
+  return latestByAip;
+}
+
+async function loadProfileNames(ids: string[]): Promise<Map<string, ProfileNameRow>> {
+  const profileById = new Map<string, ProfileNameRow>();
+  if (!ids.length) return profileById;
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("profiles")
+    .select("id,full_name")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+
+  for (const row of (data ?? []) as ProfileNameRow[]) {
+    profileById.set(row.id, row);
+  }
+  return profileById;
+}
+
+async function getLatestReviewForAip(aipId: string): Promise<LatestReview> {
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("aip_reviews")
+    .select("aip_id,reviewer_id,action,note,created_at")
+    .eq("aip_id", aipId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const latest = (data as ReviewSelectRow | null) ?? null;
+  if (!latest) return null;
+
+  const profileById = await loadProfileNames([latest.reviewer_id]);
+  return toLatestReview(latest, profileById);
+}
+
+async function assertBarangayAipInCity(aipId: string, cityId: string) {
+  const aip = await loadAipStatusRow(aipId);
+  if (!aip) throw new Error("AIP not found.");
+  if (!aip.barangay_id) throw new Error("AIP is not a barangay submission.");
+
+  const barangayRows = await loadBarangayRows([aip.barangay_id]);
+  const barangay = barangayRows[0] ?? null;
+  if (!barangay || !barangay.city_id || barangay.city_id !== cityId) {
+    throw new Error("AIP is outside jurisdiction.");
+  }
+  return { aip, barangay };
+}
+
+async function resolveActorCityIdForAip(
+  aipId: string,
+  actor: import("@/lib/domain/actor-context").ActorContext
+): Promise<string> {
+  if (actor.role === "city_official") {
+    if (actor.scope.kind !== "city" || !actor.scope.id) {
+      throw new Error(UNAUTHORIZED_ERROR);
+    }
+    return actor.scope.id;
+  }
+
+  const aip = await loadAipStatusRow(aipId);
+  if (!aip) throw new Error("AIP not found.");
+  if (!aip.barangay_id) throw new Error("AIP is not a barangay submission.");
+  const barangayRows = await loadBarangayRows([aip.barangay_id]);
+  const cityId = barangayRows[0]?.city_id ?? null;
+  if (!cityId) throw new Error("AIP is outside jurisdiction.");
+  return cityId;
+}
 
 // [SUPABASE-SWAP] Future Supabase adapter for `AipSubmissionsReviewRepo`.
 // [DBV2] Method -> table mapping:
@@ -10,7 +218,183 @@ import type { AipSubmissionsReviewRepo } from "./repo";
 //   - requestRevision/publishAip -> insert `public.aip_reviews` + update `public.aips.status` (`for_revision` / `published`)
 // [SECURITY] RLS enforces jurisdiction + non-draft reviewer gates (`aips_update_policy`, `aip_reviews_insert_policy`).
 export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
-  throw new NotImplementedError(
-    "Supabase AipSubmissionsReviewRepo not implemented yet. Expected until Supabase repo is added."
-  );
+  return {
+    async listSubmissionsForCity({
+      cityId,
+      filters,
+      actor,
+    }): Promise<ListSubmissionsResult> {
+      assertAuthorizedActor(actor);
+      assertCityScope(actor, cityId);
+
+      const client = await supabaseServer();
+      const { data, error } = await client
+        .from("aips")
+        .select("id,fiscal_year,status,barangay_id,submitted_at,created_at")
+        .not("barangay_id", "is", null)
+        .neq("status", "draft")
+        .order("submitted_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+
+      const aipRows = (data ?? []) as AipStatusRow[];
+      const barangayIds = Array.from(
+        new Set(
+          aipRows
+            .map((row) => row.barangay_id)
+            .filter((value): value is string => !!value)
+        )
+      );
+      const barangays = await loadBarangayRows(barangayIds);
+      const barangayById = new Map(barangays.map((row) => [row.id, row]));
+
+      let filteredAips = aipRows.filter((row) => {
+        if (!row.barangay_id) return false;
+        const barangay = barangayById.get(row.barangay_id);
+        return !!barangay && barangay.city_id === cityId;
+      });
+
+      if (typeof filters?.year === "number") {
+        filteredAips = filteredAips.filter((row) => row.fiscal_year === filters.year);
+      }
+      if (filters?.status) {
+        filteredAips = filteredAips.filter((row) => row.status === filters.status);
+      }
+      if (filters?.barangayName) {
+        const target = filters.barangayName.trim().toLowerCase();
+        filteredAips = filteredAips.filter((row) => {
+          const name = row.barangay_id ? barangayById.get(row.barangay_id)?.name ?? "" : "";
+          return name.trim().toLowerCase() === target;
+        });
+      }
+
+      const aipIds = filteredAips.map((row) => row.id);
+      const latestReviewByAip = await loadLatestReviewsForAips(aipIds);
+      const reviewerIds = Array.from(
+        new Set(
+          Array.from(latestReviewByAip.values()).map((row) => row.reviewer_id)
+        )
+      );
+      const profileById = await loadProfileNames(reviewerIds);
+
+      const mapped = filteredAips.map((row) => {
+        const latest = latestReviewByAip.get(row.id) ?? null;
+        return {
+          id: row.id,
+          title: toAipTitle(row.fiscal_year),
+          year: row.fiscal_year,
+          status: row.status,
+          scope: "barangay",
+          barangayName: row.barangay_id
+            ? (barangayById.get(row.barangay_id)?.name ?? null)
+            : null,
+          uploadedAt: row.submitted_at ?? row.created_at,
+          reviewerName: latest
+            ? toLatestReview(latest, profileById)?.reviewerName ?? null
+            : null,
+        } satisfies AipSubmissionRow;
+      });
+
+      const rows = newestFirstRows(mapped);
+      return { rows, counts: buildCounts(rows) };
+    },
+
+    async getSubmissionAipDetail({ aipId, actor }) {
+      assertAuthorizedActor(actor);
+      const cityId = await resolveActorCityIdForAip(aipId, actor);
+      await assertBarangayAipInCity(aipId, cityId);
+
+      const aipRepo = getAipRepo({ defaultScope: "barangay" });
+      const aip = await aipRepo.getAipDetail(aipId);
+      if (!aip) return null;
+      if (aip.scope !== "barangay") {
+        throw new Error("AIP is not a barangay submission.");
+      }
+      const latestReview = await getLatestReviewForAip(aipId);
+      return { aip, latestReview };
+    },
+
+    async startReviewIfNeeded({ aipId, actor }): Promise<AipStatus> {
+      assertAuthorizedActor(actor);
+      const cityId = await resolveActorCityIdForAip(aipId, actor);
+      const { aip } = await assertBarangayAipInCity(aipId, cityId);
+      if (aip.status !== "pending_review") return aip.status;
+
+      const client = await supabaseServer();
+      const { data, error } = await client
+        .from("aips")
+        .update({ status: "under_review" })
+        .eq("id", aipId)
+        .eq("status", "pending_review")
+        .select("status")
+        .single();
+      if (error) throw new Error(error.message);
+      return (data as { status: AipStatus }).status;
+    },
+
+    async requestRevision({ aipId, note, actor }): Promise<AipStatus> {
+      const trimmed = note.trim();
+      if (!trimmed) throw new Error("Revision comments are required.");
+      assertAuthorizedActor(actor);
+
+      const cityId = await resolveActorCityIdForAip(aipId, actor);
+      const { aip } = await assertBarangayAipInCity(aipId, cityId);
+      if (aip.status !== "under_review") {
+        throw new Error("Request Revision is only allowed when the AIP is under review.");
+      }
+
+      const client = await supabaseServer();
+      const { error: reviewError } = await client.from("aip_reviews").insert({
+        aip_id: aipId,
+        action: "request_revision",
+        note: trimmed,
+        reviewer_id: actor.userId,
+      });
+      if (reviewError) throw new Error(reviewError.message);
+
+      const { data, error } = await client
+        .from("aips")
+        .update({ status: "for_revision" })
+        .eq("id", aipId)
+        .eq("status", "under_review")
+        .select("status")
+        .single();
+      if (error) throw new Error(error.message);
+      return (data as { status: AipStatus }).status;
+    },
+
+    async publishAip({ aipId, note, actor }): Promise<AipStatus> {
+      const trimmed = typeof note === "string" ? note.trim() : "";
+      assertAuthorizedActor(actor);
+
+      const cityId = await resolveActorCityIdForAip(aipId, actor);
+      const { aip } = await assertBarangayAipInCity(aipId, cityId);
+      if (aip.status !== "under_review") {
+        throw new Error("Publish is only allowed when the AIP is under review.");
+      }
+
+      const client = await supabaseServer();
+      const { error: reviewError } = await client.from("aip_reviews").insert({
+        aip_id: aipId,
+        action: "approve",
+        note: trimmed ? trimmed : null,
+        reviewer_id: actor.userId,
+      });
+      if (reviewError) throw new Error(reviewError.message);
+
+      const { data, error } = await client
+        .from("aips")
+        .update({ status: "published" })
+        .eq("id", aipId)
+        .eq("status", "under_review")
+        .select("status")
+        .single();
+      if (error) throw new Error(error.message);
+      return (data as { status: AipStatus }).status;
+    },
+
+    async getLatestReview({ aipId }): Promise<LatestReview> {
+      return getLatestReviewForAip(aipId);
+    },
+  };
 }

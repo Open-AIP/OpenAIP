@@ -30,6 +30,24 @@ export async function runSubmissionsReviewRepoTests() {
   {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
+
+    let threwUnauthorized = false;
+    try {
+      await repo.listSubmissionsForCity({ cityId: "city_001", actor: null });
+    } catch (error) {
+      threwUnauthorized =
+        error instanceof Error && /unauthorized/i.test(error.message);
+    }
+
+    assert(
+      threwUnauthorized,
+      "Expected listSubmissionsForCity to reject null actor"
+    );
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
     await repo.startReviewIfNeeded({ aipId, actor });
 
     const before = __getMockAipReviewsForAipId(aipId).length;

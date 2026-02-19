@@ -85,10 +85,12 @@ function seedReviewStore() {
 
 seedReviewStore();
 
-function requireCityReviewer(actor: ActorContext | null, cityId: string) {
+function requireCityReviewer(
+  actor: ActorContext | null,
+  cityId: string
+): asserts actor is ActorContext {
   if (!actor) {
-    // Dev UX: allow mock browsing when auth context is missing.
-    return;
+    throw new Error("Unauthorized.");
   }
 
   if (actor.role !== "admin" && actor.role !== "city_official") {
@@ -211,12 +213,14 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) return null;
 
+      if (!actor) throw new Error("Unauthorized.");
+
       // Determine jurisdiction context:
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
-      if (!cityId) return null;
+      if (!cityId) throw new Error("Unauthorized.");
 
       requireCityReviewer(actor, cityId);
       assertInJurisdiction(aip, cityId);
@@ -228,9 +232,10 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
     async startReviewIfNeeded({ aipId, actor }): Promise<AipStatus> {
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
       if (!cityId) throw new Error("Unauthorized.");
@@ -251,9 +256,10 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
 
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
       if (!cityId) throw new Error("Unauthorized.");
@@ -270,7 +276,7 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
         {
           id: nextReviewId(),
           aipId,
-          reviewerId: actor?.userId ?? MOCK_REVIEWER_ID,
+          reviewerId: actor.userId || MOCK_REVIEWER_ID,
           reviewerName: MOCK_REVIEWER_NAME,
           action: "request_revision",
           note: trimmed,
@@ -288,9 +294,10 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
 
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
       if (!cityId) throw new Error("Unauthorized.");
@@ -307,7 +314,7 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
         {
           id: nextReviewId(),
           aipId,
-          reviewerId: actor?.userId ?? MOCK_REVIEWER_ID,
+          reviewerId: actor.userId || MOCK_REVIEWER_ID,
           reviewerName: MOCK_REVIEWER_NAME,
           action: "approve",
           note: trimmed ? trimmed : null,

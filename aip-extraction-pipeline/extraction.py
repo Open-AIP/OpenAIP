@@ -5,7 +5,7 @@ import os
 import time
 import tempfile
 import re
-from typing import List, Optional, Union, Tuple, Dict, Any
+from typing import Callable, List, Optional, Union, Tuple, Dict, Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -261,6 +261,7 @@ def extract_brgy_aip_from_pdf_page(
 def extract_brgy_aip_from_pdf_all_pages(
     pdf_path: str,
     model: str = "gpt-5.2",
+    on_progress: Optional[Callable[[int, int], None]] = None,
 ) -> Tuple[BrgyAIPExtraction, Dict[str, Any]]:
     reader = PdfReader(pdf_path)
     total_pages = len(reader.pages)
@@ -289,6 +290,8 @@ def extract_brgy_aip_from_pdf_all_pages(
                 usage_total[k] = None
 
         print(f"[EXTRACTION] Completed page {i + 1}/{total_pages}", flush=True)
+        if on_progress:
+            on_progress(i + 1, total_pages)
 
     return merged, usage_total
 
@@ -297,6 +300,7 @@ def run_extraction(
     pdf_path: str,
     model: str = "gpt-5.2",
     job_id: Optional[str] = None,
+    on_progress: Optional[Callable[[int, int], None]] = None,
 ) -> ExtractionResult:
     """
     Main entrypoint for other pipeline stages.
@@ -312,7 +316,11 @@ def run_extraction(
     start_ts = time.perf_counter()
     print(f"[EXTRACTION] Started (model={model})", flush=True)
 
-    extracted, usage = extract_brgy_aip_from_pdf_all_pages(pdf_path, model=model)
+    extracted, usage = extract_brgy_aip_from_pdf_all_pages(
+        pdf_path,
+        model=model,
+        on_progress=on_progress,
+    )
 
     payload = extracted.model_dump()
     payload = _enforce_nulls(payload)

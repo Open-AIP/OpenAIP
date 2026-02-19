@@ -41,6 +41,10 @@ type RunStatusPayload = {
   status: string;
   stage: string;
   errorMessage: string | null;
+  overallProgressPct?: number | null;
+  stageProgressPct?: number | null;
+  progressMessage?: string | null;
+  progressUpdatedAt?: string | null;
 };
 
 type ActiveRunLookupPayload = {
@@ -68,9 +72,15 @@ function mapRunStatusToProcessingState(status: PipelineStatusUi): AipProcessingS
   return "complete";
 }
 
+function clampProgress(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
 function buildProgressByStage(
   stage: PipelineStageUi | null,
-  status: PipelineStatusUi | null
+  status: PipelineStatusUi | null,
+  stageProgressPct?: number | null
 ): Record<PipelineStageUi, number> {
   const progressByStage: Record<PipelineStageUi, number> = {
     extract: 0,
@@ -100,15 +110,18 @@ function buildProgressByStage(
       continue;
     }
     if (status === "queued") {
-      progressByStage[key] = 10;
+      progressByStage[key] =
+        typeof stageProgressPct === "number" ? clampProgress(stageProgressPct) : 0;
       continue;
     }
     if (status === "running") {
-      progressByStage[key] = 60;
+      progressByStage[key] =
+        typeof stageProgressPct === "number" ? clampProgress(stageProgressPct) : 0;
       continue;
     }
     if (status === "failed") {
-      progressByStage[key] = 80;
+      progressByStage[key] =
+        typeof stageProgressPct === "number" ? clampProgress(stageProgressPct) : 80;
       continue;
     }
   }
@@ -267,11 +280,27 @@ export default function AipDetailView({
           throw new Error("Unexpected extraction status payload.");
         }
 
+        const shouldShowSyncingMessage =
+          (payload.status === "queued" || payload.status === "running") &&
+          typeof payload.stageProgressPct !== "number" &&
+          !payload.progressMessage;
+
         setProcessingRun({
           stage: payload.stage,
           status: payload.status,
-          message: payload.errorMessage ?? null,
-          progressByStage: buildProgressByStage(payload.stage, payload.status),
+          message:
+            payload.errorMessage ??
+            (shouldShowSyncingMessage ? "Syncing live progress..." : null),
+          progressByStage: buildProgressByStage(
+            payload.stage,
+            payload.status,
+            payload.stageProgressPct
+          ),
+          overallProgressPct: payload.overallProgressPct ?? null,
+          stageProgressPct: payload.stageProgressPct ?? null,
+          progressMessage:
+            payload.progressMessage ??
+            (shouldShowSyncingMessage ? "Syncing live progress..." : null),
         });
 
         const nextState = mapRunStatusToProcessingState(payload.status);
@@ -300,7 +329,7 @@ export default function AipDetailView({
         setActiveRunId(null);
         setFailedRun({
           runId: currentRunId,
-          message: payload.errorMessage ?? null,
+          message: payload.errorMessage ?? payload.progressMessage ?? null,
         });
         setDismissedFailedRunId(null);
         setRetryError(null);

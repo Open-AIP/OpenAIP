@@ -14,5 +14,8 @@ export type AipProcessingRunView = {
   status: PipelineStatusUi | null;
   message?: string | null;
   progressByStage?: Record<PipelineStageUi, number> | null;
+  overallProgressPct?: number | null;
+  stageProgressPct?: number | null;
+  progressMessage?: string | null;
 };
 

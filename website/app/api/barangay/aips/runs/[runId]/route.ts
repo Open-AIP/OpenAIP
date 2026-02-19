@@ -12,7 +12,7 @@ export async function GET(
     const { data, error } = await client
       .from("extraction_runs")
       .select(
-        "id,aip_id,uploaded_file_id,stage,status,error_code,error_message,started_at,finished_at,created_at"
+        "id,aip_id,uploaded_file_id,stage,status,error_code,error_message,started_at,finished_at,created_at,overall_progress_pct,stage_progress_pct,progress_message,progress_updated_at"
       )
       .eq("id", runId)
       .maybeSingle();
@@ -36,6 +36,10 @@ export async function GET(
         startedAt: data.started_at,
         finishedAt: data.finished_at,
         createdAt: data.created_at,
+        overallProgressPct: data.overall_progress_pct,
+        stageProgressPct: data.stage_progress_pct,
+        progressMessage: data.progress_message,
+        progressUpdatedAt: data.progress_updated_at,
       },
       { status: 200 }
     );

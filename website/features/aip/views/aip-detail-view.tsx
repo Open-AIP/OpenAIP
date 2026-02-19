@@ -1,0 +1,262 @@
+"use client";
+
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Pencil, RotateCw, X } from "lucide-react";
+
+import type { AipHeader } from "../types";
+import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
+import { getAipStatusBadgeClass } from "../utils";
+import { AipPdfContainer } from "../components/aip-pdf-container";
+import { AipDetailsSummary } from "../components/aip-details-summary";
+import { AipUploaderInfo } from "../components/aip-uploader-info";
+import { RemarksCard } from "../components/remarks-card";
+import { AipDetailsTableView } from "./aip-details-table";
+import { Send } from "lucide-react";
+import { CommentThreadsSplitView } from "@/features/feedback";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+export default function AipDetailView({
+  aip,
+  scope = "barangay",
+  onEdit,
+  onResubmit,
+  onCancel,
+  onCancelSubmission,
+  onSubmit,
+}: {
+  aip: AipHeader;
+  scope?: "city" | "barangay";
+  onEdit?: () => void;
+  onResubmit?: () => void;
+  onCancel?: () => void;
+  onCancelSubmission?: () => void;
+  onSubmit?: () => void;
+}) {
+  const showFeedback = aip.status === "for_revision";
+  const showRemarks = aip.status !== "draft";
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const threadId = searchParams.get("thread");
+  const tab = searchParams.get("tab");
+  const runId = searchParams.get("run");
+  const activeTab = tab === "comments" ? "comments" : "summary";
+  const [runStatus, setRunStatus] = useState<{
+    status: string;
+    stage: string;
+    errorMessage: string | null;
+  } | null>(null);
+  // `focus` is only meaningful in the context of the feedback/comments UI.
+  // Avoid showing a "focused row" outline in the AIP details table (Summary tab).
+  const focusedRowId =
+    activeTab === "comments" ? searchParams.get("focus") ?? undefined : undefined;
+  const handleCancelDraft =
+    onCancel ?? (() => console.log("Canceling AIP draft:", aip.id));
+  const handleSubmitForReview =
+    onSubmit ?? (() => console.log("Submitting AIP for review:", aip.id));
+
+  useEffect(() => {
+    if (!runId || scope !== "barangay") {
+      return;
+    }
+    const activeRunId = runId;
+
+    let cancelled = false;
+    const terminal = new Set(["succeeded", "failed"]);
+
+    async function poll() {
+      try {
+        const res = await fetch(`/api/barangay/aips/runs/${encodeURIComponent(activeRunId)}`);
+        if (!res.ok) return;
+        const payload = (await res.json()) as {
+          status: string;
+          stage: string;
+          errorMessage: string | null;
+        };
+        if (cancelled) return;
+        setRunStatus({
+          status: payload.status,
+          stage: payload.stage,
+          errorMessage: payload.errorMessage ?? null,
+        });
+        if (terminal.has(payload.status)) {
+          return;
+        }
+      } catch {
+        // Best-effort polling only.
+      }
+    }
+
+    poll();
+    const timer = window.setInterval(async () => {
+      await poll();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [runId, scope]);
+
+  const breadcrumb = [
+    { label: "AIP Management", href: `/${scope}/aips` },
+    { label: aip.title, href: "#" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <BreadcrumbNav items={breadcrumb} />
+
+      {/* title bar */}
+      <Card className="border-slate-200">
+        <CardContent className="p-6 flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-slate-900">
+            {aip.title}
+          </h1>
+
+          <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}>
+            {aip.status}
+          </Badge>
+        </CardContent>
+      </Card>
+
+      {runStatus ? (
+        <Card className="border-slate-200">
+          <CardContent className="p-4 text-sm">
+            <p className="font-medium text-slate-900">
+              Extraction run status: <span className="capitalize">{runStatus.status}</span>
+            </p>
+            <p className="mt-1 text-slate-600">
+              Current stage: <span className="capitalize">{runStatus.stage}</span>
+            </p>
+            {runStatus.errorMessage ? (
+              <p className="mt-2 text-red-700">{runStatus.errorMessage}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className={showRemarks ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"}>
+        <div className="space-y-6">
+          <AipPdfContainer aip={aip} />
+
+          <div className="flex items-center gap-3">
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (value === "comments") {
+                  params.set("tab", "comments");
+                  params.delete("thread");
+                } else {
+                  params.delete("tab");
+                  params.delete("thread");
+                  params.delete("focus");
+                }
+                const query = params.toString();
+                router.replace(query ? `${pathname}?${query}` : pathname, {
+                  scroll: false,
+                });
+              }}
+            >
+              <TabsList className="h-10 gap-2 bg-transparent p-0">
+                <TabsTrigger
+                  value="summary"
+                  className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                >
+                  Summary
+                </TabsTrigger>
+                <TabsTrigger
+                  value="comments"
+                  className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                  onClick={() => {
+                    if (activeTab !== "comments") return;
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", "comments");
+                    params.delete("thread");
+                    const query = params.toString();
+                    router.replace(query ? `${pathname}?${query}` : pathname, {
+                      scroll: false,
+                    });
+                  }}
+                >
+                  Feedback
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {activeTab === "summary" ? (
+            <>
+              <AipDetailsSummary aip={aip} scope={scope} />
+
+              <AipDetailsTableView
+                aipId={aip.id}
+                year={aip.year}
+                aipStatus={aip.status}
+                focusedRowId={focusedRowId}
+              />
+
+              <AipUploaderInfo aip={aip} />
+            </>
+          ) : (
+            <div className="space-y-6">
+              <CommentThreadsSplitView
+                scope={scope}
+                target={{ kind: "aip", aipId: aip.id }}
+                selectedThreadId={threadId}
+              />
+            </div>
+          )}
+
+          {/* Bottom action */}
+          <div className="flex justify-end gap-3">
+            {showFeedback && (
+              <>
+                <Button variant="outline" onClick={onEdit} disabled={!onEdit}>
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button className="bg-teal-600 hover:bg-teal-700" onClick={onResubmit} disabled={!onResubmit}>
+                  <RotateCw className="h-4 w-4" />
+                  Resubmit
+                </Button>
+              </>
+            )}
+
+            {aip.status === "draft" && (
+              <>
+                <Button variant="outline" onClick={handleCancelDraft}>
+                  <X className="h-4 w-4" />
+                  Cancel Draft
+                </Button>
+                <Button
+                  className="bg-[#022437] hover:bg-[#022437]/90"
+                  onClick={handleSubmitForReview}
+                >
+                  <Send className="h-4 w-4" />
+                  Submit for Review
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {showRemarks ? (
+          <div className="lg:sticky lg:top-6 h-fit">
+            <RemarksCard
+              status={aip.status}
+              reviewerMessage={aip.feedback}
+              onCancelSubmission={onCancelSubmission ?? onCancel}
+              onResubmit={onResubmit}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}

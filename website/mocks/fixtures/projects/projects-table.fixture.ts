@@ -1,0 +1,180 @@
+import { PROJECT_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
+
+type ProjectKind = "health" | "infrastructure";
+type ProjectStatus = "planning" | "ongoing" | "completed" | "on_hold";
+
+type ProjectMaster = {
+  projectRefCode: string;
+  year: number;
+  kind: ProjectKind;
+  title: string;
+  status: ProjectStatus;
+  imageUrl?: string;
+};
+
+export const PROJECTS_TABLE: ProjectMaster[] = [
+  // === HEALTH PROJECTS (8) ===
+  {
+    projectRefCode: PROJECT_IDS.health_vaccination_2026_001,
+    year: 2026,
+    kind: "health",
+    title: "Community Vaccination Program",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_mobile_clinic_2026_002,
+    year: 2026,
+    kind: "health",
+    title: "Mobile Health Clinic Services",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_nutrition_2026_003,
+    year: 2026,
+    kind: "health",
+    title: "Nutrition Education and Feeding Program",
+    status: "planning",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_maternal_2025_001,
+    year: 2025,
+    kind: "health",
+    title: "Maternal and Child Health Enhancement",
+    status: "completed",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_dengue_2025_002,
+    year: 2025,
+    kind: "health",
+    title: "Dengue Prevention and Control Campaign",
+    status: "completed",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_senior_wellness_2026_004,
+    year: 2026,
+    kind: "health",
+    title:
+      "Senior Citizens Wellness Program with Extended Community Outreach and Health Monitoring Services",
+    status: "on_hold",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_mental_2026_005,
+    year: 2026,
+    kind: "health",
+    title: "Mental Health Awareness Campaign",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.health_covid_booster_2026_006,
+    year: 2026,
+    kind: "health",
+    title: "COVID-19 Booster Vaccination Drive",
+    status: "planning",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+
+  // === INFRASTRUCTURE PROJECTS (12) ===
+  {
+    projectRefCode: PROJECT_IDS.infra_road_rehab_2026_001,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Road Concreting and Rehabilitation (2.5km)",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_multi_purpose_hall_2026_002,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Barangay Multi-Purpose Hall Construction",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_drainage_2026_003,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Drainage System Improvement Project",
+    status: "planning",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_basketball_2025_001,
+    year: 2025,
+    kind: "infrastructure",
+    title: "Basketball Court Renovation",
+    status: "completed",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_street_lighting_2025_002,
+    year: 2025,
+    kind: "infrastructure",
+    title: "Street Lighting Installation Phase 1",
+    status: "completed",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_bridge_2026_004,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Bridge Construction over San Roque Creek",
+    status: "on_hold",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_flood_control_2026_005,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Flood Control and Retaining Wall Project",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_water_upgrade_2026_006,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Water Supply System Upgrade",
+    status: "planning",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_public_market_2026_007,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Public Market Rehabilitation and Modernization",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_pedestrian_path_2024_001,
+    year: 2024,
+    kind: "infrastructure",
+    title: "Pedestrian Pathway Construction (1.2km)",
+    status: "completed",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_solar_lights_2026_008,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Solar Street Lights Installation Phase 2",
+    status: "planning",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+  {
+    projectRefCode: PROJECT_IDS.infra_health_center_2026_009,
+    year: 2026,
+    kind: "infrastructure",
+    title: "Barangay Health Center Expansion",
+    status: "ongoing",
+    imageUrl: "/default/default-no-image.jpg",
+  },
+];

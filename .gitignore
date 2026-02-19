@@ -2,3 +2,6 @@ aip-extraction-pipeline/.venv/
 aip-extraction-pipeline/__pycache__/
 aip-extraction-pipeline/outputs/
 aip-extraction-pipeline/.env
+node_modules
+.env.local
+.next

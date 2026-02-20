@@ -275,6 +275,30 @@ function buildLatestMockRevisionReplies(
   return map;
 }
 
+function buildLatestMockPublishedBy(
+  aipIds: string[]
+): Map<string, NonNullable<AipHeader["publishedBy"]>> {
+  const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
+  for (const aipId of aipIds) {
+    const latestApprove = reviewStore
+      .filter((row) => row.aipId === aipId && row.action === "approve")
+      .sort(sortByCreatedAtDescThenId)[0];
+    if (!latestApprove) continue;
+
+    map.set(aipId, {
+      reviewerId: latestApprove.reviewerId,
+      reviewerName:
+        typeof latestApprove.reviewerName === "string" &&
+        latestApprove.reviewerName.trim().length > 0
+          ? latestApprove.reviewerName.trim()
+          : null,
+      createdAt: latestApprove.createdAt,
+    });
+  }
+
+  return map;
+}
+
 function buildRevisionFeedbackCycles(params: {
   aipIds: string[];
   remarks: AipRevisionFeedbackMessageByAip[];
@@ -354,6 +378,7 @@ async function enrichMockSubmissionAipDetail(aip: AipHeader): Promise<AipHeader>
   ]);
   const latestRevisionNotes = buildLatestMockRevisionNotes(revisionRemarks);
   const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+  const latestPublishedBy = buildLatestMockPublishedBy([aip.id]);
   const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
     aipIds: [aip.id],
     remarks: revisionRemarks,
@@ -363,6 +388,7 @@ async function enrichMockSubmissionAipDetail(aip: AipHeader): Promise<AipHeader>
   return {
     ...aip,
     feedback: latestRevisionNotes.get(aip.id) ?? aip.feedback,
+    publishedBy: latestPublishedBy.get(aip.id),
     revisionReply: latestRevisionReplies.get(aip.id),
     revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
   };

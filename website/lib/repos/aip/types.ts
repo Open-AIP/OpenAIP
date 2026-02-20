@@ -55,6 +55,11 @@ export type AipHeader = {
   };
 
   feedback?: string;
+  publishedBy?: {
+    reviewerId: string;
+    reviewerName: string | null;
+    createdAt: string;
+  };
   revisionReply?: {
     body: string;
     createdAt: string;

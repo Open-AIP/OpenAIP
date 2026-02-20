@@ -91,7 +91,14 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
   it("renders status info card in fallback branch and keeps feedback history", () => {
     render(
       <CitySubmissionReviewDetail
-        aip={baseAip({ status: "published" })}
+        aip={baseAip({
+          status: "published",
+          publishedBy: {
+            reviewerId: "city-user-001",
+            reviewerName: "City Reviewer",
+            createdAt: "2026-01-02T08:30:00.000Z",
+          },
+        })}
         latestReview={null}
         actorUserId="city-user-001"
         actorRole="city_official"
@@ -99,6 +106,8 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     );
 
     expect(screen.getByText("Published Status")).toBeInTheDocument();
+    expect(screen.getByText("Publication Details")).toBeInTheDocument();
+    expect(screen.getByText(/City Reviewer/)).toBeInTheDocument();
     expect(screen.getByTestId("city-history-card")).toBeInTheDocument();
   });
 
@@ -124,6 +133,7 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     expect(screen.getByText("Review Actions")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publish AIP" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Request Revision" })).toBeInTheDocument();
+    expect(screen.queryByText("Publication Details")).not.toBeInTheDocument();
     expect(screen.getByTestId("city-history-card")).toBeInTheDocument();
   });
 
@@ -178,7 +188,7 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     );
 
     const claimDialogTitle = await screen.findByText("Claim Review Ownership");
-    const dialog = claimDialogTitle.closest("[role='dialog']");
+    const dialog = claimDialogTitle.closest("[role='dialog']") as HTMLElement | null;
     if (!dialog) throw new Error("Claim dialog is not open.");
 
     fireEvent.click(

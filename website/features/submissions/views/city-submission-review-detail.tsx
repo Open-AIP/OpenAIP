@@ -9,6 +9,7 @@ import { AipPdfContainer } from "@/features/aip/components/aip-pdf-container";
 import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
 import { AipStatusInfoCard } from "@/features/aip/components/aip-status-info-card";
+import { AipPublishedByCard } from "@/features/aip/components/aip-published-by-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
@@ -399,6 +400,9 @@ export default function CitySubmissionReviewDetail({
           ) : (
             <AipStatusInfoCard status={effectiveStatus} reviewerMessage={revisionNote} />
           )}
+          {effectiveStatus === "published" && aip.publishedBy ? (
+            <AipPublishedByCard publishedBy={aip.publishedBy} />
+          ) : null}
           <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
         </div>
       </div>

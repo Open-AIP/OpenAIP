@@ -168,6 +168,7 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.queryByText("Official Comment / Justification")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Resubmit" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel Submission" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Publication Details")).not.toBeInTheDocument();
     expect(screen.getByText("Reviewer Feedback History")).toBeInTheDocument();
   });
 
@@ -176,6 +177,11 @@ describe("AipDetailView sidebar behavior", () => {
       <AipDetailView
         aip={baseAip("published", {
           revisionFeedbackCycles: [revisionCycle()],
+          publishedBy: {
+            reviewerId: "city-user-001",
+            reviewerName: "City Reviewer",
+            createdAt: "2026-01-02T08:30:00.000Z",
+          },
         })}
         scope="barangay"
       />
@@ -189,6 +195,8 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.queryByText("Official Comment / Justification")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Resubmit" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel Submission" })).not.toBeInTheDocument();
+    expect(screen.getByText("Publication Details")).toBeInTheDocument();
+    expect(screen.getByText(/City Reviewer/)).toBeInTheDocument();
     expect(screen.getByText("Reviewer Feedback History")).toBeInTheDocument();
   });
 

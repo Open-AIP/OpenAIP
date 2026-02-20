@@ -215,6 +215,14 @@ export async function runSubmissionsReviewRepoTests() {
     const detail = await repo.getSubmissionAipDetail({ aipId, actor });
     assert(detail?.aip.status === "published", "Expected AIP to be published after publishAip");
     assert(!!detail?.aip.publishedAt, "Expected AIP.publishedAt to be set");
+    assert(
+      detail?.aip.publishedBy?.reviewerId === actor.userId,
+      "Expected AIP.publishedBy.reviewerId to match publisher"
+    );
+    assert(
+      !!detail?.aip.publishedBy?.createdAt,
+      "Expected AIP.publishedBy.createdAt to be set"
+    );
   }
 
   {

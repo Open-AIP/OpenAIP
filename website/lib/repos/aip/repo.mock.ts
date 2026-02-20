@@ -393,6 +393,29 @@ function buildLatestMockRevisionReplies(
   return map;
 }
 
+function buildLatestMockPublishedBy(
+  aipIds: string[]
+): Map<string, NonNullable<AipHeader["publishedBy"]>> {
+  const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
+  for (const aipId of aipIds) {
+    const latestApprove = __getMockAipReviewsForAipId(aipId)
+      .filter((row) => row.action === "approve")
+      .sort(sortByCreatedAtDescThenId)[0];
+    if (!latestApprove) continue;
+
+    map.set(aipId, {
+      reviewerId: latestApprove.reviewerId,
+      reviewerName:
+        typeof latestApprove.reviewerName === "string" &&
+        latestApprove.reviewerName.trim().length > 0
+          ? latestApprove.reviewerName.trim()
+          : null,
+      createdAt: latestApprove.createdAt,
+    });
+  }
+  return map;
+}
+
 function buildRevisionFeedbackCycles(params: {
   aipIds: string[];
   remarks: AipRevisionFeedbackMessageByAip[];
@@ -580,6 +603,7 @@ export function createMockAipRepoImpl({
       ]);
       const latestRevisionNotes = buildLatestMockRevisionNotes(revisionRemarks);
       const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+      const latestPublishedBy = buildLatestMockPublishedBy(aipIds);
       const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
         aipIds,
         remarks: revisionRemarks,
@@ -588,6 +612,7 @@ export function createMockAipRepoImpl({
       return visible.map((aip) => ({
         ...aip,
         feedback: latestRevisionNotes.get(aip.id) ?? aip.feedback,
+        publishedBy: latestPublishedBy.get(aip.id),
         revisionReply: latestRevisionReplies.get(aip.id),
         revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
       }));
@@ -605,6 +630,7 @@ export function createMockAipRepoImpl({
           getMockBarangayRepliesByAipIds([found.id]),
         ]);
         const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+        const latestPublishedBy = buildLatestMockPublishedBy([found.id]);
         const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
           aipIds: [found.id],
           remarks: revisionRemarks,
@@ -614,6 +640,7 @@ export function createMockAipRepoImpl({
           ...found,
           feedback:
             buildLatestMockRevisionNotes(revisionRemarks).get(found.id) ?? found.feedback,
+          publishedBy: latestPublishedBy.get(found.id),
           revisionReply: latestRevisionReplies.get(found.id),
           revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(found.id),
         };

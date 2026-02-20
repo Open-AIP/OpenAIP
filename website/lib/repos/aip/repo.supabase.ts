@@ -93,6 +93,13 @@ type AipRevisionReviewSelectRow = {
   created_at: string;
 };
 
+type AipPublishedReviewSelectRow = {
+  id: string;
+  aip_id: string;
+  reviewer_id: string;
+  created_at: string;
+};
+
 type AipRevisionReplySelectRow = {
   id: string;
   aip_id: string | null;
@@ -583,6 +590,39 @@ async function getBarangayAipRepliesByAipIds(
     .sort(sortByCreatedAtAscThenId);
 }
 
+async function getLatestPublishedByByAipIds(
+  aipIds: string[]
+): Promise<Map<string, NonNullable<AipHeader["publishedBy"]>>> {
+  const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
+  if (!aipIds.length) return map;
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("aip_reviews")
+    .select("id,aip_id,reviewer_id,created_at")
+    .eq("action", "approve")
+    .in("aip_id", aipIds)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as AipPublishedReviewSelectRow[];
+  const reviewerIds = Array.from(new Set(rows.map((row) => row.reviewer_id)));
+  const profilesById = await getProfilesByIds(reviewerIds);
+
+  for (const row of rows) {
+    if (map.has(row.aip_id)) continue;
+    map.set(row.aip_id, {
+      reviewerId: row.reviewer_id,
+      reviewerName: profilesById.get(row.reviewer_id)?.full_name?.trim() || null,
+      createdAt: row.created_at,
+    });
+  }
+
+  return map;
+}
+
 function buildLatestRevisionNotes(
   remarks: AipRevisionFeedbackMessageByAip[]
 ): Map<string, string> {
@@ -725,6 +765,7 @@ function buildAipHeader(input: {
   uploader?: ProfileRow;
   pdfUrl?: string;
   revisionNote?: string;
+  publishedBy?: AipHeader["publishedBy"];
   revisionReply?: AipHeader["revisionReply"];
   revisionFeedbackCycles?: AipRevisionFeedbackCycle[];
   processing?: AipHeader["processing"];
@@ -737,6 +778,7 @@ function buildAipHeader(input: {
     uploader,
     pdfUrl,
     revisionNote,
+    publishedBy,
     revisionReply,
     revisionFeedbackCycles,
     processing,
@@ -791,6 +833,7 @@ function buildAipHeader(input: {
       budgetAllocated: budget,
     },
     feedback: revisionNote,
+    publishedBy,
     revisionReply,
     revisionFeedbackCycles,
     processing,
@@ -841,6 +884,7 @@ export function createSupabaseAipRepo(): AipRepo {
         summariesByAip,
         revisionRemarks,
         revisionReplies,
+        publishedByByAip,
         latestRunsByAip,
       ] = await Promise.all([
         getCurrentFiles(aipIds),
@@ -848,6 +892,7 @@ export function createSupabaseAipRepo(): AipRepo {
         getLatestSummaries(aipIds),
         getRevisionRemarksByAipIds(aipIds),
         getBarangayAipRepliesByAipIds(aipIds),
+        getLatestPublishedByByAipIds(aipIds),
         scope === "barangay"
           ? getLatestRunsByAipIds(aipIds)
           : Promise.resolve(new Map<string, ExtractionRunSelectRow>()),
@@ -891,6 +936,7 @@ export function createSupabaseAipRepo(): AipRepo {
             return file ? profilesById.get(file.uploaded_by) : undefined;
           })(),
           revisionNote: revisionNotes.get(aip.id),
+          publishedBy: publishedByByAip.get(aip.id),
           revisionReply: latestRevisionReplies.get(aip.id),
           revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
           processing,
@@ -912,14 +958,22 @@ export function createSupabaseAipRepo(): AipRepo {
       if (!data) return null;
 
       const aip = data as AipSelectRow;
-      const [filesByAip, projectsByAip, summariesByAip, revisionRemarks, revisionReplies] =
+      const [
+        filesByAip,
+        projectsByAip,
+        summariesByAip,
+        revisionRemarks,
+        revisionReplies,
+        publishedByByAip,
+      ] =
         await Promise.all([
-        getCurrentFiles([aipId]),
-        getProjectsByAipIds([aipId]),
-        getLatestSummaries([aipId]),
-        getRevisionRemarksByAipIds([aipId]),
-        getBarangayAipRepliesByAipIds([aipId]),
-      ]);
+          getCurrentFiles([aipId]),
+          getProjectsByAipIds([aipId]),
+          getLatestSummaries([aipId]),
+          getRevisionRemarksByAipIds([aipId]),
+          getBarangayAipRepliesByAipIds([aipId]),
+          getLatestPublishedByByAipIds([aipId]),
+        ]);
 
       const file = filesByAip.get(aipId);
       const uploaderIds = file ? [file.uploaded_by] : [];
@@ -943,6 +997,7 @@ export function createSupabaseAipRepo(): AipRepo {
         uploader: file ? profilesById.get(file.uploaded_by) : undefined,
         pdfUrl,
         revisionNote: revisionNotes.get(aipId),
+        publishedBy: publishedByByAip.get(aipId),
         revisionReply: latestRevisionReplies.get(aipId),
         revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aipId),
       });

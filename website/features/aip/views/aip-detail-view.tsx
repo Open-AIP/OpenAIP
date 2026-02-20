@@ -23,6 +23,7 @@ import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { AipProcessingInlineStatus } from "../components/aip-processing-inline-status";
 import type { AipProcessingState } from "../components/aip-processing-status-content";
 import { AipStatusInfoCard } from "../components/aip-status-info-card";
+import { AipPublishedByCard } from "../components/aip-published-by-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1133,6 +1134,10 @@ export default function AipDetailView({
 
                 {showStatusSidebar ? (
                   <AipStatusInfoCard status={aip.status} reviewerMessage={aip.feedback} />
+                ) : null}
+
+                {aip.status === "published" && aip.publishedBy ? (
+                  <AipPublishedByCard publishedBy={aip.publishedBy} />
                 ) : null}
 
                 <Card className="border-slate-200">

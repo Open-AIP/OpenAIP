@@ -26,6 +26,16 @@ export async function runSubmissionsReviewRepoTests() {
     role: "city_official" as const,
     scope: { kind: "city" as const, id: "city_001" },
   };
+  const otherActor = {
+    userId: "user_city_002",
+    role: "city_official" as const,
+    scope: { kind: "city" as const, id: "city_001" },
+  };
+  const adminActor = {
+    userId: "admin_001",
+    role: "admin" as const,
+    scope: { kind: "none" as const },
+  };
 
   {
     resetAipsTable();
@@ -48,7 +58,23 @@ export async function runSubmissionsReviewRepoTests() {
   {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
-    await repo.startReviewIfNeeded({ aipId, actor });
+    const next = await repo.claimReview({ aipId, actor });
+    const latest = await repo.getLatestReview({ aipId });
+    const feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    const claimed = feed.rows.find((row) => row.id === aipId);
+
+    assert(next === "under_review", "Expected claimReview to move pending AIP under_review");
+    assert(latest?.action === "claim_review", "Expected latest action to be claim_review");
+    assert(
+      claimed?.reviewerName === actor.userId,
+      "Expected claimed AIP reviewer column to show the claimer"
+    );
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+    await repo.claimReview({ aipId, actor });
 
     const before = __getMockAipReviewsForAipId(aipId).length;
     let threw = false;
@@ -66,7 +92,7 @@ export async function runSubmissionsReviewRepoTests() {
   {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
-    await repo.startReviewIfNeeded({ aipId, actor });
+    await repo.claimReview({ aipId, actor });
 
     const before = __getMockAipReviewsForAipId(aipId).length;
     const next = await repo.requestRevision({
@@ -90,7 +116,7 @@ export async function runSubmissionsReviewRepoTests() {
   {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
-    await repo.startReviewIfNeeded({ aipId, actor });
+    await repo.claimReview({ aipId, actor });
 
     const before = __getMockAipReviewsForAipId(aipId).length;
     const next = await repo.publishAip({ aipId, actor });
@@ -102,6 +128,50 @@ export async function runSubmissionsReviewRepoTests() {
     const detail = await repo.getSubmissionAipDetail({ aipId, actor });
     assert(detail?.aip.status === "published", "Expected AIP to be published after publishAip");
     assert(!!detail?.aip.publishedAt, "Expected AIP.publishedAt to be set");
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+    await repo.claimReview({ aipId, actor });
+
+    let threw = false;
+    try {
+      await repo.publishAip({ aipId, actor: otherActor });
+    } catch (error) {
+      threw = error instanceof Error && /assigned to another reviewer/i.test(error.message);
+    }
+    assert(threw, "Expected non-owner to be blocked from publish");
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+    await repo.claimReview({ aipId, actor });
+    await repo.claimReview({ aipId, actor: adminActor });
+
+    const latest = await repo.getLatestReview({ aipId });
+    assert(
+      latest?.reviewerId === adminActor.userId && latest.action === "claim_review",
+      "Expected admin takeover to create a new claim_review row"
+    );
+
+    const next = await repo.publishAip({ aipId, actor: adminActor });
+    assert(next === "published", "Expected admin to publish after takeover");
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+
+    const index = AIPS_TABLE.findIndex((row) => row.id === aipId);
+    const current = AIPS_TABLE[index];
+    AIPS_TABLE[index] = { ...current, status: "under_review" };
+
+    const before = __getMockAipReviewsForAipId(aipId).length;
+    await repo.claimReview({ aipId, actor });
+    const after = __getMockAipReviewsForAipId(aipId).length;
+    assert(after === before + 1, "Expected claim on legacy under_review AIP to append row");
   }
 
   resetAipsTable();

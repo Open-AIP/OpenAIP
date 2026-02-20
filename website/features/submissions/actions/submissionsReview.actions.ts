@@ -39,6 +39,30 @@ export async function requestRevisionAction(input: {
   }
 }
 
+export async function claimReviewAction(input: {
+  aipId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const actor = await getActorContext();
+  if (!actor) {
+    return { ok: false, message: "Unauthorized." };
+  }
+
+  if (actor.role !== "admin" && actor.role !== "city_official") {
+    return { ok: false, message: "Unauthorized." };
+  }
+
+  try {
+    const repo = getAipSubmissionsReviewRepo();
+    await repo.claimReview({ aipId: input.aipId, actor });
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Failed to claim review.",
+    };
+  }
+}
+
 export async function publishAipAction(input: {
   aipId: string;
   note?: string;

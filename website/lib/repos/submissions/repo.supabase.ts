@@ -29,7 +29,7 @@ type BarangayNameRow = {
 type ReviewSelectRow = {
   aip_id: string;
   reviewer_id: string;
-  action: "approve" | "request_revision";
+  action: "approve" | "request_revision" | "claim_review";
   note: string | null;
   created_at: string;
 };
@@ -162,6 +162,16 @@ async function loadProfileNames(ids: string[]): Promise<Map<string, ProfileNameR
 }
 
 async function getLatestReviewForAip(aipId: string): Promise<LatestReview> {
+  const latest = await loadLatestReviewRowForAip(aipId);
+  if (!latest) return null;
+
+  const profileById = await loadProfileNames([latest.reviewer_id]);
+  return toLatestReview(latest, profileById);
+}
+
+async function loadLatestReviewRowForAip(
+  aipId: string
+): Promise<ReviewSelectRow | null> {
   const client = await supabaseServer();
   const { data, error } = await client
     .from("aip_reviews")
@@ -171,11 +181,25 @@ async function getLatestReviewForAip(aipId: string): Promise<LatestReview> {
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  const latest = (data as ReviewSelectRow | null) ?? null;
-  if (!latest) return null;
+  return (data as ReviewSelectRow | null) ?? null;
+}
 
-  const profileById = await loadProfileNames([latest.reviewer_id]);
-  return toLatestReview(latest, profileById);
+function assertClaimOwnership(
+  latestReview: ReviewSelectRow | null,
+  actor: import("@/lib/domain/actor-context").ActorContext
+) {
+  if (!latestReview || latestReview.action !== "claim_review") {
+    throw new Error("Claim review before taking actions.");
+  }
+
+  if (latestReview.reviewer_id !== actor.userId) {
+    if (actor.role === "admin") {
+      throw new Error(
+        "This AIP is assigned to another reviewer. Claim review to take over before taking actions."
+      );
+    }
+    throw new Error("This AIP is assigned to another reviewer.");
+  }
 }
 
 async function assertBarangayAipInCity(aipId: string, cityId: string) {
@@ -211,10 +235,26 @@ async function resolveActorCityIdForAip(
   return cityId;
 }
 
+async function claimReviewViaRpc(aipId: string): Promise<AipStatus> {
+  const client = await supabaseServer();
+  const { data, error } = await client.rpc("claim_aip_review", {
+    p_aip_id: aipId,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const status = row && typeof row.status === "string" ? row.status : "under_review";
+  if (status !== "under_review" && status !== "pending_review") {
+    throw new Error("Unexpected status returned by claim_aip_review.");
+  }
+  return status;
+}
+
 // [SUPABASE-SWAP] Future Supabase adapter for `AipSubmissionsReviewRepo`.
 // [DBV2] Method -> table mapping:
 //   - listSubmissionsForCity -> `public.aips` (status <> 'draft', barangay scope within city jurisdiction) + latest `public.aip_reviews`
-//   - startReviewIfNeeded -> update `public.aips.status` to `under_review`
+//   - claimReview -> RPC `public.claim_aip_review` (row lock + append-only `claim_review`)
+//   - startReviewIfNeeded -> legacy alias of `claimReview`
 //   - requestRevision/publishAip -> insert `public.aip_reviews` + update `public.aips.status` (`for_revision` / `published`)
 // [SECURITY] RLS enforces jurisdiction + non-draft reviewer gates (`aips_update_policy`, `aip_reviews_insert_policy`).
 export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
@@ -314,22 +354,19 @@ export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRe
       return { aip, latestReview };
     },
 
-    async startReviewIfNeeded({ aipId, actor }): Promise<AipStatus> {
+    async claimReview({ aipId, actor }): Promise<AipStatus> {
       assertAuthorizedActor(actor);
       const cityId = await resolveActorCityIdForAip(aipId, actor);
-      const { aip } = await assertBarangayAipInCity(aipId, cityId);
-      if (aip.status !== "pending_review") return aip.status;
+      await assertBarangayAipInCity(aipId, cityId);
+      return claimReviewViaRpc(aipId);
+    },
 
-      const client = await supabaseServer();
-      const { data, error } = await client
-        .from("aips")
-        .update({ status: "under_review" })
-        .eq("id", aipId)
-        .eq("status", "pending_review")
-        .select("status")
-        .single();
-      if (error) throw new Error(error.message);
-      return (data as { status: AipStatus }).status;
+    async startReviewIfNeeded({ aipId, actor }): Promise<AipStatus> {
+      // Legacy entrypoint kept for compatibility. Claims the review owner explicitly.
+      assertAuthorizedActor(actor);
+      const cityId = await resolveActorCityIdForAip(aipId, actor);
+      await assertBarangayAipInCity(aipId, cityId);
+      return claimReviewViaRpc(aipId);
     },
 
     async requestRevision({ aipId, note, actor }): Promise<AipStatus> {
@@ -342,6 +379,8 @@ export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRe
       if (aip.status !== "under_review") {
         throw new Error("Request Revision is only allowed when the AIP is under review.");
       }
+      const latestReview = await loadLatestReviewRowForAip(aipId);
+      assertClaimOwnership(latestReview, actor);
 
       const client = await supabaseServer();
       const { error: reviewError } = await client.from("aip_reviews").insert({
@@ -372,6 +411,8 @@ export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRe
       if (aip.status !== "under_review") {
         throw new Error("Publish is only allowed when the AIP is under review.");
       }
+      const latestReview = await loadLatestReviewRowForAip(aipId);
+      assertClaimOwnership(latestReview, actor);
 
       const client = await supabaseServer();
       const { error: reviewError } = await client.from("aip_reviews").insert({

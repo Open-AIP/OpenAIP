@@ -107,9 +107,11 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                     {(() => {
                       const isPending = aip.status === "pending_review";
                       const isUnderReview = aip.status === "under_review";
-                      const href = isPending || isUnderReview
-                        ? `/city/submissions/aip/${aip.id}?mode=review`
-                        : `/city/submissions/aip/${aip.id}`;
+                      const href = isPending
+                        ? `/city/submissions/aip/${aip.id}?intent=review`
+                        : isUnderReview
+                          ? `/city/submissions/aip/${aip.id}?mode=review`
+                          : `/city/submissions/aip/${aip.id}`;
                       const label = isPending
                         ? "Review"
                         : isUnderReview

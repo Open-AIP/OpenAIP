@@ -1,112 +1,75 @@
 # Submissions Feature Guide
 
 ## A. Purpose
-Support the LGU “review submissions” workflow for barangay AIPs:
-- city official (or admin) sees a feed of submitted AIPs in their jurisdiction,
-- can move AIPs into `under_review`,
-- can request revision (→ `for_revision`) or publish (→ `published`),
-- records reviewer decisions/notes.
+Support the LGU review workflow for barangay AIPs:
+- city official (or admin) sees submitted AIPs in scope,
+- reviewer can explicitly claim ownership (`claim_review`),
+- reviewer can request revision (`for_revision`) or publish (`published`),
+- review events are append-only in `public.aip_reviews`.
 
 ## B. UI Surfaces
 Routes:
 - `app/(lgu)/city/(authenticated)/submissions/page.tsx` (feed)
 - `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx` (detail + review actions)
-- `app/(lgu)/city/(authenticated)/submissions/aip/page.tsx` (currently an empty placeholder file)
 
 Feature components/services:
-- `features/submissions/index.ts` (public boundary exports)
 - `features/submissions/views/SubmissionsView.tsx`
+- `features/submissions/components/SubmissionTable.tsx`
 - `features/submissions/views/city-submission-review-detail.tsx`
-- Server actions: `features/submissions/actions/submissionsReview.actions.ts`
+- `features/submissions/actions/submissionsReview.actions.ts`
 
 Repo contract + adapters:
 - `lib/repos/submissions/repo.ts`
 - `lib/repos/submissions/repo.server.ts`
 - `lib/repos/submissions/repo.mock.ts`
-- `lib/repos/submissions/repo.supabase.ts` (stub)
+- `lib/repos/submissions/repo.supabase.ts`
 - `lib/repos/submissions/queries.ts`
 
-## C. Data Flow (diagram in text)
-Feed page
-→ `getCitySubmissionsFeed()` (`lib/repos/submissions/queries.ts`)
-→ `getAipSubmissionsReviewRepo()` (`lib/repos/submissions/repo.server.ts`)
-→ adapter:
-  - today: `createMockAipSubmissionsReviewRepo()` (`lib/repos/submissions/repo.mock.ts`)
-  - future: Supabase adapter (`lib/repos/submissions/repo.supabase.ts`)
-→ `SubmissionsView` (`features/submissions/views/SubmissionsView.tsx`)
+## C. Data Flow
+Feed page:
+- `getCitySubmissionsFeed()` -> `getAipSubmissionsReviewRepo()` -> adapter -> `SubmissionsView`
 
-Detail/review page
-→ (server component) `getAipSubmissionsReviewRepo()` and `startReviewIfNeeded()` (`app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx`)
-→ `CitySubmissionReviewDetail` (`features/submissions/views/city-submission-review-detail.tsx`)
-→ server actions:
-  - `publishAipAction()` / `requestRevisionAction()` (`features/submissions/actions/submissionsReview.actions.ts`)
-→ repo methods:
-  - `publishAip()` / `requestRevision()` (`lib/repos/submissions/repo.ts`)
+Detail page:
+- server component loads detail only (no auto-claim side effect)
+- user chooses `Just View` or `Review & Claim`
+- claim path calls `claimReviewAction()` -> repo `claimReview()`
+- decision path calls `publishAipAction()` / `requestRevisionAction()`
 
 ## D. databasev2 Alignment
-Relevant DBV2 tables/enums/helpers:
-- `public.aips` + enum `public.aip_status`
-- `public.aip_reviews` + enum `public.review_action` (`approve`, `request_revision`)
-- RLS update rules: reviewers can update barangay AIPs under jurisdiction (`aips_update_policy`)
-- Reviewer insert rules: `aip_reviews_insert_policy` requires:
-  - AIP non-draft
-  - reviewer is admin or city/municipal official within jurisdiction
+Relevant tables/enums:
+- `public.aips` (`public.aip_status`)
+- `public.aip_reviews` (`public.review_action`: `claim_review`, `approve`, `request_revision`)
 
-Key constraints & visibility rules:
-- Submissions feed should exclude `draft` AIPs (public transparency is non-draft; reviewers act only on non-draft).
-- Jurisdiction checks matter:
-  - city officials can review barangay AIPs within their city (see DBV2 helper `barangay_in_my_city`)
-  - municipal officials similarly for municipality
+Lifecycle:
+- `pending_review` + claim -> `under_review` + append `claim_review`
+- `under_review` + request revision (owner only) -> append `request_revision` + set `for_revision`
+- `under_review` + publish (owner only) -> append `approve` + set `published`
 
-How those rules should be enforced:
-- Service/usecase should validate lifecycle actions:
-  - `pending_review` → `under_review` via `startReviewIfNeeded`
-  - `under_review` → `for_revision` (and insert `aip_reviews` row with `request_revision`)
-  - `under_review` → `published` (and insert `aip_reviews` row with `approve`)
-- Repo adapter should rely on RLS, but also include explicit filters by status/scope for predictable UX.
+Ownership rules:
+- Active assignment is inferred from the latest `aip_reviews` row when it is `claim_review`.
+- If latest action is not `claim_review`, assignment is considered cleared.
+- City officials cannot override another active claim.
+- Admin can claim to take over, then perform review actions.
 
-## E. Current Implementation (Mock)
-- AIP source is `mocks/fixtures/aip/aips.table.fixture.ts` (shared mock table).
-- Reviewer decisions are stored in-memory in `lib/repos/submissions/repo.mock.ts` (`reviewStore`).
-- Actor enforcement exists in mock (`requireCityReviewer()` + `assertInJurisdiction()`), but is relaxed in dev when actor is null.
+## E. UX Rules
+- `/city/submissions`:
+  - `pending_review` action opens detail with `?intent=review` (claim modal)
+  - `under_review` action opens detail with `?mode=review`
+- Claim modal options:
+  - `Just View`: no status change, no owner assignment
+  - `Review & Claim`: assigns owner and enables review actions
+- Non-owner users in review mode see disabled action controls and owner notice.
+- When unclaimed (or admin takeover path), detail shows a claim button.
 
-## F. Supabase Swap Plan (Future-only)
-Implement `lib/repos/submissions/repo.supabase.ts` (do not change UI):
-1) Replace the `NotImplementedError` with a real adapter implementing `AipSubmissionsReviewRepo`.
-2) Query mapping:
-- `listSubmissionsForCity({ cityId, filters })`
-  - select from `public.aips` where:
-    - `status <> 'draft'`
-    - scope is barangay and barangay is within the city jurisdiction (join `barangays` to `cities` or use helper patterns)
-  - optionally join the latest `public.aip_reviews` row per AIP to show reviewer name
-- `startReviewIfNeeded({ aipId })`
-  - update `public.aips.status` from `pending_review` → `under_review`
-- `requestRevision({ aipId, note, actor })`
-  - insert into `public.aip_reviews` with `action='request_revision'`, `note`, `reviewer_id=actor.userId`
-  - update `public.aips.status` → `for_revision`
-- `publishAip({ aipId, note, actor })`
-  - insert into `public.aip_reviews` with `action='approve'`
-  - update `public.aips.status` → `published`
-
-RLS vs server routes:
-- These operations can be done via Supabase (server-side) relying on RLS for reviewer gating.
-- If you need stronger transition rules, keep the checks in the server action layer (`submissionsReview.actions.ts`) before issuing writes.
-
-## G. Testing Checklist
+## F. Testing Checklist
 Manual:
-- Open `/city/submissions` and confirm counts by status.
-- Click a submission row to open `/city/submissions/aip/[aipId]`.
-- Enter review mode (query param `mode=review`); verify `pending_review` becomes `under_review`.
-- Request revision (requires note) and verify status becomes `for_revision`.
-- Publish and verify status becomes `published` and success UI renders.
+- Open `/city/submissions` and verify reviewer changes after claim + refresh.
+- From a pending AIP, click `Review`:
+  - `Just View` keeps status pending and actions disabled.
+  - `Review & Claim` changes to under review and enables actions for owner.
+- Confirm non-owner cannot publish/request revision.
+- Confirm admin can take over by claiming first.
 
 Automated:
-- Existing tests:
-  - `tests/repo-smoke/submissions/submissions.queries.test.ts`
-  - `tests/repo-smoke/submissions/submissions.repo.mock.test.ts`
-- Add Supabase adapter tests once implemented (jurisdiction + status transitions).
-
-## H. Gotchas / Pitfalls
-- Do not allow reviewers to act on `draft` AIPs (DBV2 reviewer policies require non-draft).
-- Avoid “cross-draft visibility”: city/municipal officials must not see drafts they do not own.
-- Keep the review log append-only: in DBV2, `aip_reviews` is insert-only for non-admin; updates/deletes are admin-only.
+- `tests/repo-smoke/submissions/submissions.queries.test.ts`
+- `tests/repo-smoke/submissions/submissions.repo.mock.test.ts`

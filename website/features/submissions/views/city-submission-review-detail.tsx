@@ -57,7 +57,9 @@ export default function CitySubmissionReviewDetail({
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAdmin = actorRole === "admin";
-  const isReviewMode = mode === "review";
+  const isReviewMode = mode === "review" || intent === "review";
+  const [optimisticClaimedByActor, setOptimisticClaimedByActor] = useState(false);
+  const [optimisticReviewMode, setOptimisticReviewMode] = useState(false);
   const aipDisplayLabel = getCitySubmissionAipLabel({
     barangayName: aip.barangayName,
     year: aip.year,
@@ -66,27 +68,35 @@ export default function CitySubmissionReviewDetail({
     { label: "Submissions", href: "/city/submissions" },
     { label: aipDisplayLabel },
   ];
-  const hasActiveClaim =
-    aip.status === "under_review" && latestReview?.action === "claim_review";
-  const isOwner =
-    hasActiveClaim &&
-    !!actorUserId &&
-    latestReview?.reviewerId === actorUserId;
-  const assignedToOther = hasActiveClaim && !isOwner;
-  const canClaim =
-    aip.status === "pending_review" ||
-    (aip.status === "under_review" && (!hasActiveClaim || isAdmin));
-  const showClaimButton = canClaim && !isOwner;
-  const claimLabel =
-    aip.status === "pending_review"
+  const effectiveReviewMode = isReviewMode || optimisticReviewMode;
+  const effectiveStatus =
+    optimisticClaimedByActor && aip.status === "pending_review"
+      ? "under_review"
+      : aip.status;
+  const effectiveHasActiveClaim =
+    (effectiveStatus === "under_review" && latestReview?.action === "claim_review") ||
+    (optimisticClaimedByActor && effectiveStatus === "under_review");
+  const effectiveIsOwner =
+    optimisticClaimedByActor ||
+    (effectiveHasActiveClaim &&
+      !!actorUserId &&
+      latestReview?.reviewerId === actorUserId);
+  const effectiveAssignedToOther = effectiveHasActiveClaim && !effectiveIsOwner;
+  const effectiveCanClaim =
+    effectiveStatus === "pending_review" ||
+    (effectiveStatus === "under_review" && (!effectiveHasActiveClaim || isAdmin));
+  const effectiveShowClaimButton = effectiveCanClaim && !effectiveIsOwner;
+  const effectiveClaimLabel =
+    effectiveStatus === "pending_review"
       ? "Review & Claim AIP"
-      : assignedToOther
+      : effectiveAssignedToOther
         ? "Take Over Review"
         : "Claim Review";
-  const canReview = isReviewMode && aip.status === "under_review" && isOwner;
+  const effectiveCanReview =
+    effectiveReviewMode && effectiveStatus === "under_review" && effectiveIsOwner;
 
   const [publishedSuccess, setPublishedSuccess] = useState(false);
-  const showSuccess = (isReviewMode && result === "published") || publishedSuccess;
+  const showSuccess = (effectiveReviewMode && result === "published") || publishedSuccess;
   const [claimOpen, setClaimOpen] = useState(false);
 
   const [note, setNote] = useState("");
@@ -97,7 +107,7 @@ export default function CitySubmissionReviewDetail({
   const [submitting, setSubmitting] = useState(false);
 
   const revisionNote =
-    aip.status === "for_revision" && latestReview?.action === "request_revision"
+    effectiveStatus === "for_revision" && latestReview?.action === "request_revision"
       ? latestReview.note
       : null;
   const revisionFeedbackCycles = toCityRevisionFeedbackCycles({
@@ -107,10 +117,15 @@ export default function CitySubmissionReviewDetail({
   });
 
   useEffect(() => {
-    if (intent === "review" && showClaimButton && !isOwner) {
+    setOptimisticClaimedByActor(false);
+    setOptimisticReviewMode(false);
+  }, [aip.id]);
+
+  useEffect(() => {
+    if (intent === "review" && effectiveShowClaimButton && !effectiveIsOwner) {
       setClaimOpen(true);
     }
-  }, [intent, isOwner, showClaimButton]);
+  }, [intent, effectiveIsOwner, effectiveShowClaimButton]);
 
   function goToSubmissions() {
     router.push("/city/submissions");
@@ -141,6 +156,8 @@ export default function CitySubmissionReviewDetail({
         return;
       }
 
+      setOptimisticClaimedByActor(true);
+      setOptimisticReviewMode(true);
       setClaimOpen(false);
       router.replace(`/city/submissions/aip/${aip.id}?mode=review`);
       router.refresh();
@@ -228,9 +245,9 @@ export default function CitySubmissionReviewDetail({
           <h1 className="text-2xl font-bold text-slate-900">{aipDisplayLabel}</h1>
           <Badge
             variant="outline"
-            className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
+            className={`rounded-full ${getAipStatusBadgeClass(effectiveStatus)}`}
           >
-            {getAipStatusLabel(aip.status)}
+            {getAipStatusLabel(effectiveStatus)}
           </Badge>
         </CardContent>
       </Card>
@@ -242,7 +259,7 @@ export default function CitySubmissionReviewDetail({
           <AipDetailsTableView
             aipId={aip.id}
             year={aip.year}
-            aipStatus={aip.status}
+            aipStatus={effectiveStatus}
             scope="city"
             focusedRowId={focusedRowId}
             enablePagination
@@ -253,7 +270,7 @@ export default function CitySubmissionReviewDetail({
 
         <div className="lg:sticky lg:top-6 h-fit space-y-6">
 
-          {canReview ? (
+          {effectiveCanReview ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
                 <div>
@@ -290,7 +307,7 @@ export default function CitySubmissionReviewDetail({
                 <Button
                   className="w-full bg-teal-600 hover:bg-teal-700"
                   onClick={() => setPublishOpen(true)}
-                  disabled={!canReview || submitting}
+                  disabled={!effectiveCanReview || submitting}
                 >
                   Publish AIP
                 </Button>
@@ -305,13 +322,13 @@ export default function CitySubmissionReviewDetail({
                     }
                     setRevisionOpen(true);
                   }}
-                  disabled={!canReview || submitting}
+                  disabled={!effectiveCanReview || submitting}
                 >
                   Request Revision
                 </Button>
               </CardContent>
             </Card>
-          ) : showClaimButton ? (
+          ) : effectiveShowClaimButton ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
                 <div>
@@ -319,16 +336,16 @@ export default function CitySubmissionReviewDetail({
                     Review Assignment
                   </div>
                   <div className="text-xs text-slate-500">
-                    {assignedToOther
+                    {effectiveAssignedToOther
                       ? `Currently assigned to ${latestReview?.reviewerName ?? "another reviewer"}.`
                       : "No reviewer is assigned yet."}
                   </div>
                 </div>
 
                 <div className="text-xs text-slate-600">
-                  {aip.status === "pending_review"
+                  {effectiveStatus === "pending_review"
                     ? "Claiming will set this AIP to Under Review and assign it to you."
-                    : assignedToOther
+                    : effectiveAssignedToOther
                       ? "As admin, you can take over this review before taking actions."
                       : "Claim this AIP to enable publish and revision actions."}
                 </div>
@@ -342,11 +359,11 @@ export default function CitySubmissionReviewDetail({
                   onClick={claimReview}
                   disabled={submitting}
                 >
-                  {claimLabel}
+                  {effectiveClaimLabel}
                 </Button>
               </CardContent>
             </Card>
-          ) : isReviewMode && assignedToOther ? (
+          ) : effectiveReviewMode && effectiveAssignedToOther ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
                 <div>
@@ -380,7 +397,7 @@ export default function CitySubmissionReviewDetail({
               </CardContent>
             </Card>
           ) : (
-            <AipStatusInfoCard status={aip.status} reviewerMessage={revisionNote} />
+            <AipStatusInfoCard status={effectiveStatus} reviewerMessage={revisionNote} />
           )}
           <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
         </div>
@@ -420,7 +437,7 @@ export default function CitySubmissionReviewDetail({
                 onClick={claimReview}
                 disabled={submitting}
               >
-                {claimLabel}
+                {effectiveClaimLabel}
               </Button>
             </div>
           </div>

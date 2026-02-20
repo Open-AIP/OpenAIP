@@ -55,8 +55,9 @@ Ownership rules:
 
 ## E. UX Rules
 - `/city/submissions`:
-  - `pending_review` action opens detail with `?intent=review` (claim modal)
+  - `pending_review` action opens detail with `?mode=review&intent=review` (claim modal)
   - `under_review` action opens detail with `?mode=review`
+  - compatibility: legacy links with only `?intent=review` still enter review context
 - `/city/submissions/aip/[aipId]`:
   - shows breadcrumbs (`Submissions > [AIP]`)
   - project table uses pagination (10 rows/page)
@@ -67,6 +68,7 @@ Ownership rules:
 - Claim modal options:
   - `Just View`: no status change, no owner assignment
   - `Review & Claim`: assigns owner and enables review actions
+  - after successful claim, review actions appear immediately via optimistic UI while refresh syncs persisted status/assignment
 - Non-owner users in review mode see disabled action controls and owner notice.
 - When unclaimed (or admin takeover path), detail shows a claim button.
 

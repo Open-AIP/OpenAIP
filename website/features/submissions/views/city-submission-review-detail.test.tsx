@@ -1,17 +1,20 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CitySubmissionReviewDetail from "./city-submission-review-detail";
 import type { AipHeader } from "@/features/aip/types";
 import type { LatestReview } from "@/lib/repos/submissions/repo";
+import { claimReviewAction } from "../actions/submissionsReview.actions";
 
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
+const mockRefresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockReplace,
     push: mockPush,
+    refresh: mockRefresh,
   }),
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -51,6 +54,8 @@ vi.mock("../actions/submissionsReview.actions", () => ({
   requestRevisionAction: vi.fn(async () => ({ ok: true })),
 }));
 
+const mockClaimReviewAction = vi.mocked(claimReviewAction);
+
 function baseAip(overrides: Partial<AipHeader> = {}): AipHeader {
   return {
     id: "aip-001",
@@ -76,6 +81,13 @@ function baseAip(overrides: Partial<AipHeader> = {}): AipHeader {
 }
 
 describe("CitySubmissionReviewDetail sidebar behavior", () => {
+  beforeEach(() => {
+    mockReplace.mockReset();
+    mockPush.mockReset();
+    mockRefresh.mockReset();
+    mockClaimReviewAction.mockResolvedValue({ ok: true });
+  });
+
   it("renders status info card in fallback branch and keeps feedback history", () => {
     render(
       <CitySubmissionReviewDetail
@@ -115,6 +127,30 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     expect(screen.getByTestId("city-history-card")).toBeInTheDocument();
   });
 
+  it("treats intent=review as review mode when reviewer owns under_review item", () => {
+    const latestReview: LatestReview = {
+      reviewerId: "city-user-001",
+      reviewerName: "City Reviewer",
+      action: "claim_review",
+      note: null,
+      createdAt: "2026-01-01T08:00:00.000Z",
+    };
+
+    render(
+      <CitySubmissionReviewDetail
+        aip={baseAip({ status: "under_review" })}
+        latestReview={latestReview}
+        actorUserId="city-user-001"
+        actorRole="city_official"
+        intent="review"
+      />
+    );
+
+    expect(screen.getByText("Review Actions")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish AIP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request Revision" })).toBeInTheDocument();
+  });
+
   it("keeps review assignment branch for pending_review", () => {
     render(
       <CitySubmissionReviewDetail
@@ -128,5 +164,56 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     expect(screen.getByText("Review Assignment")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review & Claim AIP" })).toBeInTheDocument();
     expect(screen.getByTestId("city-history-card")).toBeInTheDocument();
+  });
+
+  it("shows review actions immediately after claim from review-intent dialog", async () => {
+    render(
+      <CitySubmissionReviewDetail
+        aip={baseAip({ status: "pending_review" })}
+        latestReview={null}
+        actorUserId="city-user-001"
+        actorRole="city_official"
+        intent="review"
+      />
+    );
+
+    const claimDialogTitle = await screen.findByText("Claim Review Ownership");
+    const dialog = claimDialogTitle.closest("[role='dialog']");
+    if (!dialog) throw new Error("Claim dialog is not open.");
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Review & Claim AIP" })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Review Actions")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Publish AIP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request Revision" })).toBeInTheDocument();
+    expect(mockClaimReviewAction).toHaveBeenCalledWith({ aipId: "aip-001" });
+    expect(mockReplace).toHaveBeenCalledWith("/city/submissions/aip/aip-001?mode=review");
+    expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  it("shows review actions immediately after claim from in-page button", async () => {
+    render(
+      <CitySubmissionReviewDetail
+        aip={baseAip({ status: "pending_review" })}
+        latestReview={null}
+        actorUserId="city-user-001"
+        actorRole="city_official"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Review & Claim AIP" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Review Actions")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Publish AIP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request Revision" })).toBeInTheDocument();
+    expect(mockClaimReviewAction).toHaveBeenCalledWith({ aipId: "aip-001" });
+    expect(mockReplace).toHaveBeenCalledWith("/city/submissions/aip/aip-001?mode=review");
+    expect(mockRefresh).toHaveBeenCalled();
   });
 });

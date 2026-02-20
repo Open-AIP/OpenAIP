@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { AipHeader } from "@/features/aip/types";
 import { getAipStatusBadgeClass } from "@/features/aip/utils";
@@ -10,6 +10,7 @@ import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
 import { RemarksCard } from "@/features/aip/components/remarks-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
+import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,10 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { RoleType } from "@/lib/contracts/databasev2";
 import type { LatestReview } from "@/lib/repos/submissions/repo";
-import { getAipStatusLabel } from "../presentation/submissions.presentation";
+import {
+  getAipStatusLabel,
+  getCitySubmissionAipLabel,
+} from "../presentation/submissions.presentation";
 import {
   claimReviewAction,
   publishAipAction,
@@ -47,6 +51,7 @@ export default function CitySubmissionReviewDetail({
   mode,
   intent,
   result,
+  focusedRowId,
 }: {
   aip: AipHeader;
   latestReview: LatestReview;
@@ -55,10 +60,20 @@ export default function CitySubmissionReviewDetail({
   mode?: string;
   intent?: string;
   result?: string;
+  focusedRowId?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isAdmin = actorRole === "admin";
   const isReviewMode = mode === "review";
+  const aipDisplayLabel = getCitySubmissionAipLabel({
+    barangayName: aip.barangayName,
+    year: aip.year,
+  });
+  const breadcrumbItems = [
+    { label: "Submissions", href: "/city/submissions" },
+    { label: aipDisplayLabel },
+  ];
   const hasActiveClaim =
     aip.status === "under_review" && latestReview?.action === "claim_review";
   const isOwner =
@@ -186,21 +201,34 @@ export default function CitySubmissionReviewDetail({
     }
   }
 
+  function openProjectDetail(projectId: string) {
+    const basePath = `/city/submissions/aip/${encodeURIComponent(aip.id)}/${encodeURIComponent(
+      projectId
+    )}`;
+    const query = searchParams.toString();
+    router.push(query ? `${basePath}?${query}` : basePath);
+  }
+
   if (showSuccess) {
     return (
-      <PublishSuccessCard
-        barangayName={aip.barangayName}
-        onBackToSubmissions={goToSubmissions}
-        onViewPublishedAip={goToViewMode}
-      />
+      <div className="space-y-6">
+        <BreadcrumbNav items={breadcrumbItems} />
+        <PublishSuccessCard
+          barangayName={aip.barangayName}
+          onBackToSubmissions={goToSubmissions}
+          onViewPublishedAip={goToViewMode}
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      <BreadcrumbNav items={breadcrumbItems} />
+
       <Card className="border-slate-200">
         <CardContent className="p-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">{aip.title}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{aipDisplayLabel}</h1>
           <Badge
             variant="outline"
             className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
@@ -219,7 +247,9 @@ export default function CitySubmissionReviewDetail({
             year={aip.year}
             aipStatus={aip.status}
             scope="city"
-            focusedRowId={undefined}
+            focusedRowId={focusedRowId}
+            enablePagination
+            onProjectRowClick={(row) => openProjectDetail(row.id)}
           />
           <AipUploaderInfo aip={aip} />
         </div>
@@ -394,7 +424,9 @@ export default function CitySubmissionReviewDetail({
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {aipDisplayLabel}
+              </div>
               <div className="text-xs text-slate-500">
                 {aip.barangayName ?? "Barangay"}
               </div>
@@ -431,7 +463,9 @@ export default function CitySubmissionReviewDetail({
               published, it will be publicly available.
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {aipDisplayLabel}
+              </div>
               <div className="text-xs text-slate-500">
                 {aip.barangayName ?? "Barangay"}
               </div>

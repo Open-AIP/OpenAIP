@@ -26,6 +26,7 @@ export function AipDetailsTableView({
   scope,
   focusedRowId,
   enablePagination = false,
+  onProjectRowClick,
   onProjectsStateChange,
 }: {
   aipId: string;
@@ -34,6 +35,7 @@ export function AipDetailsTableView({
   scope: "city" | "barangay";
   focusedRowId?: string;
   enablePagination?: boolean;
+  onProjectRowClick?: (row: AipProjectRow) => void;
   onProjectsStateChange?: (state: ProjectsStateSnapshot) => void;
 }) {
   const router = useRouter();
@@ -130,6 +132,10 @@ export function AipDetailsTableView({
         year={year}
         rows={rows}
         onRowClick={(row) => {
+          if (onProjectRowClick) {
+            onProjectRowClick(row);
+            return;
+          }
           if (scope === "barangay") {
             router.push(
               `/barangay/aips/${encodeURIComponent(aipId)}/${encodeURIComponent(row.id)}`
@@ -140,6 +146,7 @@ export function AipDetailsTableView({
           setOpen(true);
         }}
         canComment={canComment}
+        showCommentingNote={scope === "barangay"}
         focusedRowId={focusedRowId}
         enablePagination={enablePagination}
       />

@@ -162,6 +162,7 @@ function seedFeedbackStoreIfNeeded() {
       body,
       authorId: "official_001",
       authorName: "Barangay Official",
+      authorRole: "barangay_official",
       createdAt,
       updatedAt: createdAt,
     };
@@ -709,6 +710,7 @@ export function createMockAipProjectRepo(): AipProjectRepo {
         body: commentBody,
         authorId: "official_001",
         authorName: "Barangay Official",
+        authorRole: "barangay_official",
         createdAt: now,
         updatedAt: now,
       });

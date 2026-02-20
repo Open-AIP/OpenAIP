@@ -2,6 +2,7 @@ import type {
   AipStatus,
   FeedbackKind,
   FeedbackSource,
+  RoleType,
 } from "@/lib/contracts/databasev2";
 
 export type { AipStatus } from "@/lib/contracts/databasev2";
@@ -149,6 +150,7 @@ export type AipProjectFeedbackMessage = {
   body: string;
   authorId: string | null;
   authorName: string | null;
+  authorRole?: RoleType | null;
   createdAt: string;
   updatedAt: string;
 };

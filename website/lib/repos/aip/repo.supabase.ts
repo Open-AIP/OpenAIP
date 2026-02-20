@@ -215,6 +215,16 @@ type AipStatusRow = {
   status: "draft" | "pending_review" | "under_review" | "for_revision" | "published";
 };
 
+type AipScopeOwnerRow = {
+  id: string;
+  barangay_id: string | null;
+};
+
+type ProfileBarangayScopeRow = {
+  role: ProfileRow["role"];
+  barangay_id: string | null;
+};
+
 type ProjectFeedbackSelectRow = {
   id: string;
   parent_feedback_id: string | null;
@@ -382,13 +392,23 @@ async function getViewerScope(): Promise<ViewerScope | null> {
 
 async function getProfilesByIds(userIds: string[]): Promise<Map<string, ProfileRow>> {
   if (!userIds.length) return new Map();
-  const client = await supabaseServer();
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,full_name,role")
-    .in("id", userIds);
-  if (error) throw new Error(error.message);
-  return new Map((data as ProfileRow[]).map((r) => [r.id, r]));
+  try {
+    const admin = supabaseAdmin();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("id,full_name,role")
+      .in("id", userIds);
+    if (error) throw new Error(error.message);
+    return new Map(((data ?? []) as ProfileRow[]).map((r) => [r.id, r]));
+  } catch {
+    const client = await supabaseServer();
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,full_name,role")
+      .in("id", userIds);
+    if (error) throw new Error(error.message);
+    return new Map(((data ?? []) as ProfileRow[]).map((r) => [r.id, r]));
+  }
 }
 
 async function getLatestSummaries(aipIds: string[]): Promise<Map<string, ArtifactSelectRow>> {
@@ -739,8 +759,11 @@ function buildAipHeader(input: {
 
   const uploaderName =
     uploader?.full_name?.trim() ||
-    scopeName;
-  const uploaderRole = uploader ? roleLabel(uploader.role) : "LGU";
+    (scope === "barangay" ? "Barangay Official" : "Official");
+  const uploaderRole =
+    uploader?.role
+      ? roleLabel(uploader.role)
+      : (scope === "barangay" ? "Barangay Official" : "Official");
   const uploadedAt = currentFile?.created_at ?? aip.created_at;
 
   return {
@@ -981,6 +1004,45 @@ async function assertProjectReviewIsEditable(
   }
 }
 
+async function assertBarangayProjectEditOwnership(
+  client: Awaited<ReturnType<typeof supabaseServer>>,
+  aipId: string,
+  userId: string
+) {
+  const { data: aipData, error: aipError } = await client
+    .from("aips")
+    .select("id,barangay_id")
+    .eq("id", aipId)
+    .maybeSingle();
+
+  if (aipError) throw new Error(aipError.message);
+  if (!aipData) throw new Error("AIP not found.");
+
+  const aip = aipData as AipScopeOwnerRow;
+  if (!aip.barangay_id) return;
+
+  const { data: profileData, error: profileError } = await client
+    .from("profiles")
+    .select("role,barangay_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profileData) throw new Error("Unauthorized");
+
+  const profile = profileData as ProfileBarangayScopeRow;
+  const isOwningBarangayOfficial =
+    profile.role === "barangay_official" &&
+    !!profile.barangay_id &&
+    profile.barangay_id === aip.barangay_id;
+
+  if (!isOwningBarangayOfficial) {
+    throw new Error(
+      "Only the owning barangay official can edit projects for this AIP."
+    );
+  }
+}
+
 function toFeedbackAuthorName(
   row: ProjectFeedbackSelectRow,
   profilesById: Map<string, ProfileRow>
@@ -991,6 +1053,14 @@ function toFeedbackAuthorName(
   if (!profile?.full_name) return null;
   const fullName = profile.full_name.trim();
   return fullName.length ? fullName : null;
+}
+
+function toFeedbackAuthorRole(
+  row: ProjectFeedbackSelectRow,
+  profilesById: Map<string, ProfileRow>
+): ProfileRow["role"] | null {
+  if (!row.author_id) return null;
+  return profilesById.get(row.author_id)?.role ?? null;
 }
 
 function sortFeedbackMessageByCreatedAtAsc(
@@ -1047,6 +1117,7 @@ function buildProjectFeedbackThreads(
       body: row.body,
       authorId: row.author_id,
       authorName: toFeedbackAuthorName(row, profilesById),
+      authorRole: toFeedbackAuthorRole(row, profilesById),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }))
@@ -1152,6 +1223,7 @@ export function createSupabaseAipProjectRepo(): AipProjectRepo {
       const client = await supabaseServer();
       const { data: authData, error: authError } = await client.auth.getUser();
       if (authError || !authData.user?.id) throw new Error("Unauthorized");
+      await assertBarangayProjectEditOwnership(client, input.aipId, authData.user.id);
       await assertProjectReviewIsEditable(client, input.aipId);
 
       const { data: currentRowData, error: currentRowError } = await client

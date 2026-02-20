@@ -17,6 +17,7 @@ import type {
   AipProjectFeedbackThread,
   AipProjectReviewDetail,
 } from "@/lib/repos/aip/repo";
+import type { RoleType } from "@/lib/contracts/databasev2";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,11 @@ type ReviewSubmitPayload = {
   reason: string;
   changes?: AipProjectEditPatch;
   resolution: "disputed" | "confirmed" | "comment_only";
+};
+
+type ProjectBreadcrumbItem = {
+  label: string;
+  href?: string;
 };
 
 function toInputValue(value: string | null): string {
@@ -76,11 +82,19 @@ function formatFeedbackDate(value: string): string {
   });
 }
 
+function feedbackRoleLabel(role: RoleType | null | undefined): string {
+  if (role === "barangay_official") return "Barangay Official";
+  if (role === "city_official" || role === "municipal_official" || role === "admin") {
+    return "Reviewer";
+  }
+  if (role === "citizen") return "Citizen";
+  return "Official";
+}
+
 function feedbackAuthorLabel(message: AipProjectFeedbackMessage): string {
   if (message.authorName?.trim()) return message.authorName.trim();
   if (message.source === "ai") return "AI";
-  if (message.authorId?.trim()) return message.authorId.trim();
-  return "Unknown";
+  return feedbackRoleLabel(message.authorRole);
 }
 
 function feedbackKindLabel(kind: AipProjectFeedbackMessage["kind"]): string {
@@ -137,13 +151,22 @@ export default function AipProjectDetailView({
   scope = "barangay",
   aip,
   detail,
+  breadcrumbItems,
+  forceReadOnly = false,
+  readOnlyMessage,
+  showOfficialCommentPanel = true,
 }: {
   scope?: "city" | "barangay";
   aip: AipHeader;
   detail: AipProjectReviewDetail;
+  breadcrumbItems?: ProjectBreadcrumbItem[];
+  forceReadOnly?: boolean;
+  readOnlyMessage?: string;
+  showOfficialCommentPanel?: boolean;
 }) {
   const router = useRouter();
-  const canComment = aip.status === "draft" || aip.status === "for_revision";
+  const canComment =
+    !forceReadOnly && (aip.status === "draft" || aip.status === "for_revision");
 
   const [project, setProject] = React.useState(detail.project);
   const [draft, setDraft] = React.useState<AipProjectEditableFields>(
@@ -184,7 +207,7 @@ export default function AipProjectDetailView({
     project.reviewStatus === "ai_flagged" ? "disputed" : "comment_only";
   const derivedSector = deriveSectorFromRefCode(draft.aipRefCode);
 
-  const breadcrumb = [
+  const defaultBreadcrumb = [
     { label: "AIP Management", href: `/${scope}/aips` },
     {
       label: aip.title,
@@ -194,8 +217,15 @@ export default function AipProjectDetailView({
       label: `Project ${project.projectRefCode}`,
     },
   ];
+  const breadcrumb = breadcrumbItems ?? defaultBreadcrumb;
+  const lockedCommentMessage =
+    forceReadOnly
+      ? (readOnlyMessage ??
+        "Project editing is disabled because this AIP is owned by a barangay.")
+      : "Feedback can only be added when the AIP status is Draft or For Revision.";
 
   async function handleSubmit(payload: ReviewSubmitPayload) {
+    if (!canComment) return;
     const trimmedReason = payload.reason.trim();
     if (!trimmedReason) return;
 
@@ -506,71 +536,73 @@ export default function AipProjectDetailView({
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <div className="text-sm font-semibold text-slate-900">
-              Official Comment / Justification
-            </div>
-
-            {!canComment ? (
-              <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                Feedback can only be added when the AIP status is Draft or For Revision.
+          {showOfficialCommentPanel ? (
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="text-sm font-semibold text-slate-900">
+                Official Comment / Justification
               </div>
-            ) : showReasonPanel ? (
-              <>
-                <p className="mt-1 text-xs text-slate-500">
-                  Provide your justification before saving.
-                </p>
 
-                {diff.length > 0 ? (
-                  <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
-                    <div className="text-xs font-semibold text-slate-700">
-                      Detected field changes
+              {!canComment ? (
+                <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  {lockedCommentMessage}
+                </div>
+              ) : showReasonPanel ? (
+                <>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Provide your justification before saving.
+                  </p>
+
+                  {diff.length > 0 ? (
+                    <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-xs font-semibold text-slate-700">
+                        Detected field changes
+                      </div>
+                      <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                        {diff.map((item) => (
+                          <li key={item.key}>
+                            {PROJECT_FIELD_LABELS[item.key]}:{" "}
+                            <span className="font-medium">{formatDiffValue(item.before)}</span>
+                            {" -> "}
+                            <span className="font-medium">{formatDiffValue(item.after)}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <ul className="mt-2 space-y-1 text-xs text-slate-600">
-                      {diff.map((item) => (
-                        <li key={item.key}>
-                          {PROJECT_FIELD_LABELS[item.key]}:{" "}
-                          <span className="font-medium">{formatDiffValue(item.before)}</span>
-                          {" -> "}
-                          <span className="font-medium">{formatDiffValue(item.after)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                <Textarea
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  placeholder="Explain what changed (or why you are disputing/confirming AI findings)."
-                  className="mt-3 min-h-[130px]"
-                />
+                  <Textarea
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="Explain what changed (or why you are disputing/confirming AI findings)."
+                    className="mt-3 min-h-[130px]"
+                  />
 
-                {submitError ? (
-                  <p className="mt-2 text-xs text-rose-600">{submitError}</p>
-                ) : null}
+                  {submitError ? (
+                    <p className="mt-2 text-xs text-rose-600">{submitError}</p>
+                  ) : null}
 
-                <Button
-                  className="mt-3 w-full bg-[#022437] hover:bg-[#022437]/90"
-                  onClick={() =>
-                    void handleSubmit({
-                      reason,
-                      resolution: defaultResolution,
-                      changes: patch,
-                    })
-                  }
-                  disabled={submitting || !reason.trim() || (!hasOriginalAiIssues && !hasChanges)}
-                >
-                  {submitting ? "Submitting..." : "Save Review"}
-                </Button>
-              </>
-            ) : (
-              <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                No issues detected. Edit one or more fields to enable the required
-                justification comment.
-              </div>
-            )}
-          </div>
+                  <Button
+                    className="mt-3 w-full bg-[#022437] hover:bg-[#022437]/90"
+                    onClick={() =>
+                      void handleSubmit({
+                        reason,
+                        resolution: defaultResolution,
+                        changes: patch,
+                      })
+                    }
+                    disabled={submitting || !reason.trim() || (!hasOriginalAiIssues && !hasChanges)}
+                  >
+                    {submitting ? "Submitting..." : "Save Review"}
+                  </Button>
+                </>
+              ) : (
+                <div className="mt-2 rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                  No issues detected. Edit one or more fields to enable the required
+                  justification comment.
+                </div>
+              )}
+            </div>
+          ) : null}
 
           <div className="rounded-lg border border-slate-200 p-4">
             <div className="text-sm font-semibold text-slate-900">Feedback History</div>

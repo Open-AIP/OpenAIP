@@ -400,6 +400,11 @@ function toLatestReview(row: MockAipReviewRow | null): LatestReview {
   };
 }
 
+function toActiveClaimReviewerName(row: MockAipReviewRow | null): string | null {
+  if (!row || row.action !== "claim_review") return null;
+  return row.reviewerName;
+}
+
 function getBarangayCityId(aipId: string): string | null {
   return MOCK_CITY_BY_AIP_ID[aipId] ?? null;
 }
@@ -457,7 +462,7 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
           scope: "barangay",
           barangayName: aip.barangayName ?? null,
           uploadedAt: aip.uploadedAt,
-          reviewerName: latest?.reviewerName ?? null,
+          reviewerName: toActiveClaimReviewerName(latest),
         } satisfies AipSubmissionRow;
       });
 

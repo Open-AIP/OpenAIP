@@ -101,6 +101,14 @@ function toLatestReview(
   };
 }
 
+function toActiveClaimReviewerName(
+  review: ReviewSelectRow | null,
+  profileById: Map<string, ProfileNameRow>
+): string | null {
+  if (!review || review.action !== "claim_review") return null;
+  return toLatestReview(review, profileById)?.reviewerName ?? null;
+}
+
 async function loadAipStatusRow(aipId: string): Promise<AipStatusRow | null> {
   const client = await supabaseServer();
   const { data, error } = await client
@@ -342,9 +350,7 @@ export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRe
             ? (barangayById.get(row.barangay_id)?.name ?? null)
             : null,
           uploadedAt: row.submitted_at ?? row.created_at,
-          reviewerName: latest
-            ? toLatestReview(latest, profileById)?.reviewerName ?? null
-            : null,
+          reviewerName: toActiveClaimReviewerName(latest, profileById),
         } satisfies AipSubmissionRow;
       });
 

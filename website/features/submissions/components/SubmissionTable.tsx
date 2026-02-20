@@ -70,7 +70,7 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                   Status
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
-                  Reviewer
+                  Assigned Reviewer
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
                   Duration

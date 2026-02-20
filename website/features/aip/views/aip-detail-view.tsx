@@ -1133,7 +1133,7 @@ export default function AipDetailView({
                       <CardContent className="space-y-3 p-5">
                         <div>
                           <h3 className="text-sm font-semibold text-slate-900">
-                            Feedback History
+                            Reviewer Feedback History
                           </h3>
                           <p className="mt-1 text-xs text-slate-500">
                             Reviewer remarks and barangay replies grouped by revision cycle.

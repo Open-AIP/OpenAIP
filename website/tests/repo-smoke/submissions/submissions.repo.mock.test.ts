@@ -113,16 +113,48 @@ export async function runSubmissionsReviewRepoTests() {
   {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
+    const index = AIPS_TABLE.findIndex((row) => row.id === aipId);
     const next = await repo.claimReview({ aipId, actor });
     const latest = await repo.getLatestReview({ aipId });
-    const feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
-    const claimed = feed.rows.find((row) => row.id === aipId);
+    let feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    let claimed = feed.rows.find((row) => row.id === aipId);
 
     assert(next === "under_review", "Expected claimReview to move pending AIP under_review");
     assert(latest?.action === "claim_review", "Expected latest action to be claim_review");
     assert(
       claimed?.reviewerName === actor.userId,
       "Expected claimed AIP reviewer column to show the claimer"
+    );
+
+    await repo.requestRevision({
+      aipId,
+      note: "Please revise and resubmit.",
+      actor,
+    });
+
+    feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    claimed = feed.rows.find((row) => row.id === aipId);
+    assert(
+      claimed?.reviewerName === null,
+      "Expected reviewer column to clear once latest action is request_revision"
+    );
+
+    const current = AIPS_TABLE[index];
+    AIPS_TABLE[index] = { ...current, status: "pending_review" };
+
+    feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    claimed = feed.rows.find((row) => row.id === aipId);
+    assert(
+      claimed?.reviewerName === null,
+      "Expected resubmitted pending_review AIP to remain unassigned before a new claim"
+    );
+
+    await repo.claimReview({ aipId, actor: otherActor });
+    feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    claimed = feed.rows.find((row) => row.id === aipId);
+    assert(
+      claimed?.reviewerName === otherActor.userId,
+      "Expected reviewer column to show the new claimer after resubmission"
     );
   }
 

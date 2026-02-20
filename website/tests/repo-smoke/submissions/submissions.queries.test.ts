@@ -8,6 +8,20 @@ function assert(condition: boolean, message: string) {
   }
 }
 
+async function expectUnauthorized(
+  fn: () => Promise<unknown>,
+  message: string
+) {
+  let threwUnauthorized = false;
+  try {
+    await fn();
+  } catch (error) {
+    threwUnauthorized =
+      error instanceof Error && /unauthorized/i.test(error.message);
+  }
+  assert(threwUnauthorized, message);
+}
+
 export async function runSubmissionsServiceTests() {
   const admin: ActorContext = { userId: "admin_001", role: "admin", scope: { kind: "none" } };
   const cityOfficial: ActorContext = {
@@ -37,10 +51,14 @@ export async function runSubmissionsServiceTests() {
     "Expected city official to receive barangay submissions"
   );
 
-  const barangayFeed = await getCitySubmissionsFeedForActor(barangayOfficial);
-  assert(
-    barangayFeed.rows.length === 0,
-    "Expected barangay official to receive no city submissions"
+  await expectUnauthorized(
+    () => getCitySubmissionsFeedForActor(barangayOfficial),
+    "Expected barangay official to be unauthorized for city submissions"
+  );
+
+  await expectUnauthorized(
+    () => getCitySubmissionsFeedForActor(null),
+    "Expected null actor to be unauthorized for city submissions"
   );
 }
 

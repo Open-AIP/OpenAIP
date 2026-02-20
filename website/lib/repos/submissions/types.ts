@@ -56,6 +56,11 @@ export type StartReviewIfNeededParams = {
   actor: ActorContext | null;
 };
 
+export type ClaimReviewParams = {
+  aipId: string;
+  actor: ActorContext | null;
+};
+
 export type RequestRevisionParams = {
   aipId: string;
   note: string;

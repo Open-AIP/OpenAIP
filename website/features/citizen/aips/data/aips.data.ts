@@ -9,7 +9,7 @@ import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 import { AIP_ACCOUNTABILITY_BY_ID } from "@/mocks/fixtures/aip/aip-accountability.fixture";
 import { CITIZEN_AIP_COMMENTS } from "@/mocks/fixtures/aip/aip-comments.fixture";
-import { AipHeader, AipProjectRow } from "@/lib/repos/aip/types";
+import { AipHeader } from "@/lib/repos/aip/types";
 import { formatDate } from "@/lib/formatting";
 
 const DEFAULT_DETAILED_BULLETS = [
@@ -68,7 +68,15 @@ const toCitizenListItem = (aip: AipHeader): AipListItem => {
   };
 };
 
-const toCitizenProjectRow = (row: AipProjectRow): CitizenProjectRow => ({
+type CitizenProjectSourceRow = {
+  id: string;
+  sector: CitizenProjectRow["sector"];
+  projectRefCode: string;
+  aipDescription: string;
+  amount: number;
+};
+
+const toCitizenProjectRow = (row: CitizenProjectSourceRow): CitizenProjectRow => ({
   id: row.id,
   sector: row.sector,
   aipReferenceCode: row.projectRefCode,

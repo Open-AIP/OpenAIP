@@ -1,7 +1,6 @@
 "use server";
 
 import { getActorContext } from "@/lib/domain/get-actor-context";
-import { getAppEnv } from "@/lib/config/appEnv";
 import { getAipSubmissionsReviewRepo } from "@/lib/repos/submissions/repo.server";
 
 // [DATAFLOW] UI → server action → repo adapter (mock now; Supabase later).
@@ -20,11 +19,11 @@ export async function requestRevisionAction(input: {
   }
 
   const actor = await getActorContext();
-  if (!actor && getAppEnv() !== "dev") {
+  if (!actor) {
     return { ok: false, message: "Unauthorized." };
   }
 
-  if (actor && actor.role !== "admin" && actor.role !== "city_official") {
+  if (actor.role !== "admin" && actor.role !== "city_official") {
     return { ok: false, message: "Unauthorized." };
   }
 
@@ -40,6 +39,30 @@ export async function requestRevisionAction(input: {
   }
 }
 
+export async function claimReviewAction(input: {
+  aipId: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const actor = await getActorContext();
+  if (!actor) {
+    return { ok: false, message: "Unauthorized." };
+  }
+
+  if (actor.role !== "admin" && actor.role !== "city_official") {
+    return { ok: false, message: "Unauthorized." };
+  }
+
+  try {
+    const repo = getAipSubmissionsReviewRepo();
+    await repo.claimReview({ aipId: input.aipId, actor });
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Failed to claim review.",
+    };
+  }
+}
+
 export async function publishAipAction(input: {
   aipId: string;
   note?: string;
@@ -47,11 +70,11 @@ export async function publishAipAction(input: {
   const trimmed = typeof input.note === "string" ? input.note.trim() : "";
 
   const actor = await getActorContext();
-  if (!actor && getAppEnv() !== "dev") {
+  if (!actor) {
     return { ok: false, message: "Unauthorized." };
   }
 
-  if (actor && actor.role !== "admin" && actor.role !== "city_official") {
+  if (actor.role !== "admin" && actor.role !== "city_official") {
     return { ok: false, message: "Unauthorized." };
   }
 

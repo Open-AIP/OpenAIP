@@ -11,6 +11,7 @@ type Props = {
   // Replace these with Supabase user data later
   userName?: string;
   roleLabel?: string;
+  scopeDisplayName?: string;
 };
 
 export default function LguShell({
@@ -18,12 +19,13 @@ export default function LguShell({
   children,
   userName = "Juan Dela Cruz",
   roleLabel = variant === "barangay" ? "Barangay Official" : "City Official",
+  scopeDisplayName,
 }: Props) {
   const accountHref = variant === "barangay" ? "/barangay/account" : "/city/account";
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <LguSidebar variant={variant} />
+      <LguSidebar variant={variant} scopeDisplayName={scopeDisplayName} />
 
       <div className="flex-1 min-w-0 flex flex-col">
         <LguTopbar name={userName} roleLabel={roleLabel} accountHref={accountHref} />

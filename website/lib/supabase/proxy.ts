@@ -22,6 +22,17 @@ export function toRouteRole(role: RoleType): RouteRole {
 }
 
 export async function updateSession(request: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const publishableOrAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url || !publishableOrAnonKey) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL and either NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    )
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -29,8 +40,8 @@ export async function updateSession(request: NextRequest) {
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    url,
+    publishableOrAnonKey,
     {
       cookies: {
         getAll() {
@@ -48,21 +59,13 @@ export async function updateSession(request: NextRequest) {
   )
 
   // Do not run code between createServerClient and
-  // supabase.auth.getClaims(). A simple mistake could make it very hard to debug
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  // IMPORTANT: If you remove getClaims() and you use server-side rendering
+  // IMPORTANT: If you remove getUser() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
-  const { data } = await supabase.auth.getClaims()
-  const claims = data?.claims as Record<string, unknown> | undefined
-  const userId =
-    claims && typeof claims.sub === 'string'
-      ? claims.sub
-      : claims && typeof claims.user_id === 'string'
-      ? claims.user_id
-      : claims && typeof claims.id === 'string'
-      ? claims.id
-      : null
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  const userId = authError ? null : authData.user?.id ?? null
 
   let userRole: RouteRole | null = null
   if (userId) {
@@ -107,9 +110,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (userId && !userRole && pathRole !== 'citizen') {
-    const url = request.nextUrl.clone()
-    url.pathname = `/${pathRole}/unauthorized`
-    return NextResponse.redirect(url)
+    const unauthorizedPath = `/${pathRole}/unauthorized`
+    if (pathname !== unauthorizedPath) {
+      const url = request.nextUrl.clone()
+      url.pathname = unauthorizedPath
+      return NextResponse.redirect(url)
+    }
   }
 
   // signed in user accessing different role

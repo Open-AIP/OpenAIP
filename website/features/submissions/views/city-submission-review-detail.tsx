@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AipHeader } from "@/features/aip/types";
@@ -17,27 +17,70 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
+import type { RoleType } from "@/lib/contracts/databasev2";
 import type { LatestReview } from "@/lib/repos/submissions/repo";
 import { getAipStatusLabel } from "../presentation/submissions.presentation";
-import { publishAipAction, requestRevisionAction } from "../actions/submissionsReview.actions";
+import {
+  claimReviewAction,
+  publishAipAction,
+  requestRevisionAction,
+} from "../actions/submissionsReview.actions";
 import { PublishSuccessCard } from "../components/PublishSuccessCard";
+
+function formatRevisionReplyDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function CitySubmissionReviewDetail({
   aip,
   latestReview,
+  actorUserId,
+  actorRole,
   mode,
+  intent,
   result,
 }: {
   aip: AipHeader;
   latestReview: LatestReview;
+  actorUserId: string | null;
+  actorRole: RoleType | null;
   mode?: string;
+  intent?: string;
   result?: string;
 }) {
   const router = useRouter();
+  const isAdmin = actorRole === "admin";
   const isReviewMode = mode === "review";
+  const hasActiveClaim =
+    aip.status === "under_review" && latestReview?.action === "claim_review";
+  const isOwner =
+    hasActiveClaim &&
+    !!actorUserId &&
+    latestReview?.reviewerId === actorUserId;
+  const assignedToOther = hasActiveClaim && !isOwner;
+  const canClaim =
+    aip.status === "pending_review" ||
+    (aip.status === "under_review" && (!hasActiveClaim || isAdmin));
+  const showClaimButton = canClaim && !isOwner;
+  const claimLabel =
+    aip.status === "pending_review"
+      ? "Review & Claim AIP"
+      : assignedToOther
+        ? "Take Over Review"
+        : "Claim Review";
+  const canReview = isReviewMode && aip.status === "under_review" && isOwner;
+
   const [publishedSuccess, setPublishedSuccess] = useState(false);
   const showSuccess = (isReviewMode && result === "published") || publishedSuccess;
-  const canReview = isReviewMode && aip.status === "under_review";
+  const [claimOpen, setClaimOpen] = useState(false);
 
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
@@ -51,6 +94,12 @@ export default function CitySubmissionReviewDetail({
       ? latestReview.note
       : null;
 
+  useEffect(() => {
+    if (intent === "review" && showClaimButton && !isOwner) {
+      setClaimOpen(true);
+    }
+  }, [intent, isOwner, showClaimButton]);
+
   function goToSubmissions() {
     router.push("/city/submissions");
   }
@@ -62,6 +111,30 @@ export default function CitySubmissionReviewDetail({
   function goToPublishedSuccess() {
     setPublishedSuccess(true);
     router.replace(`/city/submissions/aip/${aip.id}?mode=review&result=published`);
+  }
+
+  function stayInViewMode() {
+    setClaimOpen(false);
+    setSubmitError(null);
+    router.replace(`/city/submissions/aip/${aip.id}`);
+  }
+
+  async function claimReview() {
+    setSubmitError(null);
+    try {
+      setSubmitting(true);
+      const response = await claimReviewAction({ aipId: aip.id });
+      if (!response.ok) {
+        setSubmitError(response.message ?? "Failed to claim review.");
+        return;
+      }
+
+      setClaimOpen(false);
+      router.replace(`/city/submissions/aip/${aip.id}?mode=review`);
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function confirmPublish() {
@@ -140,17 +213,42 @@ export default function CitySubmissionReviewDetail({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <AipPdfContainer aip={aip} />
-          <AipDetailsSummary aip={aip} scope="city" />
+          <AipDetailsSummary aip={aip} />
           <AipDetailsTableView
             aipId={aip.id}
             year={aip.year}
             aipStatus={aip.status}
+            scope="city"
             focusedRowId={undefined}
           />
           <AipUploaderInfo aip={aip} />
         </div>
 
         <div className="lg:sticky lg:top-6 h-fit space-y-6">
+          {aip.revisionReply?.body ? (
+            <Card className="border-slate-200">
+              <CardContent className="space-y-3 p-5">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    Barangay Reply to Revision Remarks
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Response submitted before resubmission.
+                  </div>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="whitespace-pre-wrap text-sm text-emerald-900">
+                    {aip.revisionReply.body}
+                  </p>
+                  <p className="mt-2 text-xs text-emerald-800">
+                    {aip.revisionReply.authorName || "Barangay Official"} •{" "}
+                    {formatRevisionReplyDate(aip.revisionReply.createdAt)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
           {canReview ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
@@ -209,11 +307,118 @@ export default function CitySubmissionReviewDetail({
                 </Button>
               </CardContent>
             </Card>
+          ) : showClaimButton ? (
+            <Card className="border-slate-200">
+              <CardContent className="p-5 space-y-4">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    Review Assignment
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {assignedToOther
+                      ? `Currently assigned to ${latestReview?.reviewerName ?? "another reviewer"}.`
+                      : "No reviewer is assigned yet."}
+                  </div>
+                </div>
+
+                <div className="text-xs text-slate-600">
+                  {aip.status === "pending_review"
+                    ? "Claiming will set this AIP to Under Review and assign it to you."
+                    : assignedToOther
+                      ? "As admin, you can take over this review before taking actions."
+                      : "Claim this AIP to enable publish and revision actions."}
+                </div>
+
+                {submitError ? (
+                  <div className="text-xs text-rose-600">{submitError}</div>
+                ) : null}
+
+                <Button
+                  className="w-full bg-teal-600 hover:bg-teal-700"
+                  onClick={claimReview}
+                  disabled={submitting}
+                >
+                  {claimLabel}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : isReviewMode && assignedToOther ? (
+            <Card className="border-slate-200">
+              <CardContent className="p-5 space-y-4">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    Review Actions
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Assigned to {latestReview?.reviewerName ?? "another reviewer"}.
+                    You are in view-only mode.
+                  </div>
+                </div>
+
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Write revision comments or feedback..."
+                  className="min-h-[90px]"
+                  disabled
+                />
+
+                <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled>
+                  Publish AIP
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full border-orange-400 text-orange-600 hover:bg-orange-50"
+                  disabled
+                >
+                  Request Revision
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <RemarksCard status={aip.status} reviewerMessage={revisionNote} />
           )}
         </div>
       </div>
+
+      <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Claim Review Ownership</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-600">
+            <div>
+              Choosing <span className="font-semibold text-slate-900">Review &amp; Claim</span>{" "}
+              will assign this AIP to you. Other reviewers will be blocked from publishing
+              or requesting revision until ownership changes.
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-xs text-slate-500">
+                {aip.barangayName ?? "Barangay"}
+              </div>
+            </div>
+
+            {submitError ? (
+              <div className="text-xs text-rose-600">{submitError}</div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={stayInViewMode} disabled={submitting}>
+                Just View
+              </Button>
+              <Button
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={claimReview}
+                disabled={submitting}
+              >
+                {claimLabel}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={publishOpen} onOpenChange={setPublishOpen}>
         <DialogContent className="max-w-lg">

@@ -14,6 +14,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 type Props = {
   variant: LguVariant;
+  scopeDisplayName?: string;
 };
 
 function isActive(pathname: string, href: string) {
@@ -35,12 +36,27 @@ function isParentActive(pathname: string, href: string, hasChildren: boolean) {
   return isActive(pathname, href);
 }
 
-export default function LguSidebar({ variant }: Props) {
+function formatHeaderLabel(variant: LguVariant, scopeDisplayName?: string): string {
+  const fallback = variant === "barangay" ? "Barangay Management" : "City Management";
+  const trimmedName = typeof scopeDisplayName === "string" ? scopeDisplayName.trim() : "";
+
+  if (!trimmedName) return fallback;
+
+  if (variant === "barangay") {
+    if (/^(barangay|brgy\.?)/i.test(trimmedName)) return trimmedName;
+    return `Barangay ${trimmedName}`;
+  }
+
+  if (/city/i.test(trimmedName)) return trimmedName;
+  return `${trimmedName} City`;
+}
+
+export default function LguSidebar({ variant, scopeDisplayName }: Props) {
   const pathname = usePathname();
   const nav = variant === "barangay" ? BARANGAY_NAV : CITY_NAV;
   const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
 
-  const headerLabel = variant === "barangay" ? "Barangay Management" : "City Management";
+  const headerLabel = formatHeaderLabel(variant, scopeDisplayName);
 
   const toggleDropdown = (href: string) => {
     setOpenDropdowns((prev) =>

@@ -439,14 +439,24 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
 
         current_stage = "validate"
         set_run_stage(client, run_id, current_stage)
-        validation_res = run_with_heartbeat(
-            client=client,
-            run_id=run_id,
-            stage=current_stage,
-            expected_seconds=read_positive_float_env("PIPELINE_VALIDATE_EXPECTED_SECONDS", 90.0),
-            message_prefix="Validating extracted data",
-            fn=lambda: validate_projects_json_str(extraction_res.json_str, model=model_name),
+
+        def validation_progress(
+            done_projects: int,
+            total_projects: int,
+            batch_no: int,
+            total_batches: int,
+            message: str,
+        ) -> None:
+            pct = 100 if total_projects <= 0 else clamp_pct((done_projects * 100) / total_projects)
+            set_run_progress(client, run_id, current_stage, pct, message)
+
+        validation_res = validate_projects_json_str(
+            extraction_res.json_str,
+            model=model_name,
+            num_batches=4,
+            on_progress=validation_progress,
         )
+        set_run_progress(client, run_id, current_stage, 100, "Validation complete.")
         insert_artifact(
             client,
             run_id=run_id,
@@ -508,7 +518,13 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             batch_size=int(os.getenv("PIPELINE_BATCH_SIZE", "25")),
             on_progress=categorize_progress,
         )
-        set_run_progress(client, run_id, current_stage, 100, "Categorization complete.")
+        set_run_progress(
+            client,
+            run_id,
+            current_stage,
+            100,
+            "Categorization complete. Saving categorized artifacts to the database...",
+        )
 
         categorize_artifact_id = insert_artifact(
             client,
@@ -519,11 +535,27 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             artifact_text=summary_res.summary_text,
         )
 
+        set_run_progress(
+            client,
+            run_id,
+            current_stage,
+            100,
+            "Artifacts saved. Writing categorized projects to the database...",
+        )
+
         upsert_projects(
             client,
             aip_id=aip_id,
             extraction_artifact_id=categorize_artifact_id,
             projects=categorized_res.categorized_obj.get("projects", []),
+        )
+
+        set_run_progress(
+            client,
+            run_id,
+            current_stage,
+            100,
+            "Finalizing processing run. Redirecting shortly...",
         )
 
         set_run_succeeded(client, run_id)

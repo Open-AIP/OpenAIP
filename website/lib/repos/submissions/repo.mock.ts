@@ -85,10 +85,12 @@ function seedReviewStore() {
 
 seedReviewStore();
 
-function requireCityReviewer(actor: ActorContext | null, cityId: string) {
+function requireCityReviewer(
+  actor: ActorContext | null,
+  cityId: string
+): asserts actor is ActorContext {
   if (!actor) {
-    // Dev UX: allow mock browsing when auth context is missing.
-    return;
+    throw new Error("Unauthorized.");
   }
 
   if (actor.role !== "admin" && actor.role !== "city_official") {
@@ -108,11 +110,35 @@ function requireCityReviewer(actor: ActorContext | null, cityId: string) {
 function latestReviewForAip(aipId: string): MockAipReviewRow | null {
   const rows = reviewStore.filter((row) => row.aipId === aipId);
   if (rows.length === 0) return null;
-  return rows.reduce((latest, row) =>
-    new Date(row.createdAt).getTime() > new Date(latest.createdAt).getTime()
-      ? row
-      : latest
-  );
+  return rows.reduce((latest, row) => {
+    const rowTs = new Date(row.createdAt).getTime();
+    const latestTs = new Date(latest.createdAt).getTime();
+    if (rowTs > latestTs) return row;
+    if (rowTs === latestTs && row.id > latest.id) return row;
+    return latest;
+  });
+}
+
+function activeClaimForAip(aipId: string): MockAipReviewRow | null {
+  const latest = latestReviewForAip(aipId);
+  if (!latest || latest.action !== "claim_review") return null;
+  return latest;
+}
+
+function assertClaimOwnership(aipId: string, actor: ActorContext) {
+  const activeClaim = activeClaimForAip(aipId);
+  if (!activeClaim) {
+    throw new Error("Claim review before taking actions.");
+  }
+
+  if (activeClaim.reviewerId !== actor.userId) {
+    if (actor.role === "admin") {
+      throw new Error(
+        "This AIP is assigned to another reviewer. Claim review to take over before taking actions."
+      );
+    }
+    throw new Error("This AIP is assigned to another reviewer.");
+  }
 }
 
 export function getLatestMockAipRevisionNote(aipId: string): string | null {
@@ -149,6 +175,11 @@ function toLatestReview(row: MockAipReviewRow | null): LatestReview {
 
 function getBarangayCityId(aipId: string): string | null {
   return MOCK_CITY_BY_AIP_ID[aipId] ?? null;
+}
+
+function toReviewerName(actor: ActorContext): string {
+  if (actor.userId === MOCK_REVIEWER_ID) return MOCK_REVIEWER_NAME;
+  return actor.userId;
 }
 
 function assertInJurisdiction(aip: AipHeader, cityId: string) {
@@ -211,12 +242,14 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) return null;
 
+      if (!actor) throw new Error("Unauthorized.");
+
       // Determine jurisdiction context:
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
-      if (!cityId) return null;
+      if (!cityId) throw new Error("Unauthorized.");
 
       requireCityReviewer(actor, cityId);
       assertInJurisdiction(aip, cityId);
@@ -225,12 +258,13 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       return { aip, latestReview: toLatestReview(latest) };
     },
 
-    async startReviewIfNeeded({ aipId, actor }): Promise<AipStatus> {
+    async claimReview({ aipId, actor }): Promise<AipStatus> {
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
       if (!cityId) throw new Error("Unauthorized.");
@@ -238,10 +272,90 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       requireCityReviewer(actor, cityId);
       assertInJurisdiction(aip, cityId);
 
-      if (aip.status !== "pending_review") return aip.status;
+      if (aip.status !== "pending_review" && aip.status !== "under_review") {
+        throw new Error("AIP is not available for review claim.");
+      }
 
-      const index = AIPS_TABLE.findIndex((row) => row.id === aipId);
-      AIPS_TABLE[index] = { ...aip, status: "under_review" };
+      const activeClaim = activeClaimForAip(aipId);
+      if (
+        activeClaim &&
+        activeClaim.reviewerId !== actor.userId &&
+        actor.role !== "admin"
+      ) {
+        throw new Error("This AIP is assigned to another reviewer.");
+      }
+
+      if (!activeClaim || activeClaim.reviewerId !== actor.userId) {
+        reviewStore = [
+          ...reviewStore,
+          {
+            id: nextReviewId(),
+            aipId,
+            reviewerId: actor.userId || MOCK_REVIEWER_ID,
+            reviewerName: toReviewerName(actor),
+            action: "claim_review",
+            note: null,
+            createdAt: nowIso(),
+          },
+        ];
+      }
+
+      if (aip.status === "pending_review") {
+        const index = AIPS_TABLE.findIndex((row) => row.id === aipId);
+        AIPS_TABLE[index] = { ...aip, status: "under_review" };
+      }
+
+      return "under_review";
+    },
+
+    async startReviewIfNeeded({ aipId, actor }): Promise<AipStatus> {
+      // Legacy entrypoint kept for compatibility. Claims the review owner explicitly.
+      const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
+      if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
+
+      const cityId =
+        actor.role === "city_official" && actor.scope.kind === "city"
+          ? actor.scope.id
+          : MOCK_CITY_ID;
+      if (!cityId) throw new Error("Unauthorized.");
+
+      requireCityReviewer(actor, cityId);
+      assertInJurisdiction(aip, cityId);
+
+      if (aip.status !== "pending_review" && aip.status !== "under_review") {
+        throw new Error("AIP is not available for review claim.");
+      }
+
+      const activeClaim = activeClaimForAip(aipId);
+      if (
+        activeClaim &&
+        activeClaim.reviewerId !== actor.userId &&
+        actor.role !== "admin"
+      ) {
+        throw new Error("This AIP is assigned to another reviewer.");
+      }
+
+      if (!activeClaim || activeClaim.reviewerId !== actor.userId) {
+        reviewStore = [
+          ...reviewStore,
+          {
+            id: nextReviewId(),
+            aipId,
+            reviewerId: actor.userId || MOCK_REVIEWER_ID,
+            reviewerName: toReviewerName(actor),
+            action: "claim_review",
+            note: null,
+            createdAt: nowIso(),
+          },
+        ];
+      }
+
+      if (aip.status === "pending_review") {
+        const index = AIPS_TABLE.findIndex((row) => row.id === aipId);
+        AIPS_TABLE[index] = { ...aip, status: "under_review" };
+      }
+
       return "under_review";
     },
 
@@ -251,9 +365,10 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
 
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
       if (!cityId) throw new Error("Unauthorized.");
@@ -264,14 +379,15 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       if (aip.status !== "under_review") {
         throw new Error("Request Revision is only allowed when the AIP is under review.");
       }
+      assertClaimOwnership(aipId, actor);
 
       reviewStore = [
         ...reviewStore,
         {
           id: nextReviewId(),
           aipId,
-          reviewerId: actor?.userId ?? MOCK_REVIEWER_ID,
-          reviewerName: MOCK_REVIEWER_NAME,
+          reviewerId: actor.userId || MOCK_REVIEWER_ID,
+          reviewerName: toReviewerName(actor),
           action: "request_revision",
           note: trimmed,
           createdAt: nowIso(),
@@ -288,9 +404,10 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
 
       const aip = AIPS_TABLE.find((row) => row.id === aipId) ?? null;
       if (!aip) throw new Error("AIP not found.");
+      if (!actor) throw new Error("Unauthorized.");
 
       const cityId =
-        actor?.role === "city_official" && actor.scope.kind === "city"
+        actor.role === "city_official" && actor.scope.kind === "city"
           ? actor.scope.id
           : MOCK_CITY_ID;
       if (!cityId) throw new Error("Unauthorized.");
@@ -301,14 +418,15 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       if (aip.status !== "under_review") {
         throw new Error("Publish is only allowed when the AIP is under review.");
       }
+      assertClaimOwnership(aipId, actor);
 
       reviewStore = [
         ...reviewStore,
         {
           id: nextReviewId(),
           aipId,
-          reviewerId: actor?.userId ?? MOCK_REVIEWER_ID,
-          reviewerName: MOCK_REVIEWER_NAME,
+          reviewerId: actor.userId || MOCK_REVIEWER_ID,
+          reviewerName: toReviewerName(actor),
           action: "approve",
           note: trimmed ? trimmed : null,
           createdAt: nowIso(),

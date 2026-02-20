@@ -9,15 +9,15 @@ export async function listAipProjectsAction(aipId: string): Promise<AipProjectRo
   return repo.listByAip(aipId);
 }
 
-export async function submitAipProjectReviewAction(input: SubmitReviewInput): Promise<void> {
-  const comment = input.comment.trim();
-  if (!comment) {
+export async function submitAipProjectReviewAction(input: SubmitReviewInput): Promise<AipProjectRow> {
+  const reason = input.reason.trim();
+  if (!reason) {
     throw new Error("Review comment is required.");
   }
 
   const repo = getAipProjectRepo();
-  await repo.submitReview({
+  return repo.submitReview({
     ...input,
-    comment,
+    reason,
   });
 }

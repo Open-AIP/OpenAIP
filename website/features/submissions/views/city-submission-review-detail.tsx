@@ -30,18 +30,10 @@ import {
   requestRevisionAction,
 } from "../actions/submissionsReview.actions";
 import { PublishSuccessCard } from "../components/PublishSuccessCard";
-
-function formatRevisionReplyDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import {
+  CityRevisionFeedbackHistoryCard,
+  toCityRevisionFeedbackCycles,
+} from "../components/city-revision-feedback-history-card";
 
 export default function CitySubmissionReviewDetail({
   aip,
@@ -108,6 +100,11 @@ export default function CitySubmissionReviewDetail({
     aip.status === "for_revision" && latestReview?.action === "request_revision"
       ? latestReview.note
       : null;
+  const revisionFeedbackCycles = toCityRevisionFeedbackCycles({
+    revisionFeedbackCycles: aip.revisionFeedbackCycles,
+    revisionReply: aip.revisionReply,
+    feedback: aip.feedback,
+  });
 
   useEffect(() => {
     if (intent === "review" && showClaimButton && !isOwner) {
@@ -255,29 +252,6 @@ export default function CitySubmissionReviewDetail({
         </div>
 
         <div className="lg:sticky lg:top-6 h-fit space-y-6">
-          {aip.revisionReply?.body ? (
-            <Card className="border-slate-200">
-              <CardContent className="space-y-3 p-5">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    Barangay Reply to Revision Remarks
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    Response submitted before resubmission.
-                  </div>
-                </div>
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="whitespace-pre-wrap text-sm text-emerald-900">
-                    {aip.revisionReply.body}
-                  </p>
-                  <p className="mt-2 text-xs text-emerald-800">
-                    {aip.revisionReply.authorName || "Barangay Official"} •{" "}
-                    {formatRevisionReplyDate(aip.revisionReply.createdAt)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
 
           {canReview ? (
             <Card className="border-slate-200">
@@ -408,6 +382,7 @@ export default function CitySubmissionReviewDetail({
           ) : (
             <RemarksCard status={aip.status} reviewerMessage={revisionNote} />
           )}
+          <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
         </div>
       </div>
 
@@ -528,3 +503,4 @@ export default function CitySubmissionReviewDetail({
     </div>
   );
 }
+

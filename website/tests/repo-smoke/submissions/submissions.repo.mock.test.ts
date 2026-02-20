@@ -41,6 +41,61 @@ export async function runSubmissionsReviewRepoTests() {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
 
+    const detail = await repo.getSubmissionAipDetail({
+      aipId: AIP_IDS.barangay_sanisidro_2026,
+      actor,
+    });
+    assert(!!detail, "Expected submission detail for San Isidro AIP");
+    assert(
+      (detail?.aip.revisionFeedbackCycles?.length ?? 0) > 0,
+      "Expected revision feedback cycles to be populated"
+    );
+    assert(
+      detail?.aip.revisionFeedbackCycles?.[0]?.reviewerRemark.authorRole === "reviewer",
+      "Expected reviewer remark in revision feedback cycle"
+    );
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+
+    const testAipId = AIP_IDS.barangay_mamadid_2026;
+    const index = AIPS_TABLE.findIndex((row) => row.id === testAipId);
+    AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: "under_review" };
+
+    await repo.claimReview({ aipId: testAipId, actor });
+    await repo.requestRevision({
+      aipId: testAipId,
+      note: "First revision cycle note",
+      actor,
+    });
+
+    AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: "under_review" };
+    await repo.claimReview({ aipId: testAipId, actor });
+    await repo.requestRevision({
+      aipId: testAipId,
+      note: "Second revision cycle note",
+      actor,
+    });
+
+    const detail = await repo.getSubmissionAipDetail({ aipId: testAipId, actor });
+    const cycles = detail?.aip.revisionFeedbackCycles ?? [];
+    assert(cycles.length >= 2, "Expected at least 2 revision feedback cycles");
+    assert(
+      cycles[0]?.reviewerRemark.body === "Second revision cycle note",
+      "Expected newest revision cycle first"
+    );
+    assert(
+      cycles[1]?.reviewerRemark.body === "First revision cycle note",
+      "Expected older revision cycle second"
+    );
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+
     let threwUnauthorized = false;
     try {
       await repo.listSubmissionsForCity({ cityId: "city_001", actor: null });

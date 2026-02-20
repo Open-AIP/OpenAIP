@@ -1,47 +1,38 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle2, RotateCw, TriangleAlert, X } from "lucide-react";
-import type { AipStatus } from "../types";
+import { AlertCircle, CheckCircle2, TriangleAlert } from "lucide-react";
 
-type RemarksCardProps = {
+import { Card, CardContent } from "@/components/ui/card";
+import type { AipStatus } from "../types";
+import { getAipStatusLabel } from "../utils";
+
+type AipStatusInfoCardProps = {
   status: AipStatus;
   reviewerMessage?: string | null;
-  onCancelSubmission?: () => void;
-  onResubmit?: () => void;
+  title?: string;
 };
 
 type Tone = "info" | "warning" | "success";
 
-const STATUS_CONFIG: Record<
-  Exclude<AipStatus, "draft">,
-  {
-    tone: Tone;
-    message: string;
-    showCancel?: boolean;
-    showResubmit?: boolean;
-    label?: string;
-  }
-> = {
+type StatusConfig = {
+  tone: Tone;
+  message: string;
+};
+
+const STATUS_CONFIG: Record<Exclude<AipStatus, "draft">, StatusConfig> = {
   pending_review: {
     tone: "info",
     message:
       "Editing is not allowed while the AIP is pending review. Please wait for the review process to complete.",
-    showCancel: true,
-    label: "Feedback from Reviewer",
   },
   under_review: {
     tone: "info",
     message:
       "Editing is not allowed while the AIP is under review. Please wait for the review process to complete.",
-    label: "Feedback from Reviewer",
   },
   for_revision: {
     tone: "warning",
     message: "Reviewer feedback is available.",
-    showResubmit: true,
-    label: "Feedback from Reviewer",
   },
   published: {
     tone: "success",
@@ -76,67 +67,35 @@ function ToneIcon({ tone }: { tone: Tone }) {
   return <AlertCircle className="h-4 w-4" />;
 }
 
-export function RemarksCard({
+export function AipStatusInfoCard({
   status,
   reviewerMessage,
-  onCancelSubmission,
-  onResubmit,
-}: RemarksCardProps) {
+  title,
+}: AipStatusInfoCardProps) {
   if (status === "draft") return null;
 
   const config = STATUS_CONFIG[status];
   const styles = getToneStyles(config.tone);
+  const resolvedTitle = title ?? `${getAipStatusLabel(status)} Status`;
   const message =
-    status === "for_revision" && reviewerMessage
+    status === "for_revision" &&
+    typeof reviewerMessage === "string" &&
+    reviewerMessage.trim().length > 0
       ? reviewerMessage
       : config.message;
 
   return (
     <Card className="border-slate-200">
-      <CardContent className="p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-slate-900">Remarks</h3>
-
+      <CardContent className="space-y-4 p-5">
+        <h3 className="text-sm font-semibold text-slate-900">{resolvedTitle}</h3>
         <div className={`rounded-lg border p-3 text-sm ${styles.wrapper}`}>
           <div className="flex items-start gap-2">
             <span className={`${styles.icon} mt-0.5`}>
               <ToneIcon tone={config.tone} />
             </span>
-            <div className="space-y-2">
-              {config.label ? (
-                <div className="text-xs font-semibold uppercase tracking-wide">
-                  {config.label}
-                </div>
-              ) : null}
-              <p>{message}</p>
-            </div>
+            <p>{message}</p>
           </div>
         </div>
-
-        {config.showCancel ? (
-          <div className="flex justify-end">
-            <Button
-              className="bg-rose-600 hover:bg-rose-700"
-              onClick={onCancelSubmission}
-              disabled={!onCancelSubmission}
-            >
-              <X className="h-4 w-4" />
-              Cancel Submission
-            </Button>
-          </div>
-        ) : null}
-
-        {config.showResubmit ? (
-          <div className="flex justify-end">
-            <Button
-              className="bg-teal-600 hover:bg-teal-700"
-              onClick={onResubmit}
-              disabled={!onResubmit}
-            >
-              <RotateCw className="h-4 w-4" />
-              Resubmit
-            </Button>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

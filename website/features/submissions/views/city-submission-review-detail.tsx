@@ -8,7 +8,7 @@ import { getAipStatusBadgeClass } from "@/features/aip/utils";
 import { AipPdfContainer } from "@/features/aip/components/aip-pdf-container";
 import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
-import { RemarksCard } from "@/features/aip/components/remarks-card";
+import { AipStatusInfoCard } from "@/features/aip/components/aip-status-info-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
@@ -380,7 +380,7 @@ export default function CitySubmissionReviewDetail({
               </CardContent>
             </Card>
           ) : (
-            <RemarksCard status={aip.status} reviewerMessage={revisionNote} />
+            <AipStatusInfoCard status={aip.status} reviewerMessage={revisionNote} />
           )}
           <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
         </div>

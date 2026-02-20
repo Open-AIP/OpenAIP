@@ -45,6 +45,23 @@ export function editLockedMessage(status: AipStatus) {
   return "Editing is currently disabled.";
 }
 
+export function getAipStatusLabel(status: AipStatus): string {
+  switch (status) {
+    case "draft":
+      return "Draft";
+    case "pending_review":
+      return "Pending Review";
+    case "under_review":
+      return "Under Review";
+    case "for_revision":
+      return "For Revision";
+    case "published":
+      return "Published";
+    default:
+      return status;
+  }
+}
+
 /**
  * Get the appropriate CSS classes for an AIP status badge
  * 

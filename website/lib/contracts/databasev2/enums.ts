@@ -21,7 +21,7 @@ export type AipStatus =
 /**
  * Mirrors: public.review_action enum
  */
-export type ReviewAction = "approve" | "request_revision";
+export type ReviewAction = "approve" | "request_revision" | "claim_review";
 
 /**
  * Mirrors: public.feedback_target_type enum

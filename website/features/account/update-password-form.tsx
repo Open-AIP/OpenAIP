@@ -129,7 +129,7 @@ export function UpdatePasswordForm({role}:AuthParameters) {
     <div className='flex flex-col gap-6'>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Update Your Password</CardTitle>
+          <CardTitle className="text-2xl">Set Your Password</CardTitle>
           <CardDescription>Please enter your new password below.</CardDescription>
         </CardHeader>
         <CardContent>

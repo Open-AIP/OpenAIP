@@ -5,6 +5,7 @@ import { createMockAipProjectRepo, createMockAipRepoImpl } from "./repo.mock";
 import type {
   AipDetail,
   AipListItem,
+  AipProjectReviewDetail,
   AipProjectRow,
   AipStatus,
   CreateMockAipRepoOptions,
@@ -15,13 +16,21 @@ import type {
 
 export type {
   AipDetail,
+  AipProjectFeedbackMessage,
+  AipProjectFeedbackThread,
+  AipRevisionFeedbackCycle,
+  AipRevisionFeedbackMessage,
   AipHeader,
+  AipProjectEditPatch,
+  AipProjectEditableFields,
+  AipProjectReviewDetail,
   AipListItem,
   AipProjectRow,
   AipStatus,
   CreateMockAipRepoOptions,
   LguScope,
   ListVisibleAipsInput,
+  ProjectCategory,
   ProjectKind,
   ReviewStatus,
   reviewStatus,
@@ -50,7 +59,8 @@ export interface AipRepo {
 // [DATAFLOW] Used by AIP detail views to list rows/projects under an AIP and submit review notes.
 export interface AipProjectRepo {
   listByAip(aipId: string): Promise<AipProjectRow[]>;
-  submitReview(input: SubmitReviewInput): Promise<void>;
+  getReviewDetail(aipId: string, projectId: string): Promise<AipProjectReviewDetail | null>;
+  submitReview(input: SubmitReviewInput): Promise<AipProjectRow>;
 }
 
 export function getAipRepo(options: CreateMockAipRepoOptions = {}): AipRepo {

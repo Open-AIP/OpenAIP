@@ -1,9 +1,17 @@
 import { LogoutButton } from '@/components/logout-button'
 import { getUser } from '@/lib/actions/auth.actions'
+import { redirect } from 'next/navigation'
 
 const BarangayDashboard = async () => {
+  const user = await getUser().catch(() => {
+    redirect('/barangay/sign-in');
+  });
 
-  const { fullName, email, role, routeRole, officeLabel, baseURL } = await getUser();
+  if (!user) {
+    redirect('/barangay/sign-in');
+  }
+
+  const { fullName, email, role, routeRole, officeLabel, baseURL } = user;
 
   return (
     <div>

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -22,75 +22,91 @@ client = OpenAI(api_key=api_key)
 # SYSTEM PROMPT (RULE BASE)
 # ----------------------------
 SYSTEM_PROMPT = """
-You are a strict rule-based JSON validator for a Barangay Annual Investment Program (BAIP).
-Your job is to validate each project row extracted from the Barangay AIP template (Annex C).
+You are a strict rule-based JSON validator for a City/Municipality Annual Investment Program (AIP) table (Annex B format).
 
 INPUT
-- You will receive a JSON object with a top-level key: "projects": [ ... ].
-- Each project is an object representing one BAIP row.
+- You will receive a JSON object with top-level key: "projects": [ ... ].
+- Each project is one AIP row already extracted into JSON keys.
 
 OUTPUT
 - Return the FULL JSON exactly as received, but update ONLY the "errors" field of each project.
-- If a project has NO violations → set errors = null
-- If a project HAS violations → set errors = array of strings (rule IDs + short message)
+- If NO violations → errors = null
+- If HAS violations → errors = array of strings ("R### short message")
 - Do NOT modify any other keys/values.
-- Output JSON only (no markdown, no commentary).
+- Output JSON only.
 
-VALIDATION RULES (evaluate for EACH project)
+CITY AIP COLUMN ALIGNMENT (Annex B)
+(1) aip_ref_code
+(2) program_project_description
+(3) implementing_agency
+(4) start_date
+(5) completion_date
+(6) expected_output
+(7) source_of_funds
+(8) personal_services (PS)
+(9) maintenance_and_other_operating_expenses (MOOE)
+(10) capital_outlay (CO)
+(11) total
+(12) climate_change_adaptation
+(13) climate_change_mitigation
+(14) cc_topology_code
+(15) prm_ncr_lgu_rm_objective_results_indicator_code  (may appear as prm_ncr_lgu or rm_objective or results_indicator)
 
-R001 Required fields (must exist and not be empty string):
-- aip_ref_code  (BAIP reference code; keep this key name if your pipeline standardizes it)
+VALIDATION RULES (evaluate EACH project)
+
+R001 Required columns (must exist and not be empty string):
+- aip_ref_code
 - program_project_description
-- implementing_agency  (Barangay implementing office/unit)
+- implementing_agency
 - start_date
 - completion_date
 - expected_output
 - source_of_funds
 - total
 
-R002 Date validity:
-start_date and completion_date must be valid dates in EITHER format:
+R002 Date validity (start_date and completion_date):
+Accept either:
+A) Month-only or month-name formats (case-insensitive): "Jan", "January", "Jan 2026", "Sep 1 2026", "Sep 1, 2026"
+B) Numeric format: M/D/YYYY or MM/DD/YYYY with Month 1–12, Day 1–31, Year 4 digits
+Do NOT flag month-only values like "Jan" or "Dec".
 
-A) Month name format (case-insensitive):
-Accept FULL or 3-letter month names:
-January/Jan, February/Feb, March/Mar, April/Apr, May, June/Jun,
-July/Jul, August/Aug, September/Sep, October/Oct, November/Nov, December/Dec.
-Examples: "Jan 2026", "January 15 2026", "Sep 1, 2026" (commas optional)
-
-B) Numeric date format:
-- M/D/YYYY or MM/DD/YYYY
-Rules:
-- Month: 1–12
-- Day: 1–31
-- Year: 4 digits
-Examples: 1/1/2026, 01/01/2026, 12/31/2026
-
-Do NOT mark abbreviations like "Jan" or "Dec" as errors.
-
-R003 Numeric fields must be number or null:
+R003 Numeric columns must be number or null (not strings like "1,000"):
 - personal_services
 - maintenance_and_other_operating_expenses
-- financial_expenses
 - capital_outlay
 - total
+- climate_change_adaptation
+- climate_change_mitigation
 
 R004 Total arithmetic consistency:
-total must equal:
-personal_services + maintenance_and_other_operating_expenses + financial_expenses + capital_outlay
+total must equal personal_services + maintenance_and_other_operating_expenses + capital_outlay
 Treat null as 0.
-Allow a tolerance of 1.00 peso for rounding.
+Allow tolerance of 1.00 peso.
 
-R005 Non-negative money:
-All numeric budget fields (PS/MOOE/FE/CO/total) must be ≥ 0 if not null.
+R005 Climate expenditure bounds:
+(climate_change_adaptation + climate_change_mitigation) <= total
+Treat null as 0.
+Allow tolerance of 1.00 peso.
 
-NOTE (Barangay-specific):
-- Do NOT require cc_topology_code, climate_change_adaptation, or climate_change_mitigation.
-- If those fields exist in the extracted JSON anyway, ignore them (do not validate) unless you are explicitly instructed otherwise.
+R006 CC typology code format:
+cc_topology_code must be null OR match pattern: A###-## (example: A214-04)
 
-ERROR STRINGS
+R007 PRM/NCR results indicator code presence (column 15):
+If any of these keys exist, they must be either null or a non-empty string:
+- prm_ncr_lgu_rm_objective_results_indicator_code
+- prm_ncr_lgu
+- rm_objective
+- results_indicator
+Do NOT require the field if it is not present in the extracted JSON.
+
+R008 Non-negative money:
+All numeric budget fields (PS/MOOE/CO/total/climate fields) must be >= 0 if not null.
+
+ERROR STRING FORMAT
 - Each error string must start with the rule ID, e.g.:
-"R005 total mismatch: expected 12345.00 but got 12000.00"
+"R004 total mismatch: expected 12345.00 but got 12000.00"
 """
+
 
 
 # ----------------------------
@@ -179,7 +195,6 @@ def validate_projects_json_str(
     extraction_json_str: str,
     model: str = "gpt-5.2",
     num_batches: int = 4,
-    on_progress: Optional[Callable[[int, int, int, int, str], None]] = None,
 ) -> ValidationResult:
     """
     Splits extraction_obj["projects"] into num_batches chunks (default 4),
@@ -203,24 +218,6 @@ def validate_projects_json_str(
     projects = extraction_obj.get("projects")
     if not isinstance(projects, list):
         raise ValueError('Top-level key "projects" must be a list.')
-
-    total_projects = len(projects)
-    if total_projects == 0:
-        merged_obj = dict(extraction_obj)
-        merged_obj["projects"] = []
-        message = "No projects to validate."
-        if on_progress:
-            on_progress(0, 0, 1, 1, message)
-        print("[VALIDATION] No projects to validate.", flush=True)
-        return ValidationResult(
-            validated_obj=merged_obj,
-            validated_json_str=json.dumps(merged_obj, ensure_ascii=False, indent=2),
-            usage={"input_tokens": None, "output_tokens": None, "total_tokens": None},
-            elapsed_seconds=0.0,
-            model=model,
-            chunk_usages=[],
-            chunk_elapsed_seconds=[],
-        )
 
     # Prepare chunks
     chunks = _split_into_n_chunks(projects, num_batches)
@@ -288,15 +285,6 @@ def validate_projects_json_str(
 
         chunk_usages.append(usage)
         chunk_times.append(batch_elapsed)
-        done_projects = min(cursor, total_projects)
-        if on_progress:
-            on_progress(
-                done_projects,
-                total_projects,
-                i,
-                num_batches,
-                f"Validating projects {done_projects}/{total_projects} (batch {i}/{num_batches})...",
-            )
 
         print(
             f"[VALIDATION] Batch {i}/{num_batches}: done ✅ | elapsed={batch_elapsed:.2f}s | usage={usage}",

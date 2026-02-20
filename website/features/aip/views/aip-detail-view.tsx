@@ -6,7 +6,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pencil, RotateCw, Send, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { RotateCw, Send, X } from "lucide-react";
 
 import type {
   AipHeader,
@@ -28,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   cancelAipSubmissionAction,
   deleteAipDraftAction,
+  saveAipRevisionReplyAction,
   submitAipForReviewAction,
 } from "../actions/aip-workflow.actions";
 
@@ -88,6 +90,28 @@ function clampProgress(value: number): number {
 
 function hasSummaryText(summaryText: string | undefined): boolean {
   return typeof summaryText === "string" && summaryText.trim().length > 0;
+}
+
+function formatFeedbackDate(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function feedbackAuthorLabel(params: {
+  authorName?: string | null;
+  authorRole: "reviewer" | "barangay_official";
+}): string {
+  if (typeof params.authorName === "string" && params.authorName.trim().length > 0) {
+    return params.authorName.trim();
+  }
+  return params.authorRole === "reviewer" ? "Reviewer" : "Barangay Official";
 }
 
 function wait(ms: number): Promise<void> {
@@ -151,7 +175,6 @@ function buildProgressByStage(
 export default function AipDetailView({
   aip,
   scope = "barangay",
-  onEdit,
   onResubmit,
   onCancel,
   onCancelSubmission,
@@ -159,15 +182,18 @@ export default function AipDetailView({
 }: {
   aip: AipHeader;
   scope?: "city" | "barangay";
-  onEdit?: () => void;
   onResubmit?: () => void;
   onCancel?: () => void;
   onCancelSubmission?: () => void;
   onSubmit?: () => void;
 }) {
-  const showFeedback = aip.status === "for_revision";
-  const showRemarks = aip.status !== "draft";
   const isBarangayScope = scope === "barangay";
+  const isForRevision = aip.status === "for_revision";
+  const isPendingReview = aip.status === "pending_review";
+  const showSubmittedSidebar =
+    isBarangayScope && (isForRevision || isPendingReview);
+  const showRemarksCard = aip.status !== "draft" && !showSubmittedSidebar;
+  const showRightSidebar = showSubmittedSidebar || showRemarksCard;
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -198,10 +224,11 @@ export default function AipDetailView({
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [unresolvedAiCount, setUnresolvedAiCount] = useState(0);
   const [workflowPendingAction, setWorkflowPendingAction] = useState<
-    "delete_draft" | "cancel_submission" | "submit_review" | null
+    "delete_draft" | "cancel_submission" | "submit_review" | "save_reply" | null
   >(null);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
+  const [revisionReplyDraft, setRevisionReplyDraft] = useState("");
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
 
@@ -511,20 +538,47 @@ export default function AipDetailView({
     setWorkflowPendingAction(null);
     setWorkflowError(null);
     setWorkflowSuccess(null);
+    setRevisionReplyDraft("");
     setProjectsLoading(true);
     setProjectsError(null);
     setUnresolvedAiCount(0);
   }, [aip.id]);
 
+  useEffect(() => {
+    if (aip.status !== "for_revision") {
+      setRevisionReplyDraft("");
+    }
+  }, [aip.status]);
+
   const isWorkflowBusy = workflowPendingAction !== null;
+  const trimmedRevisionReply = revisionReplyDraft.trim();
+  const currentRevisionCycle = aip.revisionFeedbackCycles?.[0];
+  const hasSavedCurrentCycleReply =
+    typeof aip.revisionFeedbackCycles !== "undefined"
+      ? (currentRevisionCycle?.replies.length ?? 0) > 0
+      : typeof aip.revisionReply?.body === "string" &&
+        aip.revisionReply.body.trim().length > 0;
+  const requiresRevisionReply =
+    isBarangayScope && aip.status === "for_revision" && !hasSavedCurrentCycleReply;
   const canSubmitForReview =
-    !projectsLoading && !projectsError && unresolvedAiCount === 0;
+    !projectsLoading &&
+    !projectsError &&
+    unresolvedAiCount === 0 &&
+    (!requiresRevisionReply || trimmedRevisionReply.length > 0);
+  const canSaveRevisionReply =
+    isBarangayScope &&
+    aip.status === "for_revision" &&
+    trimmedRevisionReply.length > 0 &&
+    !isWorkflowBusy;
+  const revisionFeedbackCycles = aip.revisionFeedbackCycles ?? [];
   const submitBlockedReason = projectsLoading
     ? "Loading project review statuses before submission."
     : projectsError
       ? "Project review statuses are unavailable right now. Please refresh and try again."
       : unresolvedAiCount > 0
         ? `${unresolvedAiCount} AI-flagged project(s) still need an official response before submission.`
+        : requiresRevisionReply && trimmedRevisionReply.length === 0
+          ? "Reply to reviewer remarks is required before resubmission."
         : null;
 
   const handleProjectsStateChange = useCallback(
@@ -552,7 +606,13 @@ export default function AipDetailView({
       setWorkflowError(null);
       setWorkflowSuccess(null);
 
-      const result = await submitAipForReviewAction({ aipId: aip.id });
+      const result = await submitAipForReviewAction({
+        aipId: aip.id,
+        revisionReply:
+          aip.status === "for_revision" && trimmedRevisionReply.length > 0
+            ? trimmedRevisionReply
+            : undefined,
+      });
       if (!result.ok) {
         setWorkflowError(result.message);
         if (typeof result.unresolvedAiCount === "number") {
@@ -574,11 +634,50 @@ export default function AipDetailView({
     }
   }, [
     aip.id,
+    aip.status,
     canSubmitForReview,
     isBarangayScope,
     isWorkflowBusy,
     onSubmit,
+    trimmedRevisionReply,
     router,
+  ]);
+
+  const saveRevisionReply = useCallback(async () => {
+    if (!isBarangayScope || aip.status !== "for_revision" || isWorkflowBusy) return;
+    if (!trimmedRevisionReply) return;
+
+    try {
+      setWorkflowPendingAction("save_reply");
+      setWorkflowError(null);
+      setWorkflowSuccess(null);
+
+      const result = await saveAipRevisionReplyAction({
+        aipId: aip.id,
+        reply: trimmedRevisionReply,
+      });
+      if (!result.ok) {
+        setWorkflowError(result.message);
+        return;
+      }
+
+      setRevisionReplyDraft("");
+      setWorkflowSuccess(result.message);
+      router.refresh();
+    } catch (error) {
+      setWorkflowError(
+        error instanceof Error ? error.message : "Failed to save revision reply."
+      );
+    } finally {
+      setWorkflowPendingAction(null);
+    }
+  }, [
+    aip.id,
+    aip.status,
+    isBarangayScope,
+    isWorkflowBusy,
+    router,
+    trimmedRevisionReply,
   ]);
 
   const deleteDraft = useCallback(async () => {
@@ -779,11 +878,22 @@ export default function AipDetailView({
             </Alert>
           ) : null}
 
+          {isBarangayScope &&
+          (aip.status === "draft" || aip.status === "for_revision") &&
+          submitBlockedReason ? (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-800">
+                {submitBlockedReason}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <div
             className={
-              showRemarks ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"
+              showRightSidebar ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"
             }
           >
+
             <div className="space-y-6">
               <AipPdfContainer aip={aip} />
 
@@ -849,15 +959,6 @@ export default function AipDetailView({
 
                   <AipUploaderInfo aip={aip} />
 
-                  {isBarangayScope &&
-                  (aip.status === "draft" || aip.status === "for_revision") &&
-                  submitBlockedReason ? (
-                    <Alert className="border-amber-200 bg-amber-50">
-                      <AlertDescription className="text-amber-800">
-                        {submitBlockedReason}
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
                 </>
               ) : (
                 <div className="space-y-6">
@@ -871,25 +972,6 @@ export default function AipDetailView({
 
               {/* Bottom action */}
               <div className="flex justify-end gap-3">
-                {showFeedback ? (
-                  <>
-                    <Button variant="outline" onClick={onEdit} disabled={!onEdit}>
-                      <Pencil className="h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      className="bg-teal-600 hover:bg-teal-700"
-                      onClick={effectiveResubmitHandler}
-                      disabled={!effectiveResubmitHandler}
-                    >
-                      <RotateCw className="h-4 w-4" />
-                      {workflowPendingAction === "submit_review"
-                        ? "Submitting..."
-                        : "Resubmit"}
-                    </Button>
-                  </>
-                ) : null}
-
                 {aip.status === "draft" ? (
                   <>
                     <Button
@@ -929,14 +1011,171 @@ export default function AipDetailView({
               </div>
             </div>
 
-            {showRemarks ? (
-              <div className="h-fit lg:sticky lg:top-6">
-                <RemarksCard
-                  status={aip.status}
-                  reviewerMessage={aip.feedback}
-                  onCancelSubmission={effectiveCancelSubmissionHandler}
-                  onResubmit={effectiveResubmitHandler}
-                />
+            {showRightSidebar ? (
+              <div className="h-fit space-y-6 lg:sticky lg:top-6">
+                {showSubmittedSidebar ? (
+                  <>
+                    <Card className="border-slate-200">
+                      <CardContent className="space-y-4 p-5">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            Official Comment / Justification
+                          </h3>
+                        </div>
+
+                        {isForRevision ? (
+                          <>
+                            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                              Reviewer feedback is available. Save your response, then
+                              resubmit this AIP when ready.
+                            </div>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              Provide your justification before saving.
+                            </p>
+
+                            <Textarea
+                              value={revisionReplyDraft}
+                              onChange={(event) => {
+                                setRevisionReplyDraft(event.target.value);
+                              }}
+                              placeholder="Explain what changed (or your response to reviewer remarks)."
+                              className="min-h-[130px]"
+                              disabled={isWorkflowBusy}
+                            />
+
+                            <Button
+                              className="w-full bg-[#022437] hover:bg-[#022437]/90"
+                              onClick={() => {
+                                void saveRevisionReply();
+                              }}
+                              disabled={!canSaveRevisionReply}
+                            >
+                              {workflowPendingAction === "save_reply"
+                                ? "Saving..."
+                                : "Save Reply"}
+                            </Button>
+
+                            <Button
+                              className="w-full bg-teal-600 hover:bg-teal-700"
+                              onClick={effectiveResubmitHandler}
+                              disabled={!effectiveResubmitHandler}
+                            >
+                              <RotateCw className="h-4 w-4" />
+                              {workflowPendingAction === "submit_review"
+                                ? "Submitting..."
+                                : "Resubmit"}
+                            </Button>
+                          </>
+                        ) : null}
+
+                        {isPendingReview ? (
+                          <>
+                            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                              Editing is not allowed while the AIP is pending review.
+                              Please wait for the review process to complete.
+                            </div>
+
+                            <Button
+                              className="w-full bg-rose-600 hover:bg-rose-700"
+                              onClick={effectiveCancelSubmissionHandler}
+                              disabled={!effectiveCancelSubmissionHandler}
+                            >
+                              <X className="h-4 w-4" />
+                              {workflowPendingAction === "cancel_submission"
+                                ? "Canceling..."
+                                : "Cancel Submission"}
+                            </Button>
+                          </>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-slate-200">
+                      <CardContent className="space-y-3 p-5">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            Feedback History
+                          </h3>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Reviewer remarks and barangay replies grouped by revision cycle.
+                          </p>
+                        </div>
+
+                        <div className="space-y-3">
+                          {revisionFeedbackCycles.length ? (
+                            revisionFeedbackCycles.map((cycle) => (
+                              <div
+                                key={cycle.cycleId}
+                                className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
+                              >
+                                <div className="rounded-md border border-slate-300 bg-white p-3">
+                                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                                    <span>
+                                      {feedbackAuthorLabel({
+                                        authorName: cycle.reviewerRemark.authorName,
+                                        authorRole: "reviewer",
+                                      })}
+                                    </span>
+                                    <span className="text-slate-400">|</span>
+                                    <span>
+                                      {formatFeedbackDate(cycle.reviewerRemark.createdAt)}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                                    {cycle.reviewerRemark.body}
+                                  </p>
+                                </div>
+
+                                {cycle.replies.length ? (
+                                  <div className="space-y-2 pl-3">
+                                    {cycle.replies.map((reply) => (
+                                      <div
+                                        key={reply.id}
+                                        className="rounded-md border border-slate-200 bg-white p-3"
+                                      >
+                                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                                          <span>
+                                            {feedbackAuthorLabel({
+                                              authorName: reply.authorName,
+                                              authorRole: "barangay_official",
+                                            })}
+                                          </span>
+                                          <span className="text-slate-400">|</span>
+                                          <span>{formatFeedbackDate(reply.createdAt)}</span>
+                                        </div>
+                                        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                                          {reply.body}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-md border border-dashed border-slate-200 bg-white p-3 text-xs text-slate-500">
+                                    No barangay reply saved for this cycle yet.
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                              No revision feedback history yet.
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                ) : null}
+
+                {showRemarksCard ? (
+                  <RemarksCard
+                    status={aip.status}
+                    reviewerMessage={aip.feedback}
+                    onCancelSubmission={effectiveCancelSubmissionHandler}
+                    onResubmit={effectiveResubmitHandler}
+                  />
+                ) : null}
               </div>
             ) : null}
           </div>

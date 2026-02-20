@@ -20,6 +20,8 @@ import type {
   AipProjectEditPatch,
   AipProjectReviewDetail,
   AipProjectRow,
+  AipRevisionFeedbackCycle,
+  AipRevisionFeedbackMessage,
   ProjectCategory,
 } from "./types";
 
@@ -83,10 +85,24 @@ type ProjectSelectRow = {
   edited_at?: string | null;
 };
 
-type AipReviewNoteRow = {
+type AipRevisionReviewSelectRow = {
+  id: string;
   aip_id: string;
   note: string | null;
+  reviewer_id: string | null;
   created_at: string;
+};
+
+type AipRevisionReplySelectRow = {
+  id: string;
+  aip_id: string | null;
+  body: string;
+  author_id: string | null;
+  created_at: string;
+};
+
+type AipRevisionFeedbackMessageByAip = AipRevisionFeedbackMessage & {
+  aipId: string;
 };
 
 type ExtractionRunSelectRow = {
@@ -431,23 +447,224 @@ async function getProjectsByAipIds(aipIds: string[]): Promise<Map<string, Projec
   return map;
 }
 
-async function getLatestRevisionNotes(aipIds: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  if (!aipIds.length) return map;
+function toTimestamp(value: string): number | null {
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function sortByCreatedAtAscThenId(
+  left: { createdAt: string; id: string },
+  right: { createdAt: string; id: string }
+): number {
+  const leftAt = toTimestamp(left.createdAt);
+  const rightAt = toTimestamp(right.createdAt);
+  if (leftAt !== null && rightAt !== null && leftAt !== rightAt) {
+    return leftAt - rightAt;
+  }
+  if (left.createdAt !== right.createdAt) {
+    return left.createdAt.localeCompare(right.createdAt);
+  }
+  return left.id.localeCompare(right.id);
+}
+
+function sortByCreatedAtDescThenId(
+  left: { createdAt: string; id: string },
+  right: { createdAt: string; id: string }
+): number {
+  return -sortByCreatedAtAscThenId(left, right);
+}
+
+async function getRevisionRemarksByAipIds(
+  aipIds: string[]
+): Promise<AipRevisionFeedbackMessageByAip[]> {
+  if (!aipIds.length) return [];
+
   const client = await supabaseServer();
   const { data, error } = await client
     .from("aip_reviews")
-    .select("id,aip_id,action,note,created_at")
+    .select("id,aip_id,note,reviewer_id,created_at")
     .eq("action", "request_revision")
     .in("aip_id", aipIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+
   if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as AipReviewNoteRow[]) {
-    if (!map.has(row.aip_id) && typeof row.note === "string" && row.note.trim()) {
-      map.set(row.aip_id, row.note.trim());
+
+  const rows = (data ?? []) as AipRevisionReviewSelectRow[];
+  const reviewerIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.reviewer_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const profilesById = await getProfilesByIds(reviewerIds);
+
+  return rows
+    .filter((row) => typeof row.note === "string" && row.note.trim().length > 0)
+    .map((row) => ({
+      aipId: row.aip_id,
+      id: row.id,
+      body: row.note!.trim(),
+      createdAt: row.created_at,
+      authorName: row.reviewer_id
+        ? profilesById.get(row.reviewer_id)?.full_name?.trim() || null
+        : null,
+      authorRole: "reviewer" as const,
+    }))
+    .sort(sortByCreatedAtAscThenId);
+}
+
+async function getBarangayAipRepliesByAipIds(
+  aipIds: string[]
+): Promise<AipRevisionFeedbackMessageByAip[]> {
+  if (!aipIds.length) return [];
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("feedback")
+    .select("id,aip_id,body,author_id,created_at")
+    .eq("target_type", "aip")
+    .eq("source", "human")
+    .eq("kind", "lgu_note")
+    .is("parent_feedback_id", null)
+    .in("aip_id", aipIds)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as AipRevisionReplySelectRow[];
+  const authorIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.author_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const profilesById = await getProfilesByIds(authorIds);
+
+  return rows
+    .filter((row) => row.aip_id && typeof row.body === "string" && row.body.trim().length > 0)
+    .filter((row) => {
+      if (!row.author_id) return false;
+      return profilesById.get(row.author_id)?.role === "barangay_official";
+    })
+    .map((row) => ({
+      aipId: row.aip_id as string,
+      id: row.id,
+      body: row.body.trim(),
+      createdAt: row.created_at,
+      authorName: row.author_id
+        ? profilesById.get(row.author_id)?.full_name?.trim() || null
+        : null,
+      authorRole: "barangay_official" as const,
+    }))
+    .sort(sortByCreatedAtAscThenId);
+}
+
+function buildLatestRevisionNotes(
+  remarks: AipRevisionFeedbackMessageByAip[]
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const remark of [...remarks].sort(sortByCreatedAtDescThenId)) {
+    if (!map.has(remark.aipId)) {
+      map.set(remark.aipId, remark.body);
     }
   }
   return map;
+}
+
+function buildLatestBarangayRevisionReplies(
+  replies: AipRevisionFeedbackMessageByAip[]
+): Map<string, NonNullable<AipHeader["revisionReply"]>> {
+  const map = new Map<string, NonNullable<AipHeader["revisionReply"]>>();
+  for (const reply of [...replies].sort(sortByCreatedAtDescThenId)) {
+    if (!map.has(reply.aipId)) {
+      map.set(reply.aipId, {
+        body: reply.body,
+        createdAt: reply.createdAt,
+        authorName: reply.authorName ?? null,
+      });
+    }
+  }
+  return map;
+}
+
+function buildRevisionFeedbackCycles(params: {
+  aipIds: string[];
+  remarks: AipRevisionFeedbackMessageByAip[];
+  replies: AipRevisionFeedbackMessageByAip[];
+}): Map<string, AipRevisionFeedbackCycle[]> {
+  const { aipIds, remarks, replies } = params;
+  const cyclesByAip = new Map<string, AipRevisionFeedbackCycle[]>();
+  if (!aipIds.length) return cyclesByAip;
+
+  const remarksByAip = new Map<string, AipRevisionFeedbackMessageByAip[]>();
+  for (const remark of remarks) {
+    const list = remarksByAip.get(remark.aipId) ?? [];
+    list.push(remark);
+    remarksByAip.set(remark.aipId, list);
+  }
+
+  const repliesByAip = new Map<string, AipRevisionFeedbackMessageByAip[]>();
+  for (const reply of replies) {
+    const list = repliesByAip.get(reply.aipId) ?? [];
+    list.push(reply);
+    repliesByAip.set(reply.aipId, list);
+  }
+
+  for (const aipId of aipIds) {
+    const aipRemarks = [...(remarksByAip.get(aipId) ?? [])].sort(
+      sortByCreatedAtAscThenId
+    );
+    if (!aipRemarks.length) continue;
+
+    const aipReplies = [...(repliesByAip.get(aipId) ?? [])].sort(
+      sortByCreatedAtAscThenId
+    );
+
+    const cyclesAsc: AipRevisionFeedbackCycle[] = aipRemarks.map((remark, index) => {
+      const nextRemark = aipRemarks[index + 1];
+      const remarkAt = toTimestamp(remark.createdAt);
+      const nextRemarkAt = nextRemark ? toTimestamp(nextRemark.createdAt) : null;
+
+      const cycleReplies = aipReplies.filter((reply) => {
+        const replyAt = toTimestamp(reply.createdAt);
+        if (remarkAt === null || replyAt === null) return false;
+        if (replyAt < remarkAt) return false;
+        if (nextRemarkAt !== null && replyAt >= nextRemarkAt) return false;
+        return true;
+      });
+
+      return {
+        cycleId: remark.id,
+        reviewerRemark: {
+          id: remark.id,
+          body: remark.body,
+          createdAt: remark.createdAt,
+          authorName: remark.authorName ?? null,
+          authorRole: "reviewer",
+        },
+        replies: cycleReplies.map((reply) => ({
+          id: reply.id,
+          body: reply.body,
+          createdAt: reply.createdAt,
+          authorName: reply.authorName ?? null,
+          authorRole: "barangay_official",
+        })),
+      };
+    });
+
+    cyclesByAip.set(
+      aipId,
+      [...cyclesAsc].sort((left, right) =>
+        sortByCreatedAtDescThenId(left.reviewerRemark, right.reviewerRemark)
+      )
+    );
+  }
+
+  return cyclesByAip;
 }
 
 async function getLatestRunsByAipIds(aipIds: string[]): Promise<Map<string, ExtractionRunSelectRow>> {
@@ -488,9 +705,22 @@ function buildAipHeader(input: {
   uploader?: ProfileRow;
   pdfUrl?: string;
   revisionNote?: string;
+  revisionReply?: AipHeader["revisionReply"];
+  revisionFeedbackCycles?: AipRevisionFeedbackCycle[];
   processing?: AipHeader["processing"];
 }) {
-  const { aip, currentFile, summary, projects, uploader, pdfUrl, revisionNote, processing } = input;
+  const {
+    aip,
+    currentFile,
+    summary,
+    projects,
+    uploader,
+    pdfUrl,
+    revisionNote,
+    revisionReply,
+    revisionFeedbackCycles,
+    processing,
+  } = input;
 
   const budget = projects.reduce((acc, p) => acc + (p.total ?? 0), 0);
   const sectors = Array.from(new Set(projects.map((p) => toSectorLabel(p.sector_code)).filter((s) => s !== "Unknown")));
@@ -538,6 +768,8 @@ function buildAipHeader(input: {
       budgetAllocated: budget,
     },
     feedback: revisionNote,
+    revisionReply,
+    revisionFeedbackCycles,
     processing,
   };
 }
@@ -580,11 +812,19 @@ export function createSupabaseAipRepo(): AipRepo {
       const aips = (data ?? []) as AipSelectRow[];
       const aipIds = aips.map((a) => a.id);
 
-      const [filesByAip, projectsByAip, summariesByAip, revisionNotes, latestRunsByAip] = await Promise.all([
+      const [
+        filesByAip,
+        projectsByAip,
+        summariesByAip,
+        revisionRemarks,
+        revisionReplies,
+        latestRunsByAip,
+      ] = await Promise.all([
         getCurrentFiles(aipIds),
         getProjectsByAipIds(aipIds),
         getLatestSummaries(aipIds),
-        getLatestRevisionNotes(aipIds),
+        getRevisionRemarksByAipIds(aipIds),
+        getBarangayAipRepliesByAipIds(aipIds),
         scope === "barangay"
           ? getLatestRunsByAipIds(aipIds)
           : Promise.resolve(new Map<string, ExtractionRunSelectRow>()),
@@ -598,6 +838,15 @@ export function createSupabaseAipRepo(): AipRepo {
         )
       );
       const profilesById = await getProfilesByIds(uploaderIds);
+      const revisionNotes = buildLatestRevisionNotes(revisionRemarks);
+      const latestRevisionReplies = buildLatestBarangayRevisionReplies(
+        revisionReplies
+      );
+      const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
+        aipIds,
+        remarks: revisionRemarks,
+        replies: revisionReplies,
+      });
 
       return aips.map((aip) => {
         const summary = parseSummary(summariesByAip.get(aip.id));
@@ -619,6 +868,8 @@ export function createSupabaseAipRepo(): AipRepo {
             return file ? profilesById.get(file.uploaded_by) : undefined;
           })(),
           revisionNote: revisionNotes.get(aip.id),
+          revisionReply: latestRevisionReplies.get(aip.id),
+          revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
           processing,
         });
       });
@@ -638,15 +889,27 @@ export function createSupabaseAipRepo(): AipRepo {
       if (!data) return null;
 
       const aip = data as AipSelectRow;
-      const [filesByAip, projectsByAip, summariesByAip, revisionNotes] = await Promise.all([
+      const [filesByAip, projectsByAip, summariesByAip, revisionRemarks, revisionReplies] =
+        await Promise.all([
         getCurrentFiles([aipId]),
         getProjectsByAipIds([aipId]),
         getLatestSummaries([aipId]),
-        getLatestRevisionNotes([aipId]),
+        getRevisionRemarksByAipIds([aipId]),
+        getBarangayAipRepliesByAipIds([aipId]),
       ]);
 
       const file = filesByAip.get(aipId);
-      const profilesById = await getProfilesByIds(file ? [file.uploaded_by] : []);
+      const uploaderIds = file ? [file.uploaded_by] : [];
+      const profilesById = await getProfilesByIds(uploaderIds);
+      const revisionNotes = buildLatestRevisionNotes(revisionRemarks);
+      const latestRevisionReplies = buildLatestBarangayRevisionReplies(
+        revisionReplies
+      );
+      const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
+        aipIds: [aipId],
+        remarks: revisionRemarks,
+        replies: revisionReplies,
+      });
       const pdfUrl = await createSignedUrl(file);
 
       return buildAipHeader({
@@ -657,6 +920,8 @@ export function createSupabaseAipRepo(): AipRepo {
         uploader: file ? profilesById.get(file.uploaded_by) : undefined,
         pdfUrl,
         revisionNote: revisionNotes.get(aipId),
+        revisionReply: latestRevisionReplies.get(aipId),
+        revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aipId),
       });
     },
 

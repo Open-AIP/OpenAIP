@@ -18,6 +18,8 @@ export type {
   AipDetail,
   AipProjectFeedbackMessage,
   AipProjectFeedbackThread,
+  AipRevisionFeedbackCycle,
+  AipRevisionFeedbackMessage,
   AipHeader,
   AipProjectEditPatch,
   AipProjectEditableFields,

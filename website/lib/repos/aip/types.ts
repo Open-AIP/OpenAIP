@@ -8,6 +8,20 @@ export type { AipStatus } from "@/lib/contracts/databasev2";
 
 export type LguScope = "barangay" | "city";
 
+export type AipRevisionFeedbackMessage = {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorName?: string | null;
+  authorRole: "reviewer" | "barangay_official";
+};
+
+export type AipRevisionFeedbackCycle = {
+  cycleId: string;
+  reviewerRemark: AipRevisionFeedbackMessage;
+  replies: AipRevisionFeedbackMessage[];
+};
+
 export type AipHeader = {
   id: string; // aipId
   scope: LguScope;
@@ -40,6 +54,12 @@ export type AipHeader = {
   };
 
   feedback?: string;
+  revisionReply?: {
+    body: string;
+    createdAt: string;
+    authorName?: string | null;
+  };
+  revisionFeedbackCycles?: AipRevisionFeedbackCycle[];
   processing?: {
     state: "processing" | "finalizing";
     overallProgressPct: number;

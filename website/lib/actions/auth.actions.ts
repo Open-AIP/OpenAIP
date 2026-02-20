@@ -1,5 +1,6 @@
 import { supabaseServer } from "../supabase/server";
 import type { RoleType } from "@/lib/contracts/databasev2";
+import { cache } from "react";
 
 type RouteRole = "citizen" | "barangay" | "city" | "municipality" | "admin";
 
@@ -57,7 +58,7 @@ function toScopeRelationName(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export const getUser = async (): Promise<GetUserResult> => {
+export const getUser = cache(async (): Promise<GetUserResult> => {
 
   const baseURL = process.env.BASE_URL;
 
@@ -137,4 +138,4 @@ export const getUser = async (): Promise<GetUserResult> => {
     municipality_id: profile.municipality_id,
     baseURL
   };
-}
+});

@@ -1,9 +1,12 @@
 import type { AipProjectRepo, AipRepo, AipStatus, LguScope } from "./repo";
 import type {
+  AipHeader,
   AipProjectFeedbackMessage,
   AipProjectFeedbackThread,
   AipProjectReviewDetail,
   AipProjectRow,
+  AipRevisionFeedbackCycle,
+  AipRevisionFeedbackMessage,
   CreateMockAipRepoOptions,
   ProjectCategory,
   SubmitReviewInput,
@@ -17,6 +20,8 @@ import {
   normalizeProjectErrors,
   projectEditableFieldsFromRow,
 } from "./project-review";
+import { createMockFeedbackRepo } from "@/lib/repos/feedback/repo.mock";
+import { __getMockAipReviewsForAipId } from "@/lib/repos/submissions/repo.mock";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
 import { generateMockAIP, generateMockProjects } from "./mock-aip-generator";
@@ -32,6 +37,9 @@ let feedbackSeeded = false;
 let feedbackSequence = 1;
 
 const REVIEWABLE_AIP_STATUSES = new Set<AipStatus>(["draft", "for_revision"]);
+type AipRevisionFeedbackMessageByAip = AipRevisionFeedbackMessage & {
+  aipId: string;
+};
 
 function cloneRow(row: AipProjectRow): AipProjectRow {
   return {
@@ -260,6 +268,206 @@ function latestLguNote(messages: AipProjectFeedbackMessage[]): string | undefine
   return latest?.body;
 }
 
+function toMockReplyAuthorName(authorId: string | null | undefined): string | null {
+  if (!authorId) return null;
+  return authorId.startsWith("official_") ? "Barangay Official" : authorId;
+}
+
+function toTimestamp(value: string): number | null {
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function sortByCreatedAtAscThenId(
+  left: { createdAt: string; id: string },
+  right: { createdAt: string; id: string }
+): number {
+  const leftAt = toTimestamp(left.createdAt);
+  const rightAt = toTimestamp(right.createdAt);
+  if (leftAt !== null && rightAt !== null && leftAt !== rightAt) {
+    return leftAt - rightAt;
+  }
+  if (left.createdAt !== right.createdAt) {
+    return left.createdAt.localeCompare(right.createdAt);
+  }
+  return left.id.localeCompare(right.id);
+}
+
+function sortByCreatedAtDescThenId(
+  left: { createdAt: string; id: string },
+  right: { createdAt: string; id: string }
+): number {
+  return -sortByCreatedAtAscThenId(left, right);
+}
+
+async function getMockRevisionRemarksByAipIds(
+  aipIds: string[]
+): Promise<AipRevisionFeedbackMessageByAip[]> {
+  const uniqueAipIds = Array.from(new Set(aipIds));
+  if (!uniqueAipIds.length) return [];
+
+  return uniqueAipIds
+    .flatMap((aipId) =>
+      __getMockAipReviewsForAipId(aipId)
+        .filter(
+          (row) =>
+            row.action === "request_revision" &&
+            typeof row.note === "string" &&
+            row.note.trim().length > 0
+        )
+        .map((row) => ({
+          aipId,
+          id: row.id,
+          body: row.note!.trim(),
+          createdAt: row.createdAt,
+          authorName:
+            typeof row.reviewerName === "string" && row.reviewerName.trim().length > 0
+              ? row.reviewerName.trim()
+              : "Reviewer",
+          authorRole: "reviewer" as const,
+        }))
+    )
+    .sort(sortByCreatedAtAscThenId);
+}
+
+async function getMockBarangayRepliesByAipIds(
+  aipIds: string[]
+): Promise<AipRevisionFeedbackMessageByAip[]> {
+  const uniqueAipIds = Array.from(new Set(aipIds));
+  if (!uniqueAipIds.length) return [];
+
+  const repo = createMockFeedbackRepo();
+  const rowsByAip = await Promise.all(
+    uniqueAipIds.map(async (aipId) => {
+      const feedback = await repo.listForAip(aipId);
+      return feedback
+        .filter(
+          (item) =>
+            item.kind === "lgu_note" &&
+            item.parentFeedbackId === null &&
+            typeof item.body === "string" &&
+            item.body.trim().length > 0 &&
+            typeof item.authorId === "string" &&
+            item.authorId.startsWith("official_")
+        )
+        .map((item) => ({
+          aipId,
+          id: item.id,
+          body: item.body.trim(),
+          createdAt: item.createdAt,
+          authorName: toMockReplyAuthorName(item.authorId),
+          authorRole: "barangay_official" as const,
+        }));
+    })
+  );
+
+  return rowsByAip.flat().sort(sortByCreatedAtAscThenId);
+}
+
+function buildLatestMockRevisionNotes(
+  remarks: AipRevisionFeedbackMessageByAip[]
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const remark of [...remarks].sort(sortByCreatedAtDescThenId)) {
+    if (!map.has(remark.aipId)) {
+      map.set(remark.aipId, remark.body);
+    }
+  }
+  return map;
+}
+
+function buildLatestMockRevisionReplies(
+  replies: AipRevisionFeedbackMessageByAip[]
+): Map<string, NonNullable<AipHeader["revisionReply"]>> {
+  const map = new Map<string, NonNullable<AipHeader["revisionReply"]>>();
+  for (const reply of [...replies].sort(sortByCreatedAtDescThenId)) {
+    if (!map.has(reply.aipId)) {
+      map.set(reply.aipId, {
+        body: reply.body,
+        createdAt: reply.createdAt,
+        authorName: reply.authorName ?? null,
+      });
+    }
+  }
+  return map;
+}
+
+function buildRevisionFeedbackCycles(params: {
+  aipIds: string[];
+  remarks: AipRevisionFeedbackMessageByAip[];
+  replies: AipRevisionFeedbackMessageByAip[];
+}): Map<string, AipRevisionFeedbackCycle[]> {
+  const { aipIds, remarks, replies } = params;
+  const map = new Map<string, AipRevisionFeedbackCycle[]>();
+  if (!aipIds.length) return map;
+
+  const remarksByAip = new Map<string, AipRevisionFeedbackMessageByAip[]>();
+  for (const remark of remarks) {
+    const list = remarksByAip.get(remark.aipId) ?? [];
+    list.push(remark);
+    remarksByAip.set(remark.aipId, list);
+  }
+
+  const repliesByAip = new Map<string, AipRevisionFeedbackMessageByAip[]>();
+  for (const reply of replies) {
+    const list = repliesByAip.get(reply.aipId) ?? [];
+    list.push(reply);
+    repliesByAip.set(reply.aipId, list);
+  }
+
+  for (const aipId of aipIds) {
+    const aipRemarks = [...(remarksByAip.get(aipId) ?? [])].sort(
+      sortByCreatedAtAscThenId
+    );
+    if (!aipRemarks.length) continue;
+
+    const aipReplies = [...(repliesByAip.get(aipId) ?? [])].sort(
+      sortByCreatedAtAscThenId
+    );
+
+    const cyclesAsc: AipRevisionFeedbackCycle[] = aipRemarks.map((remark, index) => {
+      const nextRemark = aipRemarks[index + 1];
+      const remarkAt = toTimestamp(remark.createdAt);
+      const nextRemarkAt = nextRemark ? toTimestamp(nextRemark.createdAt) : null;
+
+      const cycleReplies = aipReplies.filter((reply) => {
+        const replyAt = toTimestamp(reply.createdAt);
+        if (remarkAt === null || replyAt === null) return false;
+        if (replyAt < remarkAt) return false;
+        if (nextRemarkAt !== null && replyAt >= nextRemarkAt) return false;
+        return true;
+      });
+
+      return {
+        cycleId: remark.id,
+        reviewerRemark: {
+          id: remark.id,
+          body: remark.body,
+          createdAt: remark.createdAt,
+          authorName: remark.authorName ?? null,
+          authorRole: "reviewer",
+        },
+        replies: cycleReplies.map((reply) => ({
+          id: reply.id,
+          body: reply.body,
+          createdAt: reply.createdAt,
+          authorName: reply.authorName ?? null,
+          authorRole: "barangay_official",
+        })),
+      };
+    });
+
+    map.set(
+      aipId,
+      [...cyclesAsc].sort((left, right) =>
+        sortByCreatedAtDescThenId(left.reviewerRemark, right.reviewerRemark)
+      )
+    );
+  }
+
+  return map;
+}
+
 function assertProjectReviewIsEditable(aipId: string) {
   const aip = AIPS_TABLE.find((item) => item.id === aipId);
   if (!aip) {
@@ -360,10 +568,28 @@ export function createMockAipRepoImpl({
     ) {
       const effectiveScope = scope ?? defaultScope;
       const filtered = AIPS_TABLE.filter((aip) => aip.scope === effectiveScope);
-      if (visibility === "public") {
-        return filtered.filter((aip) => aip.status !== "draft");
-      }
-      return filtered;
+      const visible =
+        visibility === "public"
+          ? filtered.filter((aip) => aip.status !== "draft")
+          : filtered;
+      const aipIds = visible.map((aip) => aip.id);
+      const [revisionRemarks, revisionReplies] = await Promise.all([
+        getMockRevisionRemarksByAipIds(aipIds),
+        getMockBarangayRepliesByAipIds(aipIds),
+      ]);
+      const latestRevisionNotes = buildLatestMockRevisionNotes(revisionRemarks);
+      const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+      const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
+        aipIds,
+        remarks: revisionRemarks,
+        replies: revisionReplies,
+      });
+      return visible.map((aip) => ({
+        ...aip,
+        feedback: latestRevisionNotes.get(aip.id) ?? aip.feedback,
+        revisionReply: latestRevisionReplies.get(aip.id),
+        revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
+      }));
     },
     async getAipDetail(
       aipId: string,
@@ -372,7 +598,25 @@ export function createMockAipRepoImpl({
       if (!aipId) return null;
 
       const found = AIPS_TABLE.find((aip) => aip.id === aipId);
-      if (found) return found;
+      if (found) {
+        const [revisionRemarks, revisionReplies] = await Promise.all([
+          getMockRevisionRemarksByAipIds([found.id]),
+          getMockBarangayRepliesByAipIds([found.id]),
+        ]);
+        const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+        const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
+          aipIds: [found.id],
+          remarks: revisionRemarks,
+          replies: revisionReplies,
+        });
+        return {
+          ...found,
+          feedback:
+            buildLatestMockRevisionNotes(revisionRemarks).get(found.id) ?? found.feedback,
+          revisionReply: latestRevisionReplies.get(found.id),
+          revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(found.id),
+        };
+      }
 
       if (aipId.startsWith("aip-")) {
         const yearMatch = aipId.match(/aip-(\d{4})/);

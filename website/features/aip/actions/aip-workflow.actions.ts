@@ -345,9 +345,13 @@ export async function saveAipRevisionReplyAction(input: {
     const aip = await loadBarangayAip(input.aipId);
     if (!aip) return failure("AIP not found.");
 
-    if (aip.status !== "for_revision") {
+    const canSaveForRevision = aip.status === "for_revision";
+    const canSaveDraftWithRevisionHistory =
+      aip.status === "draft" && (await hasRequestRevisionHistory(aip.id));
+
+    if (!canSaveForRevision && !canSaveDraftWithRevisionHistory) {
       return failure(
-        "Reply can only be saved when the AIP status is For Revision."
+        "Reply can only be saved when the AIP status is For Revision or a draft with revision history."
       );
     }
 

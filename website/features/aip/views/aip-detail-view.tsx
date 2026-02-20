@@ -190,8 +190,11 @@ export default function AipDetailView({
   const isBarangayScope = scope === "barangay";
   const isForRevision = aip.status === "for_revision";
   const isPendingReview = aip.status === "pending_review";
+  const hasRevisionHistory = (aip.revisionFeedbackCycles?.length ?? 0) > 0;
+  const isDraftWithRevisionHistory = aip.status === "draft" && hasRevisionHistory;
   const showSubmittedSidebar =
-    isBarangayScope && (isForRevision || isPendingReview);
+    isBarangayScope &&
+    (isForRevision || isPendingReview || isDraftWithRevisionHistory);
   const showRemarksCard = aip.status !== "draft" && !showSubmittedSidebar;
   const showRightSidebar = showSubmittedSidebar || showRemarksCard;
 
@@ -567,7 +570,7 @@ export default function AipDetailView({
     (!requiresRevisionReply || trimmedRevisionReply.length > 0);
   const canSaveRevisionReply =
     isBarangayScope &&
-    aip.status === "for_revision" &&
+    (isForRevision || isDraftWithRevisionHistory) &&
     trimmedRevisionReply.length > 0 &&
     !isWorkflowBusy;
   const revisionFeedbackCycles = aip.revisionFeedbackCycles ?? [];
@@ -1085,6 +1088,41 @@ export default function AipDetailView({
                               {workflowPendingAction === "cancel_submission"
                                 ? "Canceling..."
                                 : "Cancel Submission"}
+                            </Button>
+                          </>
+                        ) : null}
+
+                        {isDraftWithRevisionHistory ? (
+                          <>
+                            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                              This AIP was previously returned for revision.
+                              Feedback history remains available while you continue editing this draft.
+                            </div>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              Provide your justification before saving.
+                            </p>
+
+                            <Textarea
+                              value={revisionReplyDraft}
+                              onChange={(event) => {
+                                setRevisionReplyDraft(event.target.value);
+                              }}
+                              placeholder="Explain what changed (or your response to reviewer remarks)."
+                              className="min-h-[130px]"
+                              disabled={isWorkflowBusy}
+                            />
+
+                            <Button
+                              className="w-full bg-[#022437] hover:bg-[#022437]/90"
+                              onClick={() => {
+                                void saveRevisionReply();
+                              }}
+                              disabled={!canSaveRevisionReply}
+                            >
+                              {workflowPendingAction === "save_reply"
+                                ? "Saving..."
+                                : "Save Reply"}
                             </Button>
                           </>
                         ) : null}

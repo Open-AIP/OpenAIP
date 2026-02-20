@@ -11,6 +11,7 @@ export type GetUserResult = {
   role: RoleType;
   routeRole: RouteRole;
   officeLabel: string;
+  scopeName: string | null;
   barangayId: string | null;
   cityId: string | null;
   municipalityId: string | null;
@@ -48,6 +49,14 @@ function toOfficeLabel(role: RoleType): string {
   return "System Administration";
 }
 
+function toScopeRelationName(value: unknown): string | null {
+  if (!value || typeof value !== "object" || !("name" in value)) return null;
+  const name = (value as { name?: unknown }).name;
+  if (typeof name !== "string") return null;
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export const getUser = async (): Promise<GetUserResult> => {
 
   const baseURL = process.env.BASE_URL;
@@ -70,7 +79,9 @@ export const getUser = async (): Promise<GetUserResult> => {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id,role,full_name,email,barangay_id,city_id,municipality_id,is_active")
+    .select(
+      "id,role,full_name,email,barangay_id,city_id,municipality_id,is_active,barangay:barangays!profiles_barangay_id_fkey(name),city:cities!profiles_city_id_fkey(name),municipality:municipalities!profiles_municipality_id_fkey(name)"
+    )
     .eq("id", authUser.id)
     .maybeSingle();
 
@@ -94,6 +105,17 @@ export const getUser = async (): Promise<GetUserResult> => {
   const officeLabel = toOfficeLabel(role);
   const fullName = profile.full_name ?? authUser.email ?? "";
   const email = profile.email ?? authUser.email ?? "";
+  const barangayName = toScopeRelationName(profile.barangay);
+  const cityName = toScopeRelationName(profile.city);
+  const municipalityName = toScopeRelationName(profile.municipality);
+  const scopeName =
+    role === "city_official"
+      ? cityName
+      : role === "municipal_official"
+        ? municipalityName
+        : role === "barangay_official" || role === "citizen"
+          ? barangayName
+          : null;
 
   return {
     userId,
@@ -103,6 +125,7 @@ export const getUser = async (): Promise<GetUserResult> => {
     role,
     routeRole,
     officeLabel,
+    scopeName,
     barangayId: profile.barangay_id,
     cityId: profile.city_id,
     municipalityId: profile.municipality_id,

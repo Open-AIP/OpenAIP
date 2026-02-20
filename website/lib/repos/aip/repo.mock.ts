@@ -635,7 +635,11 @@ export function createMockAipRepoImpl({
     ) {
       const index = AIPS_TABLE.findIndex((aip) => aip.id === aipId);
       if (index === -1) return;
-      AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: next };
+      const nextRow = { ...AIPS_TABLE[index], status: next };
+      if (next === "pending_review") {
+        nextRow.uploadedAt = new Date().toISOString();
+      }
+      AIPS_TABLE[index] = nextRow;
     },
   };
 }

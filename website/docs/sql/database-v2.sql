@@ -796,7 +796,9 @@ begin
   if new.status is distinct from old.status then
     new.status_updated_at = now();
 
-    if new.submitted_at is null and new.status in ('pending_review','under_review','for_revision','published') then
+    if new.status = 'pending_review' then
+      new.submitted_at = now();
+    elsif new.submitted_at is null and new.status in ('under_review','for_revision','published') then
       new.submitted_at = now();
     end if;
 

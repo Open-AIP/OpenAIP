@@ -390,9 +390,15 @@ export async function cancelAipSubmissionAction(input: {
       );
     }
 
+    const hasRevisionHistory = await hasRequestRevisionHistory(aip.id);
+    const nextStatus = hasRevisionHistory ? "for_revision" : "draft";
     const aipRepo = getAipRepo({ defaultScope: "barangay" });
-    await aipRepo.updateAipStatus(aip.id, "draft");
-    return success("AIP submission was canceled and moved back to Draft.");
+    await aipRepo.updateAipStatus(aip.id, nextStatus);
+    return success(
+      hasRevisionHistory
+        ? "AIP submission was canceled and moved back to For Revision."
+        : "AIP submission was canceled and moved back to Draft."
+    );
   } catch (error) {
     return failure(
       error instanceof Error

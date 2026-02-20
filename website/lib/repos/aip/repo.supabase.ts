@@ -950,7 +950,13 @@ export function createSupabaseAipRepo(): AipRepo {
 
     async updateAipStatus(aipId, next) {
       const client = await supabaseServer();
-      const { error } = await client.from("aips").update({ status: next }).eq("id", aipId);
+      const patch: { status: AipStatusRow["status"]; submitted_at?: string } = {
+        status: next,
+      };
+      if (next === "pending_review") {
+        patch.submitted_at = new Date().toISOString();
+      }
+      const { error } = await client.from("aips").update(patch).eq("id", aipId);
       if (error) throw new Error(error.message);
     },
   };

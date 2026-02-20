@@ -725,7 +725,7 @@ export default function AipDetailView({
     if (isWorkflowBusy) return;
 
     const confirmed = window.confirm(
-      "Cancel this submission and move the AIP back to Draft?"
+      "Cancel this submission?"
     );
     if (!confirmed) return;
 

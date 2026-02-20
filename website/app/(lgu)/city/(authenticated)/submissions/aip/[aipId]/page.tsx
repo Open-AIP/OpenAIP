@@ -8,17 +8,13 @@ export default async function CitySubmissionAipReviewPage({
   searchParams,
 }: {
   params: Promise<{ aipId: string }>;
-  searchParams: Promise<{ mode?: string; result?: string }>;
+  searchParams: Promise<{ mode?: string; intent?: string; result?: string }>;
 }) {
   const { aipId } = await params;
-  const { mode, result } = await searchParams;
+  const { mode, intent, result } = await searchParams;
 
   const actor = await getActorContext();
   const repo = getAipSubmissionsReviewRepo();
-
-  if (mode === "review") {
-    await repo.startReviewIfNeeded({ aipId, actor });
-  }
 
   const detail = await repo.getSubmissionAipDetail({ aipId, actor });
   if (!detail) return notFound();
@@ -27,7 +23,10 @@ export default async function CitySubmissionAipReviewPage({
     <CitySubmissionReviewDetail
       aip={detail.aip}
       latestReview={detail.latestReview}
+      actorUserId={actor?.userId ?? null}
+      actorRole={actor?.role ?? null}
       mode={mode}
+      intent={intent}
       result={result}
     />
   );

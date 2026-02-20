@@ -85,7 +85,6 @@ const {
 const {
   getCitySubmissionsFeedForActor,
 } = require("@/lib/repos/submissions/queries");
-const { AIPS_TABLE } = require("@/mocks/fixtures/aip/aips.table.fixture");
 const {
   runRepoSelectorOverrideTests,
 } = require("@/tests/repo-smoke/shared/selector.override.test");
@@ -229,7 +228,7 @@ const tests = [
       const user = {
         userId: "user_001",
         userRole: "barangay_official",
-        userLocale: { barangay_id: "uuid" },
+        scope: { barangay_id: "uuid" },
       };
       const result = mapUserToActorContext(user);
       assert(result?.scope.kind === "barangay", "Expected barangay scope");
@@ -250,7 +249,7 @@ const tests = [
       const user = {
         userId: "user_002",
         userRole: "city_official",
-        userLocale: { city_id: "city-123" },
+        scope: { city_id: "city-123" },
       };
       const result = mapUserToActorContext(user);
       assert(result?.scope.kind === "city", "Expected city scope");
@@ -411,18 +410,21 @@ const tests = [
     },
   },
   {
-    name: "submissionsService dev fallback for null actor",
+    name: "submissionsService null actor unauthorized",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
       process.env.NEXT_PUBLIC_APP_ENV = "dev";
       try {
-        const result = await getCitySubmissionsFeedForActor(null);
-        const expected = AIPS_TABLE.filter(
-          (row) => row.scope === "barangay" && row.status !== "draft"
-        ).length;
+        let threwUnauthorized = false;
+        try {
+          await getCitySubmissionsFeedForActor(null);
+        } catch (error) {
+          threwUnauthorized =
+            error instanceof Error && /unauthorized/i.test(error.message);
+        }
         assert(
-          result.rows.length === expected,
-          "Expected null-actor dev feed to return mock submissions"
+          threwUnauthorized,
+          "Expected null actor to be unauthorized for submissions feed"
         );
       } finally {
         process.env.NEXT_PUBLIC_APP_ENV = oldEnv;

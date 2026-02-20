@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import type { AipHeader } from "../types";
 import { CalendarDays, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
@@ -32,6 +33,22 @@ export default function AipCard({
   aip: AipHeader;
   scope?: "city" | "barangay";
 }) {
+  const progressValue = aip.processing
+    ? Math.min(100, Math.max(0, Math.round(aip.processing.overallProgressPct)))
+    : 0;
+  const isProcessingCard = Boolean(aip.processing);
+  const progressMessage = aip.processing
+    ? aip.processing.message ??
+      (aip.processing.state === "finalizing"
+        ? "Finalizing processed output..."
+        : "Processing AIP submission...")
+    : null;
+  const isSummaryTruncated = Boolean(
+    aip.summaryText &&
+      typeof aip.description === "string" &&
+      aip.summaryText.length > aip.description.length
+  );
+
   return (
     <Link href={`/${scope}/aips/${aip.id}`} className="block">
       <Card className="border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
@@ -41,33 +58,54 @@ export default function AipCard({
               <h3 className="text-lg font-semibold text-slate-900 hover:text-[#022437] transition-colors">
                 {aip.title}
               </h3>
-              <p className="mt-2 text-sm text-slate-600">{aip.description}</p>
-
-              <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-2 text-sm text-slate-600">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-slate-400" />
-                  <span>AIP Year: {aip.year}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <PhilippinePeso className="h-4 w-4 text-slate-400" />
-                  <span>
-                    Budget: <span className="font-semibold text-[#022437]">{formatPeso(aip.budget)}</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Uploaded:</span>
-                  <span>{aip.uploadedAt}</span>
-                </div>
-
-                {aip.publishedAt ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400">Published:</span>
-                    <span>{aip.publishedAt}</span>
+              {isProcessingCard ? (
+                <div className="mt-3 max-w-md space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <span>Overall Progress</span>
+                    <span>{progressValue}%</span>
                   </div>
-                ) : null}
-              </div>
+                  <Progress value={progressValue} className="h-2.5" />
+                  {progressMessage ? (
+                    <p className="text-xs text-slate-500">{progressMessage}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {aip.description}
+                    {isSummaryTruncated ? (
+                      <span className="ml-1 text-xs font-medium text-slate-500">...See More</span>
+                    ) : null}
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-x-10 gap-y-2 text-sm text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-slate-400" />
+                      <span>AIP Year: {aip.year}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <PhilippinePeso className="h-4 w-4 text-slate-400" />
+                      <span>
+                        Budget: <span className="font-semibold text-[#022437]">{formatPeso(aip.budget)}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-400">Uploaded:</span>
+                      <span>{aip.uploadedAt}</span>
+                    </div>
+
+                    {aip.publishedAt ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">Published:</span>
+                        <span>{aip.publishedAt}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              )}
+
             </div>
 
             <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}>

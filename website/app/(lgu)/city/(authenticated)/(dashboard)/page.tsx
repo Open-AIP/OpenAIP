@@ -3,16 +3,12 @@ import { getUser } from '@/lib/actions/auth.actions';
 import { redirect } from 'next/navigation';
 
 const CityDashboard = async () => {
-  let user;
-  
-  try {
-    user = await getUser();
-  } catch (error) {
-    console.error('Failed to fetch user:', error);
-    redirect('/login');
-  }
+  const user = await getUser().catch(() => {
+    redirect('/city/sign-in');
+  });
+
   if (!user) {
-    redirect('/login');
+    redirect('/city/sign-in');
   }
 
   const { fullName, email, role, routeRole, officeLabel, baseURL } = user;

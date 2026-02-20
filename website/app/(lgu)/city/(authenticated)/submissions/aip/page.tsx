@@ -1,3 +1,5 @@
+import { permanentRedirect } from "next/navigation";
+
 export default function CitySubmissionsAipIndexPage() {
-  return null;
+  permanentRedirect("/city/submissions");
 }

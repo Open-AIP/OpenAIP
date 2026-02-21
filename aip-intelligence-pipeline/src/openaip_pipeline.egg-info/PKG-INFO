@@ -1,3 +1,23 @@
+Metadata-Version: 2.4
+Name: openaip-pipeline
+Version: 0.1.0
+Summary: OpenAIP extraction + validation + summarization + categorization + RAG pipeline
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.116.0
+Requires-Dist: uvicorn>=0.30.0
+Requires-Dist: pydantic>=2.8.0
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: openai>=1.97.0
+Requires-Dist: pypdf>=5.0.1
+Requires-Dist: supabase>=2.7.0
+Requires-Dist: langchain-core>=0.3.0
+Requires-Dist: langchain-openai>=0.2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.0; extra == "dev"
+Requires-Dist: ruff>=0.6.0; extra == "dev"
+Requires-Dist: pyright>=1.1.379; extra == "dev"
+
 # OpenAIP Pipeline Service
 
 Production-grade Python service for AIP extraction workflows, including extraction, validation, summarization, categorization, and optional RAG traces.
@@ -7,8 +27,8 @@ Production-grade Python service for AIP extraction workflows, including extracti
 Run these commands one by one inside `aip-intelligence-pipeline`.
 
 ```powershell
-cd aip-intelligence-pipeline
-python -m venv .venv
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
@@ -26,7 +46,7 @@ Required keys in `.env`:
 API (terminal 1):
 
 ```powershell
-cd aip-intelligence-pipeline
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
 .\.venv\Scripts\Activate.ps1
 openaip-api
 ```
@@ -34,7 +54,7 @@ openaip-api
 Worker (terminal 2):
 
 ```powershell
-cd aip-intelligence-pipeline
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
 .\.venv\Scripts\Activate.ps1
 openaip-worker
 ```
@@ -42,7 +62,7 @@ openaip-worker
 Dev CLI local file run:
 
 ```powershell
-cd aip-intelligence-pipeline
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
 .\.venv\Scripts\Activate.ps1
 openaip-cli run-local --pdf-path data/aips/sample.pdf --scope barangay
 ```
@@ -61,7 +81,7 @@ If you renamed this folder and get a `Fatal error in launcher` from `pip`, recre
 ```powershell
 deactivate
 Remove-Item -Recurse -Force .venv
-python -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"

@@ -1,0 +1,4 @@
+[console_scripts]
+openaip-api = openaip_pipeline.api.app:main
+openaip-cli = openaip_pipeline.cli.main:main
+openaip-worker = openaip_pipeline.worker.runner:main

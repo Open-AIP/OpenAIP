@@ -114,7 +114,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 # macOS/Linux:
 # source .venv/bin/activate
-pip install -e ".[dev]"
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 cd ..
 ```
 
@@ -409,7 +410,8 @@ Common hosting options for this codebase:
 | Runs stay `queued` forever | Worker not running or cannot claim runs | Start `openaip-worker`; verify pipeline `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` |
 | Worker fails with `OPENAI_API_KEY not found` | Missing OpenAI secret in pipeline env | Set `OPENAI_API_KEY` in `aip-intelligence-pipeline/.env` |
 | `POST /v1/runs/dev/local` returns 403 | Dev routes disabled | Set `PIPELINE_DEV_ROUTES=true` in pipeline env |
-| `pytest`/`ruff`/`pyright` command not found | Dev extras not installed | Reinstall with `pip install -e ".[dev]"` |
+| `pytest`/`ruff`/`pyright` command not found | Dev extras not installed | Reinstall with `python -m pip install -e ".[dev]"` |
+| `Fatal error in launcher` when running `pip` inside pipeline venv | Venv launchers still point to old folder path after rename | Recreate `.venv`, then use `python -m pip install --upgrade pip` and `python -m pip install -e ".[dev]"` |
 
 ## Contributing
 Branch strategy (aligned with existing branch layout in repo):

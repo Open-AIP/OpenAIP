@@ -139,6 +139,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<supabase-publishable-or-anon-key>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<optional-fallback-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
+SUPABASE_STORAGE_ARTIFACT_BUCKET=aip-artifacts
 
 BASE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_ENV=dev
@@ -184,6 +185,7 @@ Website env reference:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes* | Client-exposed | Browser/server SSR Supabase key |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Client-exposed | Fallback if publishable key not set |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only | Elevated server actions (uploads/admin ops) |
+| `SUPABASE_STORAGE_ARTIFACT_BUCKET` | No | Server-only | Artifact bucket used for strict draft delete cleanup (default `aip-artifacts`) |
 | `BASE_URL` | Yes | Server-only | Absolute app origin for auth page helpers |
 | `NEXT_PUBLIC_APP_ENV` | No | Client-exposed | `dev`/`staging`/`prod`; controls mock selection |
 | `NEXT_PUBLIC_USE_MOCKS` | No | Client-exposed | Force mock repos when `true` |
@@ -364,7 +366,7 @@ docker build -f Dockerfile.worker -t openaip-pipeline-worker .
 ```
 
 Production runtime requirements:
-- Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL`
+- Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`)
 - Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
 - Supabase project with DB schema and storage buckets in place
 - Outbound network access from pipeline runtime to Supabase + OpenAI
@@ -405,6 +407,7 @@ Common hosting options for this codebase:
 | `BASE_URL environment variable is not configured` on auth pages | `BASE_URL` missing | Set `BASE_URL=http://localhost:3000` for local dev |
 | Upload endpoint returns `Unauthorized` or `You cannot upload for this AIP right now.` | Role/scope mismatch or DB function/policies not applied | Ensure user profile role/scope is correct and SQL from `website/docs/sql/database-v2.sql` is applied |
 | Upload fails with storage error (`bucket not found` / permissions) | Missing `aip-pdfs` bucket or storage misconfiguration | Create `aip-pdfs` bucket in Supabase Storage; verify service role key is valid |
+| Draft delete fails with `Failed to delete one or more AIP files from storage. Draft was not deleted.` | Strict delete gate blocked DB delete because one or more storage objects could not be removed | Verify `aip-pdfs`/artifact bucket objects still exist, service role key has storage delete permission, and `SUPABASE_STORAGE_ARTIFACT_BUCKET` matches your artifact bucket |
 | Worker exits/fails with progress-column error | DB missing run progress columns | Apply `website/docs/sql/2026-02-19_extraction_run_progress.sql` (or full `database-v2.sql`) |
 | UI does not receive live progress updates | Realtime publication not configured | Apply `website/docs/sql/2026-02-21_extraction_runs_realtime.sql` |
 | Runs stay `queued` forever | Worker not running or cannot claim runs | Start `openaip-worker`; verify pipeline `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` |

@@ -3,11 +3,13 @@
 import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
 import { getCommentRepo } from "@/lib/repos/feedback/repo";
 import type { CommentMessage, CommentThread } from "../types";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 
 const ROLE_LABELS: Record<string, string> = {
   citizen: "Citizen",
@@ -109,6 +111,7 @@ export function CommentThreadPanel({
           const isCitizen = message.authorRole === "citizen";
           const roleLabel = ROLE_LABELS[message.authorRole] ?? message.authorRole;
           const displayName = isCitizen ? "Citizen" : "Official";
+          const kindBadge = getFeedbackKindBadge(message.kind);
 
           return (
             <div
@@ -130,6 +133,12 @@ export function CommentThreadPanel({
                     <p className="text-sm font-semibold text-slate-900">
                       {displayName}
                     </p>
+                    <Badge
+                      variant="outline"
+                      className={cn("rounded-full px-2 py-0 text-[10px]", kindBadge.className)}
+                    >
+                      {kindBadge.label}
+                    </Badge>
                     {!isCitizen ? (
                       <>
                         <span className="text-xs text-slate-400">•</span>
@@ -179,7 +188,7 @@ export function CommentThreadPanel({
               value={reply}
               onChange={(event) => setReply(event.target.value)}
               placeholder="Write your response here..."
-              className="min-h-[120px] border-slate-200 bg-white"
+              className="min-h-30 border-slate-200 bg-white"
             />
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Button

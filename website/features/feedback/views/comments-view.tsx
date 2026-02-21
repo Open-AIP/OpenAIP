@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCommentsView } from "../hooks";
+import { CATEGORY_KINDS, formatFeedbackKind } from "@/lib/constants/feedback-kind";
 
 export default function CommentsView({
   scope = "barangay",
@@ -26,6 +27,7 @@ export default function CommentsView({
     threadMap,
     year,
     status,
+    kind,
     context,
     query,
     yearOptions,
@@ -33,6 +35,7 @@ export default function CommentsView({
     filteredItems,
     setYear,
     setStatus,
+    setKind,
     setContext,
     setQuery,
   } = useCommentsView({ scope, lguId });
@@ -48,7 +51,7 @@ export default function CommentsView({
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-4">
           <div className="space-y-2">
             <div className="text-xs text-slate-500">Year</div>
             <Select value={year} onValueChange={setYear}>
@@ -101,6 +104,23 @@ export default function CommentsView({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <div className="text-xs text-slate-500">Kind</div>
+            <Select value={kind} onValueChange={(value) => setKind(value as typeof kind)}>
+              <SelectTrigger className="h-11 border-slate-200 bg-slate-50">
+                <SelectValue placeholder="All Kinds" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Kinds</SelectItem>
+                {CATEGORY_KINDS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {formatFeedbackKind(value)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="mt-4 space-y-2">
@@ -138,6 +158,7 @@ export default function CommentsView({
                         authorName={authorName}
                         authorScopeLabel={authorScopeLabel}
                         updatedAt={item.updatedAt}
+                        kind={thread?.preview.kind ?? "question"}
                         contextTitle={item.contextTitle}
                         contextSubtitle={item.contextSubtitle}
                         snippet={item.snippet}

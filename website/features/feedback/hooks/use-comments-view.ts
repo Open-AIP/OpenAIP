@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getCommentRepo, getCommentTargetLookup } from "@/lib/repos/feedback/repo";
 import { resolveCommentSidebar } from "@/lib/repos/feedback/queries";
+import type { CategoryKind } from "@/lib/constants/feedback-kind";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
 type StatusFilter = "all" | "no_response" | "responded";
@@ -21,6 +22,7 @@ export function useCommentsView({
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState("all");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [kind, setKind] = useState<CategoryKind | "all">("all");
   const [context, setContext] = useState("all");
   const [query, setQuery] = useState("");
 
@@ -85,6 +87,10 @@ export function useCommentsView({
 
     return items.filter((item) => {
       if (status !== "all" && item.status !== status) return false;
+
+      const thread = threadMap.get(item.threadId);
+      if (kind !== "all" && thread?.preview.kind !== kind) return false;
+
       if (context !== "all" && item.contextTitle !== context) return false;
 
       if (year !== "all") {
@@ -94,7 +100,6 @@ export function useCommentsView({
 
       if (!normalizedQuery) return true;
 
-      const thread = threadMap.get(item.threadId);
       const haystack = [
         item.snippet,
         item.contextTitle,
@@ -108,7 +113,7 @@ export function useCommentsView({
 
       return haystack.includes(normalizedQuery);
     });
-  }, [context, items, query, status, threadMap, year]);
+  }, [context, items, kind, query, status, threadMap, year]);
 
   return {
     loading,
@@ -117,6 +122,7 @@ export function useCommentsView({
     threadMap,
     year,
     status,
+    kind,
     context,
     query,
     yearOptions,
@@ -124,6 +130,7 @@ export function useCommentsView({
     filteredItems,
     setYear,
     setStatus,
+    setKind,
     setContext,
     setQuery,
   };

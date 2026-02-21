@@ -1,3 +1,5 @@
+import type { FeedbackKind } from "@/lib/contracts/databasev2";
+
 export type CommentAuthorRole =
   | "citizen"
   | "barangay_official"
@@ -9,6 +11,7 @@ export type CommentMessage = {
   threadId: string;
   authorRole: CommentAuthorRole;
   authorId: string;
+  kind: FeedbackKind;
   text: string;
   createdAt: string;
 };
@@ -32,6 +35,7 @@ export type CommentThreadPreview = {
   text: string;
   updatedAt: string;
   status: CommentThreadStatus;
+  kind: FeedbackKind;
   authorName?: string;
   authorScopeLabel?: string | null;
 };

@@ -1,0 +1,16 @@
+Extract ONLY AIP project rows from this page.
+Return fields exactly in this order:
+aip_ref_code, program_project_description, implementing_agency, start_date, completion_date,
+expected_output, source_of_funds, personal_services, maintenance_and_other_operating_expenses,
+capital_outlay, total, climate_change_adaptation, climate_change_mitigation, cc_topology_code,
+prm_ncr_lgu_rm_objective_results_indicator, errors, category.
+
+Rules:
+- Output only real project entries.
+- Exclude headers, subtotals, totals, grand totals, and notes.
+- Keep strict column mapping.
+- Copy combined PRM/NCR + RM Objective + Results Indicator cell text exactly when present.
+- errors must be null.
+- category must be null.
+- If no project table exists, return an empty projects array.
+

@@ -1,0 +1,334 @@
+from __future__ import annotations
+
+from typing import Any
+
+from openaip_pipeline.adapters.supabase.client import SupabaseRestClient
+from openaip_pipeline.adapters.supabase.dto import ExtractionRunDTO, UploadedFileDTO
+from openaip_pipeline.core.clock import now_utc_iso
+
+
+ACTIVE_STAGE_ORDER = ["extract", "validate", "summarize", "categorize"]
+STAGE_WEIGHTS: dict[str, int] = {"extract": 40, "validate": 20, "summarize": 15, "categorize": 25}
+STAGE_START_MESSAGES: dict[str, str] = {
+    "extract": "Starting extraction...",
+    "validate": "Starting validation...",
+    "summarize": "Starting summarization...",
+    "categorize": "Starting categorization...",
+}
+
+
+def _clamp_pct(value: float) -> int:
+    return max(0, min(100, int(round(value))))
+
+
+def _compute_overall_pct(stage: str, stage_progress_pct: int) -> int:
+    stage_progress_pct = _clamp_pct(stage_progress_pct)
+    if stage not in STAGE_WEIGHTS:
+        return 100 if stage_progress_pct >= 100 else 0
+    completed_weight = 0.0
+    for ordered_stage in ACTIVE_STAGE_ORDER:
+        if ordered_stage == stage:
+            break
+        completed_weight += STAGE_WEIGHTS[ordered_stage]
+    current_weight = STAGE_WEIGHTS[stage]
+    overall = completed_weight + (current_weight * (stage_progress_pct / 100.0))
+    return _clamp_pct(overall)
+
+
+def _to_float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    text = text.replace("₱", "").replace(",", "").replace(" ", "")
+    if text.startswith("(") and text.endswith(")"):
+        text = "-" + text[1:-1]
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _map_category(value: Any) -> str:
+    if not isinstance(value, str):
+        return "other"
+    lowered = value.strip().lower()
+    if lowered == "healthcare":
+        return "health"
+    if lowered == "infrastructure":
+        return "infrastructure"
+    if lowered == "health":
+        return "health"
+    return "other"
+
+
+def _normalize_errors(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        return [value]
+    return value
+
+
+class PipelineRepository:
+    def __init__(self, client: SupabaseRestClient):
+        self.client = client
+
+    def assert_progress_tracking_ready(self) -> None:
+        try:
+            self.client.select(
+                "extraction_runs",
+                select="id,overall_progress_pct,stage_progress_pct,progress_message,progress_updated_at",
+                order="created_at.desc",
+                limit=1,
+            )
+        except Exception as error:
+            raise RuntimeError(
+                "Progress tracking columns are unavailable in extraction_runs. "
+                "Apply website/docs/sql/2026-02-19_extraction_run_progress.sql."
+            ) from error
+
+    def claim_next_queued_run(self) -> ExtractionRunDTO | None:
+        rows = self.client.select(
+            "extraction_runs",
+            select="id,aip_id,uploaded_file_id,model_name,status,stage,created_at",
+            filters={"status": "eq.queued"},
+            order="created_at.asc",
+            limit=1,
+        )
+        if not rows:
+            return None
+        candidate = rows[0]
+        claimed = self.client.update(
+            "extraction_runs",
+            {
+                "status": "running",
+                "stage": "extract",
+                "started_at": now_utc_iso(),
+                "finished_at": None,
+                "error_code": None,
+                "error_message": None,
+                "overall_progress_pct": 0,
+                "stage_progress_pct": 0,
+                "progress_message": STAGE_START_MESSAGES["extract"],
+                "progress_updated_at": now_utc_iso(),
+            },
+            filters={"id": f"eq.{candidate['id']}", "status": "eq.queued"},
+            select="id,aip_id,uploaded_file_id,model_name,status,stage,created_at",
+        )
+        if not claimed:
+            return None
+        return ExtractionRunDTO.from_row(claimed[0])
+
+    def enqueue_run(
+        self,
+        *,
+        aip_id: str,
+        uploaded_file_id: str | None,
+        model_name: str,
+        created_by: str | None = None,
+    ) -> ExtractionRunDTO:
+        row = {
+            "aip_id": aip_id,
+            "uploaded_file_id": uploaded_file_id,
+            "stage": "extract",
+            "status": "queued",
+            "model_name": model_name,
+            "created_by": created_by,
+        }
+        inserted = self.client.insert(
+            "extraction_runs",
+            row,
+            select="id,aip_id,uploaded_file_id,model_name,status,stage,created_at",
+        )
+        if not inserted:
+            raise RuntimeError("Failed to enqueue extraction run.")
+        return ExtractionRunDTO.from_row(inserted[0])
+
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
+        rows = self.client.select(
+            "extraction_runs",
+            select=(
+                "id,aip_id,uploaded_file_id,stage,status,error_code,error_message,"
+                "started_at,finished_at,created_at,overall_progress_pct,stage_progress_pct,"
+                "progress_message,progress_updated_at"
+            ),
+            filters={"id": f"eq.{run_id}"},
+            limit=1,
+        )
+        return rows[0] if rows else None
+
+    def get_uploaded_file(self, run: ExtractionRunDTO | dict[str, Any]) -> UploadedFileDTO:
+        uploaded_file_id = run.uploaded_file_id if isinstance(run, ExtractionRunDTO) else run.get("uploaded_file_id")
+        if uploaded_file_id:
+            rows = self.client.select(
+                "uploaded_files",
+                select="id,aip_id,bucket_id,object_name,original_file_name",
+                filters={"id": f"eq.{uploaded_file_id}"},
+                limit=1,
+            )
+            if rows:
+                return UploadedFileDTO.from_row(rows[0])
+        aip_id = run.aip_id if isinstance(run, ExtractionRunDTO) else run["aip_id"]
+        rows = self.client.select(
+            "uploaded_files",
+            select="id,aip_id,bucket_id,object_name,original_file_name,created_at",
+            filters={"aip_id": f"eq.{aip_id}", "is_current": "eq.true"},
+            order="created_at.desc",
+            limit=1,
+        )
+        if not rows:
+            raise RuntimeError("No uploaded file found for extraction run.")
+        return UploadedFileDTO.from_row(rows[0])
+
+    def get_aip_scope(self, aip_id: str) -> str:
+        rows = self.client.select("aips", select="id,city_id", filters={"id": f"eq.{aip_id}"}, limit=1)
+        if not rows:
+            raise RuntimeError("AIP not found for extraction run.")
+        return "city" if rows[0].get("city_id") else "barangay"
+
+    def set_run_progress(
+        self,
+        *,
+        run_id: str,
+        stage: str,
+        stage_progress_pct: int,
+        progress_message: str | None = None,
+    ) -> None:
+        patch: dict[str, Any] = {
+            "stage": stage,
+            "status": "running",
+            "stage_progress_pct": _clamp_pct(stage_progress_pct),
+            "overall_progress_pct": _compute_overall_pct(stage, stage_progress_pct),
+            "progress_updated_at": now_utc_iso(),
+        }
+        if progress_message is not None:
+            patch["progress_message"] = progress_message
+        self.client.update("extraction_runs", patch, filters={"id": f"eq.{run_id}"})
+
+    def set_run_stage(self, *, run_id: str, stage: str) -> None:
+        self.set_run_progress(
+            run_id=run_id,
+            stage=stage,
+            stage_progress_pct=0,
+            progress_message=STAGE_START_MESSAGES.get(stage, f"Starting {stage}..."),
+        )
+
+    def set_run_failed(self, *, run_id: str, stage: str, error_message: str) -> None:
+        self.client.update(
+            "extraction_runs",
+            {
+                "status": "failed",
+                "stage": stage,
+                "finished_at": now_utc_iso(),
+                "error_message": error_message,
+                "progress_message": error_message,
+                "progress_updated_at": now_utc_iso(),
+            },
+            filters={"id": f"eq.{run_id}"},
+        )
+
+    def set_run_succeeded(self, *, run_id: str) -> None:
+        self.client.update(
+            "extraction_runs",
+            {
+                "status": "succeeded",
+                "stage": "categorize",
+                "finished_at": now_utc_iso(),
+                "error_code": None,
+                "error_message": None,
+                "overall_progress_pct": 100,
+                "stage_progress_pct": 100,
+                "progress_message": None,
+                "progress_updated_at": now_utc_iso(),
+            },
+            filters={"id": f"eq.{run_id}"},
+        )
+
+    def insert_artifact(
+        self,
+        *,
+        run_id: str,
+        aip_id: str,
+        artifact_type: str,
+        artifact_json: dict[str, Any] | None,
+        artifact_text: str | None = None,
+    ) -> str:
+        rows = self.client.insert(
+            "extraction_artifacts",
+            {
+                "run_id": run_id,
+                "aip_id": aip_id,
+                "artifact_type": artifact_type,
+                "artifact_json": artifact_json,
+                "artifact_text": artifact_text,
+            },
+            select="id",
+        )
+        if not rows:
+            raise RuntimeError(f"Failed to insert artifact: {artifact_type}")
+        return str(rows[0]["id"])
+
+    def upsert_projects(
+        self,
+        *,
+        aip_id: str,
+        extraction_artifact_id: str,
+        projects: Any,
+    ) -> None:
+        if not isinstance(projects, list):
+            return
+        existing_rows = self.client.select(
+            "projects",
+            select="id,aip_ref_code,is_human_edited",
+            filters={"aip_id": f"eq.{aip_id}"},
+        )
+        existing_by_ref = {
+            row["aip_ref_code"]: row
+            for row in existing_rows
+            if isinstance(row.get("aip_ref_code"), str) and row.get("aip_ref_code")
+        }
+        for raw in projects:
+            if not isinstance(raw, dict):
+                continue
+            ref_code = str(raw.get("aip_ref_code") or "").strip()
+            if not ref_code:
+                continue
+            existing = existing_by_ref.get(ref_code)
+            if existing and bool(existing.get("is_human_edited")):
+                continue
+            payload = {
+                "extraction_artifact_id": extraction_artifact_id,
+                "aip_ref_code": ref_code,
+                "program_project_description": str(raw.get("program_project_description") or "Unspecified project"),
+                "implementing_agency": raw.get("implementing_agency"),
+                "start_date": raw.get("start_date"),
+                "completion_date": raw.get("completion_date"),
+                "expected_output": raw.get("expected_output"),
+                "source_of_funds": raw.get("source_of_funds"),
+                "personal_services": _to_float_or_none(raw.get("personal_services")),
+                "maintenance_and_other_operating_expenses": _to_float_or_none(
+                    raw.get("maintenance_and_other_operating_expenses")
+                ),
+                "financial_expenses": _to_float_or_none(raw.get("financial_expenses")),
+                "capital_outlay": _to_float_or_none(raw.get("capital_outlay")),
+                "total": _to_float_or_none(raw.get("total")),
+                "climate_change_adaptation": raw.get("climate_change_adaptation"),
+                "climate_change_mitigation": raw.get("climate_change_mitigation"),
+                "cc_topology_code": raw.get("cc_topology_code"),
+                "prm_ncr_lgu_rm_objective_results_indicator": raw.get("prm_ncr_lgu_rm_objective_results_indicator"),
+                "errors": _normalize_errors(raw.get("errors")),
+                "category": _map_category(raw.get("category")),
+            }
+            if existing:
+                self.client.update("projects", payload, filters={"id": f"eq.{existing['id']}"})
+                continue
+            create_payload = dict(payload)
+            create_payload["aip_id"] = aip_id
+            self.client.insert("projects", create_payload)
+

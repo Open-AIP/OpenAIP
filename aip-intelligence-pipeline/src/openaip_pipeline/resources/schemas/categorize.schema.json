@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CategorizeOutput",
+  "type": "object",
+  "required": ["projects"],
+  "properties": {
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": ["Infrastructure", "Healthcare", "Other", "infrastructure", "health", "other"]
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
+

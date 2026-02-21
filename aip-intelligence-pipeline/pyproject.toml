@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openaip-pipeline"
+version = "0.1.0"
+description = "OpenAIP extraction + validation + summarization + categorization + RAG pipeline"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.116.0",
+  "uvicorn>=0.30.0",
+  "pydantic>=2.8.0",
+  "python-dotenv>=1.0.1",
+  "openai>=1.97.0",
+  "pypdf>=5.0.1",
+  "supabase>=2.7.0",
+  "langchain-core>=0.3.0",
+  "langchain-openai>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "ruff>=0.6.0",
+  "pyright>=1.1.379",
+]
+
+[project.scripts]
+openaip-api = "openaip_pipeline.api.app:main"
+openaip-worker = "openaip_pipeline.worker.runner:main"
+openaip-cli = "openaip_pipeline.cli.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"openaip_pipeline" = [
+  "resources/prompts/**/*.txt",
+  "resources/schemas/**/*.json",
+  "resources/rules/**/*.json",
+  "resources/manifests/**/*.yaml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

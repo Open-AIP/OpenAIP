@@ -1,0 +1,12 @@
+{
+  "ruleset_id": "barangay",
+  "version": "v1.0.0",
+  "rules": [
+    {"id": "R001", "title": "Required fields", "description": "Core identifying and budget fields must be present."},
+    {"id": "R002", "title": "Date validity", "description": "Start and completion dates must be valid formats."},
+    {"id": "R003", "title": "Numeric fields", "description": "Budget numeric fields must be numeric or null."},
+    {"id": "R004", "title": "Total arithmetic", "description": "Total should match PS + MOOE + FE + CO with tolerance."},
+    {"id": "R005", "title": "Non-negative money", "description": "Budget numbers cannot be negative."}
+  ]
+}
+

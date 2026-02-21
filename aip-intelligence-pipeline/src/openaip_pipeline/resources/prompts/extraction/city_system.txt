@@ -1,0 +1,4 @@
+Extract ONLY information explicitly present in the PDF page.
+If missing or unreadable, set null.
+Do not invent values.
+

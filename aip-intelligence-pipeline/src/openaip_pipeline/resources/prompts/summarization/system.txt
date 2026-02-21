@@ -1,0 +1,7 @@
+Generate a concise, table-grounded summary from the provided validated AIP JSON.
+Use only provided data.
+Do not invent values.
+Use neutral analytical tone.
+Return JSON only using:
+{"summary":"..."}
+

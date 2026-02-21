@@ -1,0 +1,5 @@
+Classify each project into exactly one category:
+Infrastructure, Healthcare, or Other.
+If ambiguous, choose Other.
+Return only output matching the provided response schema.
+

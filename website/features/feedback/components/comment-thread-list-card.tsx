@@ -70,6 +70,13 @@ export function CommentThreadListCard({
               {formatCommentDate(updatedAt)}
             </time>
             <span className="text-slate-300">•</span>
+            <Badge
+              variant="outline"
+              className={cn("rounded-full px-2.5 py-0 text-[10px] font-medium", badge.className)}
+            >
+              {badge.label}
+            </Badge>
+            <span className="text-slate-300">•</span>
             <span className="font-semibold text-slate-700">Reply</span>
           </div>
         </div>
@@ -84,15 +91,6 @@ export function CommentThreadListCard({
           )}
         >
           {kindBadge.label}
-        </Badge>
-        <Badge
-          variant="outline"
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium",
-            badge.className
-          )}
-        >
-          {badge.label}
         </Badge>
       </div>
     </div>

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -93,7 +93,7 @@ cc_topology_code must be null OR match pattern: A###-## (example: A214-04)
 
 R007 PRM/NCR results indicator code presence (column 15):
 If any of these keys exist, they must be either null or a non-empty string:
-- prm_ncr_lgu_rm_objective_results_indicator_code
+- prm_ncr_lgu_rm_objective_results_indicator
 - prm_ncr_lgu
 - rm_objective
 - results_indicator
@@ -195,6 +195,7 @@ def validate_projects_json_str(
     extraction_json_str: str,
     model: str = "gpt-5.2",
     num_batches: int = 4,
+    on_progress: Optional[Callable[[int, int, int, int, str], None]] = None,
 ) -> ValidationResult:
     """
     Splits extraction_obj["projects"] into num_batches chunks (default 4),
@@ -218,6 +219,24 @@ def validate_projects_json_str(
     projects = extraction_obj.get("projects")
     if not isinstance(projects, list):
         raise ValueError('Top-level key "projects" must be a list.')
+
+    total_projects = len(projects)
+    if total_projects == 0:
+        merged_obj = dict(extraction_obj)
+        merged_obj["projects"] = []
+        message = "No projects to validate."
+        if on_progress:
+            on_progress(0, 0, 1, 1, message)
+        print("[VALIDATION] No projects to validate.", flush=True)
+        return ValidationResult(
+            validated_obj=merged_obj,
+            validated_json_str=json.dumps(merged_obj, ensure_ascii=False, indent=2),
+            usage={"input_tokens": None, "output_tokens": None, "total_tokens": None},
+            elapsed_seconds=0.0,
+            model=model,
+            chunk_usages=[],
+            chunk_elapsed_seconds=[],
+        )
 
     # Prepare chunks
     chunks = _split_into_n_chunks(projects, num_batches)
@@ -282,6 +301,16 @@ def validate_projects_json_str(
             original_proj["errors"] = validated_proj.get("errors", None)
 
         cursor += chunk_size
+
+        done_projects = min(cursor, total_projects)
+        if on_progress:
+            on_progress(
+                done_projects,
+                total_projects,
+                i,
+                num_batches,
+                f"Validating projects {done_projects}/{total_projects} (batch {i}/{num_batches})...",
+            )
 
         chunk_usages.append(usage)
         chunk_times.append(batch_elapsed)

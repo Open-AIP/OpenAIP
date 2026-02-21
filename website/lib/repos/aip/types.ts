@@ -118,6 +118,8 @@ export type AipProjectEditableFields = {
   climateChangeMitigation: string | null;
   // Maps to public.projects.cc_topology_code
   ccTopologyCode: string | null;
+  // Maps to public.projects.prm_ncr_lgu_rm_objective_results_indicator
+  prmNcrLguRmObjectiveResultsIndicator: string | null;
   // Maps to public.projects.category
   category: ProjectCategory;
   // Maps to public.projects.errors

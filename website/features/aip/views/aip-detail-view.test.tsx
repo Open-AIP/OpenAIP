@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AipDetailView from "./aip-detail-view";
@@ -8,6 +9,15 @@ import type { AipRevisionFeedbackCycle } from "@/lib/repos/aip/repo";
 const mockReplace = vi.fn();
 const mockRefresh = vi.fn();
 const mockPush = vi.fn();
+let lastDetailsTableProps: {
+  scope: "city" | "barangay";
+  enablePagination?: boolean;
+} | null = null;
+let mockProjectsState = {
+  loading: false,
+  error: null as string | null,
+  unresolvedAiCount: 0,
+};
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/barangay/aips/aip-001",
@@ -40,7 +50,31 @@ vi.mock("../components/aip-processing-inline-status", () => ({
 }));
 
 vi.mock("./aip-details-table", () => ({
-  AipDetailsTableView: () => <div data-testid="aip-details-table-view" />,
+  AipDetailsTableView: ({
+    onProjectsStateChange,
+    scope,
+    enablePagination,
+  }: {
+    onProjectsStateChange?: (state: {
+      rows: unknown[];
+      loading: boolean;
+      error: string | null;
+      unresolvedAiCount: number;
+    }) => void;
+    scope: "city" | "barangay";
+    enablePagination?: boolean;
+  }) => {
+    lastDetailsTableProps = { scope, enablePagination };
+    React.useEffect(() => {
+      onProjectsStateChange?.({
+        rows: [],
+        loading: mockProjectsState.loading,
+        error: mockProjectsState.error,
+        unresolvedAiCount: mockProjectsState.unresolvedAiCount,
+      });
+    }, [onProjectsStateChange]);
+    return <div data-testid="aip-details-table-view" />;
+  },
 }));
 
 vi.mock("@/features/feedback", () => ({
@@ -49,6 +83,7 @@ vi.mock("@/features/feedback", () => ({
 
 vi.mock("../actions/aip-workflow.actions", () => ({
   submitAipForReviewAction: vi.fn(async () => ({ ok: true, message: "Submitted" })),
+  submitCityAipForPublishAction: vi.fn(async () => ({ ok: true, message: "Published" })),
   saveAipRevisionReplyAction: vi.fn(async () => ({ ok: true, message: "Saved" })),
   deleteAipDraftAction: vi.fn(async () => ({ ok: true, message: "Deleted" })),
   cancelAipSubmissionAction: vi.fn(async () => ({ ok: true, message: "Canceled" })),
@@ -95,6 +130,12 @@ function revisionCycle(overrides: Partial<AipRevisionFeedbackCycle> = {}): AipRe
 
 describe("AipDetailView sidebar behavior", () => {
   beforeEach(() => {
+    lastDetailsTableProps = null;
+    mockProjectsState = {
+      loading: false,
+      error: null,
+      unresolvedAiCount: 0,
+    };
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -255,6 +296,30 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.getByText("Reviewer Feedback History")).toBeInTheDocument();
   });
 
+  it("hides reviewer feedback history for published AIP with no feedback cycles", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          revisionFeedbackCycles: [],
+          publishedBy: {
+            reviewerId: "city-user-001",
+            reviewerName: "City Reviewer",
+            createdAt: "2026-01-02T08:30:00.000Z",
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Published Status")).toBeInTheDocument();
+    expect(screen.getByText("Publication Details")).toBeInTheDocument();
+    expect(screen.queryByText("Reviewer Feedback History")).not.toBeInTheDocument();
+  });
+
   it("shows actionable sidebar for draft with revision history", async () => {
     render(
       <AipDetailView
@@ -284,5 +349,141 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.queryByText("Official Comment / Justification")).not.toBeInTheDocument();
     expect(screen.queryByText("Reviewer Feedback History")).not.toBeInTheDocument();
     expect(screen.queryByText("Draft Status")).not.toBeInTheDocument();
+  });
+
+  it("shows city submit and publish CTA for draft", async () => {
+    render(<AipDetailView aip={baseAip("draft", { scope: "city" })} scope="city" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeInTheDocument();
+    const firstFetchPath = ((global.fetch as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls[0]?.[0] ?? "") as string;
+    expect(firstFetchPath).toContain("/api/city/aips/");
+  });
+
+  it("enables project pagination for both barangay and city detail views", async () => {
+    const { rerender } = render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+    expect(lastDetailsTableProps).toEqual({
+      scope: "barangay",
+      enablePagination: true,
+    });
+
+    rerender(<AipDetailView aip={baseAip("draft", { scope: "city" })} scope="city" />);
+
+    await waitFor(() => {
+      expect(lastDetailsTableProps).toEqual({
+        scope: "city",
+        enablePagination: true,
+      });
+    });
+  });
+
+  it("opens draft delete confirmation and deletes barangay draft", async () => {
+    const actions = await import("../actions/aip-workflow.actions");
+    const deleteDraftAction = vi.mocked(actions.deleteAipDraftAction);
+
+    render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Draft" }));
+    expect(screen.getByText("Delete Draft AIP")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Delete" }));
+
+    await waitFor(() => {
+      expect(deleteDraftAction).toHaveBeenCalledWith({ aipId: "aip-001" });
+    });
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/barangay/aips");
+    });
+  });
+
+  it("opens draft delete confirmation and deletes city draft", async () => {
+    const actions = await import("../actions/aip-workflow.actions");
+    const deleteDraftAction = vi.mocked(actions.deleteAipDraftAction);
+
+    render(<AipDetailView aip={baseAip("draft", { scope: "city" })} scope="city" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Draft" }));
+    expect(screen.getByText("Delete Draft AIP")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Delete" }));
+
+    await waitFor(() => {
+      expect(deleteDraftAction).toHaveBeenCalledWith({ aipId: "aip-001" });
+    });
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/city/aips");
+    });
+  });
+
+  it("shows city submit and publish CTA for for_revision", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("for_revision", { scope: "city" })}
+        scope="city"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeInTheDocument();
+  });
+
+  it("opens city publish confirmation and submits publish action", async () => {
+    const actions = await import("../actions/aip-workflow.actions");
+    const publishAction = vi.mocked(actions.submitCityAipForPublishAction);
+
+    render(<AipDetailView aip={baseAip("draft", { scope: "city" })} scope="city" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit & Publish" }));
+    expect(screen.getByText("Publish AIP")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm & Publish" }));
+
+    await waitFor(() => {
+      expect(publishAction).toHaveBeenCalledWith({ aipId: "aip-001" });
+    });
+  });
+
+  it("shows unresolved AI block message for city submit", async () => {
+    mockProjectsState = {
+      loading: false,
+      error: null,
+      unresolvedAiCount: 2,
+    };
+
+    render(<AipDetailView aip={baseAip("draft", { scope: "city" })} scope="city" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(
+        "2 AI-flagged project(s) still need an official response before submission."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeDisabled();
   });
 });

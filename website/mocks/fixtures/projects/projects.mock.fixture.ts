@@ -22,6 +22,7 @@ export type ProjectRowDTO = {
   climate_change_adaptation: string | null;
   climate_change_mitigation: string | null;
   cc_topology_code: string | null;
+  prm_ncr_lgu_rm_objective_results_indicator: string | null;
   errors: Json | null;
   category: "health" | "infrastructure" | "other";
   sector_code: string;
@@ -116,6 +117,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
       climate_change_adaptation: null,
       climate_change_mitigation: null,
       cc_topology_code: null,
+      prm_ncr_lgu_rm_objective_results_indicator: null,
       errors: null,
       category: project.kind,
       sector_code: project.projectRefCode.slice(0, 4),
@@ -146,6 +148,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
     climate_change_adaptation: null,
     climate_change_mitigation: null,
     cc_topology_code: null,
+    prm_ncr_lgu_rm_objective_results_indicator: null,
     errors: null,
     category: "other",
     sector_code: "PROJ",

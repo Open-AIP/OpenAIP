@@ -6,6 +6,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RotateCw, Send, X } from "lucide-react";
 
@@ -32,6 +39,7 @@ import {
   cancelAipSubmissionAction,
   deleteAipDraftAction,
   saveAipRevisionReplyAction,
+  submitCityAipForPublishAction,
   submitAipForReviewAction,
 } from "../actions/aip-workflow.actions";
 
@@ -158,16 +166,16 @@ export default function AipDetailView({
   onResubmit,
   onCancel,
   onCancelSubmission,
-  onSubmit,
 }: {
   aip: AipHeader;
   scope?: "city" | "barangay";
   onResubmit?: () => void;
   onCancel?: () => void;
   onCancelSubmission?: () => void;
-  onSubmit?: () => void;
 }) {
   const isBarangayScope = scope === "barangay";
+  const isCityScope = scope === "city";
+  const shouldTrackRunStatus = isBarangayScope || isCityScope;
   const isForRevision = aip.status === "for_revision";
   const isPendingReview = aip.status === "pending_review";
   const hasRevisionHistory = (aip.revisionFeedbackCycles?.length ?? 0) > 0;
@@ -188,7 +196,7 @@ export default function AipDetailView({
 
   const [activeRunId, setActiveRunId] = useState<string | null>(runIdFromQuery);
   const [isCheckingRun, setIsCheckingRun] = useState<boolean>(
-    isBarangayScope && !runIdFromQuery
+    shouldTrackRunStatus && !runIdFromQuery
   );
   const [processingRun, setProcessingRun] = useState<AipProcessingRunView | null>(null);
   const [processingState, setProcessingState] = useState<AipProcessingState>("idle");
@@ -207,11 +215,18 @@ export default function AipDetailView({
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [unresolvedAiCount, setUnresolvedAiCount] = useState(0);
   const [workflowPendingAction, setWorkflowPendingAction] = useState<
-    "delete_draft" | "cancel_submission" | "submit_review" | "save_reply" | null
+    | "delete_draft"
+    | "cancel_submission"
+    | "submit_review"
+    | "submit_publish"
+    | "save_reply"
+    | null
   >(null);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
   const [revisionReplyDraft, setRevisionReplyDraft] = useState("");
+  const [cityPublishConfirmOpen, setCityPublishConfirmOpen] = useState(false);
+  const [deleteDraftConfirmOpen, setDeleteDraftConfirmOpen] = useState(false);
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
 
@@ -224,7 +239,7 @@ export default function AipDetailView({
   }, [pathname, router, searchParams]);
 
   useEffect(() => {
-    if (!isBarangayScope) {
+    if (!shouldTrackRunStatus) {
       setIsCheckingRun(false);
       setActiveRunId(null);
       setIsFinalizingAfterSuccess(false);
@@ -250,8 +265,9 @@ export default function AipDetailView({
 
     async function lookupActiveRun() {
       try {
+        const runApiScope = isCityScope ? "city" : "barangay";
         const response = await fetch(
-          `/api/barangay/aips/${encodeURIComponent(aip.id)}/runs/active`
+          `/api/${runApiScope}/aips/${encodeURIComponent(aip.id)}/runs/active`
         );
         if (!response.ok) {
           throw new Error("Failed to check extraction status.");
@@ -288,10 +304,10 @@ export default function AipDetailView({
     return () => {
       cancelled = true;
     };
-  }, [aip.id, isBarangayScope, isFinalizingAfterSuccess, runIdFromQuery]);
+  }, [aip.id, isCityScope, isFinalizingAfterSuccess, runIdFromQuery, shouldTrackRunStatus]);
 
   useEffect(() => {
-    if (!isBarangayScope || !activeRunId) {
+    if (!shouldTrackRunStatus || !activeRunId) {
       if (!isFinalizingAfterSuccess) {
         setProcessingRun(null);
         setProcessingState("idle");
@@ -310,8 +326,9 @@ export default function AipDetailView({
 
     async function poll() {
       try {
+        const runApiScope = isCityScope ? "city" : "barangay";
         const res = await fetch(
-          `/api/barangay/aips/runs/${encodeURIComponent(currentRunId)}`
+          `/api/${runApiScope}/aips/runs/${encodeURIComponent(currentRunId)}`
         );
         if (!res.ok) {
           throw new Error("Failed to fetch extraction run status.");
@@ -419,10 +436,11 @@ export default function AipDetailView({
   }, [
     activeRunId,
     clearRunQuery,
-    isBarangayScope,
+    isCityScope,
     isCheckingRun,
     isFinalizingAfterSuccess,
     runIdFromQuery,
+    shouldTrackRunStatus,
   ]);
 
   useEffect(() => {
@@ -487,9 +505,10 @@ export default function AipDetailView({
       setIsRetrying(true);
       setRetryError(null);
       setRunNotice(null);
+      const runApiScope = isCityScope ? "city" : "barangay";
 
       const response = await fetch(
-        `/api/barangay/aips/runs/${encodeURIComponent(failedRun.runId)}/retry`,
+        `/api/${runApiScope}/aips/runs/${encodeURIComponent(failedRun.runId)}/retry`,
         { method: "POST" }
       );
 
@@ -515,13 +534,15 @@ export default function AipDetailView({
     } finally {
       setIsRetrying(false);
     }
-  }, [failedRun]);
+  }, [failedRun, isCityScope]);
 
   useEffect(() => {
     setWorkflowPendingAction(null);
     setWorkflowError(null);
     setWorkflowSuccess(null);
     setRevisionReplyDraft("");
+    setCityPublishConfirmOpen(false);
+    setDeleteDraftConfirmOpen(false);
     setProjectsLoading(true);
     setProjectsError(null);
     setUnresolvedAiCount(0);
@@ -554,6 +575,8 @@ export default function AipDetailView({
     trimmedRevisionReply.length > 0 &&
     !isWorkflowBusy;
   const revisionFeedbackCycles = aip.revisionFeedbackCycles ?? [];
+  const shouldShowRevisionFeedbackHistory =
+    aip.status !== "published" || revisionFeedbackCycles.length > 0;
   const submitBlockedReason = projectsLoading
     ? "Loading project review statuses before submission."
     : projectsError
@@ -578,24 +601,24 @@ export default function AipDetailView({
   );
 
   const submitForReview = useCallback(async () => {
-    if (!isBarangayScope) {
-      onSubmit?.();
-      return;
-    }
     if (isWorkflowBusy || !canSubmitForReview) return;
 
     try {
-      setWorkflowPendingAction("submit_review");
+      setWorkflowPendingAction(isCityScope ? "submit_publish" : "submit_review");
       setWorkflowError(null);
       setWorkflowSuccess(null);
 
-      const result = await submitAipForReviewAction({
-        aipId: aip.id,
-        revisionReply:
-          aip.status === "for_revision" && trimmedRevisionReply.length > 0
-            ? trimmedRevisionReply
-            : undefined,
-      });
+      const result = isCityScope
+        ? await submitCityAipForPublishAction({
+            aipId: aip.id,
+          })
+        : await submitAipForReviewAction({
+            aipId: aip.id,
+            revisionReply:
+              aip.status === "for_revision" && trimmedRevisionReply.length > 0
+                ? trimmedRevisionReply
+                : undefined,
+          });
       if (!result.ok) {
         setWorkflowError(result.message);
         if (typeof result.unresolvedAiCount === "number") {
@@ -610,7 +633,9 @@ export default function AipDetailView({
       setWorkflowError(
         error instanceof Error
           ? error.message
-          : "Failed to submit AIP for review."
+          : isCityScope
+            ? "Failed to publish AIP."
+            : "Failed to submit AIP for review."
       );
     } finally {
       setWorkflowPendingAction(null);
@@ -619,9 +644,8 @@ export default function AipDetailView({
     aip.id,
     aip.status,
     canSubmitForReview,
-    isBarangayScope,
+    isCityScope,
     isWorkflowBusy,
-    onSubmit,
     trimmedRevisionReply,
     router,
   ]);
@@ -664,16 +688,7 @@ export default function AipDetailView({
   ]);
 
   const deleteDraft = useCallback(async () => {
-    if (!isBarangayScope) {
-      onCancel?.();
-      return;
-    }
     if (isWorkflowBusy) return;
-
-    const confirmed = window.confirm(
-      "Delete this draft AIP? This action cannot be undone."
-    );
-    if (!confirmed) return;
 
     try {
       setWorkflowPendingAction("delete_draft");
@@ -687,7 +702,7 @@ export default function AipDetailView({
       }
 
       setWorkflowSuccess(result.message);
-      router.push("/barangay/aips");
+      router.push(`/${scope}/aips`);
     } catch (error) {
       setWorkflowError(
         error instanceof Error ? error.message : "Failed to delete draft AIP."
@@ -695,7 +710,7 @@ export default function AipDetailView({
     } finally {
       setWorkflowPendingAction(null);
     }
-  }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, router]);
+  }, [aip.id, isWorkflowBusy, router, scope]);
 
   const cancelSubmission = useCallback(async () => {
     if (!isBarangayScope) {
@@ -733,13 +748,37 @@ export default function AipDetailView({
     }
   }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, onCancelSubmission, router]);
 
+  const openCityPublishConfirm = useCallback(() => {
+    if (!isCityScope || isWorkflowBusy || !canSubmitForReview) return;
+    setCityPublishConfirmOpen(true);
+  }, [canSubmitForReview, isCityScope, isWorkflowBusy]);
+
+  const confirmCityPublish = useCallback(() => {
+    setCityPublishConfirmOpen(false);
+    void submitForReview();
+  }, [submitForReview]);
+
+  const openDeleteDraftConfirm = useCallback(() => {
+    if (aip.status !== "draft" || isWorkflowBusy) return;
+    setDeleteDraftConfirmOpen(true);
+  }, [aip.status, isWorkflowBusy]);
+
+  const confirmDeleteDraft = useCallback(() => {
+    setDeleteDraftConfirmOpen(false);
+    void deleteDraft();
+  }, [deleteDraft]);
+
   const effectiveResubmitHandler = isBarangayScope
     ? aip.status === "for_revision" && canSubmitForReview && !isWorkflowBusy
       ? () => {
           void submitForReview();
         }
       : undefined
-    : onResubmit;
+    : isCityScope
+      ? aip.status === "for_revision" && canSubmitForReview && !isWorkflowBusy
+        ? openCityPublishConfirm
+        : undefined
+      : onResubmit;
 
   const effectiveCancelSubmissionHandler = isBarangayScope
     ? aip.status === "pending_review" && !isWorkflowBusy
@@ -755,7 +794,7 @@ export default function AipDetailView({
   ];
 
   const shouldBlockWithProcessingUi =
-    isBarangayScope &&
+    shouldTrackRunStatus &&
     (isCheckingRun ||
       isFinalizingAfterSuccess ||
       (Boolean(activeRunId) && processingState === "processing"));
@@ -861,7 +900,7 @@ export default function AipDetailView({
             </Alert>
           ) : null}
 
-          {isBarangayScope &&
+          {(isBarangayScope || isCityScope) &&
           (aip.status === "draft" || aip.status === "for_revision") &&
           submitBlockedReason ? (
             <Alert className="border-amber-200 bg-amber-50">
@@ -936,7 +975,7 @@ export default function AipDetailView({
                     aipStatus={aip.status}
                     scope={scope}
                     focusedRowId={focusedRowId}
-                    enablePagination={scope === "barangay"}
+                    enablePagination
                     onProjectsStateChange={handleProjectsStateChange}
                   />
 
@@ -959,37 +998,44 @@ export default function AipDetailView({
                   <>
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        void deleteDraft();
-                      }}
-                      disabled={
-                        isBarangayScope
-                          ? isWorkflowBusy
-                          : !onCancel
-                      }
+                      onClick={openDeleteDraftConfirm}
+                      disabled={isWorkflowBusy}
                     >
                       <X className="h-4 w-4" />
                       {workflowPendingAction === "delete_draft"
                         ? "Deleting..."
-                        : "Cancel Draft"}
+                        : "Delete Draft"}
                     </Button>
+                    {isBarangayScope ? (
+                      <Button
+                        className="bg-[#022437] hover:bg-[#022437]/90"
+                        onClick={() => {
+                          void submitForReview();
+                        }}
+                        disabled={isWorkflowBusy || !canSubmitForReview}
+                      >
+                        <Send className="h-4 w-4" />
+                        {workflowPendingAction === "submit_review"
+                          ? "Submitting..."
+                          : "Submit for Review"}
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
+                {isCityScope &&
+                (aip.status === "draft" || aip.status === "for_revision") ? (
                     <Button
                       className="bg-[#022437] hover:bg-[#022437]/90"
                       onClick={() => {
-                        void submitForReview();
+                        openCityPublishConfirm();
                       }}
-                      disabled={
-                        isBarangayScope
-                          ? isWorkflowBusy || !canSubmitForReview
-                          : !onSubmit
-                      }
+                      disabled={isWorkflowBusy || !canSubmitForReview}
                     >
                       <Send className="h-4 w-4" />
-                      {workflowPendingAction === "submit_review"
-                        ? "Submitting..."
-                        : "Submit for Review"}
+                      {workflowPendingAction === "submit_publish"
+                        ? "Publishing..."
+                        : "Submit & Publish"}
                     </Button>
-                  </>
                 ) : null}
               </div>
             </div>
@@ -1119,20 +1165,98 @@ export default function AipDetailView({
                   <AipPublishedByCard publishedBy={aip.publishedBy} />
                 ) : null}
 
-                <RevisionFeedbackHistoryCard
-                  cycles={revisionFeedbackCycles}
-                  title="Reviewer Feedback History"
-                  description="Reviewer remarks and official replies grouped by revision cycle."
-                  reviewerFallbackLabel="Reviewer"
-                  replyAuthorFallbackLabel="Barangay Official"
-                  emptyStateLabel="No revision feedback history yet."
-                  emptyRepliesLabel="No official reply saved for this cycle yet."
-                />
+                {shouldShowRevisionFeedbackHistory ? (
+                  <RevisionFeedbackHistoryCard
+                    cycles={revisionFeedbackCycles}
+                    title="Reviewer Feedback History"
+                    description="Reviewer remarks and official replies grouped by revision cycle."
+                    reviewerFallbackLabel="Reviewer"
+                    replyAuthorFallbackLabel="Barangay Official"
+                    emptyStateLabel="No revision feedback history yet."
+                    emptyRepliesLabel="No official reply saved for this cycle yet."
+                  />
+                ) : null}
               </div>
             ) : null}
           </div>
         </>
       )}
+      <Dialog open={cityPublishConfirmOpen} onOpenChange={setCityPublishConfirmOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Publish AIP</DialogTitle>
+            <DialogDescription>
+              Confirm publishing this city AIP for immediate public viewing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-600">
+            <div>
+              Are you sure you want to publish this Annual Investment Plan? Once
+              published, it will be publicly available.
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-xs text-slate-500">Fiscal Year {aip.year}</div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setCityPublishConfirmOpen(false)}
+                disabled={isWorkflowBusy}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={confirmCityPublish}
+                disabled={isWorkflowBusy || !canSubmitForReview}
+              >
+                {workflowPendingAction === "submit_publish"
+                  ? "Publishing..."
+                  : "Confirm & Publish"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteDraftConfirmOpen} onOpenChange={setDeleteDraftConfirmOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Delete Draft AIP</DialogTitle>
+            <DialogDescription>
+              Confirm deleting this draft AIP. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-600">
+            <div>
+              Are you sure you want to permanently delete this draft Annual
+              Investment Plan?
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-xs text-slate-500">Fiscal Year {aip.year}</div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDraftConfirmOpen(false)}
+                disabled={isWorkflowBusy}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-rose-600 hover:bg-rose-700"
+                onClick={confirmDeleteDraft}
+                disabled={isWorkflowBusy}
+              >
+                {workflowPendingAction === "delete_draft"
+                  ? "Deleting..."
+                  : "Confirm Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

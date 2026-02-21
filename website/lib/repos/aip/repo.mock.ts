@@ -83,6 +83,8 @@ function buildCanonicalRow(
       category: normalizeCategory(base.category),
       kind: normalizeCategory(base.category),
       total: base.total,
+      prmNcrLguRmObjectiveResultsIndicator:
+        base.prmNcrLguRmObjectiveResultsIndicator ?? null,
       errors,
       aiIssues: errors ?? undefined,
       projectRefCode: base.aipRefCode,
@@ -119,6 +121,7 @@ function buildCanonicalRow(
     climateChangeAdaptation: null,
     climateChangeMitigation: null,
     ccTopologyCode: null,
+    prmNcrLguRmObjectiveResultsIndicator: null,
     category,
     errors,
 
@@ -665,6 +668,9 @@ export function createMockAipRepoImpl({
       const nextRow = { ...AIPS_TABLE[index], status: next };
       if (next === "pending_review") {
         nextRow.uploadedAt = new Date().toISOString();
+      }
+      if (next === "published") {
+        nextRow.publishedAt = new Date().toISOString().split("T")[0];
       }
       AIPS_TABLE[index] = nextRow;
     },

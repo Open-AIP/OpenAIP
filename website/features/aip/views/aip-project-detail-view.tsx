@@ -167,6 +167,7 @@ export default function AipProjectDetailView({
   const router = useRouter();
   const canComment =
     !forceReadOnly && (aip.status === "draft" || aip.status === "for_revision");
+  const isCityOwnedAip = aip.scope === "city";
 
   const [project, setProject] = React.useState(detail.project);
   const [draft, setDraft] = React.useState<AipProjectEditableFields>(
@@ -483,21 +484,23 @@ export default function AipProjectDetailView({
               </FieldGrid>
 
               <FieldGrid>
-                <div className="space-y-2">
-                  <Label htmlFor="financial-expenses">Financial Expenses</Label>
-                  <Input
-                    id="financial-expenses"
-                    type="number"
-                    value={toNumberInputValue(draft.financialExpenses)}
-                    onChange={(event) =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        financialExpenses: parseNumberInput(event.target.value),
-                      }))
-                    }
-                    disabled={!canComment}
-                  />
-                </div>
+                {!isCityOwnedAip ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="financial-expenses">Financial Expenses</Label>
+                    <Input
+                      id="financial-expenses"
+                      type="number"
+                      value={toNumberInputValue(draft.financialExpenses)}
+                      onChange={(event) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          financialExpenses: parseNumberInput(event.target.value),
+                        }))
+                      }
+                      disabled={!canComment}
+                    />
+                  </div>
+                ) : null}
                 <div className="space-y-2">
                   <Label htmlFor="capital-outlay">Capital Outlay</Label>
                   <Input
@@ -530,6 +533,84 @@ export default function AipProjectDetailView({
                   disabled={!canComment}
                 />
               </div>
+
+              {isCityOwnedAip ? (
+                <>
+                  <FieldGrid>
+                    <div className="space-y-2">
+                      <Label htmlFor="climate-adaptation">Climate Change Adaptation</Label>
+                      <Input
+                        id="climate-adaptation"
+                        value={toInputValue(draft.climateChangeAdaptation)}
+                        onChange={(event) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            climateChangeAdaptation: event.target.value.trim()
+                              ? event.target.value
+                              : null,
+                          }))
+                        }
+                        disabled={!canComment}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="climate-mitigation">Climate Change Mitigation</Label>
+                      <Input
+                        id="climate-mitigation"
+                        value={toInputValue(draft.climateChangeMitigation)}
+                        onChange={(event) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            climateChangeMitigation: event.target.value.trim()
+                              ? event.target.value
+                              : null,
+                          }))
+                        }
+                        disabled={!canComment}
+                      />
+                    </div>
+                  </FieldGrid>
+
+                  <FieldGrid>
+                    <div className="space-y-2">
+                      <Label htmlFor="cc-topology">CC Topology Code</Label>
+                      <Input
+                        id="cc-topology"
+                        value={toInputValue(draft.ccTopologyCode)}
+                        onChange={(event) =>
+                          setDraft((prev) => ({
+                            ...prev,
+                            ccTopologyCode: event.target.value.trim()
+                              ? event.target.value
+                              : null,
+                          }))
+                        }
+                        disabled={!canComment}
+                      />
+                    </div>
+                  </FieldGrid>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="prm-ncr-lgu-rm-objective-results-indicator">
+                      PRM/NCR LGU + RM Objective + Results Indicator
+                    </Label>
+                    <Textarea
+                      id="prm-ncr-lgu-rm-objective-results-indicator"
+                      value={toInputValue(draft.prmNcrLguRmObjectiveResultsIndicator)}
+                      onChange={(event) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          prmNcrLguRmObjectiveResultsIndicator: event.target.value.trim()
+                            ? event.target.value
+                            : null,
+                        }))
+                      }
+                      className="min-h-[110px]"
+                      disabled={!canComment}
+                    />
+                  </div>
+                </>
+              ) : null}
 
             </div>
           </div>

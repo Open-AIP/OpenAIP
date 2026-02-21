@@ -77,6 +77,7 @@ type ProjectSelectRow = {
   climate_change_adaptation: string | null;
   climate_change_mitigation: string | null;
   cc_topology_code: string | null;
+  prm_ncr_lgu_rm_objective_results_indicator: string | null;
   category: ProjectCategory;
   sector_code: string;
   errors: Json | null;
@@ -204,6 +205,7 @@ const PROJECT_SELECT_COLUMNS = [
   "climate_change_adaptation",
   "climate_change_mitigation",
   "cc_topology_code",
+  "prm_ncr_lgu_rm_objective_results_indicator",
   "category",
   "sector_code",
   "errors",
@@ -280,6 +282,8 @@ function mapProjectSelectRowToAipProjectRow(
     climateChangeAdaptation: row.climate_change_adaptation,
     climateChangeMitigation: row.climate_change_mitigation,
     ccTopologyCode: row.cc_topology_code,
+    prmNcrLguRmObjectiveResultsIndicator:
+      row.prm_ncr_lgu_rm_objective_results_indicator,
     category: row.category,
     errors,
 
@@ -323,6 +327,10 @@ function mapEditPatchToProjectUpdateColumns(
     update.climate_change_mitigation = patch.climateChangeMitigation;
   }
   if ("ccTopologyCode" in patch) update.cc_topology_code = patch.ccTopologyCode;
+  if ("prmNcrLguRmObjectiveResultsIndicator" in patch) {
+    update.prm_ncr_lgu_rm_objective_results_indicator =
+      patch.prmNcrLguRmObjectiveResultsIndicator;
+  }
   if ("category" in patch) update.category = patch.category;
   if ("errors" in patch) update.errors = patch.errors;
 
@@ -893,9 +901,7 @@ export function createSupabaseAipRepo(): AipRepo {
         getRevisionRemarksByAipIds(aipIds),
         getBarangayAipRepliesByAipIds(aipIds),
         getLatestPublishedByByAipIds(aipIds),
-        scope === "barangay"
-          ? getLatestRunsByAipIds(aipIds)
-          : Promise.resolve(new Map<string, ExtractionRunSelectRow>()),
+        getLatestRunsByAipIds(aipIds),
       ]);
 
       const uploaderIds = Array.from(
@@ -918,13 +924,10 @@ export function createSupabaseAipRepo(): AipRepo {
 
       return aips.map((aip) => {
         const summary = parseSummary(summariesByAip.get(aip.id));
-        const processing =
-          scope === "barangay"
-            ? buildAipProcessing({
-                run: latestRunsByAip.get(aip.id),
-                summary,
-              })
-            : undefined;
+        const processing = buildAipProcessing({
+          run: latestRunsByAip.get(aip.id),
+          summary,
+        });
 
         return buildAipHeader({
           aip,

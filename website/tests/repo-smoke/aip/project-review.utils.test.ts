@@ -31,6 +31,7 @@ const BASE_ROW: AipProjectRow = {
   climateChangeAdaptation: null,
   climateChangeMitigation: null,
   ccTopologyCode: null,
+  prmNcrLguRmObjectiveResultsIndicator: null,
   category: "health",
   errors: null,
   projectRefCode: "3000-001",
@@ -74,5 +75,23 @@ export async function runAipProjectReviewUtilsTests() {
   assert(
     deriveSectorFromRefCode("UNKNOWN-CODE") === "Unknown",
     "Expected Unknown sector for non-standard ref code."
+  );
+
+  const whitespaceOnlyDiff = diffProjectEditableFields(base, {
+    ...base,
+    implementingAgency: "Barangay\u00A0  Health Office",
+  });
+  assert(
+    whitespaceOnlyDiff.length === 0,
+    "Expected whitespace-only differences to be ignored."
+  );
+
+  const refCodeSpacingDiff = diffProjectEditableFields(base, {
+    ...base,
+    aipRefCode: "3000 - 001",
+  });
+  assert(
+    refCodeSpacingDiff.length === 0,
+    "Expected AIP ref-code hyphen spacing differences to be ignored."
   );
 }

@@ -126,15 +126,14 @@ export default function AipManagementView({
           if (mockEnabled) {
             throw new Error("Upload requires Supabase mode. Set NEXT_PUBLIC_USE_MOCKS=false.");
           }
-          if (scope !== "barangay") {
-            throw new Error("City upload flow is not implemented yet.");
-          }
 
           const form = new FormData();
           form.append("file", file);
           form.append("year", String(year));
 
-          const response = await fetch("/api/barangay/aips/upload", {
+          const uploadApiPath =
+            scope === "city" ? "/api/city/aips/upload" : "/api/barangay/aips/upload";
+          const response = await fetch(uploadApiPath, {
             method: "POST",
             body: form,
           });

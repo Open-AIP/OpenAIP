@@ -465,6 +465,26 @@ export function __getMockAipReviewsForAipId(aipId: string): MockAipReviewRow[] {
   return reviewStore.filter((row) => row.aipId === aipId);
 }
 
+export function __appendMockAipReviewAction(input: {
+  aipId: string;
+  reviewerId: string;
+  action: ReviewAction;
+  note?: string | null;
+}) {
+  reviewStore = [
+    ...reviewStore,
+    {
+      id: nextReviewId(),
+      aipId: input.aipId,
+      reviewerId: input.reviewerId,
+      reviewerName: input.reviewerId,
+      action: input.action,
+      note: typeof input.note === "string" ? input.note : null,
+      createdAt: nowIso(),
+    },
+  ];
+}
+
 export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
   return {
     async listSubmissionsForCity({

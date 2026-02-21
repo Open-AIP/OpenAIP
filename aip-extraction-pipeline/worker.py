@@ -10,8 +10,10 @@ from typing import Any, Callable, Dict, Optional
 from dotenv import load_dotenv
 
 from categorization import categorize_from_summarized_json_str
-from extraction import run_extraction
-from rule_based_validation import validate_projects_json_str
+from extraction import run_extraction as run_barangay_extraction
+from extraction_city import run_extraction as run_city_extraction
+from rule_based_validation import validate_projects_json_str as validate_barangay_projects_json_str
+from validation_city import validate_projects_json_str as validate_city_projects_json_str
 from summarization import (
     attach_summary_to_validated_json_str,
     summarize_aip_overall_json_str,
@@ -208,6 +210,19 @@ def get_uploaded_file(client: SupabaseRestClient, run: Dict[str, Any]) -> Dict[s
     return rows[0]
 
 
+def get_aip_scope(client: SupabaseRestClient, aip_id: str) -> str:
+    rows = client.select(
+        "aips",
+        select="id,city_id",
+        filters={"id": f"eq.{aip_id}"},
+        limit=1,
+    )
+    if not rows:
+        raise RuntimeError("AIP not found for extraction run.")
+    city_id = rows[0].get("city_id")
+    return "city" if city_id else "barangay"
+
+
 def set_run_failed(client: SupabaseRestClient, run_id: str, stage: str, error: Exception) -> None:
     client.update(
         "extraction_runs",
@@ -375,6 +390,9 @@ def upsert_projects(
             "climate_change_adaptation": raw.get("climate_change_adaptation"),
             "climate_change_mitigation": raw.get("climate_change_mitigation"),
             "cc_topology_code": raw.get("cc_topology_code"),
+            "prm_ncr_lgu_rm_objective_results_indicator": raw.get(
+                "prm_ncr_lgu_rm_objective_results_indicator"
+            ),
             "errors": normalize_errors(raw.get("errors")),
             "category": map_category(raw.get("category")),
         }
@@ -400,6 +418,16 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
     current_stage = "extract"
     tmp_pdf_path = None
     try:
+        aip_scope = get_aip_scope(client, aip_id)
+        extraction_fn = (
+            run_city_extraction if aip_scope == "city" else run_barangay_extraction
+        )
+        validation_fn = (
+            validate_city_projects_json_str
+            if aip_scope == "city"
+            else validate_barangay_projects_json_str
+        )
+
         uploaded = get_uploaded_file(client, run)
         signed_url = client.create_signed_url(uploaded["bucket_id"], uploaded["object_name"], expires_in=600)
         pdf_bytes = client.download_bytes(signed_url)
@@ -422,7 +450,7 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
                 f"Extracting page {done_pages}/{total_pages}...",
             )
 
-        extraction_res = run_extraction(
+        extraction_res = extraction_fn(
             tmp_pdf_path,
             model=model_name,
             job_id=run_id,
@@ -450,7 +478,7 @@ def process_run(client: SupabaseRestClient, run: Dict[str, Any]) -> None:
             pct = 100 if total_projects <= 0 else clamp_pct((done_projects * 100) / total_projects)
             set_run_progress(client, run_id, current_stage, pct, message)
 
-        validation_res = validate_projects_json_str(
+        validation_res = validation_fn(
             extraction_res.json_str,
             model=model_name,
             num_batches=4,

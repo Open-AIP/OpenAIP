@@ -1820,6 +1820,7 @@ create table if not exists public.projects (
   climate_change_adaptation text null,
   climate_change_mitigation text null,
   cc_topology_code text null,
+  prm_ncr_lgu_rm_objective_results_indicator text null,
 
   errors jsonb null,
 

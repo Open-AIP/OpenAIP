@@ -10,7 +10,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,11 @@ import { getAipYears } from "../utils";
 import AipCard from "../components/aip-card";
 import UploadAipDialog from "../dialogs/upload-aip-dialog";
 import { isMockEnabled } from "@/lib/config/appEnv";
+import {
+  mapRunToAipCardProcessing,
+  useExtractionRunsRealtime,
+  type ExtractionRunRealtimeEvent,
+} from "../hooks/use-extraction-runs-realtime";
 
 /**
  * Props for AipManagementView component
@@ -56,13 +61,58 @@ export default function AipManagementView({
   scope = "barangay"
 }: Props) {
   const router = useRouter();
-  const activeRecords = records;
+  const [recordsState, setRecordsState] = useState<AipHeader[]>(records);
+  const activeRecords = recordsState;
 
   const years = useMemo(() => getAipYears(activeRecords), [activeRecords]);
 
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [openUpload, setOpenUpload] = useState(false);
   const mockEnabled = isMockEnabled();
+  const refreshedTerminalRunIdsRef = useRef<Set<string>>(new Set());
+  const trackedAipIds = useMemo(
+    () => new Set(activeRecords.map((record) => record.id)),
+    [activeRecords]
+  );
+
+  useEffect(() => {
+    setRecordsState(records);
+    refreshedTerminalRunIdsRef.current.clear();
+  }, [records]);
+
+  const handleRunEvent = useCallback(
+    ({ run }: ExtractionRunRealtimeEvent) => {
+      if (!trackedAipIds.has(run.aip_id)) return;
+
+      setRecordsState((previous) => {
+        let changed = false;
+        const next = previous.map((record) => {
+          if (record.id !== run.aip_id) return record;
+          changed = true;
+          return {
+            ...record,
+            processing: mapRunToAipCardProcessing(run),
+          };
+        });
+        return changed ? next : previous;
+      });
+
+      if (
+        (run.status === "succeeded" || run.status === "failed") &&
+        !refreshedTerminalRunIdsRef.current.has(run.id)
+      ) {
+        refreshedTerminalRunIdsRef.current.add(run.id);
+        router.refresh();
+      }
+    },
+    [router, trackedAipIds]
+  );
+
+  useExtractionRunsRealtime({
+    enabled: !mockEnabled,
+    channelKey: `${scope}-aip-management`,
+    onRunEvent: handleRunEvent,
+  });
 
   const filtered = useMemo(() => {
     if (yearFilter === "all") return activeRecords;

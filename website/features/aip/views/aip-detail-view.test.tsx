@@ -1,10 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AipDetailView from "./aip-detail-view";
 import type { AipHeader, AipStatus } from "../types";
 import type { AipRevisionFeedbackCycle } from "@/lib/repos/aip/repo";
+import type {
+  ExtractionRunRealtimeEvent,
+  UseExtractionRunsRealtimeInput,
+} from "../hooks/use-extraction-runs-realtime";
 
 const mockReplace = vi.fn();
 const mockRefresh = vi.fn();
@@ -18,6 +22,8 @@ let mockProjectsState = {
   error: null as string | null,
   unresolvedAiCount: 0,
 };
+let mockSearchParams = new URLSearchParams();
+let latestRealtimeArgs: UseExtractionRunsRealtimeInput | null = null;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/barangay/aips/aip-001",
@@ -26,7 +32,7 @@ vi.mock("next/navigation", () => ({
     refresh: mockRefresh,
     push: mockPush,
   }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("@/components/layout/breadcrumb-nav", () => ({
@@ -89,6 +95,18 @@ vi.mock("../actions/aip-workflow.actions", () => ({
   cancelAipSubmissionAction: vi.fn(async () => ({ ok: true, message: "Canceled" })),
 }));
 
+vi.mock("../hooks/use-extraction-runs-realtime", async () => {
+  const actual = await vi.importActual<typeof import("../hooks/use-extraction-runs-realtime")>(
+    "../hooks/use-extraction-runs-realtime"
+  );
+  return {
+    ...actual,
+    useExtractionRunsRealtime: vi.fn((args: UseExtractionRunsRealtimeInput) => {
+      latestRealtimeArgs = args;
+    }),
+  };
+});
+
 function baseAip(status: AipStatus, overrides: Partial<AipHeader> = {}): AipHeader {
   return {
     id: "aip-001",
@@ -131,6 +149,8 @@ function revisionCycle(overrides: Partial<AipRevisionFeedbackCycle> = {}): AipRe
 describe("AipDetailView sidebar behavior", () => {
   beforeEach(() => {
     lastDetailsTableProps = null;
+    mockSearchParams = new URLSearchParams();
+    latestRealtimeArgs = null;
     mockProjectsState = {
       loading: false,
       error: null,
@@ -485,5 +505,200 @@ describe("AipDetailView sidebar behavior", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeDisabled();
+  });
+
+  it("tracks run updates via realtime and clears run query after success", async () => {
+    mockSearchParams = new URLSearchParams("run=run-001");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/barangay/aips/runs/run-001")) {
+          return new Response(
+            JSON.stringify({
+              runId: "run-001",
+              aipId: "aip-001",
+              stage: "extract",
+              status: "running",
+              errorMessage: null,
+              overallProgressPct: 10,
+              stageProgressPct: 25,
+              progressMessage: "Extracting from snapshot...",
+              progressUpdatedAt: "2026-02-21T00:00:30.000Z",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(
+      <AipDetailView
+        aip={baseAip("draft", {
+          summaryText: "Summary already available.",
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(latestRealtimeArgs?.enabled).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aip-processing-inline-status")).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestRealtimeArgs?.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-001",
+          aip_id: "aip-001",
+          stage: "extract",
+          status: "running",
+          error_message: null,
+          overall_progress_pct: 15,
+          stage_progress_pct: 35,
+          progress_message: "Extracting...",
+          progress_updated_at: "2026-02-21T00:01:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aip-processing-inline-status")).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestRealtimeArgs?.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-001",
+          aip_id: "aip-001",
+          stage: "categorize",
+          status: "succeeded",
+          error_message: null,
+          overall_progress_pct: 100,
+          stage_progress_pct: 100,
+          progress_message: null,
+          progress_updated_at: "2026-02-21T00:03:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/barangay/aips/aip-001", {
+        scroll: false,
+      });
+    });
+  });
+
+  it("shows a non-blocking notice when realtime status tracking fails", async () => {
+    mockSearchParams = new URLSearchParams("run=run-001");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/barangay/aips/runs/run-001")) {
+          return new Response(
+            JSON.stringify({
+              runId: "run-001",
+              aipId: "aip-001",
+              stage: "validate",
+              status: "running",
+              errorMessage: null,
+              overallProgressPct: 62,
+              stageProgressPct: 80,
+              progressMessage: "Validating snapshot...",
+              progressUpdatedAt: "2026-02-21T00:01:00.000Z",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(latestRealtimeArgs?.enabled).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aip-processing-inline-status")).toBeInTheDocument();
+    });
+
+    act(() => {
+      latestRealtimeArgs?.onStatusChange?.("CHANNEL_ERROR" as never);
+    });
+
+    expect(latestRealtimeArgs?.onSubscribeError).toBeTypeOf("function");
+    act(() => {
+      latestRealtimeArgs?.onSubscribeError?.(new Error("channel error"));
+    });
+
+    expect(latestRealtimeArgs?.onStatusChange).toBeTypeOf("function");
+    expect(screen.getByTestId("aip-processing-inline-status")).toBeInTheDocument();
+  });
+
+  it("rehydrates run snapshot when realtime reconnects", async () => {
+    mockSearchParams = new URLSearchParams("run=run-001");
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/barangay/aips/runs/run-001")) {
+        return new Response(
+          JSON.stringify({
+            runId: "run-001",
+            aipId: "aip-001",
+            stage: "summarize",
+            status: "running",
+            errorMessage: null,
+            overallProgressPct: 74,
+            stageProgressPct: 40,
+            progressMessage: "Reconnect snapshot...",
+            progressUpdatedAt: "2026-02-21T00:02:00.000Z",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      return new Response(JSON.stringify({ run: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(latestRealtimeArgs?.enabled).toBe(true);
+    });
+
+    const callsBeforeReconnect = fetchMock.mock.calls.length;
+    act(() => {
+      latestRealtimeArgs?.onStatusChange?.("SUBSCRIBED" as never);
+    });
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeReconnect);
+    });
   });
 });

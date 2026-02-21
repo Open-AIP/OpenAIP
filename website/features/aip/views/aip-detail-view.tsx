@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,10 @@ import {
   submitCityAipForPublishAction,
   submitAipForReviewAction,
 } from "../actions/aip-workflow.actions";
+import {
+  useExtractionRunsRealtime,
+  type ExtractionRunRealtimeEvent,
+} from "../hooks/use-extraction-runs-realtime";
 
 const PIPELINE_STAGES: PipelineStageUi[] = [
   "extract",
@@ -56,6 +61,8 @@ const FINALIZE_REFRESH_MAX_ATTEMPTS = 5;
 const FINALIZE_REFRESH_INTERVAL_MS = 1500;
 const FINALIZE_PROGRESS_MESSAGE =
   "Saving processed data to the database. You will be redirected shortly.";
+const LIVE_STATUS_UNAVAILABLE_NOTICE =
+  "Live extraction updates are unavailable right now. Refresh this page to check the latest status.";
 
 type RunStatusPayload = {
   runId: string;
@@ -78,6 +85,33 @@ type ActiveRunLookupPayload = {
     createdAt: string | null;
   } | null;
 };
+
+type RunSnapshotPayload = {
+  runId: string;
+  aipId: string;
+  stage: string;
+  status: string;
+  errorMessage: string | null;
+  overallProgressPct?: number | null;
+  stageProgressPct?: number | null;
+  progressMessage?: string | null;
+  progressUpdatedAt?: string | null;
+};
+
+function mapRealtimeEventToRunStatusPayload(
+  event: ExtractionRunRealtimeEvent
+): RunStatusPayload {
+  return {
+    runId: event.run.id,
+    status: event.run.status ?? "",
+    stage: event.run.stage ?? "",
+    errorMessage: event.run.error_message,
+    overallProgressPct: event.run.overall_progress_pct,
+    stageProgressPct: event.run.stage_progress_pct,
+    progressMessage: event.run.progress_message,
+    progressUpdatedAt: event.run.progress_updated_at,
+  };
+}
 
 function isPipelineStageUi(value: string): value is PipelineStageUi {
   return PIPELINE_STAGES.includes(value as PipelineStageUi);
@@ -227,6 +261,7 @@ export default function AipDetailView({
   const [revisionReplyDraft, setRevisionReplyDraft] = useState("");
   const [cityPublishConfirmOpen, setCityPublishConfirmOpen] = useState(false);
   const [deleteDraftConfirmOpen, setDeleteDraftConfirmOpen] = useState(false);
+  const lastHydratedRunIdRef = useRef<string | null>(null);
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
 
@@ -315,133 +350,170 @@ export default function AipDetailView({
       return;
     }
 
-    const currentRunId = activeRunId;
-    let cancelled = false;
-    let timer: number | null = null;
     setProcessingState("processing");
     setIsFinalizingAfterSuccess(false);
     setFinalizingNotice(null);
     setRunNotice(null);
     setRetryError(null);
+  }, [activeRunId, isFinalizingAfterSuccess, shouldTrackRunStatus]);
 
-    async function poll() {
-      try {
-        const runApiScope = isCityScope ? "city" : "barangay";
-        const res = await fetch(
-          `/api/${runApiScope}/aips/runs/${encodeURIComponent(currentRunId)}`
+  const applyRunStatusPayload = useCallback(
+    (payload: RunStatusPayload) => {
+      if (!isPipelineStatusUi(payload.status) || !isPipelineStageUi(payload.stage)) {
+        setRunNotice(
+          "Received an unexpected live extraction status payload. Refresh this page to continue."
         );
-        if (!res.ok) {
-          throw new Error("Failed to fetch extraction run status.");
-        }
+        return;
+      }
 
-        const payload = (await res.json()) as RunStatusPayload;
-        if (cancelled) return;
+      const shouldShowSyncingMessage =
+        (payload.status === "queued" || payload.status === "running") &&
+        typeof payload.stageProgressPct !== "number" &&
+        !payload.progressMessage;
 
-        if (!isPipelineStatusUi(payload.status) || !isPipelineStageUi(payload.stage)) {
-          throw new Error("Unexpected extraction status payload.");
-        }
+      setProcessingRun({
+        stage: payload.stage,
+        status: payload.status,
+        message:
+          payload.errorMessage ??
+          (shouldShowSyncingMessage ? "Syncing live progress..." : null),
+        progressByStage: buildProgressByStage(
+          payload.stage,
+          payload.status,
+          payload.stageProgressPct
+        ),
+        overallProgressPct: payload.overallProgressPct ?? null,
+        stageProgressPct: payload.stageProgressPct ?? null,
+        progressMessage:
+          payload.progressMessage ??
+          (shouldShowSyncingMessage ? "Syncing live progress..." : null),
+      });
 
-        const shouldShowSyncingMessage =
-          (payload.status === "queued" || payload.status === "running") &&
-          typeof payload.stageProgressPct !== "number" &&
-          !payload.progressMessage;
+      const nextState = mapRunStatusToProcessingState(payload.status);
+      if (nextState === "processing") {
+        setProcessingState("processing");
+        setFailedRun(null);
+        return;
+      }
 
-        setProcessingRun({
-          stage: payload.stage,
-          status: payload.status,
-          message:
-            payload.errorMessage ??
-            (shouldShowSyncingMessage ? "Syncing live progress..." : null),
-          progressByStage: buildProgressByStage(
-            payload.stage,
-            payload.status,
-            payload.stageProgressPct
-          ),
-          overallProgressPct: payload.overallProgressPct ?? null,
-          stageProgressPct: payload.stageProgressPct ?? null,
-          progressMessage:
-            payload.progressMessage ??
-            (shouldShowSyncingMessage ? "Syncing live progress..." : null),
-        });
-
-        const nextState = mapRunStatusToProcessingState(payload.status);
-        if (nextState === "processing") {
-          setProcessingState("processing");
-          setFailedRun(null);
-          return;
-        }
-
-        if (timer) window.clearInterval(timer);
-
-        if (nextState === "complete") {
-          setActiveRunId(null);
-          setFailedRun(null);
-          setDismissedFailedRunId(null);
-          setRetryError(null);
-          setRunNotice(null);
-          setProcessingState("processing");
-          setIsFinalizingAfterSuccess(true);
-          setFinalizingNotice(null);
-          setProcessingRun({
-            stage: "categorize",
-            status: "running",
-            message: FINALIZE_PROGRESS_MESSAGE,
-            progressByStage: buildProgressByStage("categorize", "running", 100),
-            overallProgressPct: 100,
-            stageProgressPct: 100,
-            progressMessage: FINALIZE_PROGRESS_MESSAGE,
-          });
-          if (runIdFromQuery) {
-            clearRunQuery();
-          }
-          return;
-        }
-
-        setProcessingRun(null);
-        setProcessingState("idle");
-        setIsFinalizingAfterSuccess(false);
+      if (nextState === "complete") {
         setActiveRunId(null);
-        setFailedRun({
-          runId: currentRunId,
-          message: payload.errorMessage ?? payload.progressMessage ?? null,
-        });
+        setFailedRun(null);
         setDismissedFailedRunId(null);
         setRetryError(null);
+        setRunNotice(null);
+        setProcessingState("processing");
+        setIsFinalizingAfterSuccess(true);
+        setFinalizingNotice(null);
+        setProcessingRun({
+          stage: "categorize",
+          status: "running",
+          message: FINALIZE_PROGRESS_MESSAGE,
+          progressByStage: buildProgressByStage("categorize", "running", 100),
+          overallProgressPct: 100,
+          stageProgressPct: 100,
+          progressMessage: FINALIZE_PROGRESS_MESSAGE,
+        });
         if (runIdFromQuery) {
           clearRunQuery();
         }
-      } catch {
-        if (cancelled) return;
-        if (timer) window.clearInterval(timer);
-        setProcessingRun(null);
-        setProcessingState("idle");
-        setIsFinalizingAfterSuccess(false);
-        setActiveRunId(null);
-        setRunNotice("Unable to fetch extraction status right now. Showing AIP details.");
-        if (runIdFromQuery) {
-          clearRunQuery();
-        }
+        return;
       }
+
+      setProcessingRun(null);
+      setProcessingState("idle");
+      setIsFinalizingAfterSuccess(false);
+      setActiveRunId(null);
+      setFailedRun({
+        runId: payload.runId,
+        message: payload.errorMessage ?? payload.progressMessage ?? null,
+      });
+      setDismissedFailedRunId(null);
+      setRetryError(null);
+      if (runIdFromQuery) {
+        clearRunQuery();
+      }
+    },
+    [clearRunQuery, runIdFromQuery]
+  );
+
+  const hydrateRunSnapshot = useCallback(async (mode: "initial" | "resync" = "initial") => {
+    if (!activeRunId || !shouldTrackRunStatus) return;
+    if (mode === "initial" && lastHydratedRunIdRef.current === activeRunId) return;
+    if (mode === "initial") {
+      lastHydratedRunIdRef.current = activeRunId;
     }
+    try {
+      const runApiScope = isCityScope ? "city" : "barangay";
+      const res = await fetch(
+        `/api/${runApiScope}/aips/runs/${encodeURIComponent(activeRunId)}`
+      );
+      if (!res.ok) return;
+      const payload = (await res.json()) as RunSnapshotPayload;
+      if (!payload || payload.runId !== activeRunId) return;
+      applyRunStatusPayload({
+        runId: payload.runId,
+        status: payload.status,
+        stage: payload.stage,
+        errorMessage: payload.errorMessage,
+        overallProgressPct: payload.overallProgressPct,
+        stageProgressPct: payload.stageProgressPct,
+        progressMessage: payload.progressMessage,
+        progressUpdatedAt: payload.progressUpdatedAt,
+      });
+    } catch {
+      // best-effort sync; realtime remains primary transport
+    }
+  }, [activeRunId, applyRunStatusPayload, isCityScope, shouldTrackRunStatus]);
 
-    void poll();
-    timer = window.setInterval(() => {
-      void poll();
-    }, 3000);
+  useEffect(() => {
+    if (!activeRunId) {
+      lastHydratedRunIdRef.current = null;
+      return;
+    }
+    void hydrateRunSnapshot("initial");
+  }, [activeRunId, hydrateRunSnapshot]);
 
-    return () => {
-      cancelled = true;
-      if (timer) window.clearInterval(timer);
-    };
-  }, [
-    activeRunId,
-    clearRunQuery,
-    isCityScope,
-    isCheckingRun,
-    isFinalizingAfterSuccess,
-    runIdFromQuery,
-    shouldTrackRunStatus,
-  ]);
+  const handleRealtimeUnavailable = useCallback(() => {
+    setRunNotice(LIVE_STATUS_UNAVAILABLE_NOTICE);
+  }, []);
+
+  const handleRealtimeRunEvent = useCallback(
+    (event: ExtractionRunRealtimeEvent) => {
+      applyRunStatusPayload(mapRealtimeEventToRunStatusPayload(event));
+    },
+    [applyRunStatusPayload]
+  );
+
+  const handleRealtimeStatusChange = useCallback(
+    (status: REALTIME_SUBSCRIBE_STATES) => {
+      if (status === "SUBSCRIBED") {
+        setRunNotice(null);
+        void hydrateRunSnapshot("resync");
+        return;
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        handleRealtimeUnavailable();
+      }
+    },
+    [handleRealtimeUnavailable, hydrateRunSnapshot]
+  );
+
+  useExtractionRunsRealtime({
+    enabled: shouldTrackRunStatus && Boolean(activeRunId),
+    runId: activeRunId ?? undefined,
+    channelKey: `${scope}-aip-detail-${aip.id}-${activeRunId ?? "none"}`,
+    onRunEvent: handleRealtimeRunEvent,
+    onSubscribeError: () => {
+      handleRealtimeUnavailable();
+    },
+    onStatusChange: handleRealtimeStatusChange,
+  });
+
+  useEffect(() => {
+    if (!activeRunId) return;
+    setDismissedFailedRunId(null);
+  }, [activeRunId]);
 
   useEffect(() => {
     if (!isFinalizingAfterSuccess) return;

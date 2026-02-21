@@ -1,7 +1,7 @@
-const CitizenChatbot = () => {
-  return (
-    <div>CitizenChatbot</div>
-  )
-}
+import { LguChatbotView } from "@/features/chat";
 
-export default CitizenChatbot
+const CitizenChatbot = () => {
+  return <LguChatbotView />;
+};
+
+export default CitizenChatbot;

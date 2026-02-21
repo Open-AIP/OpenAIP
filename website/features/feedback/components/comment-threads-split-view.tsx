@@ -17,7 +17,7 @@ export function CommentThreadsSplitView({
   target,
   selectedThreadId,
 }: {
-  scope: "city" | "barangay";
+  scope: "city" | "barangay" | "citizen";
   target: Target;
   selectedThreadId?: string | null;
 }) {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AipDetailView from "./aip-detail-view";
@@ -129,6 +129,61 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.getByText("Official Comment / Justification")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resubmit" })).toBeInTheDocument();
     expect(screen.getByText("Reviewer Feedback History")).toBeInTheDocument();
+    expect(screen.queryByText("Cycle 1 of 1")).not.toBeInTheDocument();
+  });
+
+  it("paginates reviewer feedback history by revision cycle", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          revisionFeedbackCycles: [
+            revisionCycle({
+              cycleId: "cycle-002",
+              reviewerRemark: {
+                id: "remark-002",
+                body: "Latest reviewer remark.",
+                createdAt: "2026-01-03T08:00:00.000Z",
+                authorRole: "reviewer",
+                authorName: "Latest Reviewer",
+              },
+              replies: [],
+            }),
+            revisionCycle({
+              cycleId: "cycle-001",
+              reviewerRemark: {
+                id: "remark-001",
+                body: "Older reviewer remark.",
+                createdAt: "2026-01-01T08:00:00.000Z",
+                authorRole: "reviewer",
+                authorName: "Older Reviewer",
+              },
+              replies: [],
+            }),
+          ],
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Latest reviewer remark.")).toBeInTheDocument();
+    expect(screen.queryByText("Older reviewer remark.")).not.toBeInTheDocument();
+    expect(screen.getByText("Cycle 1 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.queryByText("Latest reviewer remark.")).not.toBeInTheDocument();
+    expect(screen.getByText("Older reviewer remark.")).toBeInTheDocument();
+    expect(screen.getByText("Cycle 2 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+
+    expect(screen.getByText("Latest reviewer remark.")).toBeInTheDocument();
+    expect(screen.queryByText("Older reviewer remark.")).not.toBeInTheDocument();
+    expect(screen.getByText("Cycle 1 of 2")).toBeInTheDocument();
   });
 
   it("shows cancel action sidebar for pending_review", async () => {

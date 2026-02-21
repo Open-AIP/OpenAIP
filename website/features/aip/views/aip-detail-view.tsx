@@ -24,6 +24,7 @@ import { AipProcessingInlineStatus } from "../components/aip-processing-inline-s
 import type { AipProcessingState } from "../components/aip-processing-status-content";
 import { AipStatusInfoCard } from "../components/aip-status-info-card";
 import { AipPublishedByCard } from "../components/aip-published-by-card";
+import { RevisionFeedbackHistoryCard } from "../components/revision-feedback-history-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -91,28 +92,6 @@ function clampProgress(value: number): number {
 
 function hasSummaryText(summaryText: string | undefined): boolean {
   return typeof summaryText === "string" && summaryText.trim().length > 0;
-}
-
-function formatFeedbackDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function feedbackAuthorLabel(params: {
-  authorName?: string | null;
-  authorRole: "reviewer" | "barangay_official";
-}): string {
-  if (typeof params.authorName === "string" && params.authorName.trim().length > 0) {
-    return params.authorName.trim();
-  }
-  return params.authorRole === "reviewer" ? "Reviewer" : "Barangay Official";
 }
 
 function wait(ms: number): Promise<void> {
@@ -1140,80 +1119,15 @@ export default function AipDetailView({
                   <AipPublishedByCard publishedBy={aip.publishedBy} />
                 ) : null}
 
-                <Card className="border-slate-200">
-                  <CardContent className="space-y-3 p-5">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Reviewer Feedback History
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Reviewer remarks and official replies grouped by revision cycle.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      {revisionFeedbackCycles.length ? (
-                        revisionFeedbackCycles.map((cycle) => (
-                          <div
-                            key={cycle.cycleId}
-                            className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
-                          >
-                            <div className="rounded-md border border-slate-300 bg-white p-3">
-                              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                                <span>
-                                  {feedbackAuthorLabel({
-                                    authorName: cycle.reviewerRemark.authorName,
-                                    authorRole: "reviewer",
-                                  })}
-                                </span>
-                                <span className="text-slate-400">|</span>
-                                <span>
-                                  {formatFeedbackDate(cycle.reviewerRemark.createdAt)}
-                                </span>
-                              </div>
-                              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                {cycle.reviewerRemark.body}
-                              </p>
-                            </div>
-
-                            {cycle.replies.length ? (
-                              <div className="space-y-2 pl-3">
-                                {cycle.replies.map((reply) => (
-                                  <div
-                                    key={reply.id}
-                                    className="rounded-md border border-slate-200 bg-white p-3"
-                                  >
-                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                                      <span>
-                                        {feedbackAuthorLabel({
-                                          authorName: reply.authorName,
-                                          authorRole: "barangay_official",
-                                        })}
-                                      </span>
-                                      <span className="text-slate-400">|</span>
-                                      <span>{formatFeedbackDate(reply.createdAt)}</span>
-                                    </div>
-                                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                      {reply.body}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="rounded-md border border-dashed border-slate-200 bg-white p-3 text-xs text-slate-500">
-                                No official reply saved for this cycle yet.
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                          No revision feedback history yet.
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <RevisionFeedbackHistoryCard
+                  cycles={revisionFeedbackCycles}
+                  title="Reviewer Feedback History"
+                  description="Reviewer remarks and official replies grouped by revision cycle."
+                  reviewerFallbackLabel="Reviewer"
+                  replyAuthorFallbackLabel="Barangay Official"
+                  emptyStateLabel="No revision feedback history yet."
+                  emptyRepliesLabel="No official reply saved for this cycle yet."
+                />
               </div>
             ) : null}
           </div>

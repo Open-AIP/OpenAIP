@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { AipRevisionFeedbackCycle } from "@/lib/repos/aip/repo";
 import {
@@ -44,6 +44,56 @@ describe("CityRevisionFeedbackHistoryCard", () => {
     expect(screen.getByText("Reviewer One")).toBeInTheDocument();
     expect(screen.getByText("Official One")).toBeInTheDocument();
     expect(screen.getAllByText(/2026/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Cycle 1 of 1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Previous" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
+  });
+
+  it("paginates by revision cycle with one cycle per page", () => {
+    render(
+      <CityRevisionFeedbackHistoryCard
+        cycles={[
+          buildCycle({
+            cycleId: "cycle-002",
+            reviewerRemark: {
+              id: "remark-002",
+              body: "Latest reviewer remark.",
+              createdAt: "2026-02-06T01:00:00.000Z",
+              authorName: "Latest Reviewer",
+              authorRole: "reviewer",
+            },
+            replies: [],
+          }),
+          buildCycle({
+            cycleId: "cycle-001",
+            reviewerRemark: {
+              id: "remark-001",
+              body: "Older reviewer remark.",
+              createdAt: "2026-02-01T01:00:00.000Z",
+              authorName: "Older Reviewer",
+              authorRole: "reviewer",
+            },
+            replies: [],
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Latest reviewer remark.")).toBeInTheDocument();
+    expect(screen.queryByText("Older reviewer remark.")).not.toBeInTheDocument();
+    expect(screen.getByText("Cycle 1 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.queryByText("Latest reviewer remark.")).not.toBeInTheDocument();
+    expect(screen.getByText("Older reviewer remark.")).toBeInTheDocument();
+    expect(screen.getByText("Cycle 2 of 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+
+    expect(screen.getByText("Latest reviewer remark.")).toBeInTheDocument();
+    expect(screen.queryByText("Older reviewer remark.")).not.toBeInTheDocument();
+    expect(screen.getByText("Cycle 1 of 2")).toBeInTheDocument();
   });
 
   it("renders per-cycle empty reply state", () => {

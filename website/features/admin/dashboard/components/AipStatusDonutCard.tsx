@@ -41,15 +41,15 @@ export default function AipStatusDonutCard({
   });
 
   return (
-    <Card className="border-slate-200">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-[15px]">AIPs by Status</CardTitle>
+    <Card className="border-slate-200 py-0 shadow-none">
+      <CardHeader className="space-y-1 pb-0">
+        <CardTitle className="text-[18px]">AIPs by Status</CardTitle>
         <div className="text-[12px] text-slate-500">Distribution across the selected filters.</div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-4">
         <div className="flex flex-col items-center gap-4">
           <div className="relative flex items-center justify-center">
-            <svg width="220" height="220" viewBox="0 0 200 200">
+            <svg width="250" height="250" viewBox="0 0 200 200">
               <g transform="translate(100,100) rotate(-90)">
                 {segmentsWithOffset.map((segment) => {
                   const dashArray = `${segment.length} ${circumference - segment.length}`;
@@ -61,7 +61,7 @@ export default function AipStatusDonutCard({
                       cy={0}
                       fill="transparent"
                       stroke={segment.color}
-                      strokeWidth={22}
+                      strokeWidth={24}
                       strokeDasharray={dashArray}
                       strokeDashoffset={-segment.offset}
                       className="cursor-pointer"
@@ -73,17 +73,17 @@ export default function AipStatusDonutCard({
               </g>
             </svg>
             <div className="absolute text-center">
-              <div className="text-sm text-slate-500">Total</div>
-              <div className="text-2xl font-semibold text-slate-900">{total}</div>
+              <div className="text-[12px] text-slate-500">Total</div>
+              <div className="text-[28px] font-semibold text-slate-900">{total}</div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 text-[12px] text-slate-600">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] text-slate-600">
             {segments.map((segment) => (
               <Button
                 key={segment.status}
                 variant="ghost"
-                className="h-auto px-2 py-1 text-[12px] text-slate-600 hover:text-slate-900"
+                className="h-auto p-0 text-[12px] text-slate-600 hover:bg-transparent hover:text-slate-900"
                 onClick={() => onStatusClick(segment.status)}
               >
                 <span className="flex items-center gap-2">
@@ -96,9 +96,8 @@ export default function AipStatusDonutCard({
           </div>
         </div>
 
-        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[11px] text-blue-700">
-          Interactive Chart: Click a status segment or legend item to open AIP Oversight filtered to that
-          status.
+        <div className="rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-700">
+          <b>Interactive Chart:</b> Click a status segment or legend item to open AIP Oversight filtered to that status.
         </div>
       </CardContent>
     </Card>

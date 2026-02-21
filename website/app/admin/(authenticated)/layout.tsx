@@ -8,7 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   if (isTempAdminBypassEnabled()) {
-    return <AdminShell>{children}</AdminShell>;
+    return (
+      <AdminShell profileName="Admin User" profileRole="System Administration">
+        {children}
+      </AdminShell>
+    );
   }
 
   const userData = await getUser().catch(() => {
@@ -24,5 +28,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/admin/unauthorized");
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <AdminShell profileName={userData.fullName} profileRole={userData.officeLabel}>
+      {children}
+    </AdminShell>
+  );
 }

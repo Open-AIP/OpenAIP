@@ -90,6 +90,53 @@ Common optional runtime vars:
 - `PIPELINE_DEV_ROUTES` (default `false`)
 - `PIPELINE_ENABLE_RAG` (default `false`)
 
+## Validation resources
+
+Barangay validation prompt source:
+- `src/openaip_pipeline/resources/prompts/validation/barangay_system.txt`
+
+Barangay rules metadata source:
+- `src/openaip_pipeline/resources/rules/barangay.rules.json`
+
+City validation prompt source:
+- `src/openaip_pipeline/resources/prompts/validation/city_system.txt`
+
+City rules metadata source:
+- `src/openaip_pipeline/resources/rules/city.rules.json`
+
+Quick rules inspection:
+
+```powershell
+openaip-cli validate-rules --scope barangay
+openaip-cli validate-rules --scope city
+```
+
+## Extraction prompt resources
+
+Barangay extraction prompt sources:
+- `src/openaip_pipeline/resources/prompts/extraction/barangay_system.txt`
+- `src/openaip_pipeline/resources/prompts/extraction/barangay_user.txt`
+
+City extraction prompt sources:
+- `src/openaip_pipeline/resources/prompts/extraction/city_system.txt`
+- `src/openaip_pipeline/resources/prompts/extraction/city_user.txt`
+
+These prompt files are runtime source-of-truth for extraction instructions.
+
+## Summarization prompt resources
+
+Summarization prompt source:
+- `src/openaip_pipeline/resources/prompts/summarization/system.txt`
+
+This prompt file is runtime source-of-truth for summarization instructions.
+
+## Categorization prompt resources
+
+Categorization prompt source:
+- `src/openaip_pipeline/resources/prompts/categorization/system.txt`
+
+This prompt file is runtime source-of-truth for categorization instructions.
+
 ## Artifacts and versioning
 
 Definition artifacts (repo-tracked):

@@ -1,3 +1,10 @@
+"""Compatibility shim for legacy imports.
+
+Source-of-truth validation resources are under:
+- src/openaip_pipeline/resources/prompts/validation/
+- src/openaip_pipeline/resources/rules/
+"""
+
 from pathlib import Path
 import sys
 

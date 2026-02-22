@@ -80,19 +80,7 @@ def categorize_batch(
     total_batches: int | None = None,
 ) -> tuple[CategorizationResponse, dict[str, Any]]:
     numbered = [f"ITEM {idx}\n{_build_classification_text(project)}" for idx, project in enumerate(batch)]
-    user_text = (
-        "Categorize Annual Investment Plan project rows.\n\n"
-        "Categories:\n"
-        "- Infrastructure\n"
-        "- Healthcare\n"
-        "- Other\n\n"
-        "Rules:\n"
-        "- Exactly one category per item.\n"
-        "- If ambiguous, choose Other.\n"
-        "- Output indices must match item numbers.\n\n"
-        "Items:\n\n"
-        + "\n\n---\n\n".join(numbered)
-    )
+    user_text = "Items:\n\n" + "\n\n---\n\n".join(numbered)
     system_prompt = read_text("prompts/categorization/system.txt")
     response = client.responses.parse(
         model=model,
@@ -209,4 +197,3 @@ def write_categorized_json_file(categorized_json_str: str, out_path: str) -> str
     with open(out_path, "w", encoding="utf-8") as file_handle:
         file_handle.write(categorized_json_str)
     return out_path
-

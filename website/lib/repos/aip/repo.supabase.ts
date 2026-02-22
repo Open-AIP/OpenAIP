@@ -116,9 +116,12 @@ type AipRevisionFeedbackMessageByAip = AipRevisionFeedbackMessage & {
 type ExtractionRunSelectRow = {
   id: string;
   aip_id: string;
+  stage: "extract" | "validate" | "summarize" | "categorize" | "embed";
   status: "queued" | "running" | "succeeded" | "failed";
   overall_progress_pct: number | null;
   progress_message: string | null;
+  error_message?: string | null;
+  progress_updated_at?: string | null;
   created_at: string;
 };
 
@@ -372,6 +375,7 @@ function buildAipProcessing(input: {
 }): AipHeader["processing"] | undefined {
   const { run, summary } = input;
   if (!run) return undefined;
+  if (run.stage === "embed") return undefined;
 
   if (run.status === "queued" || run.status === "running") {
     return {
@@ -392,6 +396,21 @@ function buildAipProcessing(input: {
   }
 
   return undefined;
+}
+
+function buildAipEmbedding(run: ExtractionRunSelectRow | undefined): AipHeader["embedding"] | undefined {
+  if (!run) return undefined;
+  return {
+    runId: run.id,
+    status: run.status,
+    overallProgressPct:
+      typeof run.overall_progress_pct === "number"
+        ? clampProgress(run.overall_progress_pct, 0)
+        : null,
+    progressMessage: toProgressMessage(run.progress_message),
+    errorMessage: toProgressMessage(run.error_message),
+    updatedAt: run.progress_updated_at ?? run.created_at ?? null,
+  };
 }
 
 async function getViewerScope(): Promise<ViewerScope | null> {
@@ -746,8 +765,32 @@ async function getLatestRunsByAipIds(aipIds: string[]): Promise<Map<string, Extr
   const client = await supabaseServer();
   const { data, error } = await client
     .from("extraction_runs")
-    .select("id,aip_id,status,overall_progress_pct,progress_message,created_at")
+    .select("id,aip_id,stage,status,overall_progress_pct,progress_message,error_message,progress_updated_at,created_at")
     .in("aip_id", aipIds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as ExtractionRunSelectRow[]) {
+    if (row.stage === "embed") continue;
+    if (!map.has(row.aip_id)) {
+      map.set(row.aip_id, row);
+    }
+  }
+  return map;
+}
+
+async function getLatestEmbedRunsByAipIds(
+  aipIds: string[]
+): Promise<Map<string, ExtractionRunSelectRow>> {
+  const map = new Map<string, ExtractionRunSelectRow>();
+  if (!aipIds.length) return map;
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("extraction_runs")
+    .select("id,aip_id,stage,status,overall_progress_pct,progress_message,error_message,progress_updated_at,created_at")
+    .in("aip_id", aipIds)
+    .eq("stage", "embed")
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -781,6 +824,7 @@ function buildAipHeader(input: {
   revisionReply?: AipHeader["revisionReply"];
   revisionFeedbackCycles?: AipRevisionFeedbackCycle[];
   processing?: AipHeader["processing"];
+  embedding?: AipHeader["embedding"];
 }) {
   const {
     aip,
@@ -794,6 +838,7 @@ function buildAipHeader(input: {
     revisionReply,
     revisionFeedbackCycles,
     processing,
+    embedding,
   } = input;
 
   const budget = projects.reduce((acc, p) => acc + (p.total ?? 0), 0);
@@ -849,6 +894,7 @@ function buildAipHeader(input: {
     revisionReply,
     revisionFeedbackCycles,
     processing,
+    embedding,
   };
 }
 
@@ -898,6 +944,7 @@ export function createSupabaseAipRepo(): AipRepo {
         revisionReplies,
         publishedByByAip,
         latestRunsByAip,
+        latestEmbedRunsByAip,
       ] = await Promise.all([
         getCurrentFiles(aipIds),
         getProjectsByAipIds(aipIds),
@@ -906,6 +953,7 @@ export function createSupabaseAipRepo(): AipRepo {
         getBarangayAipRepliesByAipIds(aipIds),
         getLatestPublishedByByAipIds(aipIds),
         getLatestRunsByAipIds(aipIds),
+        getLatestEmbedRunsByAipIds(aipIds),
       ]);
 
       const uploaderIds = Array.from(
@@ -932,6 +980,7 @@ export function createSupabaseAipRepo(): AipRepo {
           run: latestRunsByAip.get(aip.id),
           summary,
         });
+        const embedding = buildAipEmbedding(latestEmbedRunsByAip.get(aip.id));
 
         return buildAipHeader({
           aip,
@@ -947,6 +996,7 @@ export function createSupabaseAipRepo(): AipRepo {
           revisionReply: latestRevisionReplies.get(aip.id),
           revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
           processing,
+          embedding,
         });
       });
     },
@@ -972,6 +1022,7 @@ export function createSupabaseAipRepo(): AipRepo {
         revisionRemarks,
         revisionReplies,
         publishedByByAip,
+        latestEmbedRunsByAip,
       ] =
         await Promise.all([
           getCurrentFiles([aipId]),
@@ -980,6 +1031,7 @@ export function createSupabaseAipRepo(): AipRepo {
           getRevisionRemarksByAipIds([aipId]),
           getBarangayAipRepliesByAipIds([aipId]),
           getLatestPublishedByByAipIds([aipId]),
+          getLatestEmbedRunsByAipIds([aipId]),
         ]);
 
       const file = filesByAip.get(aipId);
@@ -1007,6 +1059,7 @@ export function createSupabaseAipRepo(): AipRepo {
         publishedBy: publishedByByAip.get(aipId),
         revisionReply: latestRevisionReplies.get(aipId),
         revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aipId),
+        embedding: buildAipEmbedding(latestEmbedRunsByAip.get(aipId)),
       });
     },
 

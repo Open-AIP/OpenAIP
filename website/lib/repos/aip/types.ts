@@ -72,6 +72,14 @@ export type AipHeader = {
     message?: string | null;
     runId?: string;
   };
+  embedding?: {
+    runId: string;
+    status: "queued" | "running" | "succeeded" | "failed";
+    overallProgressPct?: number | null;
+    progressMessage?: string | null;
+    errorMessage?: string | null;
+    updatedAt?: string | null;
+  };
 };
 
 export type Sector =

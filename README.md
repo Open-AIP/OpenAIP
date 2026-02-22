@@ -292,9 +292,85 @@ Recommended workflow:
    - `website/docs/sql/2026-02-20_submissions_claim_review.sql`
    - `website/docs/sql/2026-02-21_city_aip_project_column_and_publish.sql`
    - `website/docs/sql/2026-02-21_extraction_runs_realtime.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)
    - `aip-artifacts` (pipeline artifacts when payload exceeds inline threshold)
+
+### Publish-Time Categorize Embedding
+When an AIP transitions to `published`, DB trigger `trg_aip_published_embed_categorize` asynchronously calls the Edge Function `embed_categorize_artifact` via `pg_net`.
+
+Files added for this flow:
+- SQL patch: `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
+- SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
+- Edge Function: `supabase/functions/embed_categorize_artifact/index.ts`
+
+Required configuration:
+1. Edge Function environment variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `OPENAI_API_KEY`
+   - `EMBED_CATEGORIZE_JOB_SECRET`
+2. DB setting (required):
+   - `app.embed_categorize_url` = full Edge Function invoke URL (for example: `https://<project-ref>.supabase.co/functions/v1/embed_categorize_artifact`)
+3. Trigger secret (recommended):
+   - Store in Vault with name `embed_categorize_job_secret` (the trigger reads `vault.decrypted_secrets` first)
+   - Use the same value as `EMBED_CATEGORIZE_JOB_SECRET`
+4. Local/dev fallback secret (optional):
+   - `app.embed_categorize_secret` if Vault is unavailable
+
+Example SQL config:
+```sql
+alter database postgres set app.embed_categorize_url = 'https://<project-ref>.supabase.co/functions/v1/embed_categorize_artifact';
+alter database postgres set app.embed_categorize_secret = 'dev-only-secret';
+```
+
+Local/hosted test flow:
+1. Deploy or serve the Edge Function with JWT verification disabled for trigger-origin calls.
+2. Ensure `app.embed_categorize_url` and secret config are set.
+3. Publish an AIP (`under_review` -> `published`).
+4. Verify output rows in:
+   - `public.aip_chunks` with `metadata.source = 'categorize_artifact'`
+   - `public.aip_chunk_embeddings` with `embedding_model = 'text-embedding-3-large'`
+
+Observe indexing status:
+```sql
+select
+  id,
+  aip_id,
+  stage,
+  status,
+  overall_progress_pct,
+  progress_message,
+  error_code,
+  error_message,
+  started_at,
+  finished_at,
+  created_at
+from public.extraction_runs
+where stage = 'embed'
+order by created_at desc;
+```
+
+Edge Function logs:
+```bash
+supabase functions logs --name embed_categorize_artifact
+```
+
+Manual/retry indexing:
+- API: `POST /api/barangay/aips/[aipId]/embed/retry`
+- API: `POST /api/city/aips/[aipId]/embed/retry`
+- DB dispatcher RPC used by retry routes: `public.dispatch_embed_categorize_for_aip(p_aip_id uuid)`
+- Route behavior:
+  - Dispatch allowed when latest embed state is `missing`, `failed`, or `succeeded` with skip message (`No categorize artifact; skipping.`)
+  - Returns `409` when indexing is already running or already ready
+  - Returns `503` when dispatch config is missing (`app.embed_categorize_url` / job secret)
+
+Edge-function unit-ish tests:
+```bash
+deno test --allow-env supabase/functions/embed_categorize_artifact/index.test.ts
+```
 
 Related docs:
 - `website/docs/SUPABASE_MIGRATION.md`

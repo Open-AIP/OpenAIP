@@ -9,6 +9,11 @@ from pypdf import PdfReader
 
 from openaip_pipeline.core.artifact_contract import make_source_ref, normalize_identifier, normalize_whitespace
 from openaip_pipeline.core.clock import now_utc_iso
+from openaip_pipeline.services.extraction.signatory_parser import (
+    parse_signatories_on_page,
+    parse_signatory_lines,
+    select_signatory_pages,
+)
 
 Scope = Literal["city", "barangay"]
 
@@ -362,131 +367,7 @@ def _is_position_line(value: str) -> bool:
 
 
 def parse_signatory_block(lines: list[str], page: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    signatories: list[dict[str, Any]] = []
-    warnings: list[dict[str, Any]] = []
-    index = 0
-    while index < len(lines):
-        line = normalize_whitespace(lines[index])
-        if not line:
-            index += 1
-            continue
-        inline_labels = [label.lower() for label in ROLE_LABEL_INLINE_PATTERN.findall(line)]
-        match = ROLE_LABEL_PATTERN.match(line)
-        if not match and not inline_labels:
-            index += 1
-            continue
-
-        role_token = match.group(1).lower() if match else inline_labels[0]
-        role_key = ROLE_LABELS[role_token]
-        if not match:
-            warnings.append(
-                {
-                    "code": "SIGNATORY_INCOMPLETE",
-                    "message": "Signatory label line includes chained labels without a valid name line.",
-                    "details": {"role": role_key},
-                    "source_refs": [
-                        make_source_ref(
-                            page=page,
-                            kind="text_block",
-                            evidence_text=line,
-                        )
-                    ],
-                }
-            )
-            index += 1
-            continue
-        cursor = index + 1
-        candidate_name: str | None = None
-        while cursor < len(lines):
-            probe = normalize_whitespace(lines[cursor])
-            if not probe:
-                cursor += 1
-                continue
-            if _is_role_label(probe) or _looks_like_generic_heading(probe):
-                break
-            if _is_plausible_name_line(probe):
-                candidate_name = probe
-                cursor += 1
-                break
-            cursor += 1
-
-        if not candidate_name:
-            warnings.append(
-                {
-                    "code": "SIGNATORY_INCOMPLETE",
-                    "message": "Signatory role label found without a plausible name line.",
-                    "details": {"role": role_key},
-                    "source_refs": [
-                        make_source_ref(
-                            page=page,
-                            kind="text_block",
-                            evidence_text=line,
-                        )
-                    ],
-                }
-            )
-            index += 1
-            continue
-
-        position_text: str | None = None
-        office_text: str | None = None
-        while cursor < len(lines):
-            probe = normalize_whitespace(lines[cursor])
-            if not probe:
-                cursor += 1
-                continue
-            if _is_role_label(probe) or _looks_like_generic_heading(probe):
-                break
-            if _is_position_line(probe):
-                position_text = probe
-                cursor += 1
-                if cursor < len(lines):
-                    possible_office = normalize_whitespace(lines[cursor])
-                    if (
-                        possible_office
-                        and not _is_role_label(possible_office)
-                        and not _looks_like_generic_heading(possible_office)
-                        and possible_office != position_text
-                    ):
-                        office_text = possible_office
-                        cursor += 1
-                break
-            break
-
-        signatories.append(
-            {
-                "role": role_key,
-                "name_text": candidate_name,
-                "position_text": position_text,
-                "office_text": office_text,
-                "source_refs": [
-                    make_source_ref(
-                        page=page,
-                        kind="text_block",
-                        evidence_text=candidate_name,
-                    )
-                ],
-            }
-        )
-        index = cursor
-
-    deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
-    for entry in signatories:
-        key = (
-            normalize_identifier(entry.get("role")) or "other",
-            normalize_identifier(entry.get("name_text")) or "",
-            normalize_identifier(entry.get("position_text")) or "",
-        )
-        existing = deduped.get(key)
-        if existing is None:
-            deduped[key] = entry
-            continue
-        existing_refs = existing.get("source_refs") if isinstance(existing.get("source_refs"), list) else []
-        incoming_refs = entry.get("source_refs") if isinstance(entry.get("source_refs"), list) else []
-        merged_refs = {str(ref): ref for ref in [*existing_refs, *incoming_refs]}
-        existing["source_refs"] = list(merged_refs.values())
-
-    return list(deduped.values()), warnings
+    return parse_signatory_lines(lines, page=page)
 
 
 def resolve_lgu_metadata(
@@ -702,20 +583,18 @@ def _infer_fiscal_year(pages: list[str]) -> tuple[int, list[dict[str, Any]]]:
     return selected_year, warnings
 
 
-def _extract_signatories(pages: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    if not pages:
+def _extract_signatories(pdf_path: str, pages: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not pages or not pdf_path:
         return [], []
-    pages_to_scan: set[int] = {0, len(pages) - 1}
-    for page_index, text in enumerate(pages):
-        lowered = text.lower()
-        if any(label in lowered for label in ROLE_LABELS):
-            pages_to_scan.add(page_index)
-
     all_entries: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
-    for page_index in sorted(pages_to_scan):
-        lines = _to_lines(pages[page_index])
-        entries, page_warnings = parse_signatory_block(lines, page=page_index + 1)
+    for page_number in select_signatory_pages(pages):
+        fallback_text = pages[page_number - 1] if 0 <= page_number - 1 < len(pages) else ""
+        entries, page_warnings = parse_signatories_on_page(
+            pdf_path=pdf_path,
+            page_number=page_number,
+            fallback_page_text=fallback_text,
+        )
         all_entries.extend(entries)
         warnings.extend(page_warnings)
     deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
@@ -768,7 +647,7 @@ def extract_document_metadata(
                 "source_refs": [],
             }
         )
-    signatories, signatory_warnings = _extract_signatories(pages)
+    signatories, signatory_warnings = _extract_signatories(pdf_path, pages)
     if source_info.get("document_type") == "unknown":
         source_info["document_type"] = "BAIP" if scope == "barangay" else "AIP"
     document = {

@@ -693,7 +693,7 @@ def compute_quality(
                 parse_fail_amount_count += 1
     lgu = document.get("lgu") if isinstance(document.get("lgu"), dict) else {}
     missing_lgu_confidence = 0 if normalize_identifier(lgu.get("confidence")) else 1
-    signatory_incomplete_count = sum(1 for warning in warnings_list if str(warning.get("code")) == "SIGNATORY_INCOMPLETE")
+    signatory_incomplete_count = sum(1 for warning in warnings_list if str(warning.get("code")) == "SIGNATORY_PARSE_FAILED")
     signals = {
         "missing_provenance_count": missing_provenance_count,
         "missing_total_count": missing_total_count,
@@ -739,4 +739,3 @@ def make_stage_root(
         "quality": quality,
     }
     return ArtifactRoot.model_validate(payload).model_dump(mode="python")
-

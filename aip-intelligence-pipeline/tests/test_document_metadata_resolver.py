@@ -47,14 +47,14 @@ def test_parse_signatory_block_ignores_label_only_lines() -> None:
     lines = ["Approved by:", "Reviewed by:", "Prepared by:"]
     signatories, warnings = parse_signatory_block(lines, page=1)
     assert signatories == []
-    assert any(item.get("code") == "SIGNATORY_INCOMPLETE" for item in warnings)
+    assert any(item.get("code") == "SIGNATORY_PARSE_FAILED" for item in warnings)
 
 
 def test_parse_signatory_block_never_uses_chained_labels_as_name() -> None:
     lines = ["Approved by: Reviewed by:"]
     signatories, warnings = parse_signatory_block(lines, page=1)
     assert signatories == []
-    assert any(item.get("code") == "SIGNATORY_INCOMPLETE" for item in warnings)
+    assert any(item.get("code") == "SIGNATORY_PARSE_FAILED" for item in warnings)
 
 
 def test_parse_signatory_block_role_name_position_mapping() -> None:
@@ -77,6 +77,12 @@ def test_parse_signatory_block_role_name_position_mapping() -> None:
     assert approved["role"] == "approved_by"
     assert approved["name_text"] == "MARIA SANTOS"
     assert approved["position_text"] == "Punong Barangay"
+    for entry in signatories:
+        refs = entry.get("source_refs") if isinstance(entry.get("source_refs"), list) else []
+        assert refs
+        evidence = str(refs[0].get("evidence_text") or "").lower()
+        assert str(entry.get("name_text") or "").lower() in evidence
+        assert str(entry.get("role") or "").replace("_", " ").split()[0] in evidence
 
 
 def test_mamatid_2025_metadata_resolves_barangay() -> None:
@@ -90,8 +96,13 @@ def test_mamatid_2025_metadata_resolves_barangay() -> None:
         assert "approved by" not in name
         assert "reviewed by" not in name
         assert "prepared by" not in name
+        refs = signatory.get("source_refs") if isinstance(signatory.get("source_refs"), list) else []
+        assert refs
+        evidence = str(refs[0].get("evidence_text") or "").lower()
+        assert str(signatory.get("name_text") or "").lower() in evidence
+        assert str(signatory.get("role") or "").replace("_", " ").split()[0] in evidence
     if not signatories:
-        assert any(item.get("code") == "SIGNATORY_INCOMPLETE" for item in warnings) or True
+        assert any(item.get("code") == "SIGNATORY_PARSE_FAILED" for item in warnings) or True
 
 
 def test_mamatid_2026_metadata_resolves_barangay() -> None:

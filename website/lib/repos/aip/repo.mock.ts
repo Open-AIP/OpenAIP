@@ -83,6 +83,8 @@ function buildCanonicalRow(
       category: normalizeCategory(base.category),
       kind: normalizeCategory(base.category),
       total: base.total,
+      prmNcrLguRmObjectiveResultsIndicator:
+        base.prmNcrLguRmObjectiveResultsIndicator ?? null,
       errors,
       aiIssues: errors ?? undefined,
       projectRefCode: base.aipRefCode,
@@ -119,6 +121,7 @@ function buildCanonicalRow(
     climateChangeAdaptation: null,
     climateChangeMitigation: null,
     ccTopologyCode: null,
+    prmNcrLguRmObjectiveResultsIndicator: null,
     category,
     errors,
 
@@ -162,6 +165,7 @@ function seedFeedbackStoreIfNeeded() {
       body,
       authorId: "official_001",
       authorName: "Barangay Official",
+      authorRole: "barangay_official",
       createdAt,
       updatedAt: createdAt,
     };
@@ -392,6 +396,29 @@ function buildLatestMockRevisionReplies(
   return map;
 }
 
+function buildLatestMockPublishedBy(
+  aipIds: string[]
+): Map<string, NonNullable<AipHeader["publishedBy"]>> {
+  const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
+  for (const aipId of aipIds) {
+    const latestApprove = __getMockAipReviewsForAipId(aipId)
+      .filter((row) => row.action === "approve")
+      .sort(sortByCreatedAtDescThenId)[0];
+    if (!latestApprove) continue;
+
+    map.set(aipId, {
+      reviewerId: latestApprove.reviewerId,
+      reviewerName:
+        typeof latestApprove.reviewerName === "string" &&
+        latestApprove.reviewerName.trim().length > 0
+          ? latestApprove.reviewerName.trim()
+          : null,
+      createdAt: latestApprove.createdAt,
+    });
+  }
+  return map;
+}
+
 function buildRevisionFeedbackCycles(params: {
   aipIds: string[];
   remarks: AipRevisionFeedbackMessageByAip[];
@@ -579,6 +606,7 @@ export function createMockAipRepoImpl({
       ]);
       const latestRevisionNotes = buildLatestMockRevisionNotes(revisionRemarks);
       const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+      const latestPublishedBy = buildLatestMockPublishedBy(aipIds);
       const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
         aipIds,
         remarks: revisionRemarks,
@@ -587,6 +615,7 @@ export function createMockAipRepoImpl({
       return visible.map((aip) => ({
         ...aip,
         feedback: latestRevisionNotes.get(aip.id) ?? aip.feedback,
+        publishedBy: latestPublishedBy.get(aip.id),
         revisionReply: latestRevisionReplies.get(aip.id),
         revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
       }));
@@ -604,6 +633,7 @@ export function createMockAipRepoImpl({
           getMockBarangayRepliesByAipIds([found.id]),
         ]);
         const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+        const latestPublishedBy = buildLatestMockPublishedBy([found.id]);
         const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
           aipIds: [found.id],
           remarks: revisionRemarks,
@@ -613,6 +643,7 @@ export function createMockAipRepoImpl({
           ...found,
           feedback:
             buildLatestMockRevisionNotes(revisionRemarks).get(found.id) ?? found.feedback,
+          publishedBy: latestPublishedBy.get(found.id),
           revisionReply: latestRevisionReplies.get(found.id),
           revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(found.id),
         };
@@ -634,7 +665,14 @@ export function createMockAipRepoImpl({
     ) {
       const index = AIPS_TABLE.findIndex((aip) => aip.id === aipId);
       if (index === -1) return;
-      AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: next };
+      const nextRow = { ...AIPS_TABLE[index], status: next };
+      if (next === "pending_review") {
+        nextRow.uploadedAt = new Date().toISOString();
+      }
+      if (next === "published") {
+        nextRow.publishedAt = new Date().toISOString().split("T")[0];
+      }
+      AIPS_TABLE[index] = nextRow;
     },
   };
 }
@@ -709,6 +747,7 @@ export function createMockAipProjectRepo(): AipProjectRepo {
         body: commentBody,
         authorId: "official_001",
         authorName: "Barangay Official",
+        authorRole: "barangay_official",
         createdAt: now,
         updatedAt: now,
       });

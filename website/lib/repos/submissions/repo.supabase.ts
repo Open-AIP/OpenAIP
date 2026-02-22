@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAipRepo } from "@/lib/repos/aip/repo.server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { AipSubmissionsReviewRepo } from "./repo";
 import type {
@@ -100,6 +101,14 @@ function toLatestReview(
   };
 }
 
+function toActiveClaimReviewerName(
+  review: ReviewSelectRow | null,
+  profileById: Map<string, ProfileNameRow>
+): string | null {
+  if (!review || review.action !== "claim_review") return null;
+  return toLatestReview(review, profileById)?.reviewerName ?? null;
+}
+
 async function loadAipStatusRow(aipId: string): Promise<AipStatusRow | null> {
   const client = await supabaseServer();
   const { data, error } = await client
@@ -148,15 +157,27 @@ async function loadProfileNames(ids: string[]): Promise<Map<string, ProfileNameR
   const profileById = new Map<string, ProfileNameRow>();
   if (!ids.length) return profileById;
 
-  const client = await supabaseServer();
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,full_name")
-    .in("id", ids);
-  if (error) throw new Error(error.message);
-
-  for (const row of (data ?? []) as ProfileNameRow[]) {
-    profileById.set(row.id, row);
+  try {
+    const admin = supabaseAdmin();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("id,full_name")
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+    for (const row of (data ?? []) as ProfileNameRow[]) {
+      profileById.set(row.id, row);
+    }
+    return profileById;
+  } catch {
+    const client = await supabaseServer();
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,full_name")
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+    for (const row of (data ?? []) as ProfileNameRow[]) {
+      profileById.set(row.id, row);
+    }
   }
   return profileById;
 }
@@ -329,9 +350,7 @@ export function createSupabaseAipSubmissionsReviewRepo(): AipSubmissionsReviewRe
             ? (barangayById.get(row.barangay_id)?.name ?? null)
             : null,
           uploadedAt: row.submitted_at ?? row.created_at,
-          reviewerName: latest
-            ? toLatestReview(latest, profileById)?.reviewerName ?? null
-            : null,
+          reviewerName: toActiveClaimReviewerName(latest, profileById),
         } satisfies AipSubmissionRow;
       });
 

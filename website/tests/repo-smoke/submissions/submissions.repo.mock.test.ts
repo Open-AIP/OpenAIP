@@ -41,6 +41,61 @@ export async function runSubmissionsReviewRepoTests() {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
 
+    const detail = await repo.getSubmissionAipDetail({
+      aipId: AIP_IDS.barangay_sanisidro_2026,
+      actor,
+    });
+    assert(!!detail, "Expected submission detail for San Isidro AIP");
+    assert(
+      (detail?.aip.revisionFeedbackCycles?.length ?? 0) > 0,
+      "Expected revision feedback cycles to be populated"
+    );
+    assert(
+      detail?.aip.revisionFeedbackCycles?.[0]?.reviewerRemark.authorRole === "reviewer",
+      "Expected reviewer remark in revision feedback cycle"
+    );
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+
+    const testAipId = AIP_IDS.barangay_mamadid_2026;
+    const index = AIPS_TABLE.findIndex((row) => row.id === testAipId);
+    AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: "under_review" };
+
+    await repo.claimReview({ aipId: testAipId, actor });
+    await repo.requestRevision({
+      aipId: testAipId,
+      note: "First revision cycle note",
+      actor,
+    });
+
+    AIPS_TABLE[index] = { ...AIPS_TABLE[index], status: "under_review" };
+    await repo.claimReview({ aipId: testAipId, actor });
+    await repo.requestRevision({
+      aipId: testAipId,
+      note: "Second revision cycle note",
+      actor,
+    });
+
+    const detail = await repo.getSubmissionAipDetail({ aipId: testAipId, actor });
+    const cycles = detail?.aip.revisionFeedbackCycles ?? [];
+    assert(cycles.length >= 2, "Expected at least 2 revision feedback cycles");
+    assert(
+      cycles[0]?.reviewerRemark.body === "Second revision cycle note",
+      "Expected newest revision cycle first"
+    );
+    assert(
+      cycles[1]?.reviewerRemark.body === "First revision cycle note",
+      "Expected older revision cycle second"
+    );
+  }
+
+  {
+    resetAipsTable();
+    __resetMockAipSubmissionsReviewState();
+
     let threwUnauthorized = false;
     try {
       await repo.listSubmissionsForCity({ cityId: "city_001", actor: null });
@@ -58,16 +113,48 @@ export async function runSubmissionsReviewRepoTests() {
   {
     resetAipsTable();
     __resetMockAipSubmissionsReviewState();
+    const index = AIPS_TABLE.findIndex((row) => row.id === aipId);
     const next = await repo.claimReview({ aipId, actor });
     const latest = await repo.getLatestReview({ aipId });
-    const feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
-    const claimed = feed.rows.find((row) => row.id === aipId);
+    let feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    let claimed = feed.rows.find((row) => row.id === aipId);
 
     assert(next === "under_review", "Expected claimReview to move pending AIP under_review");
     assert(latest?.action === "claim_review", "Expected latest action to be claim_review");
     assert(
       claimed?.reviewerName === actor.userId,
       "Expected claimed AIP reviewer column to show the claimer"
+    );
+
+    await repo.requestRevision({
+      aipId,
+      note: "Please revise and resubmit.",
+      actor,
+    });
+
+    feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    claimed = feed.rows.find((row) => row.id === aipId);
+    assert(
+      claimed?.reviewerName === null,
+      "Expected reviewer column to clear once latest action is request_revision"
+    );
+
+    const current = AIPS_TABLE[index];
+    AIPS_TABLE[index] = { ...current, status: "pending_review" };
+
+    feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    claimed = feed.rows.find((row) => row.id === aipId);
+    assert(
+      claimed?.reviewerName === null,
+      "Expected resubmitted pending_review AIP to remain unassigned before a new claim"
+    );
+
+    await repo.claimReview({ aipId, actor: otherActor });
+    feed = await repo.listSubmissionsForCity({ cityId: "city_001", actor });
+    claimed = feed.rows.find((row) => row.id === aipId);
+    assert(
+      claimed?.reviewerName === otherActor.userId,
+      "Expected reviewer column to show the new claimer after resubmission"
     );
   }
 
@@ -128,6 +215,14 @@ export async function runSubmissionsReviewRepoTests() {
     const detail = await repo.getSubmissionAipDetail({ aipId, actor });
     assert(detail?.aip.status === "published", "Expected AIP to be published after publishAip");
     assert(!!detail?.aip.publishedAt, "Expected AIP.publishedAt to be set");
+    assert(
+      detail?.aip.publishedBy?.reviewerId === actor.userId,
+      "Expected AIP.publishedBy.reviewerId to match publisher"
+    );
+    assert(
+      !!detail?.aip.publishedBy?.createdAt,
+      "Expected AIP.publishedBy.createdAt to be set"
+    );
   }
 
   {

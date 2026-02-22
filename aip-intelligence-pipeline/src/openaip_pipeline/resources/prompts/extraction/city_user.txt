@@ -5,7 +5,7 @@ Return projects with fields (MUST match exactly, in this order):
 aip_ref_code, program_project_description, implementing_agency, start_date, completion_date,
 expected_output, source_of_funds, personal_services, maintenance_and_other_operating_expenses,
 capital_outlay, total, climate_change_adaptation, climate_change_mitigation, cc_topology_code,
-prm_ncr_lgu_rm_objective_results_indicator, errors, category.
+prm_ncr_lgu_rm_objective_results_indicator.
 
 PROJECT-ONLY RULES (STRICT):
 - Output ONLY rows that represent a real project entry.
@@ -35,6 +35,4 @@ COMBINED COLUMN TEXT RULES (STRICT):
 - Do NOT infer missing text.
 
 OTHER RULES:
-- errors MUST always be null.
-- category MUST always be null.
 - If there is no project table on this page, return an empty projects array.

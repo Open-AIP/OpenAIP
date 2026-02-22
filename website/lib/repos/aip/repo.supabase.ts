@@ -345,6 +345,10 @@ function parseSummary(row: ArtifactSelectRow | undefined): string | undefined {
   if (row.artifact_json && typeof row.artifact_json === "object" && !Array.isArray(row.artifact_json)) {
     const candidate = (row.artifact_json as Record<string, unknown>).summary;
     if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+    if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      const text = (candidate as { text?: unknown }).text;
+      if (typeof text === "string" && text.trim()) return text.trim();
+    }
   }
   return undefined;
 }

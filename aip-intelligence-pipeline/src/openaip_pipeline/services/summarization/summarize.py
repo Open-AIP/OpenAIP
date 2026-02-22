@@ -6,6 +6,12 @@ from typing import Any
 
 from openai import OpenAI
 
+from openaip_pipeline.core.artifact_contract import (
+    SCHEMA_VERSION,
+    collect_summary_evidence,
+    make_stage_root,
+)
+from openaip_pipeline.core.clock import now_utc_iso
 from openaip_pipeline.core.resources import read_text
 from openaip_pipeline.services.openai_utils import build_openai_client, safe_usage_dict
 
@@ -28,6 +34,15 @@ class SummarizationResult:
         self.model = model
 
 
+def _fallback_document() -> dict[str, Any]:
+    year = int(now_utc_iso()[:4])
+    return {
+        "lgu": {"name": "Unknown LGU", "type": "unknown"},
+        "fiscal_year": year,
+        "source": {"document_type": "unknown", "page_count": None},
+    }
+
+
 def summarize_aip_overall_json_str(
     validated_json_str: str,
     model: str = "gpt-5.2",
@@ -38,7 +53,8 @@ def summarize_aip_overall_json_str(
         validated_obj = json.loads(validated_json_str)
     except json.JSONDecodeError as error:
         raise ValueError(f"Input is not valid JSON string: {error}") from error
-    if "projects" not in validated_obj or not isinstance(validated_obj["projects"], list):
+    projects = validated_obj.get("projects")
+    if not isinstance(projects, list):
         raise ValueError("Input JSON must contain top-level 'projects' array.")
 
     start_ts = time.perf_counter()
@@ -67,11 +83,28 @@ def summarize_aip_overall_json_str(
     elapsed = round(time.perf_counter() - start_ts, 4)
     output_obj = json.loads(response.output_text)
     summary_text = str(output_obj.get("summary") or "").strip()
-    summary_obj = {"summary": summary_text}
+    summary_refs, evidence_keys = collect_summary_evidence(projects, summary_text=summary_text)
+    summary_block = {
+        "text": summary_text or "No summary generated.",
+        "source_refs": summary_refs,
+        "evidence_project_keys": evidence_keys or None,
+    }
+    summary_artifact = make_stage_root(
+        stage="summarize",
+        aip_id=str(validated_obj.get("aip_id") or "unknown-aip"),
+        uploaded_file_id=str(validated_obj.get("uploaded_file_id")) if validated_obj.get("uploaded_file_id") else None,
+        document=validated_obj.get("document") if isinstance(validated_obj.get("document"), dict) else _fallback_document(),
+        projects=projects,
+        summary=summary_block,
+        warnings=validated_obj.get("warnings") if isinstance(validated_obj.get("warnings"), list) else [],
+        quality=validated_obj.get("quality") if isinstance(validated_obj.get("quality"), dict) else None,
+        generated_at=now_utc_iso(),
+        schema_version=str(validated_obj.get("schema_version") or SCHEMA_VERSION),
+    )
     return SummarizationResult(
-        summary_text=summary_text,
-        summary_obj=summary_obj,
-        summary_json_str=json.dumps(summary_obj, ensure_ascii=False, indent=2),
+        summary_text=summary_block["text"],
+        summary_obj=summary_artifact,
+        summary_json_str=json.dumps(summary_artifact, ensure_ascii=False, indent=2),
         usage=safe_usage_dict(response),
         elapsed_seconds=elapsed,
         model=model,
@@ -80,5 +113,23 @@ def summarize_aip_overall_json_str(
 
 def attach_summary_to_validated_json_str(validated_json_str: str, summary_text: str) -> str:
     parsed = json.loads(validated_json_str)
-    return json.dumps({"projects": parsed.get("projects", []), "summary": summary_text}, ensure_ascii=False, indent=2)
-
+    projects = parsed.get("projects") if isinstance(parsed.get("projects"), list) else []
+    refs, evidence_keys = collect_summary_evidence(projects, summary_text=summary_text)
+    summary_block = {
+        "text": summary_text.strip() or "No summary generated.",
+        "source_refs": refs,
+        "evidence_project_keys": evidence_keys or None,
+    }
+    merged = make_stage_root(
+        stage="summarize",
+        aip_id=str(parsed.get("aip_id") or "unknown-aip"),
+        uploaded_file_id=str(parsed.get("uploaded_file_id")) if parsed.get("uploaded_file_id") else None,
+        document=parsed.get("document") if isinstance(parsed.get("document"), dict) else _fallback_document(),
+        projects=projects,
+        summary=summary_block,
+        warnings=parsed.get("warnings") if isinstance(parsed.get("warnings"), list) else [],
+        quality=parsed.get("quality") if isinstance(parsed.get("quality"), dict) else None,
+        generated_at=now_utc_iso(),
+        schema_version=str(parsed.get("schema_version") or SCHEMA_VERSION),
+    )
+    return json.dumps(merged, ensure_ascii=False, indent=2)

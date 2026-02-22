@@ -316,7 +316,7 @@ Related docs:
 - Source files are uploaded to bucket `aip-pdfs` and metadata is written to `public.uploaded_files`.
 - Extraction runs are queued in `public.extraction_runs`.
 - Worker downloads source PDFs using signed URLs and writes stage outputs to `public.extraction_artifacts`.
-- Artifact payloads are stored inline for small JSON; larger payloads are written to `SUPABASE_STORAGE_ARTIFACT_BUCKET` (default `aip-artifacts`).
+- Artifact payloads are stored directly in `artifact_json` using the stage contract (`aip_artifact_v1.x.x`).
 - Web repo generates short-lived signed URLs when serving PDF references (10-minute TTL in current implementation).
 
 ## Testing & Quality

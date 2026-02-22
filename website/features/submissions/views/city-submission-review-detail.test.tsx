@@ -9,6 +9,7 @@ import { claimReviewAction } from "../actions/submissionsReview.actions";
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
+const mockToCityRevisionFeedbackCycles = vi.hoisted(() => vi.fn(() => []));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -45,7 +46,7 @@ vi.mock("../components/PublishSuccessCard", () => ({
 
 vi.mock("../components/city-revision-feedback-history-card", () => ({
   CityRevisionFeedbackHistoryCard: () => <div data-testid="city-history-card" />,
-  toCityRevisionFeedbackCycles: () => [],
+  toCityRevisionFeedbackCycles: mockToCityRevisionFeedbackCycles,
 }));
 
 vi.mock("../actions/submissionsReview.actions", () => ({
@@ -86,9 +87,11 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     mockPush.mockReset();
     mockRefresh.mockReset();
     mockClaimReviewAction.mockResolvedValue({ ok: true });
+    mockToCityRevisionFeedbackCycles.mockReset();
+    mockToCityRevisionFeedbackCycles.mockReturnValue([]);
   });
 
-  it("renders status info card in fallback branch and keeps feedback history", () => {
+  it("hides feedback history for published AIP with no feedback cycles", () => {
     render(
       <CitySubmissionReviewDetail
         aip={baseAip({
@@ -108,6 +111,40 @@ describe("CitySubmissionReviewDetail sidebar behavior", () => {
     expect(screen.getByText("Published Status")).toBeInTheDocument();
     expect(screen.getByText("Publication Details")).toBeInTheDocument();
     expect(screen.getByText(/City Reviewer/)).toBeInTheDocument();
+    expect(screen.queryByTestId("city-history-card")).not.toBeInTheDocument();
+  });
+
+  it("shows feedback history for published AIP when feedback cycles exist", () => {
+    mockToCityRevisionFeedbackCycles.mockReturnValueOnce([
+      {
+        cycleId: "cycle-001",
+        reviewerRemark: {
+          id: "remark-001",
+          body: "Please revise.",
+          createdAt: "2026-01-01T08:00:00.000Z",
+          authorRole: "reviewer",
+        },
+        replies: [],
+      },
+    ]);
+
+    render(
+      <CitySubmissionReviewDetail
+        aip={baseAip({
+          status: "published",
+          publishedBy: {
+            reviewerId: "city-user-001",
+            reviewerName: "City Reviewer",
+            createdAt: "2026-01-02T08:30:00.000Z",
+          },
+        })}
+        latestReview={null}
+        actorUserId="city-user-001"
+        actorRole="city_official"
+      />
+    );
+
+    expect(screen.getByText("Published Status")).toBeInTheDocument();
     expect(screen.getByTestId("city-history-card")).toBeInTheDocument();
   });
 

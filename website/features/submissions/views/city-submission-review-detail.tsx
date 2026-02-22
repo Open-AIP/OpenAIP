@@ -116,6 +116,8 @@ export default function CitySubmissionReviewDetail({
     revisionReply: aip.revisionReply,
     feedback: aip.feedback,
   });
+  const shouldShowRevisionFeedbackHistory =
+    effectiveStatus !== "published" || revisionFeedbackCycles.length > 0;
 
   useEffect(() => {
     setOptimisticClaimedByActor(false);
@@ -403,7 +405,9 @@ export default function CitySubmissionReviewDetail({
           {effectiveStatus === "published" && aip.publishedBy ? (
             <AipPublishedByCard publishedBy={aip.publishedBy} />
           ) : null}
-          <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
+          {shouldShowRevisionFeedbackHistory ? (
+            <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
+          ) : null}
         </div>
       </div>
 

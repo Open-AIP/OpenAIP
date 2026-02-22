@@ -77,6 +77,7 @@ type ProjectSelectRow = {
   climate_change_adaptation: string | null;
   climate_change_mitigation: string | null;
   cc_topology_code: string | null;
+  prm_ncr_lgu_rm_objective_results_indicator: string | null;
   category: ProjectCategory;
   sector_code: string;
   errors: Json | null;
@@ -90,6 +91,13 @@ type AipRevisionReviewSelectRow = {
   aip_id: string;
   note: string | null;
   reviewer_id: string | null;
+  created_at: string;
+};
+
+type AipPublishedReviewSelectRow = {
+  id: string;
+  aip_id: string;
+  reviewer_id: string;
   created_at: string;
 };
 
@@ -197,6 +205,7 @@ const PROJECT_SELECT_COLUMNS = [
   "climate_change_adaptation",
   "climate_change_mitigation",
   "cc_topology_code",
+  "prm_ncr_lgu_rm_objective_results_indicator",
   "category",
   "sector_code",
   "errors",
@@ -213,6 +222,16 @@ type DbProjectReviewNoteRow = {
 
 type AipStatusRow = {
   status: "draft" | "pending_review" | "under_review" | "for_revision" | "published";
+};
+
+type AipScopeOwnerRow = {
+  id: string;
+  barangay_id: string | null;
+};
+
+type ProfileBarangayScopeRow = {
+  role: ProfileRow["role"];
+  barangay_id: string | null;
 };
 
 type ProjectFeedbackSelectRow = {
@@ -263,6 +282,8 @@ function mapProjectSelectRowToAipProjectRow(
     climateChangeAdaptation: row.climate_change_adaptation,
     climateChangeMitigation: row.climate_change_mitigation,
     ccTopologyCode: row.cc_topology_code,
+    prmNcrLguRmObjectiveResultsIndicator:
+      row.prm_ncr_lgu_rm_objective_results_indicator,
     category: row.category,
     errors,
 
@@ -306,6 +327,10 @@ function mapEditPatchToProjectUpdateColumns(
     update.climate_change_mitigation = patch.climateChangeMitigation;
   }
   if ("ccTopologyCode" in patch) update.cc_topology_code = patch.ccTopologyCode;
+  if ("prmNcrLguRmObjectiveResultsIndicator" in patch) {
+    update.prm_ncr_lgu_rm_objective_results_indicator =
+      patch.prmNcrLguRmObjectiveResultsIndicator;
+  }
   if ("category" in patch) update.category = patch.category;
   if ("errors" in patch) update.errors = patch.errors;
 
@@ -382,13 +407,23 @@ async function getViewerScope(): Promise<ViewerScope | null> {
 
 async function getProfilesByIds(userIds: string[]): Promise<Map<string, ProfileRow>> {
   if (!userIds.length) return new Map();
-  const client = await supabaseServer();
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,full_name,role")
-    .in("id", userIds);
-  if (error) throw new Error(error.message);
-  return new Map((data as ProfileRow[]).map((r) => [r.id, r]));
+  try {
+    const admin = supabaseAdmin();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("id,full_name,role")
+      .in("id", userIds);
+    if (error) throw new Error(error.message);
+    return new Map(((data ?? []) as ProfileRow[]).map((r) => [r.id, r]));
+  } catch {
+    const client = await supabaseServer();
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,full_name,role")
+      .in("id", userIds);
+    if (error) throw new Error(error.message);
+    return new Map(((data ?? []) as ProfileRow[]).map((r) => [r.id, r]));
+  }
 }
 
 async function getLatestSummaries(aipIds: string[]): Promise<Map<string, ArtifactSelectRow>> {
@@ -563,6 +598,39 @@ async function getBarangayAipRepliesByAipIds(
     .sort(sortByCreatedAtAscThenId);
 }
 
+async function getLatestPublishedByByAipIds(
+  aipIds: string[]
+): Promise<Map<string, NonNullable<AipHeader["publishedBy"]>>> {
+  const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
+  if (!aipIds.length) return map;
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("aip_reviews")
+    .select("id,aip_id,reviewer_id,created_at")
+    .eq("action", "approve")
+    .in("aip_id", aipIds)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as AipPublishedReviewSelectRow[];
+  const reviewerIds = Array.from(new Set(rows.map((row) => row.reviewer_id)));
+  const profilesById = await getProfilesByIds(reviewerIds);
+
+  for (const row of rows) {
+    if (map.has(row.aip_id)) continue;
+    map.set(row.aip_id, {
+      reviewerId: row.reviewer_id,
+      reviewerName: profilesById.get(row.reviewer_id)?.full_name?.trim() || null,
+      createdAt: row.created_at,
+    });
+  }
+
+  return map;
+}
+
 function buildLatestRevisionNotes(
   remarks: AipRevisionFeedbackMessageByAip[]
 ): Map<string, string> {
@@ -705,6 +773,7 @@ function buildAipHeader(input: {
   uploader?: ProfileRow;
   pdfUrl?: string;
   revisionNote?: string;
+  publishedBy?: AipHeader["publishedBy"];
   revisionReply?: AipHeader["revisionReply"];
   revisionFeedbackCycles?: AipRevisionFeedbackCycle[];
   processing?: AipHeader["processing"];
@@ -717,6 +786,7 @@ function buildAipHeader(input: {
     uploader,
     pdfUrl,
     revisionNote,
+    publishedBy,
     revisionReply,
     revisionFeedbackCycles,
     processing,
@@ -739,8 +809,11 @@ function buildAipHeader(input: {
 
   const uploaderName =
     uploader?.full_name?.trim() ||
-    scopeName;
-  const uploaderRole = uploader ? roleLabel(uploader.role) : "LGU";
+    (scope === "barangay" ? "Barangay Official" : "Official");
+  const uploaderRole =
+    uploader?.role
+      ? roleLabel(uploader.role)
+      : (scope === "barangay" ? "Barangay Official" : "Official");
   const uploadedAt = currentFile?.created_at ?? aip.created_at;
 
   return {
@@ -768,6 +841,7 @@ function buildAipHeader(input: {
       budgetAllocated: budget,
     },
     feedback: revisionNote,
+    publishedBy,
     revisionReply,
     revisionFeedbackCycles,
     processing,
@@ -818,6 +892,7 @@ export function createSupabaseAipRepo(): AipRepo {
         summariesByAip,
         revisionRemarks,
         revisionReplies,
+        publishedByByAip,
         latestRunsByAip,
       ] = await Promise.all([
         getCurrentFiles(aipIds),
@@ -825,9 +900,8 @@ export function createSupabaseAipRepo(): AipRepo {
         getLatestSummaries(aipIds),
         getRevisionRemarksByAipIds(aipIds),
         getBarangayAipRepliesByAipIds(aipIds),
-        scope === "barangay"
-          ? getLatestRunsByAipIds(aipIds)
-          : Promise.resolve(new Map<string, ExtractionRunSelectRow>()),
+        getLatestPublishedByByAipIds(aipIds),
+        getLatestRunsByAipIds(aipIds),
       ]);
 
       const uploaderIds = Array.from(
@@ -850,13 +924,10 @@ export function createSupabaseAipRepo(): AipRepo {
 
       return aips.map((aip) => {
         const summary = parseSummary(summariesByAip.get(aip.id));
-        const processing =
-          scope === "barangay"
-            ? buildAipProcessing({
-                run: latestRunsByAip.get(aip.id),
-                summary,
-              })
-            : undefined;
+        const processing = buildAipProcessing({
+          run: latestRunsByAip.get(aip.id),
+          summary,
+        });
 
         return buildAipHeader({
           aip,
@@ -868,6 +939,7 @@ export function createSupabaseAipRepo(): AipRepo {
             return file ? profilesById.get(file.uploaded_by) : undefined;
           })(),
           revisionNote: revisionNotes.get(aip.id),
+          publishedBy: publishedByByAip.get(aip.id),
           revisionReply: latestRevisionReplies.get(aip.id),
           revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
           processing,
@@ -889,14 +961,22 @@ export function createSupabaseAipRepo(): AipRepo {
       if (!data) return null;
 
       const aip = data as AipSelectRow;
-      const [filesByAip, projectsByAip, summariesByAip, revisionRemarks, revisionReplies] =
+      const [
+        filesByAip,
+        projectsByAip,
+        summariesByAip,
+        revisionRemarks,
+        revisionReplies,
+        publishedByByAip,
+      ] =
         await Promise.all([
-        getCurrentFiles([aipId]),
-        getProjectsByAipIds([aipId]),
-        getLatestSummaries([aipId]),
-        getRevisionRemarksByAipIds([aipId]),
-        getBarangayAipRepliesByAipIds([aipId]),
-      ]);
+          getCurrentFiles([aipId]),
+          getProjectsByAipIds([aipId]),
+          getLatestSummaries([aipId]),
+          getRevisionRemarksByAipIds([aipId]),
+          getBarangayAipRepliesByAipIds([aipId]),
+          getLatestPublishedByByAipIds([aipId]),
+        ]);
 
       const file = filesByAip.get(aipId);
       const uploaderIds = file ? [file.uploaded_by] : [];
@@ -920,6 +1000,7 @@ export function createSupabaseAipRepo(): AipRepo {
         uploader: file ? profilesById.get(file.uploaded_by) : undefined,
         pdfUrl,
         revisionNote: revisionNotes.get(aipId),
+        publishedBy: publishedByByAip.get(aipId),
         revisionReply: latestRevisionReplies.get(aipId),
         revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aipId),
       });
@@ -927,7 +1008,13 @@ export function createSupabaseAipRepo(): AipRepo {
 
     async updateAipStatus(aipId, next) {
       const client = await supabaseServer();
-      const { error } = await client.from("aips").update({ status: next }).eq("id", aipId);
+      const patch: { status: AipStatusRow["status"]; submitted_at?: string } = {
+        status: next,
+      };
+      if (next === "pending_review") {
+        patch.submitted_at = new Date().toISOString();
+      }
+      const { error } = await client.from("aips").update(patch).eq("id", aipId);
       if (error) throw new Error(error.message);
     },
   };
@@ -981,6 +1068,45 @@ async function assertProjectReviewIsEditable(
   }
 }
 
+async function assertBarangayProjectEditOwnership(
+  client: Awaited<ReturnType<typeof supabaseServer>>,
+  aipId: string,
+  userId: string
+) {
+  const { data: aipData, error: aipError } = await client
+    .from("aips")
+    .select("id,barangay_id")
+    .eq("id", aipId)
+    .maybeSingle();
+
+  if (aipError) throw new Error(aipError.message);
+  if (!aipData) throw new Error("AIP not found.");
+
+  const aip = aipData as AipScopeOwnerRow;
+  if (!aip.barangay_id) return;
+
+  const { data: profileData, error: profileError } = await client
+    .from("profiles")
+    .select("role,barangay_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) throw new Error(profileError.message);
+  if (!profileData) throw new Error("Unauthorized");
+
+  const profile = profileData as ProfileBarangayScopeRow;
+  const isOwningBarangayOfficial =
+    profile.role === "barangay_official" &&
+    !!profile.barangay_id &&
+    profile.barangay_id === aip.barangay_id;
+
+  if (!isOwningBarangayOfficial) {
+    throw new Error(
+      "Only the owning barangay official can edit projects for this AIP."
+    );
+  }
+}
+
 function toFeedbackAuthorName(
   row: ProjectFeedbackSelectRow,
   profilesById: Map<string, ProfileRow>
@@ -991,6 +1117,14 @@ function toFeedbackAuthorName(
   if (!profile?.full_name) return null;
   const fullName = profile.full_name.trim();
   return fullName.length ? fullName : null;
+}
+
+function toFeedbackAuthorRole(
+  row: ProjectFeedbackSelectRow,
+  profilesById: Map<string, ProfileRow>
+): ProfileRow["role"] | null {
+  if (!row.author_id) return null;
+  return profilesById.get(row.author_id)?.role ?? null;
 }
 
 function sortFeedbackMessageByCreatedAtAsc(
@@ -1047,6 +1181,7 @@ function buildProjectFeedbackThreads(
       body: row.body,
       authorId: row.author_id,
       authorName: toFeedbackAuthorName(row, profilesById),
+      authorRole: toFeedbackAuthorRole(row, profilesById),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }))
@@ -1152,6 +1287,7 @@ export function createSupabaseAipProjectRepo(): AipProjectRepo {
       const client = await supabaseServer();
       const { data: authData, error: authError } = await client.auth.getUser();
       if (authError || !authData.user?.id) throw new Error("Unauthorized");
+      await assertBarangayProjectEditOwnership(client, input.aipId, authData.user.id);
       await assertProjectReviewIsEditable(client, input.aipId);
 
       const { data: currentRowData, error: currentRowError } = await client

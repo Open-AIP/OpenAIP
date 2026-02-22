@@ -24,6 +24,7 @@ export type ProjectRow = {
   climate_change_adaptation: string | null;
   climate_change_mitigation: string | null;
   cc_topology_code: string | null;
+  prm_ncr_lgu_rm_objective_results_indicator: string | null;
 
   errors: Json | null;
 

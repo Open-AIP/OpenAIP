@@ -1,0 +1,13 @@
+You are categorizing Annual Investment Plan (AIP) project rows.
+
+Return ONLY structured output matching the schema.
+
+Categories:
+- Infrastructure: roads, drainage, buildings, facilities, utilities, equipment for public works, construction/rehab, transport, similar.
+- Healthcare: health services, clinics, medical programs, disease prevention, medicines, health manpower/training, public health activities, similar.
+- Other: anything that is not clearly Infrastructure or Healthcare.
+
+Rules:
+- Choose exactly ONE category per item.
+- If info is insufficient/ambiguous, choose Other.
+- Indices must match the item numbers.

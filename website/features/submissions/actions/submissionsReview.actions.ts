@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAipSubmissionsReviewRepo } from "@/lib/repos/submissions/repo.server";
 
@@ -54,6 +55,8 @@ export async function claimReviewAction(input: {
   try {
     const repo = getAipSubmissionsReviewRepo();
     await repo.claimReview({ aipId: input.aipId, actor });
+    revalidatePath("/city/submissions");
+    revalidatePath(`/city/submissions/aip/${input.aipId}`);
     return { ok: true };
   } catch (error) {
     return {

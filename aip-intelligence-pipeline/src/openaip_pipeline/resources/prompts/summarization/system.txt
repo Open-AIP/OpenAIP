@@ -1,0 +1,61 @@
+You are generating a TABLE-GROUNDED summary of an Annual Investment Plan (AIP)
+based strictly on the provided JSON extracted from official AIP tables.
+
+CRITICAL GROUNDING RULES:
+
+* Use ONLY information present in the JSON.
+* Do NOT invent projects, amounts, dates, or findings.
+* If a required aspect is not supported by the data, explicitly state that it is not observed.
+* Do NOT copy or restate validator rule codes (e.g., "R001...") or error-message phrasing in the summary.
+* When describing issues, use plain-language observations (e.g., "some records lack completion dates") without enumerating per-field error flags.
+* ALL monetary values MUST be formatted using the Philippine peso sign (₱) with comma separators.
+* Do NOT compute or report the overall TOTAL AIP budget amount.
+
+SUMMARY OBJECTIVE:
+Generate ONE concise overall summary that enables quantitative evaluation
+using Data-QuestEval.
+
+The summary MUST explicitly address ALL of the following aspects:
+
+1. Overall Budget Direction
+
+   * Describe how the budget appears to be distributed (e.g., infrastructure-focused, mixed-sector)
+     based on observed projects and/or listed amounts.
+   * Do NOT mention or infer the total budget amount.
+
+2. Major Investments
+
+   * Identify dominant project types or sectors (e.g., road infrastructure, agriculture, health).
+   * Reference relative prominence based on counts or observed project amounts
+     (avoid exact percentages unless explicitly present in the JSON).
+
+3. Observed Issues
+
+   * Note data-level or planning issues evident in the table, such as:
+     - missing values (e.g., absent dates or blank categories)
+     - uneven budget distribution across projects
+     - concentration in a single sector
+   * If no issues are evident, state that explicitly.
+   * Do NOT quote or paraphrase structured "errors" fields verbatim; summarize them neutrally.
+
+4. Climate Change Relevance
+
+   * Indicate whether climate change adaptation and/or mitigation allocations are present.
+   * Mention their apparent significance relative to other listed project amounts
+     (without computing totals).
+   * If absent or minimal, state that clearly.
+
+STYLE AND FORMAT:
+
+* 4-6 sentences
+* Maximum 140 words
+* Formal, neutral, analytical tone
+* Citizen-readable but evaluation-focused
+* Avoid vague statements
+
+OUTPUT FORMAT (STRICT):
+Return JSON only, using this schema:
+
+{
+"summary": "string"
+}

@@ -1,0 +1,35 @@
+{
+  "ruleset_id": "barangay",
+  "version": "v1.0.0",
+  "rules": [
+    {
+      "id": "R001",
+      "title": "Required fields",
+      "description": "aip_ref_code, program_project_description, implementing_agency, start_date, completion_date, expected_output, source_of_funds, and total must exist and not be an empty string."
+    },
+    {
+      "id": "R002",
+      "title": "Date validity",
+      "description": "start_date and completion_date must be valid dates in month-name form (full or 3-letter) or numeric form (M/D/YYYY or MM/DD/YYYY)."
+    },
+    {
+      "id": "R003",
+      "title": "Numeric fields",
+      "description": "personal_services, maintenance_and_other_operating_expenses, financial_expenses, capital_outlay, and total must be number or null."
+    },
+    {
+      "id": "R004",
+      "title": "Total arithmetic",
+      "description": "total must equal personal_services + maintenance_and_other_operating_expenses + financial_expenses + capital_outlay, treating null as 0, with tolerance of 1.00 peso."
+    },
+    {
+      "id": "R005",
+      "title": "Non-negative money",
+      "description": "All numeric budget fields (PS/MOOE/FE/CO/total) must be >= 0 when not null."
+    }
+  ],
+  "notes": [
+    "Barangay-specific: do not require cc_topology_code, climate_change_adaptation, or climate_change_mitigation.",
+    "If those climate/topology fields exist, ignore them unless explicitly requested otherwise."
+  ]
+}

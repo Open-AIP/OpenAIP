@@ -550,6 +550,72 @@ before update on public.profiles
 for each row execute function public.enforce_profile_update_rules();
 
 -- -----------------------------------------------------------------------------
+-- 2.4A) Account administration hardening
+-- - Prevent mutating/deleting the last active admin account
+-- -----------------------------------------------------------------------------
+create or replace function public.prevent_last_active_admin_mutation()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+declare
+  v_active_admin_count bigint;
+begin
+  -- UPDATE path:
+  -- Block if this row is currently an active admin and update would remove that.
+  if tg_op = 'UPDATE' then
+    if old.role = 'admin'::public.role_type and old.is_active = true then
+      if not (new.role = 'admin'::public.role_type and new.is_active = true) then
+        select count(*)::bigint
+          into v_active_admin_count
+        from public.profiles p
+        where p.role = 'admin'::public.role_type
+          and p.is_active = true;
+
+        if v_active_admin_count <= 1 then
+          raise exception 'Cannot modify the last active admin account.';
+        end if;
+      end if;
+    end if;
+    return new;
+  end if;
+
+  -- DELETE path:
+  -- Block deleting the last active admin.
+  if tg_op = 'DELETE' then
+    if old.role = 'admin'::public.role_type and old.is_active = true then
+      select count(*)::bigint
+        into v_active_admin_count
+      from public.profiles p
+      where p.role = 'admin'::public.role_type
+        and p.is_active = true;
+
+      if v_active_admin_count <= 1 then
+        raise exception 'Cannot delete the last active admin account.';
+      end if;
+    end if;
+    return old;
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_profiles_prevent_last_active_admin_update on public.profiles;
+create trigger trg_profiles_prevent_last_active_admin_update
+before update of role, is_active
+on public.profiles
+for each row
+execute function public.prevent_last_active_admin_mutation();
+
+drop trigger if exists trg_profiles_prevent_last_active_admin_delete on public.profiles;
+create trigger trg_profiles_prevent_last_active_admin_delete
+before delete
+on public.profiles
+for each row
+execute function public.prevent_last_active_admin_mutation();
+
+-- -----------------------------------------------------------------------------
 -- 2.5) Profiles RLS (Pattern A)
 -- - SELECT: self or admin
 -- - INSERT: admin inserts officials; citizens may self-insert as citizen only
@@ -796,7 +862,9 @@ begin
   if new.status is distinct from old.status then
     new.status_updated_at = now();
 
-    if new.submitted_at is null and new.status in ('pending_review','under_review','for_revision','published') then
+    if new.status = 'pending_review' then
+      new.submitted_at = now();
+    elsif new.submitted_at is null and new.status in ('under_review','for_revision','published') then
       new.submitted_at = now();
     end if;
 
@@ -1334,6 +1402,47 @@ create table if not exists public.extraction_runs (
   )
 );
 
+-- Backfill fields added after initial extraction_runs rollout.
+alter table public.extraction_runs
+  add column if not exists overall_progress_pct smallint null,
+  add column if not exists stage_progress_pct smallint null,
+  add column if not exists progress_message text null,
+  add column if not exists progress_updated_at timestamptz null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'extraction_runs_overall_progress_pct_range_chk'
+  ) then
+    alter table public.extraction_runs
+      add constraint extraction_runs_overall_progress_pct_range_chk
+      check (
+        overall_progress_pct is null
+        or (overall_progress_pct >= 0 and overall_progress_pct <= 100)
+      );
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'extraction_runs_stage_progress_pct_range_chk'
+  ) then
+    alter table public.extraction_runs
+      add constraint extraction_runs_stage_progress_pct_range_chk
+      check (
+        stage_progress_pct is null
+        or (stage_progress_pct >= 0 and stage_progress_pct <= 100)
+      );
+  end if;
+end
+$$;
+
 create index if not exists idx_extraction_runs_aip_id
   on public.extraction_runs(aip_id);
 
@@ -1348,6 +1457,21 @@ create index if not exists idx_extraction_runs_stage
 
 create index if not exists idx_extraction_runs_created_at
   on public.extraction_runs(created_at);
+
+-- Ensure extraction_runs updates are available in Supabase Realtime.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'extraction_runs'
+  ) then
+    alter publication supabase_realtime add table public.extraction_runs;
+  end if;
+end
+$$;
 
 -- -----------------------------------------------------------------------------
 -- 5.4) Extraction artifacts (JSON + optional text) per stage
@@ -1818,6 +1942,7 @@ create table if not exists public.projects (
   climate_change_adaptation text null,
   climate_change_mitigation text null,
   cc_topology_code text null,
+  prm_ncr_lgu_rm_objective_results_indicator text null,
 
   errors jsonb null,
 
@@ -1843,6 +1968,17 @@ create table if not exists public.projects (
     (is_human_edited = true and edited_by is not null and edited_at is not null)
   )
 );
+
+-- Backfill fields added after initial projects rollout.
+alter table public.projects
+  add column if not exists financial_expenses numeric(18,2) null;
+
+alter table public.projects
+  drop constraint if exists chk_projects_financial_expenses_non_negative;
+
+alter table public.projects
+  add constraint chk_projects_financial_expenses_non_negative
+  check (financial_expenses is null or financial_expenses >= 0);
 
 create index if not exists idx_projects_aip_id
   on public.projects(aip_id);

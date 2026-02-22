@@ -1,0 +1,139 @@
+Metadata-Version: 2.4
+Name: openaip-pipeline
+Version: 0.1.0
+Summary: OpenAIP extraction + validation + summarization + categorization + RAG pipeline
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.116.0
+Requires-Dist: uvicorn>=0.30.0
+Requires-Dist: pydantic>=2.8.0
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: openai>=1.97.0
+Requires-Dist: pypdf>=5.0.1
+Requires-Dist: supabase>=2.7.0
+Requires-Dist: langchain-core>=0.3.0
+Requires-Dist: langchain-openai>=0.2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.0; extra == "dev"
+Requires-Dist: ruff>=0.6.0; extra == "dev"
+Requires-Dist: pyright>=1.1.379; extra == "dev"
+
+# OpenAIP Pipeline Service
+
+Production-grade Python service for AIP extraction workflows, including extraction, validation, summarization, categorization, and optional RAG traces.
+
+## Setup (first time)
+
+Run these commands one by one inside `aip-intelligence-pipeline`.
+
+```powershell
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+# then edit .env and set required keys
+```
+
+Required keys in `.env`:
+- `OPENAI_API_KEY`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_KEY`
+
+## Run
+
+API (terminal 1):
+
+```powershell
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+.\.venv\Scripts\Activate.ps1
+openaip-api
+```
+
+Worker (terminal 2):
+
+```powershell
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+.\.venv\Scripts\Activate.ps1
+openaip-worker
+```
+
+Dev CLI local file run:
+
+```powershell
+cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+.\.venv\Scripts\Activate.ps1
+openaip-cli run-local --pdf-path data/aips/sample.pdf --scope barangay
+```
+
+If command aliases are not detected, use module mode:
+
+```powershell
+.\.venv\Scripts\python.exe -m openaip_pipeline.api.app
+.\.venv\Scripts\python.exe -m openaip_pipeline.worker.runner
+```
+
+## Troubleshooting
+
+If you renamed this folder and get a `Fatal error in launcher` from `pip`, recreate `.venv` because old launchers still point to the previous path:
+
+```powershell
+deactivate
+Remove-Item -Recurse -Force .venv
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+## Required env vars
+
+Required for worker and enqueue/status API:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_KEY`
+
+Required for extraction stages:
+
+- `OPENAI_API_KEY`
+
+Common optional runtime vars:
+
+- `PIPELINE_MODEL` (default `gpt-5.2`)
+- `PIPELINE_EMBEDDING_MODEL` (default `text-embedding-3-large`)
+- `PIPELINE_BATCH_SIZE` (default `25`)
+- `PIPELINE_WORKER_POLL_SECONDS` (default `3`)
+- `PIPELINE_WORKER_RUN_ONCE` (default `false`)
+- `PIPELINE_ARTIFACT_INLINE_MAX_BYTES` (default `32768`)
+- `SUPABASE_STORAGE_ARTIFACT_BUCKET` (default `aip-artifacts`)
+- `PIPELINE_DEV_ROUTES` (default `false`)
+- `PIPELINE_ENABLE_RAG` (default `false`)
+
+## Artifacts and versioning
+
+Definition artifacts (repo-tracked):
+
+- `src/openaip_pipeline/resources/prompts`
+- `src/openaip_pipeline/resources/schemas`
+- `src/openaip_pipeline/resources/rules`
+- `src/openaip_pipeline/resources/manifests/pipeline_versions.yaml`
+
+Execution artifacts (Supabase source of truth):
+
+- Per-stage payloads stored in `public.extraction_artifacts`
+- Small payloads inline in `artifact_json.data`
+- Large payloads uploaded to Supabase Storage and referenced via `artifact_json.storage_path`
+- Metadata recorded in `artifact_json.meta` including:
+  - `pipeline_version`
+  - `prompt_set_version`
+  - `schema_version`
+  - `ruleset_version`
+  - `model_id`
+  - `embedding_model_id`
+  - prompt snapshot identifiers (`prompt_id`, `prompt_version`)
+
+## Dev-local output policy
+
+- Production worker does not depend on local `outputs/`.
+- CLI local runs write to `data/outputs/`.

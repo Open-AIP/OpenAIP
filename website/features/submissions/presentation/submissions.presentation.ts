@@ -1,5 +1,10 @@
 import type { AipStatus } from "@/lib/contracts/databasev2";
 
+type CitySubmissionAipLabelInput = {
+  barangayName?: string | null;
+  year: number;
+};
+
 export function getAipStatusLabel(status: AipStatus): string {
   switch (status) {
     case "draft":
@@ -31,5 +36,13 @@ export function getAipStatusBadgeClass(status: AipStatus): string {
     default:
       return "bg-slate-100 text-slate-700 border-slate-200";
   }
+}
+
+export function getCitySubmissionAipLabel(
+  input: CitySubmissionAipLabelInput
+): string {
+  const lguName = input.barangayName?.trim();
+  const prefix = lguName && lguName.length > 0 ? lguName : "Barangay";
+  return `${prefix} ${input.year} AIP`;
 }
 

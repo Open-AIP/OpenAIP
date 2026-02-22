@@ -11,6 +11,7 @@ Support the LGU review workflow for barangay AIPs:
 Routes:
 - `app/(lgu)/city/(authenticated)/submissions/page.tsx` (feed)
 - `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx` (detail + review actions)
+- `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/[projectId]/page.tsx` (project detail, read-only)
 
 Feature components/services:
 - `features/submissions/views/SubmissionsView.tsx`
@@ -34,6 +35,7 @@ Detail page:
 - user chooses `Just View` or `Review & Claim`
 - claim path calls `claimReviewAction()` -> repo `claimReview()`
 - decision path calls `publishAipAction()` / `requestRevisionAction()`
+- project rows are paginated and open a dedicated project detail route
 
 ## D. databasev2 Alignment
 Relevant tables/enums:
@@ -53,11 +55,20 @@ Ownership rules:
 
 ## E. UX Rules
 - `/city/submissions`:
-  - `pending_review` action opens detail with `?intent=review` (claim modal)
+  - `pending_review` action opens detail with `?mode=review&intent=review` (claim modal)
   - `under_review` action opens detail with `?mode=review`
+  - compatibility: legacy links with only `?intent=review` still enter review context
+- `/city/submissions/aip/[aipId]`:
+  - shows breadcrumbs (`Submissions > [AIP]`)
+  - project table uses pagination (10 rows/page)
+  - row click opens `/city/submissions/aip/[aipId]/[projectId]` and preserves current query params
+- `/city/submissions/aip/[aipId]/[projectId]`:
+  - shows breadcrumbs (`Submissions > [AIP] > Project [Ref]`)
+  - uses read-only project detail view (no field edits, no review submit)
 - Claim modal options:
   - `Just View`: no status change, no owner assignment
   - `Review & Claim`: assigns owner and enables review actions
+  - after successful claim, review actions appear immediately via optimistic UI while refresh syncs persisted status/assignment
 - Non-owner users in review mode see disabled action controls and owner notice.
 - When unclaimed (or admin takeover path), detail shows a claim button.
 

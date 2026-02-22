@@ -70,7 +70,7 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                   Status
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
-                  Reviewer
+                  Assigned Reviewer
                 </th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">
                   Duration
@@ -108,7 +108,7 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                       const isPending = aip.status === "pending_review";
                       const isUnderReview = aip.status === "under_review";
                       const href = isPending
-                        ? `/city/submissions/aip/${aip.id}?intent=review`
+                        ? `/city/submissions/aip/${aip.id}?mode=review&intent=review`
                         : isUnderReview
                           ? `/city/submissions/aip/${aip.id}?mode=review`
                           : `/city/submissions/aip/${aip.id}`;

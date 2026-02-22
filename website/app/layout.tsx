@@ -31,7 +31,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
+<<<<<<< HEAD
         className={`${arimo.variable} ${geistMono.variable} ${arsenalSc.variable} antialiased`}
+=======
+        suppressHydrationWarning
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+>>>>>>> 85f4e451b52e4c2ed0b9fa35783826a5193f7ba9
       >
         {children}
       </body>

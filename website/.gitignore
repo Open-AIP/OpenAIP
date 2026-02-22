@@ -40,7 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-aip-extraction-pipeline/.venv/
-aip-extraction-pipeline/__pycache__/
-aip-extraction-pipeline/outputs/
-aip-extraction-pipeline/.env
+aip-intelligence-pipeline/.venv/
+aip-intelligence-pipeline/__pycache__/
+aip-intelligence-pipeline/outputs/
+aip-intelligence-pipeline/.env
+aip-intelligence-pipeline/data/aips/
+aip-intelligence-pipeline/data/outputs/

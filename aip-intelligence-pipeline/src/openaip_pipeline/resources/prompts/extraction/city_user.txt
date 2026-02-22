@@ -1,0 +1,40 @@
+Extract ONLY the AIP PROJECT rows from the table on this page.
+CITY TABLE NOTE: This table includes Climate Change Adaptation (CCA), Climate Change Mitigation (CCM), CC Topology Code, and ONE combined column for PRM/NCR LGU + RM Objective + Results Indicator.
+
+Return projects with fields (MUST match exactly, in this order):
+aip_ref_code, program_project_description, implementing_agency, start_date, completion_date,
+expected_output, source_of_funds, personal_services, maintenance_and_other_operating_expenses,
+capital_outlay, total, climate_change_adaptation, climate_change_mitigation, cc_topology_code,
+prm_ncr_lgu_rm_objective_results_indicator, errors, category.
+
+PROJECT-ONLY RULES (STRICT):
+- Output ONLY rows that represent a real project entry.
+- EXCLUDE headers/labels/section titles, repeated headings, totals/subtotals/grand totals, continuation notes.
+
+ANTI-COLUMN-SWITCHING RULES (VERY IMPORTANT):
+- DO NOT shift values between columns. Preserve the table's column boundaries exactly.
+- Column order is STRICT and must be read left-to-right:
+  PS -> MOOE -> CO -> TOTAL -> CCA -> CCM -> CC TOPOLOGY CODE -> (PRM/NCR LGU + RM Objective + Results Indicator)
+- Map ONLY by the printed column headers/grid:
+  - personal_services <- PS ONLY
+  - maintenance_and_other_operating_expenses <- MOOE ONLY
+  - capital_outlay <- CO / Capital Outlay ONLY
+  - total <- Total ONLY
+  - climate_change_adaptation <- Climate Change Adaptation ONLY
+  - climate_change_mitigation <- Climate Change Mitigation ONLY
+  - cc_topology_code <- CC Topology Code ONLY
+  - prm_ncr_lgu_rm_objective_results_indicator <- the SINGLE combined column cell text ONLY
+- If any of the (CCA/CCM/CC Topology Code/combined column) placements are unclear due to scan/blur, set climate_change_adaptation, climate_change_mitigation, cc_topology_code, and prm_ncr_lgu_rm_objective_results_indicator to null.
+- Never guess the correct column based on arithmetic.
+- Dates must come ONLY from Start Date / Completion Date columns; do not swap.
+
+COMBINED COLUMN TEXT RULES (STRICT):
+- Copy the combined column cell text EXACTLY as printed (preserve line breaks if present).
+- If blank/unreadable, set to null.
+- Do NOT split it into multiple fields.
+- Do NOT infer missing text.
+
+OTHER RULES:
+- errors MUST always be null.
+- category MUST always be null.
+- If there is no project table on this page, return an empty projects array.

@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { AipHeader } from "@/features/aip/types";
 import { getAipStatusBadgeClass } from "@/features/aip/utils";
 import { AipPdfContainer } from "@/features/aip/components/aip-pdf-container";
 import { AipDetailsSummary } from "@/features/aip/components/aip-details-summary";
 import { AipUploaderInfo } from "@/features/aip/components/aip-uploader-info";
-import { RemarksCard } from "@/features/aip/components/remarks-card";
+import { AipStatusInfoCard } from "@/features/aip/components/aip-status-info-card";
+import { AipPublishedByCard } from "@/features/aip/components/aip-published-by-card";
 import { AipDetailsTableView } from "@/features/aip/views/aip-details-table";
+import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,25 +21,20 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { RoleType } from "@/lib/contracts/databasev2";
 import type { LatestReview } from "@/lib/repos/submissions/repo";
-import { getAipStatusLabel } from "../presentation/submissions.presentation";
+import {
+  getAipStatusLabel,
+  getCitySubmissionAipLabel,
+} from "../presentation/submissions.presentation";
 import {
   claimReviewAction,
   publishAipAction,
   requestRevisionAction,
 } from "../actions/submissionsReview.actions";
 import { PublishSuccessCard } from "../components/PublishSuccessCard";
-
-function formatRevisionReplyDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import {
+  CityRevisionFeedbackHistoryCard,
+  toCityRevisionFeedbackCycles,
+} from "../components/city-revision-feedback-history-card";
 
 export default function CitySubmissionReviewDetail({
   aip,
@@ -47,6 +44,7 @@ export default function CitySubmissionReviewDetail({
   mode,
   intent,
   result,
+  focusedRowId,
 }: {
   aip: AipHeader;
   latestReview: LatestReview;
@@ -55,31 +53,51 @@ export default function CitySubmissionReviewDetail({
   mode?: string;
   intent?: string;
   result?: string;
+  focusedRowId?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isAdmin = actorRole === "admin";
-  const isReviewMode = mode === "review";
-  const hasActiveClaim =
-    aip.status === "under_review" && latestReview?.action === "claim_review";
-  const isOwner =
-    hasActiveClaim &&
-    !!actorUserId &&
-    latestReview?.reviewerId === actorUserId;
-  const assignedToOther = hasActiveClaim && !isOwner;
-  const canClaim =
-    aip.status === "pending_review" ||
-    (aip.status === "under_review" && (!hasActiveClaim || isAdmin));
-  const showClaimButton = canClaim && !isOwner;
-  const claimLabel =
-    aip.status === "pending_review"
+  const isReviewMode = mode === "review" || intent === "review";
+  const [optimisticClaimedByActor, setOptimisticClaimedByActor] = useState(false);
+  const [optimisticReviewMode, setOptimisticReviewMode] = useState(false);
+  const aipDisplayLabel = getCitySubmissionAipLabel({
+    barangayName: aip.barangayName,
+    year: aip.year,
+  });
+  const breadcrumbItems = [
+    { label: "Submissions", href: "/city/submissions" },
+    { label: aipDisplayLabel },
+  ];
+  const effectiveReviewMode = isReviewMode || optimisticReviewMode;
+  const effectiveStatus =
+    optimisticClaimedByActor && aip.status === "pending_review"
+      ? "under_review"
+      : aip.status;
+  const effectiveHasActiveClaim =
+    (effectiveStatus === "under_review" && latestReview?.action === "claim_review") ||
+    (optimisticClaimedByActor && effectiveStatus === "under_review");
+  const effectiveIsOwner =
+    optimisticClaimedByActor ||
+    (effectiveHasActiveClaim &&
+      !!actorUserId &&
+      latestReview?.reviewerId === actorUserId);
+  const effectiveAssignedToOther = effectiveHasActiveClaim && !effectiveIsOwner;
+  const effectiveCanClaim =
+    effectiveStatus === "pending_review" ||
+    (effectiveStatus === "under_review" && (!effectiveHasActiveClaim || isAdmin));
+  const effectiveShowClaimButton = effectiveCanClaim && !effectiveIsOwner;
+  const effectiveClaimLabel =
+    effectiveStatus === "pending_review"
       ? "Review & Claim AIP"
-      : assignedToOther
+      : effectiveAssignedToOther
         ? "Take Over Review"
         : "Claim Review";
-  const canReview = isReviewMode && aip.status === "under_review" && isOwner;
+  const effectiveCanReview =
+    effectiveReviewMode && effectiveStatus === "under_review" && effectiveIsOwner;
 
   const [publishedSuccess, setPublishedSuccess] = useState(false);
-  const showSuccess = (isReviewMode && result === "published") || publishedSuccess;
+  const showSuccess = (effectiveReviewMode && result === "published") || publishedSuccess;
   const [claimOpen, setClaimOpen] = useState(false);
 
   const [note, setNote] = useState("");
@@ -90,15 +108,27 @@ export default function CitySubmissionReviewDetail({
   const [submitting, setSubmitting] = useState(false);
 
   const revisionNote =
-    aip.status === "for_revision" && latestReview?.action === "request_revision"
+    effectiveStatus === "for_revision" && latestReview?.action === "request_revision"
       ? latestReview.note
       : null;
+  const revisionFeedbackCycles = toCityRevisionFeedbackCycles({
+    revisionFeedbackCycles: aip.revisionFeedbackCycles,
+    revisionReply: aip.revisionReply,
+    feedback: aip.feedback,
+  });
+  const shouldShowRevisionFeedbackHistory =
+    effectiveStatus !== "published" || revisionFeedbackCycles.length > 0;
 
   useEffect(() => {
-    if (intent === "review" && showClaimButton && !isOwner) {
+    setOptimisticClaimedByActor(false);
+    setOptimisticReviewMode(false);
+  }, [aip.id]);
+
+  useEffect(() => {
+    if (intent === "review" && effectiveShowClaimButton && !effectiveIsOwner) {
       setClaimOpen(true);
     }
-  }, [intent, isOwner, showClaimButton]);
+  }, [intent, effectiveIsOwner, effectiveShowClaimButton]);
 
   function goToSubmissions() {
     router.push("/city/submissions");
@@ -129,6 +159,8 @@ export default function CitySubmissionReviewDetail({
         return;
       }
 
+      setOptimisticClaimedByActor(true);
+      setOptimisticReviewMode(true);
       setClaimOpen(false);
       router.replace(`/city/submissions/aip/${aip.id}?mode=review`);
       router.refresh();
@@ -186,26 +218,39 @@ export default function CitySubmissionReviewDetail({
     }
   }
 
+  function openProjectDetail(projectId: string) {
+    const basePath = `/city/submissions/aip/${encodeURIComponent(aip.id)}/${encodeURIComponent(
+      projectId
+    )}`;
+    const query = searchParams.toString();
+    router.push(query ? `${basePath}?${query}` : basePath);
+  }
+
   if (showSuccess) {
     return (
-      <PublishSuccessCard
-        barangayName={aip.barangayName}
-        onBackToSubmissions={goToSubmissions}
-        onViewPublishedAip={goToViewMode}
-      />
+      <div className="space-y-6">
+        <BreadcrumbNav items={breadcrumbItems} />
+        <PublishSuccessCard
+          barangayName={aip.barangayName}
+          onBackToSubmissions={goToSubmissions}
+          onViewPublishedAip={goToViewMode}
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      <BreadcrumbNav items={breadcrumbItems} />
+
       <Card className="border-slate-200">
         <CardContent className="p-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">{aip.title}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{aipDisplayLabel}</h1>
           <Badge
             variant="outline"
-            className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
+            className={`rounded-full ${getAipStatusBadgeClass(effectiveStatus)}`}
           >
-            {getAipStatusLabel(aip.status)}
+            {getAipStatusLabel(effectiveStatus)}
           </Badge>
         </CardContent>
       </Card>
@@ -217,39 +262,18 @@ export default function CitySubmissionReviewDetail({
           <AipDetailsTableView
             aipId={aip.id}
             year={aip.year}
-            aipStatus={aip.status}
+            aipStatus={effectiveStatus}
             scope="city"
-            focusedRowId={undefined}
+            focusedRowId={focusedRowId}
+            enablePagination
+            onProjectRowClick={(row) => openProjectDetail(row.id)}
           />
           <AipUploaderInfo aip={aip} />
         </div>
 
         <div className="lg:sticky lg:top-6 h-fit space-y-6">
-          {aip.revisionReply?.body ? (
-            <Card className="border-slate-200">
-              <CardContent className="space-y-3 p-5">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900">
-                    Barangay Reply to Revision Remarks
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    Response submitted before resubmission.
-                  </div>
-                </div>
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                  <p className="whitespace-pre-wrap text-sm text-emerald-900">
-                    {aip.revisionReply.body}
-                  </p>
-                  <p className="mt-2 text-xs text-emerald-800">
-                    {aip.revisionReply.authorName || "Barangay Official"} •{" "}
-                    {formatRevisionReplyDate(aip.revisionReply.createdAt)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
 
-          {canReview ? (
+          {effectiveCanReview ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
                 <div>
@@ -286,7 +310,7 @@ export default function CitySubmissionReviewDetail({
                 <Button
                   className="w-full bg-teal-600 hover:bg-teal-700"
                   onClick={() => setPublishOpen(true)}
-                  disabled={!canReview || submitting}
+                  disabled={!effectiveCanReview || submitting}
                 >
                   Publish AIP
                 </Button>
@@ -301,13 +325,13 @@ export default function CitySubmissionReviewDetail({
                     }
                     setRevisionOpen(true);
                   }}
-                  disabled={!canReview || submitting}
+                  disabled={!effectiveCanReview || submitting}
                 >
                   Request Revision
                 </Button>
               </CardContent>
             </Card>
-          ) : showClaimButton ? (
+          ) : effectiveShowClaimButton ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
                 <div>
@@ -315,16 +339,16 @@ export default function CitySubmissionReviewDetail({
                     Review Assignment
                   </div>
                   <div className="text-xs text-slate-500">
-                    {assignedToOther
+                    {effectiveAssignedToOther
                       ? `Currently assigned to ${latestReview?.reviewerName ?? "another reviewer"}.`
                       : "No reviewer is assigned yet."}
                   </div>
                 </div>
 
                 <div className="text-xs text-slate-600">
-                  {aip.status === "pending_review"
+                  {effectiveStatus === "pending_review"
                     ? "Claiming will set this AIP to Under Review and assign it to you."
-                    : assignedToOther
+                    : effectiveAssignedToOther
                       ? "As admin, you can take over this review before taking actions."
                       : "Claim this AIP to enable publish and revision actions."}
                 </div>
@@ -338,11 +362,11 @@ export default function CitySubmissionReviewDetail({
                   onClick={claimReview}
                   disabled={submitting}
                 >
-                  {claimLabel}
+                  {effectiveClaimLabel}
                 </Button>
               </CardContent>
             </Card>
-          ) : isReviewMode && assignedToOther ? (
+          ) : effectiveReviewMode && effectiveAssignedToOther ? (
             <Card className="border-slate-200">
               <CardContent className="p-5 space-y-4">
                 <div>
@@ -376,8 +400,14 @@ export default function CitySubmissionReviewDetail({
               </CardContent>
             </Card>
           ) : (
-            <RemarksCard status={aip.status} reviewerMessage={revisionNote} />
+            <AipStatusInfoCard status={effectiveStatus} reviewerMessage={revisionNote} />
           )}
+          {effectiveStatus === "published" && aip.publishedBy ? (
+            <AipPublishedByCard publishedBy={aip.publishedBy} />
+          ) : null}
+          {shouldShowRevisionFeedbackHistory ? (
+            <CityRevisionFeedbackHistoryCard cycles={revisionFeedbackCycles} />
+          ) : null}
         </div>
       </div>
 
@@ -394,7 +424,9 @@ export default function CitySubmissionReviewDetail({
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {aipDisplayLabel}
+              </div>
               <div className="text-xs text-slate-500">
                 {aip.barangayName ?? "Barangay"}
               </div>
@@ -413,7 +445,7 @@ export default function CitySubmissionReviewDetail({
                 onClick={claimReview}
                 disabled={submitting}
               >
-                {claimLabel}
+                {effectiveClaimLabel}
               </Button>
             </div>
           </div>
@@ -431,7 +463,9 @@ export default function CitySubmissionReviewDetail({
               published, it will be publicly available.
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {aipDisplayLabel}
+              </div>
               <div className="text-xs text-slate-500">
                 {aip.barangayName ?? "Barangay"}
               </div>
@@ -494,3 +528,4 @@ export default function CitySubmissionReviewDetail({
     </div>
   );
 }
+

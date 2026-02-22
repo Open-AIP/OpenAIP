@@ -22,6 +22,7 @@ export const PROJECT_EDITABLE_FIELD_KEYS = [
   "climateChangeAdaptation",
   "climateChangeMitigation",
   "ccTopologyCode",
+  "prmNcrLguRmObjectiveResultsIndicator",
   "category",
   "errors",
 ] as const satisfies ReadonlyArray<keyof AipProjectEditableFields>;
@@ -45,6 +46,7 @@ const NULLABLE_TEXT_KEYS = new Set<EditableFieldKey>([
   "climateChangeAdaptation",
   "climateChangeMitigation",
   "ccTopologyCode",
+  "prmNcrLguRmObjectiveResultsIndicator",
 ]);
 
 export const PROJECT_FIELD_LABELS: Record<EditableFieldKey, string> = {
@@ -63,6 +65,8 @@ export const PROJECT_FIELD_LABELS: Record<EditableFieldKey, string> = {
   climateChangeAdaptation: "Climate Change Adaptation",
   climateChangeMitigation: "Climate Change Mitigation",
   ccTopologyCode: "CC Topology Code",
+  prmNcrLguRmObjectiveResultsIndicator:
+    "PRM/NCR LGU + RM Objective + Results Indicator",
   category: "Category",
   errors: "AI Issues",
 };
@@ -114,6 +118,21 @@ function normalizeRequiredText(value: unknown, fallback = ""): string {
   const trimmed = String(value ?? "").trim();
   if (trimmed) return trimmed;
   return fallback;
+}
+
+function normalizeComparisonText(value: string): string {
+  return value
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeComparisonByKey(key: EditableFieldKey, value: string): string {
+  const normalized = normalizeComparisonText(value);
+  if (key === "aipRefCode") {
+    return normalized.replace(/\s*-\s*/g, "-");
+  }
+  return normalized;
 }
 
 function normalizeEditableField(
@@ -182,6 +201,11 @@ function valuesEqual(
     if (!a || !b) return false;
     if (a.length !== b.length) return false;
     return a.every((item, index) => item === b[index]);
+  }
+  if (typeof left === "string" && typeof right === "string") {
+    return (
+      normalizeComparisonByKey(key, left) === normalizeComparisonByKey(key, right)
+    );
   }
   return left === right;
 }

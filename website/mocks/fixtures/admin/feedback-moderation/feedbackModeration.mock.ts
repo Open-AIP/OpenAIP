@@ -37,6 +37,7 @@ const createProjectRow = (input: {
   climate_change_adaptation: null,
   climate_change_mitigation: null,
   cc_topology_code: null,
+  prm_ncr_lgu_rm_objective_results_indicator: null,
   errors: null,
   category: input.category,
   sector_code: "SOC",

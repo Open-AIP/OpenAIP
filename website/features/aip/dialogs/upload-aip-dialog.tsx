@@ -43,10 +43,8 @@ type Props = {
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
-function buildYears(count = 7) {
-  const now = new Date().getFullYear();
-  const start = now - 2;
-  return Array.from({ length: count }, (_, i) => start + i);
+export function buildUploadAipYears(currentYear = new Date().getFullYear()) {
+  return Array.from({ length: 6 }, (_, i) => currentYear + 1 - i);
 }
 
 export default function UploadAipDialog({
@@ -63,7 +61,7 @@ export default function UploadAipDialog({
   const [error, setError] = React.useState<string>("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const years = React.useMemo(() => buildYears(7).sort((a, b) => b - a), []);
+  const years = React.useMemo(() => buildUploadAipYears(), []);
   const scopeLabel = scope === "city" ? "city" : "barangay";
 
   function reset() {

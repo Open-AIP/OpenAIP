@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExecutionArtifactEnvelope",
+  "type": "object",
+  "required": ["artifact_stage", "meta"],
+  "properties": {
+    "artifact_stage": { "type": "string" },
+    "data": { "type": ["object", "null"] },
+    "storage_path": { "type": ["string", "null"] },
+    "usage": { "type": ["object", "null"] },
+    "meta": { "type": "object" }
+  },
+  "additionalProperties": true
+}
+

@@ -102,6 +102,7 @@ export function generateMockProjects(
       climateChangeAdaptation: null,
       climateChangeMitigation: null,
       ccTopologyCode: null,
+      prmNcrLguRmObjectiveResultsIndicator: null,
       category,
       errors: null,
 

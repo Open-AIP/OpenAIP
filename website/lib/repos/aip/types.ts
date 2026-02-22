@@ -2,6 +2,7 @@ import type {
   AipStatus,
   FeedbackKind,
   FeedbackSource,
+  RoleType,
 } from "@/lib/contracts/databasev2";
 
 export type { AipStatus } from "@/lib/contracts/databasev2";
@@ -54,6 +55,11 @@ export type AipHeader = {
   };
 
   feedback?: string;
+  publishedBy?: {
+    reviewerId: string;
+    reviewerName: string | null;
+    createdAt: string;
+  };
   revisionReply?: {
     body: string;
     createdAt: string;
@@ -112,6 +118,8 @@ export type AipProjectEditableFields = {
   climateChangeMitigation: string | null;
   // Maps to public.projects.cc_topology_code
   ccTopologyCode: string | null;
+  // Maps to public.projects.prm_ncr_lgu_rm_objective_results_indicator
+  prmNcrLguRmObjectiveResultsIndicator: string | null;
   // Maps to public.projects.category
   category: ProjectCategory;
   // Maps to public.projects.errors
@@ -149,6 +157,7 @@ export type AipProjectFeedbackMessage = {
   body: string;
   authorId: string | null;
   authorName: string | null;
+  authorRole?: RoleType | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -1,0 +1,31 @@
+Extract ONLY the AIP PROJECT rows from the table on this page.
+BARANGAY TABLE NOTE: This table ends at Total and includes Financial Expenses (FE) between MOOE and CO.
+
+Return projects with fields (MUST match exactly):
+aip_ref_code, program_project_description, implementing_agency, start_date, completion_date,
+expected_output, source_of_funds, personal_services, maintenance_and_other_operating_expenses,
+financial_expenses, capital_outlay, total, errors, category.
+
+PROJECT-ONLY RULES (STRICT):
+- Output ONLY rows that represent a real project entry.
+- EXCLUDE headers/labels/section titles, repeated headings, totals/subtotals/grand totals, continuation notes.
+
+ANTI-COLUMN-SWITCHING RULES (VERY IMPORTANT):
+- DO NOT shift values between columns. Preserve the table's column boundaries exactly.
+- Column order for amounts is STRICT and must be read left-to-right:
+  PS -> MOOE -> FINANCIAL EXPENSES (FE) -> CAPITAL OUTLAY (CO) -> TOTAL
+- Map ONLY by the printed column headers/grid:
+  - personal_services <- PS ONLY
+  - maintenance_and_other_operating_expenses <- MOOE ONLY
+  - financial_expenses <- Financial Expenses / FE ONLY
+  - capital_outlay <- CO / Capital Outlay ONLY
+  - total <- Total ONLY
+- If FE exists on this page, DO NOT place FE amounts into MOOE or CO.
+- If any of the MOOE/FE/CO placements are unclear due to scan/blur, set ALL THREE (MOOE, FE, CO) to null.
+- Never guess the correct column based on arithmetic.
+- Dates must come ONLY from Start Date / Completion Date columns; do not swap.
+
+OTHER RULES:
+- errors MUST always be null.
+- category MUST always be null.
+- If there is no project table on this page, return an empty projects array.

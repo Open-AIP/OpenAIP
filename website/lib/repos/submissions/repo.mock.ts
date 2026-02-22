@@ -1,6 +1,7 @@
 import type { AipStatus, ReviewAction } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import type { AipHeader } from "@/lib/repos/aip/repo";
+import { createMockFeedbackRepo } from "@/lib/repos/feedback/repo.mock";
 import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
 import type { AipSubmissionsReviewRepo, AipSubmissionRow, LatestReview, ListSubmissionsResult } from "./repo";
 
@@ -15,6 +16,15 @@ type MockAipReviewRow = {
   action: ReviewAction;
   note: string | null;
   createdAt: string;
+};
+
+type AipRevisionFeedbackMessageByAip = {
+  aipId: string;
+  id: string;
+  body: string;
+  createdAt: string;
+  authorName?: string | null;
+  authorRole: "reviewer" | "barangay_official";
 };
 
 const MOCK_CITY_ID = "city_001";
@@ -141,6 +151,249 @@ function assertClaimOwnership(aipId: string, actor: ActorContext) {
   }
 }
 
+function toTimestamp(value: string): number | null {
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function sortByCreatedAtAscThenId(
+  left: { createdAt: string; id: string },
+  right: { createdAt: string; id: string }
+): number {
+  const leftAt = toTimestamp(left.createdAt);
+  const rightAt = toTimestamp(right.createdAt);
+  if (leftAt !== null && rightAt !== null && leftAt !== rightAt) {
+    return leftAt - rightAt;
+  }
+  if (left.createdAt !== right.createdAt) {
+    return left.createdAt.localeCompare(right.createdAt);
+  }
+  return left.id.localeCompare(right.id);
+}
+
+function sortByCreatedAtDescThenId(
+  left: { createdAt: string; id: string },
+  right: { createdAt: string; id: string }
+): number {
+  return -sortByCreatedAtAscThenId(left, right);
+}
+
+async function getMockRevisionRemarksByAipIds(
+  aipIds: string[]
+): Promise<AipRevisionFeedbackMessageByAip[]> {
+  const uniqueAipIds = Array.from(new Set(aipIds));
+  if (!uniqueAipIds.length) return [];
+
+  return uniqueAipIds
+    .flatMap((aipId) =>
+      __getMockAipReviewsForAipId(aipId)
+        .filter(
+          (row) =>
+            row.action === "request_revision" &&
+            typeof row.note === "string" &&
+            row.note.trim().length > 0
+        )
+        .map((row) => ({
+          aipId,
+          id: row.id,
+          body: row.note!.trim(),
+          createdAt: row.createdAt,
+          authorName:
+            typeof row.reviewerName === "string" && row.reviewerName.trim().length > 0
+              ? row.reviewerName.trim()
+              : "City Reviewer",
+          authorRole: "reviewer" as const,
+        }))
+    )
+    .sort(sortByCreatedAtAscThenId);
+}
+
+function toMockReplyAuthorName(authorId: string | null | undefined): string | null {
+  if (!authorId) return null;
+  return authorId.startsWith("official_") ? "Barangay Official" : authorId;
+}
+
+async function getMockBarangayRepliesByAipIds(
+  aipIds: string[]
+): Promise<AipRevisionFeedbackMessageByAip[]> {
+  const uniqueAipIds = Array.from(new Set(aipIds));
+  if (!uniqueAipIds.length) return [];
+
+  const repo = createMockFeedbackRepo();
+  const rowsByAip = await Promise.all(
+    uniqueAipIds.map(async (aipId) => {
+      const feedback = await repo.listForAip(aipId);
+      return feedback
+        .filter(
+          (item) =>
+            item.kind === "lgu_note" &&
+            item.parentFeedbackId === null &&
+            typeof item.body === "string" &&
+            item.body.trim().length > 0 &&
+            typeof item.authorId === "string" &&
+            item.authorId.startsWith("official_")
+        )
+        .map((item) => ({
+          aipId,
+          id: item.id,
+          body: item.body.trim(),
+          createdAt: item.createdAt,
+          authorName: toMockReplyAuthorName(item.authorId),
+          authorRole: "barangay_official" as const,
+        }));
+    })
+  );
+
+  return rowsByAip.flat().sort(sortByCreatedAtAscThenId);
+}
+
+function buildLatestMockRevisionNotes(
+  remarks: AipRevisionFeedbackMessageByAip[]
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const remark of [...remarks].sort(sortByCreatedAtDescThenId)) {
+    if (!map.has(remark.aipId)) {
+      map.set(remark.aipId, remark.body);
+    }
+  }
+  return map;
+}
+
+function buildLatestMockRevisionReplies(
+  replies: AipRevisionFeedbackMessageByAip[]
+): Map<string, NonNullable<AipHeader["revisionReply"]>> {
+  const map = new Map<string, NonNullable<AipHeader["revisionReply"]>>();
+  for (const reply of [...replies].sort(sortByCreatedAtDescThenId)) {
+    if (!map.has(reply.aipId)) {
+      map.set(reply.aipId, {
+        body: reply.body,
+        createdAt: reply.createdAt,
+        authorName: reply.authorName ?? null,
+      });
+    }
+  }
+  return map;
+}
+
+function buildLatestMockPublishedBy(
+  aipIds: string[]
+): Map<string, NonNullable<AipHeader["publishedBy"]>> {
+  const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
+  for (const aipId of aipIds) {
+    const latestApprove = reviewStore
+      .filter((row) => row.aipId === aipId && row.action === "approve")
+      .sort(sortByCreatedAtDescThenId)[0];
+    if (!latestApprove) continue;
+
+    map.set(aipId, {
+      reviewerId: latestApprove.reviewerId,
+      reviewerName:
+        typeof latestApprove.reviewerName === "string" &&
+        latestApprove.reviewerName.trim().length > 0
+          ? latestApprove.reviewerName.trim()
+          : null,
+      createdAt: latestApprove.createdAt,
+    });
+  }
+
+  return map;
+}
+
+function buildRevisionFeedbackCycles(params: {
+  aipIds: string[];
+  remarks: AipRevisionFeedbackMessageByAip[];
+  replies: AipRevisionFeedbackMessageByAip[];
+}): Map<string, NonNullable<AipHeader["revisionFeedbackCycles"]>> {
+  const { aipIds, remarks, replies } = params;
+  const map = new Map<string, NonNullable<AipHeader["revisionFeedbackCycles"]>>();
+  if (!aipIds.length) return map;
+
+  const remarksByAip = new Map<string, AipRevisionFeedbackMessageByAip[]>();
+  for (const remark of remarks) {
+    const list = remarksByAip.get(remark.aipId) ?? [];
+    list.push(remark);
+    remarksByAip.set(remark.aipId, list);
+  }
+
+  const repliesByAip = new Map<string, AipRevisionFeedbackMessageByAip[]>();
+  for (const reply of replies) {
+    const list = repliesByAip.get(reply.aipId) ?? [];
+    list.push(reply);
+    repliesByAip.set(reply.aipId, list);
+  }
+
+  for (const aipId of aipIds) {
+    const aipRemarks = [...(remarksByAip.get(aipId) ?? [])].sort(sortByCreatedAtAscThenId);
+    if (!aipRemarks.length) continue;
+
+    const aipReplies = [...(repliesByAip.get(aipId) ?? [])].sort(sortByCreatedAtAscThenId);
+
+    const cyclesAsc = aipRemarks.map((remark, index) => {
+      const nextRemark = aipRemarks[index + 1];
+      const remarkAt = toTimestamp(remark.createdAt);
+      const nextRemarkAt = nextRemark ? toTimestamp(nextRemark.createdAt) : null;
+
+      const cycleReplies = aipReplies.filter((reply) => {
+        const replyAt = toTimestamp(reply.createdAt);
+        if (remarkAt === null || replyAt === null) return false;
+        if (replyAt < remarkAt) return false;
+        if (nextRemarkAt !== null && replyAt >= nextRemarkAt) return false;
+        return true;
+      });
+
+      return {
+        cycleId: remark.id,
+        reviewerRemark: {
+          id: remark.id,
+          body: remark.body,
+          createdAt: remark.createdAt,
+          authorName: remark.authorName ?? null,
+          authorRole: "reviewer" as const,
+        },
+        replies: cycleReplies.map((reply) => ({
+          id: reply.id,
+          body: reply.body,
+          createdAt: reply.createdAt,
+          authorName: reply.authorName ?? null,
+          authorRole: "barangay_official" as const,
+        })),
+      };
+    });
+
+    map.set(
+      aipId,
+      [...cyclesAsc].sort((left, right) =>
+        sortByCreatedAtDescThenId(left.reviewerRemark, right.reviewerRemark)
+      )
+    );
+  }
+
+  return map;
+}
+
+async function enrichMockSubmissionAipDetail(aip: AipHeader): Promise<AipHeader> {
+  const [revisionRemarks, revisionReplies] = await Promise.all([
+    getMockRevisionRemarksByAipIds([aip.id]),
+    getMockBarangayRepliesByAipIds([aip.id]),
+  ]);
+  const latestRevisionNotes = buildLatestMockRevisionNotes(revisionRemarks);
+  const latestRevisionReplies = buildLatestMockRevisionReplies(revisionReplies);
+  const latestPublishedBy = buildLatestMockPublishedBy([aip.id]);
+  const revisionFeedbackCyclesByAip = buildRevisionFeedbackCycles({
+    aipIds: [aip.id],
+    remarks: revisionRemarks,
+    replies: revisionReplies,
+  });
+
+  return {
+    ...aip,
+    feedback: latestRevisionNotes.get(aip.id) ?? aip.feedback,
+    publishedBy: latestPublishedBy.get(aip.id),
+    revisionReply: latestRevisionReplies.get(aip.id),
+    revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
+  };
+}
+
 export function getLatestMockAipRevisionNote(aipId: string): string | null {
   const rows = reviewStore
     .filter((row) => row.aipId === aipId && row.action === "request_revision")
@@ -171,6 +424,11 @@ function toLatestReview(row: MockAipReviewRow | null): LatestReview {
     note: row.note,
     createdAt: row.createdAt,
   };
+}
+
+function toActiveClaimReviewerName(row: MockAipReviewRow | null): string | null {
+  if (!row || row.action !== "claim_review") return null;
+  return row.reviewerName;
 }
 
 function getBarangayCityId(aipId: string): string | null {
@@ -207,6 +465,26 @@ export function __getMockAipReviewsForAipId(aipId: string): MockAipReviewRow[] {
   return reviewStore.filter((row) => row.aipId === aipId);
 }
 
+export function __appendMockAipReviewAction(input: {
+  aipId: string;
+  reviewerId: string;
+  action: ReviewAction;
+  note?: string | null;
+}) {
+  reviewStore = [
+    ...reviewStore,
+    {
+      id: nextReviewId(),
+      aipId: input.aipId,
+      reviewerId: input.reviewerId,
+      reviewerName: input.reviewerId,
+      action: input.action,
+      note: typeof input.note === "string" ? input.note : null,
+      createdAt: nowIso(),
+    },
+  ];
+}
+
 export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
   return {
     async listSubmissionsForCity({
@@ -230,7 +508,7 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
           scope: "barangay",
           barangayName: aip.barangayName ?? null,
           uploadedAt: aip.uploadedAt,
-          reviewerName: latest?.reviewerName ?? null,
+          reviewerName: toActiveClaimReviewerName(latest),
         } satisfies AipSubmissionRow;
       });
 
@@ -254,8 +532,9 @@ export function createMockAipSubmissionsReviewRepo(): AipSubmissionsReviewRepo {
       requireCityReviewer(actor, cityId);
       assertInJurisdiction(aip, cityId);
 
+      const enrichedAip = await enrichMockSubmissionAipDetail(aip);
       const latest = latestReviewForAip(aipId);
-      return { aip, latestReview: toLatestReview(latest) };
+      return { aip: enrichedAip, latestReview: toLatestReview(latest) };
     },
 
     async claimReview({ aipId, actor }): Promise<AipStatus> {

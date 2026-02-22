@@ -1,11 +1,19 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RotateCw, Send, X } from "lucide-react";
 
@@ -22,7 +30,9 @@ import { AipDetailsSummary } from "../components/aip-details-summary";
 import { AipUploaderInfo } from "../components/aip-uploader-info";
 import { AipProcessingInlineStatus } from "../components/aip-processing-inline-status";
 import type { AipProcessingState } from "../components/aip-processing-status-content";
-import { RemarksCard } from "../components/remarks-card";
+import { AipStatusInfoCard } from "../components/aip-status-info-card";
+import { AipPublishedByCard } from "../components/aip-published-by-card";
+import { RevisionFeedbackHistoryCard } from "../components/revision-feedback-history-card";
 import { AipDetailsTableView } from "./aip-details-table";
 import { CommentThreadsSplitView } from "@/features/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,8 +40,13 @@ import {
   cancelAipSubmissionAction,
   deleteAipDraftAction,
   saveAipRevisionReplyAction,
+  submitCityAipForPublishAction,
   submitAipForReviewAction,
 } from "../actions/aip-workflow.actions";
+import {
+  useExtractionRunsRealtime,
+  type ExtractionRunRealtimeEvent,
+} from "../hooks/use-extraction-runs-realtime";
 
 const PIPELINE_STAGES: PipelineStageUi[] = [
   "extract",
@@ -46,6 +61,8 @@ const FINALIZE_REFRESH_MAX_ATTEMPTS = 5;
 const FINALIZE_REFRESH_INTERVAL_MS = 1500;
 const FINALIZE_PROGRESS_MESSAGE =
   "Saving processed data to the database. You will be redirected shortly.";
+const LIVE_STATUS_UNAVAILABLE_NOTICE =
+  "Live extraction updates are unavailable right now. Refresh this page to check the latest status.";
 
 type RunStatusPayload = {
   runId: string;
@@ -69,6 +86,33 @@ type ActiveRunLookupPayload = {
   } | null;
 };
 
+type RunSnapshotPayload = {
+  runId: string;
+  aipId: string;
+  stage: string;
+  status: string;
+  errorMessage: string | null;
+  overallProgressPct?: number | null;
+  stageProgressPct?: number | null;
+  progressMessage?: string | null;
+  progressUpdatedAt?: string | null;
+};
+
+function mapRealtimeEventToRunStatusPayload(
+  event: ExtractionRunRealtimeEvent
+): RunStatusPayload {
+  return {
+    runId: event.run.id,
+    status: event.run.status ?? "",
+    stage: event.run.stage ?? "",
+    errorMessage: event.run.error_message,
+    overallProgressPct: event.run.overall_progress_pct,
+    stageProgressPct: event.run.stage_progress_pct,
+    progressMessage: event.run.progress_message,
+    progressUpdatedAt: event.run.progress_updated_at,
+  };
+}
+
 function isPipelineStageUi(value: string): value is PipelineStageUi {
   return PIPELINE_STAGES.includes(value as PipelineStageUi);
 }
@@ -90,28 +134,6 @@ function clampProgress(value: number): number {
 
 function hasSummaryText(summaryText: string | undefined): boolean {
   return typeof summaryText === "string" && summaryText.trim().length > 0;
-}
-
-function formatFeedbackDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function feedbackAuthorLabel(params: {
-  authorName?: string | null;
-  authorRole: "reviewer" | "barangay_official";
-}): string {
-  if (typeof params.authorName === "string" && params.authorName.trim().length > 0) {
-    return params.authorName.trim();
-  }
-  return params.authorRole === "reviewer" ? "Reviewer" : "Barangay Official";
 }
 
 function wait(ms: number): Promise<void> {
@@ -178,22 +200,25 @@ export default function AipDetailView({
   onResubmit,
   onCancel,
   onCancelSubmission,
-  onSubmit,
 }: {
   aip: AipHeader;
   scope?: "city" | "barangay";
   onResubmit?: () => void;
   onCancel?: () => void;
   onCancelSubmission?: () => void;
-  onSubmit?: () => void;
 }) {
   const isBarangayScope = scope === "barangay";
+  const isCityScope = scope === "city";
+  const shouldTrackRunStatus = isBarangayScope || isCityScope;
   const isForRevision = aip.status === "for_revision";
   const isPendingReview = aip.status === "pending_review";
-  const showSubmittedSidebar =
-    isBarangayScope && (isForRevision || isPendingReview);
-  const showRemarksCard = aip.status !== "draft" && !showSubmittedSidebar;
-  const showRightSidebar = showSubmittedSidebar || showRemarksCard;
+  const hasRevisionHistory = (aip.revisionFeedbackCycles?.length ?? 0) > 0;
+  const isDraftWithRevisionHistory = aip.status === "draft" && hasRevisionHistory;
+  const showRevisionWorkflowSidebar =
+    isBarangayScope &&
+    (isForRevision || isPendingReview || isDraftWithRevisionHistory);
+  const showStatusSidebar = aip.status !== "draft" && !showRevisionWorkflowSidebar;
+  const showRightSidebar = showRevisionWorkflowSidebar || showStatusSidebar;
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -205,7 +230,7 @@ export default function AipDetailView({
 
   const [activeRunId, setActiveRunId] = useState<string | null>(runIdFromQuery);
   const [isCheckingRun, setIsCheckingRun] = useState<boolean>(
-    isBarangayScope && !runIdFromQuery
+    shouldTrackRunStatus && !runIdFromQuery
   );
   const [processingRun, setProcessingRun] = useState<AipProcessingRunView | null>(null);
   const [processingState, setProcessingState] = useState<AipProcessingState>("idle");
@@ -224,11 +249,19 @@ export default function AipDetailView({
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [unresolvedAiCount, setUnresolvedAiCount] = useState(0);
   const [workflowPendingAction, setWorkflowPendingAction] = useState<
-    "delete_draft" | "cancel_submission" | "submit_review" | "save_reply" | null
+    | "delete_draft"
+    | "cancel_submission"
+    | "submit_review"
+    | "submit_publish"
+    | "save_reply"
+    | null
   >(null);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
   const [revisionReplyDraft, setRevisionReplyDraft] = useState("");
+  const [cityPublishConfirmOpen, setCityPublishConfirmOpen] = useState(false);
+  const [deleteDraftConfirmOpen, setDeleteDraftConfirmOpen] = useState(false);
+  const lastHydratedRunIdRef = useRef<string | null>(null);
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
 
@@ -241,7 +274,7 @@ export default function AipDetailView({
   }, [pathname, router, searchParams]);
 
   useEffect(() => {
-    if (!isBarangayScope) {
+    if (!shouldTrackRunStatus) {
       setIsCheckingRun(false);
       setActiveRunId(null);
       setIsFinalizingAfterSuccess(false);
@@ -267,8 +300,9 @@ export default function AipDetailView({
 
     async function lookupActiveRun() {
       try {
+        const runApiScope = isCityScope ? "city" : "barangay";
         const response = await fetch(
-          `/api/barangay/aips/${encodeURIComponent(aip.id)}/runs/active`
+          `/api/${runApiScope}/aips/${encodeURIComponent(aip.id)}/runs/active`
         );
         if (!response.ok) {
           throw new Error("Failed to check extraction status.");
@@ -305,10 +339,10 @@ export default function AipDetailView({
     return () => {
       cancelled = true;
     };
-  }, [aip.id, isBarangayScope, isFinalizingAfterSuccess, runIdFromQuery]);
+  }, [aip.id, isCityScope, isFinalizingAfterSuccess, runIdFromQuery, shouldTrackRunStatus]);
 
   useEffect(() => {
-    if (!isBarangayScope || !activeRunId) {
+    if (!shouldTrackRunStatus || !activeRunId) {
       if (!isFinalizingAfterSuccess) {
         setProcessingRun(null);
         setProcessingState("idle");
@@ -316,131 +350,170 @@ export default function AipDetailView({
       return;
     }
 
-    const currentRunId = activeRunId;
-    let cancelled = false;
-    let timer: number | null = null;
     setProcessingState("processing");
     setIsFinalizingAfterSuccess(false);
     setFinalizingNotice(null);
     setRunNotice(null);
     setRetryError(null);
+  }, [activeRunId, isFinalizingAfterSuccess, shouldTrackRunStatus]);
 
-    async function poll() {
-      try {
-        const res = await fetch(
-          `/api/barangay/aips/runs/${encodeURIComponent(currentRunId)}`
+  const applyRunStatusPayload = useCallback(
+    (payload: RunStatusPayload) => {
+      if (!isPipelineStatusUi(payload.status) || !isPipelineStageUi(payload.stage)) {
+        setRunNotice(
+          "Received an unexpected live extraction status payload. Refresh this page to continue."
         );
-        if (!res.ok) {
-          throw new Error("Failed to fetch extraction run status.");
-        }
+        return;
+      }
 
-        const payload = (await res.json()) as RunStatusPayload;
-        if (cancelled) return;
+      const shouldShowSyncingMessage =
+        (payload.status === "queued" || payload.status === "running") &&
+        typeof payload.stageProgressPct !== "number" &&
+        !payload.progressMessage;
 
-        if (!isPipelineStatusUi(payload.status) || !isPipelineStageUi(payload.stage)) {
-          throw new Error("Unexpected extraction status payload.");
-        }
+      setProcessingRun({
+        stage: payload.stage,
+        status: payload.status,
+        message:
+          payload.errorMessage ??
+          (shouldShowSyncingMessage ? "Syncing live progress..." : null),
+        progressByStage: buildProgressByStage(
+          payload.stage,
+          payload.status,
+          payload.stageProgressPct
+        ),
+        overallProgressPct: payload.overallProgressPct ?? null,
+        stageProgressPct: payload.stageProgressPct ?? null,
+        progressMessage:
+          payload.progressMessage ??
+          (shouldShowSyncingMessage ? "Syncing live progress..." : null),
+      });
 
-        const shouldShowSyncingMessage =
-          (payload.status === "queued" || payload.status === "running") &&
-          typeof payload.stageProgressPct !== "number" &&
-          !payload.progressMessage;
+      const nextState = mapRunStatusToProcessingState(payload.status);
+      if (nextState === "processing") {
+        setProcessingState("processing");
+        setFailedRun(null);
+        return;
+      }
 
-        setProcessingRun({
-          stage: payload.stage,
-          status: payload.status,
-          message:
-            payload.errorMessage ??
-            (shouldShowSyncingMessage ? "Syncing live progress..." : null),
-          progressByStage: buildProgressByStage(
-            payload.stage,
-            payload.status,
-            payload.stageProgressPct
-          ),
-          overallProgressPct: payload.overallProgressPct ?? null,
-          stageProgressPct: payload.stageProgressPct ?? null,
-          progressMessage:
-            payload.progressMessage ??
-            (shouldShowSyncingMessage ? "Syncing live progress..." : null),
-        });
-
-        const nextState = mapRunStatusToProcessingState(payload.status);
-        if (nextState === "processing") {
-          setProcessingState("processing");
-          setFailedRun(null);
-          return;
-        }
-
-        if (timer) window.clearInterval(timer);
-
-        if (nextState === "complete") {
-          setActiveRunId(null);
-          setFailedRun(null);
-          setDismissedFailedRunId(null);
-          setRetryError(null);
-          setRunNotice(null);
-          setProcessingState("processing");
-          setIsFinalizingAfterSuccess(true);
-          setFinalizingNotice(null);
-          setProcessingRun({
-            stage: "categorize",
-            status: "running",
-            message: FINALIZE_PROGRESS_MESSAGE,
-            progressByStage: buildProgressByStage("categorize", "running", 100),
-            overallProgressPct: 100,
-            stageProgressPct: 100,
-            progressMessage: FINALIZE_PROGRESS_MESSAGE,
-          });
-          if (runIdFromQuery) {
-            clearRunQuery();
-          }
-          return;
-        }
-
-        setProcessingRun(null);
-        setProcessingState("idle");
-        setIsFinalizingAfterSuccess(false);
+      if (nextState === "complete") {
         setActiveRunId(null);
-        setFailedRun({
-          runId: currentRunId,
-          message: payload.errorMessage ?? payload.progressMessage ?? null,
-        });
+        setFailedRun(null);
         setDismissedFailedRunId(null);
         setRetryError(null);
+        setRunNotice(null);
+        setProcessingState("processing");
+        setIsFinalizingAfterSuccess(true);
+        setFinalizingNotice(null);
+        setProcessingRun({
+          stage: "categorize",
+          status: "running",
+          message: FINALIZE_PROGRESS_MESSAGE,
+          progressByStage: buildProgressByStage("categorize", "running", 100),
+          overallProgressPct: 100,
+          stageProgressPct: 100,
+          progressMessage: FINALIZE_PROGRESS_MESSAGE,
+        });
         if (runIdFromQuery) {
           clearRunQuery();
         }
-      } catch {
-        if (cancelled) return;
-        if (timer) window.clearInterval(timer);
-        setProcessingRun(null);
-        setProcessingState("idle");
-        setIsFinalizingAfterSuccess(false);
-        setActiveRunId(null);
-        setRunNotice("Unable to fetch extraction status right now. Showing AIP details.");
-        if (runIdFromQuery) {
-          clearRunQuery();
-        }
+        return;
       }
+
+      setProcessingRun(null);
+      setProcessingState("idle");
+      setIsFinalizingAfterSuccess(false);
+      setActiveRunId(null);
+      setFailedRun({
+        runId: payload.runId,
+        message: payload.errorMessage ?? payload.progressMessage ?? null,
+      });
+      setDismissedFailedRunId(null);
+      setRetryError(null);
+      if (runIdFromQuery) {
+        clearRunQuery();
+      }
+    },
+    [clearRunQuery, runIdFromQuery]
+  );
+
+  const hydrateRunSnapshot = useCallback(async (mode: "initial" | "resync" = "initial") => {
+    if (!activeRunId || !shouldTrackRunStatus) return;
+    if (mode === "initial" && lastHydratedRunIdRef.current === activeRunId) return;
+    if (mode === "initial") {
+      lastHydratedRunIdRef.current = activeRunId;
     }
+    try {
+      const runApiScope = isCityScope ? "city" : "barangay";
+      const res = await fetch(
+        `/api/${runApiScope}/aips/runs/${encodeURIComponent(activeRunId)}`
+      );
+      if (!res.ok) return;
+      const payload = (await res.json()) as RunSnapshotPayload;
+      if (!payload || payload.runId !== activeRunId) return;
+      applyRunStatusPayload({
+        runId: payload.runId,
+        status: payload.status,
+        stage: payload.stage,
+        errorMessage: payload.errorMessage,
+        overallProgressPct: payload.overallProgressPct,
+        stageProgressPct: payload.stageProgressPct,
+        progressMessage: payload.progressMessage,
+        progressUpdatedAt: payload.progressUpdatedAt,
+      });
+    } catch {
+      // best-effort sync; realtime remains primary transport
+    }
+  }, [activeRunId, applyRunStatusPayload, isCityScope, shouldTrackRunStatus]);
 
-    void poll();
-    timer = window.setInterval(() => {
-      void poll();
-    }, 3000);
+  useEffect(() => {
+    if (!activeRunId) {
+      lastHydratedRunIdRef.current = null;
+      return;
+    }
+    void hydrateRunSnapshot("initial");
+  }, [activeRunId, hydrateRunSnapshot]);
 
-    return () => {
-      cancelled = true;
-      if (timer) window.clearInterval(timer);
-    };
-  }, [
-    activeRunId,
-    clearRunQuery,
-    isBarangayScope,
-    isCheckingRun,
-    isFinalizingAfterSuccess,
-    runIdFromQuery,
-  ]);
+  const handleRealtimeUnavailable = useCallback(() => {
+    setRunNotice(LIVE_STATUS_UNAVAILABLE_NOTICE);
+  }, []);
+
+  const handleRealtimeRunEvent = useCallback(
+    (event: ExtractionRunRealtimeEvent) => {
+      applyRunStatusPayload(mapRealtimeEventToRunStatusPayload(event));
+    },
+    [applyRunStatusPayload]
+  );
+
+  const handleRealtimeStatusChange = useCallback(
+    (status: REALTIME_SUBSCRIBE_STATES) => {
+      if (status === "SUBSCRIBED") {
+        setRunNotice(null);
+        void hydrateRunSnapshot("resync");
+        return;
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        handleRealtimeUnavailable();
+      }
+    },
+    [handleRealtimeUnavailable, hydrateRunSnapshot]
+  );
+
+  useExtractionRunsRealtime({
+    enabled: shouldTrackRunStatus && Boolean(activeRunId),
+    runId: activeRunId ?? undefined,
+    channelKey: `${scope}-aip-detail-${aip.id}-${activeRunId ?? "none"}`,
+    onRunEvent: handleRealtimeRunEvent,
+    onSubscribeError: () => {
+      handleRealtimeUnavailable();
+    },
+    onStatusChange: handleRealtimeStatusChange,
+  });
+
+  useEffect(() => {
+    if (!activeRunId) return;
+    setDismissedFailedRunId(null);
+  }, [activeRunId]);
 
   useEffect(() => {
     if (!isFinalizingAfterSuccess) return;
@@ -504,9 +577,10 @@ export default function AipDetailView({
       setIsRetrying(true);
       setRetryError(null);
       setRunNotice(null);
+      const runApiScope = isCityScope ? "city" : "barangay";
 
       const response = await fetch(
-        `/api/barangay/aips/runs/${encodeURIComponent(failedRun.runId)}/retry`,
+        `/api/${runApiScope}/aips/runs/${encodeURIComponent(failedRun.runId)}/retry`,
         { method: "POST" }
       );
 
@@ -532,13 +606,15 @@ export default function AipDetailView({
     } finally {
       setIsRetrying(false);
     }
-  }, [failedRun]);
+  }, [failedRun, isCityScope]);
 
   useEffect(() => {
     setWorkflowPendingAction(null);
     setWorkflowError(null);
     setWorkflowSuccess(null);
     setRevisionReplyDraft("");
+    setCityPublishConfirmOpen(false);
+    setDeleteDraftConfirmOpen(false);
     setProjectsLoading(true);
     setProjectsError(null);
     setUnresolvedAiCount(0);
@@ -567,10 +643,12 @@ export default function AipDetailView({
     (!requiresRevisionReply || trimmedRevisionReply.length > 0);
   const canSaveRevisionReply =
     isBarangayScope &&
-    aip.status === "for_revision" &&
+    (isForRevision || isDraftWithRevisionHistory) &&
     trimmedRevisionReply.length > 0 &&
     !isWorkflowBusy;
   const revisionFeedbackCycles = aip.revisionFeedbackCycles ?? [];
+  const shouldShowRevisionFeedbackHistory =
+    aip.status !== "published" || revisionFeedbackCycles.length > 0;
   const submitBlockedReason = projectsLoading
     ? "Loading project review statuses before submission."
     : projectsError
@@ -595,24 +673,24 @@ export default function AipDetailView({
   );
 
   const submitForReview = useCallback(async () => {
-    if (!isBarangayScope) {
-      onSubmit?.();
-      return;
-    }
     if (isWorkflowBusy || !canSubmitForReview) return;
 
     try {
-      setWorkflowPendingAction("submit_review");
+      setWorkflowPendingAction(isCityScope ? "submit_publish" : "submit_review");
       setWorkflowError(null);
       setWorkflowSuccess(null);
 
-      const result = await submitAipForReviewAction({
-        aipId: aip.id,
-        revisionReply:
-          aip.status === "for_revision" && trimmedRevisionReply.length > 0
-            ? trimmedRevisionReply
-            : undefined,
-      });
+      const result = isCityScope
+        ? await submitCityAipForPublishAction({
+            aipId: aip.id,
+          })
+        : await submitAipForReviewAction({
+            aipId: aip.id,
+            revisionReply:
+              aip.status === "for_revision" && trimmedRevisionReply.length > 0
+                ? trimmedRevisionReply
+                : undefined,
+          });
       if (!result.ok) {
         setWorkflowError(result.message);
         if (typeof result.unresolvedAiCount === "number") {
@@ -627,7 +705,9 @@ export default function AipDetailView({
       setWorkflowError(
         error instanceof Error
           ? error.message
-          : "Failed to submit AIP for review."
+          : isCityScope
+            ? "Failed to publish AIP."
+            : "Failed to submit AIP for review."
       );
     } finally {
       setWorkflowPendingAction(null);
@@ -636,9 +716,8 @@ export default function AipDetailView({
     aip.id,
     aip.status,
     canSubmitForReview,
-    isBarangayScope,
+    isCityScope,
     isWorkflowBusy,
-    onSubmit,
     trimmedRevisionReply,
     router,
   ]);
@@ -681,16 +760,7 @@ export default function AipDetailView({
   ]);
 
   const deleteDraft = useCallback(async () => {
-    if (!isBarangayScope) {
-      onCancel?.();
-      return;
-    }
     if (isWorkflowBusy) return;
-
-    const confirmed = window.confirm(
-      "Delete this draft AIP? This action cannot be undone."
-    );
-    if (!confirmed) return;
 
     try {
       setWorkflowPendingAction("delete_draft");
@@ -704,7 +774,7 @@ export default function AipDetailView({
       }
 
       setWorkflowSuccess(result.message);
-      router.push("/barangay/aips");
+      router.push(`/${scope}/aips`);
     } catch (error) {
       setWorkflowError(
         error instanceof Error ? error.message : "Failed to delete draft AIP."
@@ -712,7 +782,7 @@ export default function AipDetailView({
     } finally {
       setWorkflowPendingAction(null);
     }
-  }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, router]);
+  }, [aip.id, isWorkflowBusy, router, scope]);
 
   const cancelSubmission = useCallback(async () => {
     if (!isBarangayScope) {
@@ -722,7 +792,7 @@ export default function AipDetailView({
     if (isWorkflowBusy) return;
 
     const confirmed = window.confirm(
-      "Cancel this submission and move the AIP back to Draft?"
+      "Cancel this submission?"
     );
     if (!confirmed) return;
 
@@ -750,13 +820,37 @@ export default function AipDetailView({
     }
   }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, onCancelSubmission, router]);
 
+  const openCityPublishConfirm = useCallback(() => {
+    if (!isCityScope || isWorkflowBusy || !canSubmitForReview) return;
+    setCityPublishConfirmOpen(true);
+  }, [canSubmitForReview, isCityScope, isWorkflowBusy]);
+
+  const confirmCityPublish = useCallback(() => {
+    setCityPublishConfirmOpen(false);
+    void submitForReview();
+  }, [submitForReview]);
+
+  const openDeleteDraftConfirm = useCallback(() => {
+    if (aip.status !== "draft" || isWorkflowBusy) return;
+    setDeleteDraftConfirmOpen(true);
+  }, [aip.status, isWorkflowBusy]);
+
+  const confirmDeleteDraft = useCallback(() => {
+    setDeleteDraftConfirmOpen(false);
+    void deleteDraft();
+  }, [deleteDraft]);
+
   const effectiveResubmitHandler = isBarangayScope
     ? aip.status === "for_revision" && canSubmitForReview && !isWorkflowBusy
       ? () => {
           void submitForReview();
         }
       : undefined
-    : onResubmit;
+    : isCityScope
+      ? aip.status === "for_revision" && canSubmitForReview && !isWorkflowBusy
+        ? openCityPublishConfirm
+        : undefined
+      : onResubmit;
 
   const effectiveCancelSubmissionHandler = isBarangayScope
     ? aip.status === "pending_review" && !isWorkflowBusy
@@ -772,7 +866,7 @@ export default function AipDetailView({
   ];
 
   const shouldBlockWithProcessingUi =
-    isBarangayScope &&
+    shouldTrackRunStatus &&
     (isCheckingRun ||
       isFinalizingAfterSuccess ||
       (Boolean(activeRunId) && processingState === "processing"));
@@ -878,7 +972,7 @@ export default function AipDetailView({
             </Alert>
           ) : null}
 
-          {isBarangayScope &&
+          {(isBarangayScope || isCityScope) &&
           (aip.status === "draft" || aip.status === "for_revision") &&
           submitBlockedReason ? (
             <Alert className="border-amber-200 bg-amber-50">
@@ -953,7 +1047,7 @@ export default function AipDetailView({
                     aipStatus={aip.status}
                     scope={scope}
                     focusedRowId={focusedRowId}
-                    enablePagination={scope === "barangay"}
+                    enablePagination
                     onProjectsStateChange={handleProjectsStateChange}
                   />
 
@@ -976,44 +1070,51 @@ export default function AipDetailView({
                   <>
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        void deleteDraft();
-                      }}
-                      disabled={
-                        isBarangayScope
-                          ? isWorkflowBusy
-                          : !onCancel
-                      }
+                      onClick={openDeleteDraftConfirm}
+                      disabled={isWorkflowBusy}
                     >
                       <X className="h-4 w-4" />
                       {workflowPendingAction === "delete_draft"
                         ? "Deleting..."
-                        : "Cancel Draft"}
+                        : "Delete Draft"}
                     </Button>
+                    {isBarangayScope ? (
+                      <Button
+                        className="bg-[#022437] hover:bg-[#022437]/90"
+                        onClick={() => {
+                          void submitForReview();
+                        }}
+                        disabled={isWorkflowBusy || !canSubmitForReview}
+                      >
+                        <Send className="h-4 w-4" />
+                        {workflowPendingAction === "submit_review"
+                          ? "Submitting..."
+                          : "Submit for Review"}
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
+                {isCityScope &&
+                (aip.status === "draft" || aip.status === "for_revision") ? (
                     <Button
                       className="bg-[#022437] hover:bg-[#022437]/90"
                       onClick={() => {
-                        void submitForReview();
+                        openCityPublishConfirm();
                       }}
-                      disabled={
-                        isBarangayScope
-                          ? isWorkflowBusy || !canSubmitForReview
-                          : !onSubmit
-                      }
+                      disabled={isWorkflowBusy || !canSubmitForReview}
                     >
                       <Send className="h-4 w-4" />
-                      {workflowPendingAction === "submit_review"
-                        ? "Submitting..."
-                        : "Submit for Review"}
+                      {workflowPendingAction === "submit_publish"
+                        ? "Publishing..."
+                        : "Submit & Publish"}
                     </Button>
-                  </>
                 ) : null}
               </div>
             </div>
 
             {showRightSidebar ? (
               <div className="h-fit space-y-6 lg:sticky lg:top-6">
-                {showSubmittedSidebar ? (
+                {showRevisionWorkflowSidebar ? (
                   <>
                     <Card className="border-slate-200">
                       <CardContent className="space-y-4 p-5">
@@ -1088,92 +1189,63 @@ export default function AipDetailView({
                             </Button>
                           </>
                         ) : null}
-                      </CardContent>
-                    </Card>
 
-                    <Card className="border-slate-200">
-                      <CardContent className="space-y-3 p-5">
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-900">
-                            Feedback History
-                          </h3>
-                          <p className="mt-1 text-xs text-slate-500">
-                            Reviewer remarks and barangay replies grouped by revision cycle.
-                          </p>
-                        </div>
-
-                        <div className="space-y-3">
-                          {revisionFeedbackCycles.length ? (
-                            revisionFeedbackCycles.map((cycle) => (
-                              <div
-                                key={cycle.cycleId}
-                                className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
-                              >
-                                <div className="rounded-md border border-slate-300 bg-white p-3">
-                                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                                    <span>
-                                      {feedbackAuthorLabel({
-                                        authorName: cycle.reviewerRemark.authorName,
-                                        authorRole: "reviewer",
-                                      })}
-                                    </span>
-                                    <span className="text-slate-400">|</span>
-                                    <span>
-                                      {formatFeedbackDate(cycle.reviewerRemark.createdAt)}
-                                    </span>
-                                  </div>
-                                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                    {cycle.reviewerRemark.body}
-                                  </p>
-                                </div>
-
-                                {cycle.replies.length ? (
-                                  <div className="space-y-2 pl-3">
-                                    {cycle.replies.map((reply) => (
-                                      <div
-                                        key={reply.id}
-                                        className="rounded-md border border-slate-200 bg-white p-3"
-                                      >
-                                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                                          <span>
-                                            {feedbackAuthorLabel({
-                                              authorName: reply.authorName,
-                                              authorRole: "barangay_official",
-                                            })}
-                                          </span>
-                                          <span className="text-slate-400">|</span>
-                                          <span>{formatFeedbackDate(reply.createdAt)}</span>
-                                        </div>
-                                        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                          {reply.body}
-                                        </p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="rounded-md border border-dashed border-slate-200 bg-white p-3 text-xs text-slate-500">
-                                    No barangay reply saved for this cycle yet.
-                                  </div>
-                                )}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                              No revision feedback history yet.
+                        {isDraftWithRevisionHistory ? (
+                          <>
+                            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                              This AIP was previously returned for revision.
+                              Feedback history remains available while you continue editing this draft.
                             </div>
-                          )}
-                        </div>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              Provide your justification before saving.
+                            </p>
+
+                            <Textarea
+                              value={revisionReplyDraft}
+                              onChange={(event) => {
+                                setRevisionReplyDraft(event.target.value);
+                              }}
+                              placeholder="Explain what changed (or your response to reviewer remarks)."
+                              className="min-h-[130px]"
+                              disabled={isWorkflowBusy}
+                            />
+
+                            <Button
+                              className="w-full bg-[#022437] hover:bg-[#022437]/90"
+                              onClick={() => {
+                                void saveRevisionReply();
+                              }}
+                              disabled={!canSaveRevisionReply}
+                            >
+                              {workflowPendingAction === "save_reply"
+                                ? "Saving..."
+                                : "Save Reply"}
+                            </Button>
+                          </>
+                        ) : null}
                       </CardContent>
                     </Card>
                   </>
                 ) : null}
 
-                {showRemarksCard ? (
-                  <RemarksCard
-                    status={aip.status}
-                    reviewerMessage={aip.feedback}
-                    onCancelSubmission={effectiveCancelSubmissionHandler}
-                    onResubmit={effectiveResubmitHandler}
+                {showStatusSidebar ? (
+                  <AipStatusInfoCard status={aip.status} reviewerMessage={aip.feedback} />
+                ) : null}
+
+                {aip.status === "published" && aip.publishedBy ? (
+                  <AipPublishedByCard publishedBy={aip.publishedBy} />
+                ) : null}
+
+                {shouldShowRevisionFeedbackHistory ? (
+                  <RevisionFeedbackHistoryCard
+                    cycles={revisionFeedbackCycles}
+                    title="Reviewer Feedback History"
+                    description="Reviewer remarks and official replies grouped by revision cycle."
+                    reviewerFallbackLabel="Reviewer"
+                    replyAuthorFallbackLabel="Barangay Official"
+                    emptyStateLabel="No revision feedback history yet."
+                    emptyRepliesLabel="No official reply saved for this cycle yet."
                   />
                 ) : null}
               </div>
@@ -1181,6 +1253,82 @@ export default function AipDetailView({
           </div>
         </>
       )}
+      <Dialog open={cityPublishConfirmOpen} onOpenChange={setCityPublishConfirmOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Publish AIP</DialogTitle>
+            <DialogDescription>
+              Confirm publishing this city AIP for immediate public viewing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-600">
+            <div>
+              Are you sure you want to publish this Annual Investment Plan? Once
+              published, it will be publicly available.
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-xs text-slate-500">Fiscal Year {aip.year}</div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setCityPublishConfirmOpen(false)}
+                disabled={isWorkflowBusy}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-teal-600 hover:bg-teal-700"
+                onClick={confirmCityPublish}
+                disabled={isWorkflowBusy || !canSubmitForReview}
+              >
+                {workflowPendingAction === "submit_publish"
+                  ? "Publishing..."
+                  : "Confirm & Publish"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteDraftConfirmOpen} onOpenChange={setDeleteDraftConfirmOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Delete Draft AIP</DialogTitle>
+            <DialogDescription>
+              Confirm deleting this draft AIP. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-600">
+            <div>
+              Are you sure you want to permanently delete this draft Annual
+              Investment Plan?
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-semibold text-slate-900">{aip.title}</div>
+              <div className="text-xs text-slate-500">Fiscal Year {aip.year}</div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDraftConfirmOpen(false)}
+                disabled={isWorkflowBusy}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-rose-600 hover:bg-rose-700"
+                onClick={confirmDeleteDraft}
+                disabled={isWorkflowBusy}
+              >
+                {workflowPendingAction === "delete_draft"
+                  ? "Deleting..."
+                  : "Confirm Delete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

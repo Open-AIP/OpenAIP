@@ -1,6 +1,28 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+export function DashboardHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 className="text-4xl font-semibold text-slate-900">{title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+export function DateCard({ label }: { label: string }) {
+  return (
+    <Card className="border-slate-200 py-0 shadow-sm">
+      <CardContent className="p-4">
+        <div className="text-xs text-slate-500">Today</div>
+        <div className="mt-2 text-xl font-semibold text-slate-900">{label}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function WorkingOnCard({ items }: { items: Array<{ id: string; label: string; href: string }> }) {
   return (
     <Card className="border-slate-200 py-0 shadow-sm">

@@ -1,13 +1,14 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { DashboardAip } from "@/features/dashboard/types/dashboard-types";
+import type { ReactNode } from "react";
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-slate-100 text-slate-700 border-slate-200",
-  pending_review: "bg-amber-50 text-amber-700 border-amber-200",
-  under_review: "bg-blue-50 text-blue-700 border-blue-200",
-  for_revision: "bg-orange-50 text-orange-700 border-orange-200",
-  published: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  draft: "bg-muted text-foreground border-border",
+  pending_review: "bg-warning-soft text-foreground border-border",
+  under_review: "bg-info-soft text-foreground border-border",
+  for_revision: "bg-warning-soft text-foreground border-border",
+  published: "bg-success-soft text-foreground border-border",
 };
 
 function formatStatusLabel(status: string): string {
@@ -23,6 +24,31 @@ function formatDateTime(value: string | null): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function KpiCard({
+  accent,
+  label,
+  value,
+  meta,
+  badge,
+}: {
+  accent: string;
+  label: string;
+  value: ReactNode;
+  meta?: string;
+  badge?: ReactNode;
+}) {
+  return (
+    <Card className={`bg-card text-card-foreground border border-border border-l-4 ${accent} rounded-xl py-0`}>
+      <CardContent className="space-y-2 p-5">
+        <div className="text-xs leading-tight text-muted-foreground">{label}</div>
+        <div className="whitespace-nowrap tabular-nums text-lg font-semibold text-foreground">{value}</div>
+        {meta ? <div className="truncate text-xs leading-tight text-muted-foreground">{meta}</div> : null}
+        <div className="h-6">{badge}</div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function KpiRow({
@@ -56,17 +82,42 @@ export function KpiRow({
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       {mode === "summary" ? (
         <>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-orange-400 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">AIP Status</div><Badge className={`border ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge><div className="text-xs text-slate-500">Updated {formatDateTime(selectedAip.statusUpdatedAt)}</div></CardContent></Card>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-blue-500 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">Total Projects</div><div className="text-lg font-semibold text-slate-800">{totalProjects}</div><div className="text-xs text-slate-500">As of today</div></CardContent></Card>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-green-500 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">Total Budget</div><div className="text-lg font-semibold text-slate-800">{totalBudget}</div>{missingTotalCount > 0 ? <Badge variant="outline" className="bg-amber-100 text-amber-800 border-transparent">{missingTotalCount} missing totals</Badge> : <div className="text-xs text-slate-500">All project totals available</div>}</CardContent></Card>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-amber-500 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">Citizen Feedback</div><div className="text-lg font-semibold text-slate-800">{citizenFeedbackCount}</div><div className="text-xs text-slate-500">Awaiting reply: {awaitingReplyCount}</div></CardContent></Card>
+          <KpiCard
+            accent="border-l-[color:var(--color-warning)]"
+            label="AIP Status"
+            value={<Badge className={`w-fit border ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>}
+            meta={`Updated ${formatDateTime(selectedAip.statusUpdatedAt)}`}
+          />
+          <KpiCard accent="border-l-chart-2" label="Total Projects" value={totalProjects} meta="As of today" />
+          <KpiCard
+            accent="border-l-chart-3"
+            label="Total Budget"
+            value={totalBudget}
+            meta={missingTotalCount > 0 ? undefined : "All project totals available"}
+            badge={
+              missingTotalCount > 0 ? (
+                <Badge className="rounded-md border border-border bg-[color:var(--color-warning-soft)] text-foreground">{missingTotalCount} missing totals</Badge>
+              ) : null
+            }
+          />
+          <KpiCard
+            accent="border-l-chart-4"
+            label="Citizen Feedback"
+            value={citizenFeedbackCount}
+            meta={`Awaiting reply: ${awaitingReplyCount}`}
+            badge={
+              awaitingReplyCount > 0 ? (
+                <Badge className="rounded-md border border-border bg-[color:var(--color-warning-soft)] text-foreground">Action Required</Badge>
+              ) : null
+            }
+          />
         </>
       ) : (
         <>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-orange-400 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">Pending Review</div><div className="text-lg font-semibold text-slate-800">{pendingReviewCount}</div><div className="text-xs text-slate-500">Across {totalAips} AIP records</div></CardContent></Card>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-blue-500 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">Under Review</div><div className="text-lg font-semibold text-slate-800">{underReviewCount}</div><div className="text-xs text-slate-500">Current reviewer workload</div></CardContent></Card>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-green-500 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">For Revision</div><div className="text-lg font-semibold text-slate-800">{forRevisionCount}</div><div className="text-xs text-slate-500">Items needing revision</div></CardContent></Card>
-          <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-amber-500 py-0 shadow-sm"><CardContent className="space-y-2 p-5"><div className="text-xs text-slate-500">Oldest Pending</div><div className="text-lg font-semibold text-slate-800">{oldestPendingDays ?? 0}</div><div className="text-xs text-slate-500">days in queue</div></CardContent></Card>
+          <KpiCard accent="border-l-chart-4" label="Pending Review" value={pendingReviewCount} meta={`Across ${totalAips} AIP records`} />
+          <KpiCard accent="border-l-chart-2" label="Under Review" value={underReviewCount} meta="Current reviewer workload" />
+          <KpiCard accent="border-l-chart-3" label="For Revision" value={forRevisionCount} meta="Items needing revision" />
+          <KpiCard accent="border-l-chart-4" label="Oldest Pending" value={oldestPendingDays ?? 0} meta="days in queue" />
         </>
       )}
     </div>
@@ -84,9 +135,18 @@ export function PulseKpis({
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <div className="bg-white border border-gray-200 rounded-xl p-5"><div className="text-xs text-slate-500">New This Week</div><div className="text-3xl font-semibold text-slate-800">{newThisWeek}</div></div>
-      <div className="bg-white border border-gray-200 rounded-xl p-5"><div className="text-xs text-slate-500">Awaiting Reply</div><div className="text-3xl font-semibold text-orange-600">{awaitingReply}</div></div>
-      <div className="bg-white border border-gray-200 rounded-xl p-5"><div className="text-xs text-slate-500">Moderated</div><div className="text-3xl font-semibold text-slate-800">{lguNotesPosted}</div></div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="text-sm text-muted-foreground">New This Week</div>
+        <div className="whitespace-nowrap tabular-nums text-2xl font-semibold text-foreground">{newThisWeek}</div>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="text-sm text-muted-foreground">Awaiting Reply</div>
+        <div className="whitespace-nowrap tabular-nums text-2xl font-semibold text-warning">{awaitingReply}</div>
+      </div>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="text-sm text-muted-foreground">Hidden</div>
+        <div className="whitespace-nowrap tabular-nums text-2xl font-semibold text-muted-foreground">{lguNotesPosted}</div>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { DashboardHeader, DateCard, WorkingOnCard } from "@/features/dashboard/c
 import { KpiRow } from "@/features/dashboard/components/dashboard-metric-cards";
 import { BudgetBreakdownSection } from "@/features/dashboard/components/dashboard-budget-allocation";
 import { TopFundedProjectsSection } from "@/features/dashboard/components/dashboard-projects-overview";
-import { AipStatusColumn, AipCoverageCard, PublicationTimelineCard, AipsByYearTable } from "@/features/dashboard/components/dashboard-aip-publication-status";
+import { AipCoverageCard, PublicationTimelineCard, AipsByYearTable } from "@/features/dashboard/components/dashboard-aip-publication-status";
 import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/dashboard-feedback-insights";
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { replyBarangayFeedbackAction, createBarangayDraftAipAction } from "@/features/dashboard/actions/barangay-dashboard-actions";
@@ -78,7 +78,7 @@ export function BarangayDashboardPage({
 
           <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
             <TopFundedProjectsSection queryState={queryState} selectedFiscalYear={data.selectedFiscalYear} sectors={data.sectors} rows={vm.topFundedFiltered} />
-            <AipStatusColumn statusDistribution={vm.statusDistribution} pendingReviewAging={vm.pendingReviewAging} />
+            <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -90,10 +90,7 @@ export function BarangayDashboardPage({
             <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyBarangayFeedbackAction} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <RecentActivityFeed runs={data.latestRuns} />
-            <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
-          </div>
+          <RecentActivityFeed runs={data.latestRuns} />
         </>
       )}
     </div>

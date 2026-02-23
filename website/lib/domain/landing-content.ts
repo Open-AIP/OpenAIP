@@ -15,20 +15,32 @@ export type LandingManifestoVM = {
   subtext: string;
 };
 
-export type LguOverviewMarkerVM = {
+export type LguOverviewMapMarkerVM = {
   id: string;
   label: string;
-  note?: string;
+  lat: number;
+  lng: number;
+  kind?: string;
+  valueLabel?: string;
+};
+
+export type LguOverviewMapVM = {
+  center: { lat: number; lng: number };
+  zoom: number;
+  markers: LguOverviewMapMarkerVM[];
 };
 
 export type LguOverviewVM = {
   lguName: string;
-  fiscalYear: number;
+  scopeLabel: string;
+  fiscalYearLabel: string;
   totalBudget: number;
+  budgetDeltaLabel?: string;
   projectCount: number;
+  projectDeltaLabel?: string;
   aipStatus: string;
   activeUsers: number;
-  markers: LguOverviewMarkerVM[];
+  map: LguOverviewMapVM;
 };
 
 export type SectorDistributionItemVM = {
@@ -99,4 +111,3 @@ export type LandingContentVM = {
   chatPreview: ChatPreviewVM;
   finalCta: LandingFinalCtaVM;
 };
-

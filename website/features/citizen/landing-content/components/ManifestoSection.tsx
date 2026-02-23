@@ -12,13 +12,6 @@ export default function ManifestoSection({ vm }: ManifestoSectionProps) {
   return (
     <FullScreenSection id="manifesto" className="relative overflow-hidden bg-[#EAF1F5] font-inter">
       <div className="pointer-events-none absolute inset-0">
-        <Image
-          src={MANIFESTO_BG_SRC}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover object-center opacity-[0.06]"
-        />
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-[900px] items-center justify-center">

@@ -123,17 +123,56 @@ function buildLandingContent(): LandingContentVM {
     },
     lguOverview: {
       lguName: "City of Cabuyao",
-      fiscalYear: 2026,
+      scopeLabel: "City",
+      fiscalYearLabel: "FY 2026",
       totalBudget: 1_200_000_000,
+      budgetDeltaLabel: "+8% vs FY 2025",
       projectCount: 124,
+      projectDeltaLabel: "+12 YoY",
       aipStatus: "Published",
       activeUsers: 2_430,
-      markers: [
-        { id: "mk-1", label: "City Hall District", note: "PHP 320M" },
-        { id: "mk-2", label: "North Growth Area", note: "PHP 280M" },
-        { id: "mk-3", label: "Lakeside Corridor", note: "PHP 190M" },
-        { id: "mk-4", label: "Mamatid Cluster", note: "PHP 160M" },
-      ],
+      map: {
+        center: { lat: 14.248, lng: 121.137 },
+        zoom: 13,
+        markers: [
+          {
+            id: "mk-main",
+            label: "City of Cabuyao",
+            lat: 14.2478,
+            lng: 121.1367,
+            kind: "main",
+            valueLabel: "PHP 1,200,000,000",
+          },
+          {
+            id: "mk-1",
+            label: "Brgy. Banay-banay",
+            lat: 14.275,
+            lng: 121.112,
+            valueLabel: "PHP 320M",
+          },
+          {
+            id: "mk-2",
+            label: "Brgy. Pulo",
+            lat: 14.232,
+            lng: 121.147,
+            valueLabel: "PHP 280M",
+          },
+          {
+            id: "mk-3",
+            label: "Brgy. San Isidro",
+            lat: 14.219,
+            lng: 121.116,
+            valueLabel: "PHP 190M",
+          },
+          {
+            id: "mk-4",
+            label: "Brgy. Mamatid",
+            lat: 14.189,
+            lng: 121.143,
+            valueLabel: "PHP 160M",
+          },
+        ],
+      },
     },
     distribution: {
       sectors: [
@@ -206,4 +245,3 @@ export function createMockLandingContentRepo(): LandingContentRepo {
     },
   };
 }
-

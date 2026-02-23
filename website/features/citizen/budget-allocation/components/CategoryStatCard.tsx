@@ -1,6 +1,5 @@
 'use client';
 
-import { format as formatDate } from 'date-fns';
 import { formatBudgetPHP } from '../utils';
 
 export default function CategoryStatCard({

@@ -54,6 +54,7 @@
   --color-seagreen: var(--seagreen);
   --color-mintcream: var(--mintcream);
   --color-forestgreen: var(--forestgreen);
+  --color-linen: var(--linen);
   --color-powderblue: var(--powderblue);
   --color-warning: var(--warning);
   --color-warning-bg: var(--warning-bg);
@@ -156,6 +157,7 @@
   --seagreen: #016630;
   --mintcream: #f0fdf4;
   --forestgreen: #00a63e;
+  --linen: #f2ece5;
   --powderblue: #bee2e6;
   --sidebar: #022437;
   --sidebar-foreground: #f8fafc;
@@ -233,6 +235,7 @@
   --seagreen: #86efac;
   --mintcream: #0b2a1e;
   --forestgreen: #22c55e;
+  --linen: #f2ece5;
   --powderblue: #67e8f9;
   --sidebar: #022437;
   --sidebar-foreground: #f8fafc;

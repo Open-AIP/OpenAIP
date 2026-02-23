@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Arimo, Arsenal_SC, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 
 const arimo = Arimo({
   variable: "--font-arimo",

@@ -7,10 +7,12 @@ export { default as CardShell } from "./CardShell";
 export { default as HeroSection } from "./HeroSection";
 export { default as ManifestoSection } from "./ManifestoSection";
 export { default as LguBudgetOverviewSection } from "./LguBudgetOverviewSection";
+export { default as LguMapPanel } from "./LguMapPanel";
+export { default as LguMapPanelPlaceholder } from "./LguMapPanelPlaceholder";
+export { default as LguMapPanelLeaflet } from "./LguMapPanelLeaflet";
 export { default as FundsDistributionSection } from "./FundsDistributionSection";
 export { default as HealthProjectsSection } from "./HealthProjectsSection";
 export { default as InfrastructureProjectsSection } from "./InfrastructureProjectsSection";
 export { default as VoiceMattersSection } from "./VoiceMattersSection";
 export { default as AiAssistantPreviewSection } from "./AiAssistantPreviewSection";
 export { default as FinalCtaSection } from "./FinalCtaSection";
-

@@ -83,6 +83,7 @@ export function CityDashboardPage({
 
           <div className="grid gap-4 xl:grid-cols-2">
             <div className="space-y-4">
+              <h2 className="text-4xl font-semibold text-slate-900">City AIP Status</h2>
               <AipCoverageCard selectedAip={data.selectedAip} />
               <PublicationTimelineCard years={publicationYears} />
               <AipsByYearTable rows={data.allAips} />

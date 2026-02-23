@@ -1,32 +1,65 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MessageSquare } from "lucide-react";
 import type { DashboardFeedback } from "@/features/dashboard/types/dashboard-types";
 import { PulseKpis } from "@/features/dashboard/components/dashboard-metric-cards";
 
-function tinyBarWidth(value: number, max: number): string {
-  if (max <= 0) return "0%";
-  return `${Math.max(8, Math.round((value / max) * 100))}%`;
-}
-
 export function FeedbackTrendCard({ points }: { points: Array<{ dayLabel: string; isoDate: string; count: number }> }) {
   const max = Math.max(1, ...points.map((row) => row.count));
+  const chartWidth = 520;
+  const chartHeight = 180;
+  const leftPad = 40;
+  const rightPad = 10;
+  const topPad = 14;
+  const bottomPad = 28;
+  const innerWidth = chartWidth - leftPad - rightPad;
+  const innerHeight = chartHeight - topPad - bottomPad;
+  const stepX = points.length > 1 ? innerWidth / (points.length - 1) : innerWidth;
+  const linePoints = points
+    .map((point, index) => {
+      const x = leftPad + index * stepX;
+      const y = topPad + innerHeight - (point.count / max) * innerHeight;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
       <CardContent className="p-5">
-        <div className="mb-2 text-sm font-medium text-slate-700">Feedback Trend</div>
+        <div className="mb-2 text-3xl font-medium text-slate-800">Feedback Trend</div>
         <div className="border border-dashed border-gray-300 rounded-lg p-6 text-sm text-slate-500">
-          <div className="grid grid-cols-7 gap-2">
-            {points.map((point) => (
-              <div key={point.isoDate} className="space-y-1 text-center">
-                <div className="mx-auto h-20 w-5 rounded bg-slate-100">
-                  <div className="mt-auto h-full w-full rounded bg-[#0B6477]" style={{ height: tinyBarWidth(point.count, max) }} />
-                </div>
-                <div className="text-[10px] text-slate-500">{point.dayLabel}</div>
-              </div>
-            ))}
-          </div>
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full" aria-label="Feedback trend chart">
+            <line x1={leftPad} y1={topPad + innerHeight} x2={chartWidth - rightPad} y2={topPad + innerHeight} stroke="#64748B" strokeWidth="1" />
+            <line x1={leftPad} y1={topPad} x2={leftPad} y2={topPad + innerHeight} stroke="#64748B" strokeWidth="1" />
+            {[0, 0.5, 1].map((ratio) => {
+              const y = topPad + innerHeight - ratio * innerHeight;
+              const label = Math.round(ratio * max);
+              return (
+                <g key={ratio}>
+                  <line x1={leftPad} y1={y} x2={chartWidth - rightPad} y2={y} stroke="#CBD5E1" strokeDasharray="4 4" />
+                  <text x={leftPad - 8} y={y + 4} fontSize="11" textAnchor="end" fill="#64748B">{label}</text>
+                </g>
+              );
+            })}
+            {points.map((point, index) => {
+              const x = leftPad + index * stepX;
+              return (
+                <line key={`x-grid-${point.isoDate}`} x1={x} y1={topPad} x2={x} y2={topPad + innerHeight} stroke="#CBD5E1" strokeDasharray="4 4" />
+              );
+            })}
+            <polyline fill="none" stroke="#0B6477" strokeWidth="2.5" points={linePoints} />
+            {points.map((point, index) => {
+              const x = leftPad + index * stepX;
+              const y = topPad + innerHeight - (point.count / max) * innerHeight;
+              return (
+                <g key={`dot-${point.isoDate}`}>
+                  <circle cx={x} cy={y} r="3.2" fill="#fff" stroke="#0B6477" strokeWidth="2" />
+                  <text x={x} y={topPad + innerHeight + 16} fontSize="11" textAnchor="middle" fill="#64748B">{point.dayLabel}</text>
+                </g>
+              );
+            })}
+          </svg>
         </div>
       </CardContent>
     </Card>
@@ -38,14 +71,13 @@ export function FeedbackTargetsCard({ targets }: { targets: Array<{ label: strin
   return (
     <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
       <CardContent className="p-5">
-        <div className="mb-2 text-sm font-medium text-slate-700">Feedback Targets</div>
+        <div className="mb-2 text-3xl font-medium text-slate-800">Feedback Targets</div>
         <div className="border border-dashed border-gray-300 rounded-lg p-6 text-sm text-slate-500">
-          <div className="space-y-2">
+          <div className="grid grid-cols-3 items-end gap-3 border-b border-slate-400 pb-1 pt-4">
             {targets.map((target) => (
-              <div key={target.label} className="grid grid-cols-[120px_1fr_28px] items-center gap-2 text-sm">
-                <span className="text-slate-600">{target.label}</span>
-                <div className="h-2.5 rounded-full bg-slate-100"><div className="h-2.5 rounded-full bg-blue-500" style={{ width: tinyBarWidth(target.value, max) }} /></div>
-                <span className="text-slate-700">{target.value}</span>
+              <div key={target.label} className="space-y-2 text-center">
+                <div className="mx-auto w-full max-w-[140px] rounded-t-sm bg-blue-500" style={{ height: `${Math.max(16, Math.round((target.value / max) * 120))}px` }} />
+                <div className="text-xs text-slate-500">{target.label}</div>
               </div>
             ))}
           </div>
@@ -113,14 +145,15 @@ export function CitizenEngagementPulseColumn({
   replyAction?: (formData: FormData) => Promise<void>;
 }) {
   return (
-    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-semibold text-slate-800">Citizen Engagement Pulse</CardTitle></CardHeader>
-      <CardContent className="p-5 space-y-4">
-        <PulseKpis newThisWeek={newThisWeek} awaitingReply={awaitingReply} lguNotesPosted={lguNotesPosted} />
-        <FeedbackTrendCard points={feedbackTrend} />
-        <FeedbackTargetsCard targets={feedbackTargets} />
-        <RecentFeedbackCard rows={recentFeedback} replyAction={replyAction} />
-      </CardContent>
-    </Card>
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-5 w-5 text-[#0B6477]" />
+        <h2 className="text-4xl font-semibold text-slate-900">Citizen Engagement Pulse</h2>
+      </div>
+      <PulseKpis newThisWeek={newThisWeek} awaitingReply={awaitingReply} lguNotesPosted={lguNotesPosted} />
+      <FeedbackTrendCard points={feedbackTrend} />
+      <FeedbackTargetsCard targets={feedbackTargets} />
+      <RecentFeedbackCard rows={recentFeedback} replyAction={replyAction} />
+    </section>
   );
 }

@@ -44,16 +44,7 @@ export function CityDashboardPage({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Welcome to OpenAIP" subtitle="City AIP operations, workflow, and citizen engagement pulse." />
-
-      <form method="get" className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_180px_180px_140px]">
-        <input name="q" defaultValue={queryState.q} placeholder="Global search: project, ref code, program name" className="h-9 rounded-md border border-slate-200 px-3 text-sm" />
-        <select name="year" defaultValue={String(data.selectedFiscalYear)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm">
-          {(data.availableFiscalYears.length > 0 ? data.availableFiscalYears : [data.selectedFiscalYear]).map((year) => <option key={year} value={year}>{year}</option>)}
-        </select>
-        <select name="kpi" defaultValue={queryState.kpiMode} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm"><option value="summary">Summary KPIs</option><option value="operational">Operational KPIs</option></select>
-        <Button type="submit" className="bg-[#0B6477] hover:bg-[#095565]">Apply</Button>
-      </form>
+      <DashboardHeader title="Welcome to OpenAIP" q={queryState.q} selectedFiscalYear={data.selectedFiscalYear} availableFiscalYears={data.availableFiscalYears} kpiMode={queryState.kpiMode} />
 
       {!data.selectedAip ? (
         <Card className="border-slate-200 py-0 shadow-sm">

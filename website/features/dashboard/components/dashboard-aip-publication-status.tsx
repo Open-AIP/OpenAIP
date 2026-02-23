@@ -9,11 +9,11 @@ function formatStatusLabel(status: string): string {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-slate-100 text-slate-700 border-slate-200",
-  pending_review: "bg-amber-50 text-amber-700 border-amber-200",
-  under_review: "bg-blue-50 text-blue-700 border-blue-200",
-  for_revision: "bg-orange-50 text-orange-700 border-orange-200",
-  published: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  draft: "bg-secondary text-muted-foreground border-border",
+  pending_review: "bg-accent text-foreground border-border",
+  under_review: "bg-info-soft text-foreground border-border",
+  for_revision: "bg-warning-soft text-foreground border-border",
+  published: "bg-[color:var(--color-success-soft)] text-[color:var(--color-success)] border-border",
 };
 
 const STATUS_PIE_COLORS: Record<string, string> = {
@@ -26,24 +26,24 @@ const STATUS_PIE_COLORS: Record<string, string> = {
 
 export function AipCoverageCard({ selectedAip }: { selectedAip: DashboardAip | null }) {
   return (
-    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-medium text-slate-700">AIP Coverage</CardTitle></CardHeader>
+    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">AIP Coverage</CardTitle></CardHeader>
       <CardContent className="p-5">
         {selectedAip ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm">
-            <div className="text-slate-600">FY {selectedAip.fiscalYear}</div>
-            <Badge className={`mt-2 w-fit border ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>
+          <div className="h-[101px] rounded-lg border border-border bg-card p-4 text-sm">
+            <div className="text-muted-foreground">FY {selectedAip.fiscalYear}</div>
+            <Badge className={`mt-2 w-fit border text-xs font-medium ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="rounded-xl border border-rose-200 bg-white p-4">
-              <div className="flex items-center gap-2 text-rose-500">
+            <div className="h-[101px] rounded-lg border border-border bg-[color:var(--color-warning-soft)] p-4">
+              <div className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <span className="text-xl font-medium">Missing AIP</span>
+                <span className="text-sm font-medium text-foreground">Missing AIP</span>
               </div>
-              <div className="mt-1 text-xl font-semibold text-rose-500">No AIP uploaded for selected year.</div>
+              <div className="mt-1 text-sm text-muted-foreground">No AIP uploaded for selected year.</div>
             </div>
-            <Button className="h-10 w-full rounded-lg bg-[#0B6477] text-white hover:bg-[#095565]" size="sm">
+            <Button className="h-10 w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" size="sm">
               <FileUp className="mr-2 h-4 w-4" />
               Upload City AIP
             </Button>
@@ -57,15 +57,15 @@ export function AipCoverageCard({ selectedAip }: { selectedAip: DashboardAip | n
 export function PublicationTimelineCard({ years }: { years: Array<{ year: number; count: number }> }) {
   const max = Math.max(1, ...years.map((item) => item.count));
   return (
-    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-medium text-slate-700">Publication Timeline</CardTitle></CardHeader>
+    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">Publication Timeline</CardTitle></CardHeader>
       <CardContent className="p-5">
-        <div className="rounded-lg border border-dashed border-gray-300 p-5">
-          <div className="flex h-44 items-end gap-4 border-b border-gray-400 px-2">
+        <div className="rounded-lg border border-dashed border-border p-5">
+          <div className="flex h-44 items-end gap-4 border-b border-border px-2">
             {years.map((item) => (
               <div key={item.year} className="flex flex-1 flex-col items-center gap-2">
-                <div className="w-full rounded-t-sm bg-emerald-500" style={{ height: `${Math.max(24, Math.round((item.count / max) * 120))}px` }} />
-                <span className="text-xs text-slate-500">{item.year}</span>
+                <div className="w-full rounded-t-sm bg-chart-3" style={{ height: `${Math.max(24, Math.round((item.count / max) * 120))}px` }} />
+                <span className="text-xs text-muted-foreground">{item.year}</span>
               </div>
             ))}
           </div>
@@ -81,17 +81,17 @@ function formatDate(value: string): string {
 
 export function AipsByYearTable({ rows }: { rows: DashboardAip[] }) {
   return (
-    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-medium text-slate-700">AIPs by Year</CardTitle></CardHeader>
+    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">AIPs by Year</CardTitle></CardHeader>
       <CardContent className="p-5 space-y-2">
-        <div className="grid grid-cols-[72px_140px_1fr_120px_auto] rounded-md border border-gray-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600"><span>Year</span><span>Status</span><span>Uploaded By</span><span>Upload Date</span><span className="text-right">Action</span></div>
+        <div className="grid grid-cols-[72px_140px_1fr_120px_auto] rounded-md border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground"><span>Year</span><span>Status</span><span>Uploaded By</span><span>Upload Date</span><span className="text-right">Action</span></div>
         {rows.slice(0, 8).map((aip) => (
-          <div key={aip.id} className="grid grid-cols-[72px_140px_1fr_120px_auto] items-center border-t border-gray-200 px-3 py-2 text-sm text-slate-700">
-            <span className="font-medium text-slate-900">{aip.fiscalYear}</span>
-            <Badge variant={aip.status === "published" ? "secondary" : "outline"} className={aip.status === "published" ? "" : `w-fit border ${STATUS_STYLES[aip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(aip.status)}</Badge>
-            <span className="text-slate-600">{(aip as DashboardAip & { uploadedBy?: string }).uploadedBy ?? "System User"}</span>
-            <span className="text-slate-600">{formatDate((aip as DashboardAip & { uploadedDate?: string }).uploadedDate ?? aip.statusUpdatedAt)}</span>
-            <Button size="sm" variant="ghost" className="justify-self-end text-slate-600">
+          <div key={aip.id} className="grid h-14 grid-cols-[72px_140px_1fr_120px_auto] items-center border-b border-border px-3 py-2 text-sm hover:bg-accent">
+            <span className="font-medium tabular-nums truncate">{aip.fiscalYear}</span>
+            <Badge className={`w-fit border text-xs font-medium ${STATUS_STYLES[aip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(aip.status)}</Badge>
+            <span className="truncate text-muted-foreground">{(aip as DashboardAip & { uploadedBy?: string }).uploadedBy ?? "System User"}</span>
+            <span className="truncate tabular-nums text-muted-foreground">{formatDate((aip as DashboardAip & { uploadedDate?: string }).uploadedDate ?? aip.statusUpdatedAt)}</span>
+            <Button size="sm" variant="ghost" className="justify-self-end text-primary hover:underline">
               <Eye className="mr-1 h-4 w-4" />
               View
             </Button>
@@ -116,23 +116,23 @@ export function AipStatusColumn({
     <div className="space-y-4">
       <StatusDistributionCard statusDistribution={statusDistribution} />
 
-      <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-        <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">Pending Review Aging</CardTitle></CardHeader>
+      <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
+        <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">Pending Review Aging</CardTitle></CardHeader>
         <CardContent className="p-5 text-sm">
-          <div className="border border-dashed border-gray-300 rounded-lg p-3 space-y-2">
+          <div className="border border-dashed border-border rounded-lg p-3 space-y-2">
             {pendingReviewAging.map((item) => (
               <div key={item.bucket} className="grid grid-cols-[44px_1fr] items-center gap-2">
-                <span className="text-slate-500 leading-tight">
+                <span className="text-muted-foreground leading-tight">
                   {item.bucket}
                   <br />
                   days
                 </span>
-                <div className="h-7 rounded-sm bg-slate-50">
-                  <div className="h-7 rounded-sm bg-[#0B6477]" style={{ width: `${Math.max(0, Math.min(100, (item.count / agingAxisMax) * 100))}%` }} />
+                <div className="h-7 rounded-sm bg-secondary">
+                  <div className="h-7 rounded-sm bg-chart-1" style={{ width: `${Math.max(0, Math.min(100, (item.count / agingAxisMax) * 100))}%` }} />
                 </div>
               </div>
             ))}
-            <div className="grid grid-cols-5 text-xs text-slate-500 pt-1">
+            <div className="grid grid-cols-5 text-xs text-muted-foreground pt-1 tabular-nums">
               <span className="text-left">0</span>
               <span className="text-center">{(agingAxisMax * 0.25).toFixed(1)}</span>
               <span className="text-center">{(agingAxisMax * 0.5).toFixed(0)}</span>
@@ -174,8 +174,8 @@ export function StatusDistributionCard({
   };
 
   return (
-    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">Status Distribution</CardTitle></CardHeader>
+    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">Status Distribution</CardTitle></CardHeader>
       <CardContent className="p-5 space-y-2 text-sm">
         <div className="flex justify-center">
           <div className="relative h-44 w-44 rounded-full" style={{ background: pieBackground }}>

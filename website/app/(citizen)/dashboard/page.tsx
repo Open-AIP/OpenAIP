@@ -1,13 +1,14 @@
-import CitizenHero from '@/features/citizen/components/CitizenHero';
+import { LandingContentView } from "@/features/citizen/landing-content";
+import { getLandingContentRepo } from "@/lib/repos/landing-content";
 
-const CitizenDashboardPage = () => {
+const CitizenDashboardPage = async () => {
+  const repo = getLandingContentRepo();
+  const vm = await repo.getLandingContent();
+
   return (
-    <section aria-labelledby="dashboard-title" className="space-y-6">
-      <h1 id="dashboard-title" className="sr-only">
-        Dashboard
-      </h1>
-      <CitizenHero />
-    </section>
+    <div className="-mx-4 -my-6 md:-mx-8 md:-my-8">
+      <LandingContentView vm={vm} />
+    </div>
   );
 };
 

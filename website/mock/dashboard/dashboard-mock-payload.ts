@@ -1,0 +1,150 @@
+import type { DashboardData } from "@/features/dashboard/types/dashboard-types";
+
+const NOW = new Date().toISOString();
+
+function makePayload(scope: "barangay" | "city"): DashboardData {
+  const scopeId = scope === "city" ? "mock-city-1" : "mock-brgy-1";
+  const aipId = `${scope}-aip-2026`;
+
+  return {
+    scope,
+    scopeId,
+    selectedFiscalYear: 2026,
+    availableFiscalYears: [2026, 2025, 2024],
+    allAips: [
+      {
+        id: aipId,
+        fiscalYear: 2026,
+        status: "draft",
+        statusUpdatedAt: NOW,
+        submittedAt: null,
+        publishedAt: null,
+        createdAt: NOW,
+      },
+      {
+        id: `${scope}-aip-2025`,
+        fiscalYear: 2025,
+        status: "published",
+        statusUpdatedAt: NOW,
+        submittedAt: NOW,
+        publishedAt: NOW,
+        createdAt: NOW,
+      },
+    ],
+    selectedAip: {
+      id: aipId,
+      fiscalYear: 2026,
+      status: "draft",
+      statusUpdatedAt: NOW,
+      submittedAt: null,
+      publishedAt: null,
+      createdAt: NOW,
+    },
+    sectors: [
+      { code: "1000", label: "General Services" },
+      { code: "3000", label: "Social Services" },
+      { code: "8000", label: "Economic Services" },
+      { code: "9000", label: "Other Services" },
+    ],
+    projects: [
+      {
+        id: `${scope}-proj-1`,
+        aipId,
+        aipRefCode: "3000-01",
+        programProjectDescription: "Health Center Equipment Upgrade",
+        category: "health",
+        sectorCode: "3000",
+        total: 2500000,
+        personalServices: 300000,
+        maintenanceAndOtherOperatingExpenses: 500000,
+        capitalOutlay: 1700000,
+        errors: null,
+        isHumanEdited: true,
+        editedAt: NOW,
+        healthProgramName: "Primary Health Program",
+      },
+      {
+        id: `${scope}-proj-2`,
+        aipId,
+        aipRefCode: "8000-01",
+        programProjectDescription: "Drainage System Improvement",
+        category: "infrastructure",
+        sectorCode: "8000",
+        total: 1800000,
+        personalServices: 100000,
+        maintenanceAndOtherOperatingExpenses: 200000,
+        capitalOutlay: 1500000,
+        errors: [{ code: "missing-field" }],
+        isHumanEdited: false,
+        editedAt: null,
+        healthProgramName: null,
+      },
+      {
+        id: `${scope}-proj-3`,
+        aipId,
+        aipRefCode: "1000-01",
+        programProjectDescription: "Community Sports Complex",
+        category: "other",
+        sectorCode: "1000",
+        total: 1200000,
+        personalServices: 0,
+        maintenanceAndOtherOperatingExpenses: 50000,
+        capitalOutlay: 1150000,
+        errors: null,
+        isHumanEdited: false,
+        editedAt: null,
+        healthProgramName: null,
+      },
+    ],
+    latestRuns: [
+      {
+        id: `${scope}-run-1`,
+        aipId,
+        stage: "extract",
+        status: "succeeded",
+        startedAt: NOW,
+        finishedAt: NOW,
+        errorCode: null,
+        errorMessage: null,
+        createdAt: NOW,
+      },
+      {
+        id: `${scope}-run-2`,
+        aipId,
+        stage: "validate",
+        status: "failed",
+        startedAt: NOW,
+        finishedAt: NOW,
+        errorCode: "VAL_ERR",
+        errorMessage: "Validation failed",
+        createdAt: NOW,
+      },
+    ],
+    reviews: [],
+    feedback: [
+      {
+        id: `${scope}-fb-1`,
+        targetType: "aip",
+        aipId,
+        projectId: null,
+        parentFeedbackId: null,
+        kind: "question",
+        body: "Can we prioritize health projects this year?",
+        createdAt: NOW,
+      },
+      {
+        id: `${scope}-fb-2`,
+        targetType: "project",
+        aipId: null,
+        projectId: `${scope}-proj-2`,
+        parentFeedbackId: null,
+        kind: "concern",
+        body: "Drainage project schedule not clear.",
+        createdAt: NOW,
+      },
+    ],
+  };
+}
+
+export const BARANGAY_DASHBOARD_MOCK = makePayload("barangay");
+export const CITY_DASHBOARD_MOCK = makePayload("city");

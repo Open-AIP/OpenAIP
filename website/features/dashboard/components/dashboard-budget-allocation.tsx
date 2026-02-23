@@ -14,17 +14,34 @@ export function BudgetBreakdownSection({
   detailsHref: string;
 }) {
   return (
-    <Card className="border-slate-200 py-0 shadow-sm">
-      <CardHeader className="pb-3"><CardTitle className="text-lg">Budget Breakdown</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        <BudgetDonutCard items={items} />
-        <div>
-          <div className="text-xs text-slate-500">Total Budget</div>
-          <div className="text-4xl font-semibold text-[#0B6477]">{totalBudget}</div>
+    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
+      <CardHeader className="border-b border-gray-200 px-5 py-4"><CardTitle className="text-sm font-medium text-slate-700">Budget Breakdown</CardTitle></CardHeader>
+      <CardContent className="p-5 space-y-4">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.15fr]">
+          <BudgetDonutCard items={items} />
+          <div className="space-y-4">
+            <div className="border-b border-gray-200 pb-4">
+              <div className="text-sm text-slate-600">Total Budget</div>
+              <div className="text-5xl font-semibold leading-none text-[#0B6477]">{totalBudget}</div>
+            </div>
+            <div className="space-y-2">
+              {items.map((item) => (
+                <div key={`summary-${item.sectorCode}`} className="grid grid-cols-[1fr_56px_120px] items-center gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: DONUT_COLORS[items.findIndex((row) => row.sectorCode === item.sectorCode) % DONUT_COLORS.length] }} />
+                    <span className="text-slate-600">{item.label}</span>
+                  </div>
+                  <span className="text-right text-slate-500">{item.percentage.toFixed(0)}%</span>
+                  <span className="text-right font-semibold text-slate-800">{item.amount.toLocaleString("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 })}</span>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-slate-500">Categories derived from project classification.</div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button asChild className="bg-[#0B6477] hover:bg-[#095565]"><Link href={detailsHref}>View AIP Details</Link></Button>
-          <Button asChild variant="outline"><Link href={detailsHref}>View All Projects</Link></Button>
+        <div className="border-t border-gray-200 pt-4 flex gap-3">
+          <Button asChild className="bg-[#0B6477] text-white hover:bg-[#095565] rounded-lg"><Link href={detailsHref}>View AIP Details</Link></Button>
+          <Button asChild variant="outline" className="border-gray-200"><Link href={detailsHref}>View All Projects</Link></Button>
         </div>
       </CardContent>
     </Card>
@@ -50,18 +67,20 @@ export function BudgetDonutCard({
   const donutBg =
     donutStops.parts.length > 0 ? `conic-gradient(${donutStops.parts.join(", ")})` : "conic-gradient(#e2e8f0 0 100%)";
 
+  const calloutPositions = [
+    "right-[-74px] top-[4px]",
+    "left-[-86px] top-[78px]",
+    "right-[-74px] bottom-[10px]",
+    "right-[-72px] top-[122px]",
+  ];
+
   return (
-    <div className="grid gap-4 md:grid-cols-[260px_1fr]">
-      <div className="mx-auto h-56 w-56 rounded-full" style={{ background: donutBg }}>
-        <div className="mx-auto mt-7 h-42 w-42 rounded-full bg-white" />
-      </div>
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div key={item.sectorCode} className="grid grid-cols-[16px_1fr_auto_auto] items-center gap-2 text-sm">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }} />
-            <span>{item.label}</span>
-            <span className="text-slate-500">{item.percentage.toFixed(0)}%</span>
-            <span className="font-medium text-slate-900">{item.amount.toLocaleString("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 })}</span>
+    <div className="grid grid-cols-1 gap-4">
+      <div className="relative mx-auto h-56 w-56 rounded-full" style={{ background: donutBg }}>
+        <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+        {items.slice(0, 4).map((item, index) => (
+          <div key={`callout-${item.sectorCode}`} className={`absolute text-sm text-[#0B6477] ${calloutPositions[index]}`}>
+            {item.label} {item.percentage.toFixed(0)}%
           </div>
         ))}
       </div>

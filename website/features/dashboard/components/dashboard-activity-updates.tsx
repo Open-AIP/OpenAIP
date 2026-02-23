@@ -10,18 +10,21 @@ function formatDateTime(value: string | null): string {
 
 export function RecentActivityFeed({ runs }: { runs: DashboardRun[] }) {
   return (
-    <Card className="border-slate-200 py-0 shadow-sm">
-      <CardHeader className="pb-2"><CardTitle className="text-base">Recent Activity</CardTitle></CardHeader>
-      <CardContent className="space-y-2">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500"><span>Stage</span><span>Status</span><span>Started</span></div>
+    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">Recent Activity</CardTitle></CardHeader>
+      <CardContent className="p-5 space-y-2">
         {runs.map((run) => (
-          <div key={run.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-            <span className="text-slate-700">{formatStageLabel(run.stage)}</span>
-            <Badge className={`border ${run.status === "failed" ? "border-rose-200 bg-rose-50 text-rose-700" : run.status === "succeeded" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>{formatPipelineStatus(run.status)}</Badge>
-            <span className="text-xs text-slate-500">{formatDateTime(run.startedAt ?? run.createdAt)}</span>
+          <div key={run.id} className="rounded-lg border border-gray-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-700">{formatStageLabel(run.stage)}</span>
+              <Badge variant="outline">{formatPipelineStatus(run.status)}</Badge>
+            </div>
+            <div className="mt-1 text-sm text-slate-600">{run.errorMessage ?? "Pipeline activity recorded."}</div>
+            <div className="mt-1 text-xs text-slate-500">{formatDateTime(run.startedAt ?? run.createdAt)}</div>
           </div>
         ))}
-        {runs.length === 0 && <div className="rounded-md border border-slate-200 px-3 py-4 text-sm text-slate-500">No extraction runs for this AIP yet.</div>}
+        {runs.length === 0 && <div className="rounded-lg border border-gray-200 bg-slate-50 p-3 text-sm text-slate-500">No extraction runs for this AIP yet.</div>}
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center text-sm text-slate-600">View Audit and Accountability</div>
       </CardContent>
     </Card>
   );
@@ -38,14 +41,51 @@ export function RecentProjectUpdatesCard({
   editableSummary: string;
   financialSummary: string;
 }) {
+  const updates = [
+    {
+      id: "flagged",
+      title: "Flagged Projects",
+      subtitle: `${flaggedProjects} project(s) currently flagged.`,
+      meta: "Updated recently",
+      tag: "Project",
+    },
+    {
+      id: "pipeline",
+      title: "Failed Pipeline Stages",
+      subtitle: `${failedPipelineStages} stage(s) failed in latest runs.`,
+      meta: "Operational status",
+      tag: "Pipeline",
+    },
+    {
+      id: "editable",
+      title: "Editable Window",
+      subtitle: editableSummary,
+      meta: "Policy-based gate",
+      tag: "AIP",
+    },
+    {
+      id: "financial",
+      title: "Financial Sum Check (PS+MOOE+CO)",
+      subtitle: financialSummary,
+      meta: "Computed total",
+      tag: "Finance",
+    },
+  ];
+
   return (
-    <Card className="border-slate-200 py-0 shadow-sm">
-      <CardHeader className="pb-2"><CardTitle className="text-base">Recent Project Updates</CardTitle></CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <div className="rounded-md border border-slate-200 p-3"><div className="text-xs text-slate-500">Flagged Projects</div><div className="text-2xl font-semibold text-slate-900">{flaggedProjects}</div></div>
-        <div className="rounded-md border border-slate-200 p-3"><div className="text-xs text-slate-500">Failed Pipeline Stages</div><div className="text-2xl font-semibold text-slate-900">{failedPipelineStages}</div></div>
-        <div className="rounded-md border border-slate-200 p-3"><div className="text-xs text-slate-500">Editable Window</div><div className="text-sm text-slate-700">{editableSummary}</div></div>
-        <div className="rounded-md border border-slate-200 p-3"><div className="text-xs text-slate-500">Financial Sum Check (PS+MOOE+CO)</div><div className="text-sm text-slate-700">{financialSummary}</div></div>
+    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">Recent Project Updates</CardTitle></CardHeader>
+      <CardContent className="p-5 space-y-2 text-sm">
+        {updates.map((update) => (
+          <div key={update.id} className="rounded-lg border border-gray-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-slate-700">{update.title}</div>
+              <Badge variant="outline">{update.tag}</Badge>
+            </div>
+            <div className="mt-1 text-sm text-slate-600">{update.subtitle}</div>
+            <div className="mt-1 text-xs text-slate-500">{update.meta}</div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

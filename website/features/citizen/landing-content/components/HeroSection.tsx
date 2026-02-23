@@ -11,6 +11,7 @@ const BLUE_RECTANGLE_SRC = "/citizen-dashboard/blue-rectangle.png";
 const CITY_SRC = "/citizen-dashboard/city.png";
 const FLAG_SRC = "/citizen-dashboard/flag.jpg";
 const GRADIENT_SRC = "/citizen-dashboard/gradient.png";
+const NAVY_RECTANGLE_SRC = "/citizen-dashboard/navy-rectangle.png";
 
 export default function HeroSection({ vm }: HeroSectionProps) {
   const ctaProps =
@@ -36,23 +37,31 @@ export default function HeroSection({ vm }: HeroSectionProps) {
               alt=""
               fill
               sizes="100vw"
-              className="object-cover object-bottom opacity-70"
+              className="object-cover object-bottom opacity-93"
             />
             <Image
               src={FLAG_SRC}
               alt=""
               fill
               sizes="100vw"
-              className="object-cover object-center opacity-38"
+              className="object-cover object-center opacity-28"
+            />
+
+            <Image
+              src={NAVY_RECTANGLE_SRC}
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover object-center opacity-72"
             />
             <Image
               src={GRADIENT_SRC}
               alt=""
               fill
               sizes="100vw"
-              className="object-cover object-center opacity-72"
+              className="object-cover object-center opacity-62"
             />
-            <div className="absolute inset-0 bg-[#022437]/44" />
+            
           </div>
 
           <div className="relative z-10 h-full px-6 sm:px-10 lg:px-16">
@@ -84,4 +93,3 @@ export default function HeroSection({ vm }: HeroSectionProps) {
     </FullScreenSection>
   );
 }
-

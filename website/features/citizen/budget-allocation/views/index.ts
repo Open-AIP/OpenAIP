@@ -1,1 +1,1 @@
-export { default as CitizenBudgetAllocationView } from './citizen-budget-allocation-view';
+export { default as CitizenBudgetAllocationView } from './budget-allocation-view';

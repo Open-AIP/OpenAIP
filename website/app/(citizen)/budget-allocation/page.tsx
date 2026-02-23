@@ -1,4 +1,4 @@
-import CitizenBudgetAllocationView from '@/features/citizen/budget-allocation/views/citizen-budget-allocation-view';
+import CitizenBudgetAllocationView from '@/features/citizen/budget-allocation/views/budget-allocation-view';
 
 const CitizenBudgetAllocationPage = () => {
   return <CitizenBudgetAllocationView />;

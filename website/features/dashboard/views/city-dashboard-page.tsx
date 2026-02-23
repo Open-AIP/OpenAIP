@@ -1,19 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DashboardHeader } from "@/features/dashboard/components/dashboard-header";
-import { KpiRow } from "@/features/dashboard/components/kpi-row";
-import { BudgetBreakdownSection } from "@/features/dashboard/components/budget-breakdown-section";
-import { DateCard } from "@/features/dashboard/components/date-card";
-import { WorkingOnCard } from "@/features/dashboard/components/working-on-card";
-import { TopFundedProjectsSection } from "@/features/dashboard/components/top-funded-projects-section";
-import { AipStatusColumn } from "@/features/dashboard/components/aip-status-column";
-import { AipCoverageCard } from "@/features/dashboard/components/aip-coverage-card";
-import { PublicationTimelineCard } from "@/features/dashboard/components/publication-timeline-card";
-import { AipsByYearTable } from "@/features/dashboard/components/aips-by-year-table";
-import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/citizen-engagement-pulse-column";
-import { RecentActivityFeed } from "@/features/dashboard/components/recent-activity-feed";
-import { RecentProjectUpdatesCard } from "@/features/dashboard/components/recent-project-updates-card";
+import { DashboardHeader, DateCard, WorkingOnCard } from "@/features/dashboard/components/dashboard-header-widgets";
+import { KpiRow } from "@/features/dashboard/components/dashboard-metric-cards";
+import { BudgetBreakdownSection } from "@/features/dashboard/components/dashboard-budget-allocation";
+import { TopFundedProjectsSection } from "@/features/dashboard/components/dashboard-projects-overview";
+import { AipStatusColumn, AipCoverageCard, PublicationTimelineCard, AipsByYearTable } from "@/features/dashboard/components/dashboard-aip-publication-status";
+import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/dashboard-feedback-insights";
+import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { createCityDraftAipAction, replyCityFeedbackAction } from "@/features/dashboard/actions/city-dashboard-actions";
 import type { DashboardData, DashboardQueryState, DashboardViewModel } from "@/features/dashboard/types/dashboard-types";
 

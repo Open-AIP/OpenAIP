@@ -68,7 +68,7 @@ export default function CitizenBudgetAllocationView() {
   };
 
   return (
-    <section className="space-y-6 pb-10">
+    <section className="space-y-6 pb-10" style={{ background: 'linear-gradient(180deg, #d3dbe0, #ffffff 99.15%)' }}>
       <HeroBannerSection title={vm.hero.title.toUpperCase()} subtitle={vm.hero.subtitle} />
       <ExplainerSection title={vm.explainer.title} body={vm.explainer.body} />
       <FiltersSection

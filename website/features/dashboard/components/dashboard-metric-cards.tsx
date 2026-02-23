@@ -4,11 +4,11 @@ import type { DashboardAip } from "@/features/dashboard/types/dashboard-types";
 import type { ReactNode } from "react";
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-muted text-foreground border-border",
-  pending_review: "bg-warning-soft text-foreground border-border",
-  under_review: "bg-info-soft text-foreground border-border",
-  for_revision: "bg-warning-soft text-foreground border-border",
-  published: "bg-success-soft text-foreground border-border",
+  draft: "bg-muted text-foreground",
+  pending_review: "bg-warning-soft text-foreground",
+  under_review: "bg-info-soft text-foreground",
+  for_revision: "bg-warning-soft text-foreground",
+  published: "bg-success-soft text-foreground",
 };
 
 function formatStatusLabel(status: string): string {
@@ -83,9 +83,13 @@ export function KpiRow({
       {mode === "summary" ? (
         <>
           <KpiCard
-            accent="border-l-[color:var(--color-warning)]"
+            accent="border-l-chart-4"
             label="AIP Status"
-            value={<Badge className={`w-fit border ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>}
+            value={
+              <Badge variant="secondary" className={`w-fit border-0 ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>
+                {formatStatusLabel(selectedAip.status)}
+              </Badge>
+            }
             meta={`Updated ${formatDateTime(selectedAip.statusUpdatedAt)}`}
           />
           <KpiCard accent="border-l-chart-2" label="Total Projects" value={totalProjects} meta="As of today" />

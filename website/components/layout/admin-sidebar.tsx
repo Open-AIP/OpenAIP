@@ -18,7 +18,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="h-screen w-68.75 shrink-0 sticky top-0 overflow-y-auto bg-[#022437] text-white flex flex-col">
+    <aside className="h-screen w-68.75 shrink-0 sticky top-0 overflow-y-auto bg-sidebar text-sidebar-foreground flex flex-col">
       <div className="px-4 pt-4 pb-3">
         <div className="flex flex-col items-center gap-1">
           <Image
@@ -31,9 +31,9 @@ export default function AdminSidebar() {
           <div className="text-[32px] leading-none font-light tracking-tight">OpenAIP</div>
         </div>
 
-        <div className="mt-5 rounded-[10px] border border-[#1B6272] bg-[#114B59] p-1 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]">
+        <div className="mt-5 rounded-[10px] border border-sidebar-border bg-sidebar-primary/45 p-1 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]">
           <div
-            className="h-14 rounded-xl bg-[#2E6F8A] flex items-center justify-center text-[32px] leading-none font-normal"
+            className="h-14 rounded-xl bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-[32px] leading-none font-normal"
             style={{ fontFamily: "var(--font-arsenal-sc), serif" }}
           >
             Admin
@@ -52,9 +52,9 @@ export default function AdminSidebar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex h-11 items-center gap-3 rounded-[10px] px-4 text-[12px] transition-colors text-[#B7D8E2]",
-                    "hover:bg-white/10",
-                    active && "bg-[#2E6F7A] text-white hover:bg-[#2E6F7A]"
+                    "flex h-11 items-center gap-3 rounded-[10px] px-4 text-[12px] transition-colors text-sidebar-foreground/80",
+                    "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    active && "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent"
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -67,7 +67,7 @@ export default function AdminSidebar() {
       </nav>
 
       <div className="mt-auto px-4 pb-4 pt-2">
-        <div className="rounded-[10px] border border-[#1B6272] bg-[#114B59] p-2">
+        <div className="rounded-[10px] border border-sidebar-border bg-sidebar-primary/45 p-2">
           <LogoutButton role="admin" baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
         </div>
       </div>

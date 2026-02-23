@@ -4,33 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export function DashboardHeader({
   title,
   subtitle,
-  userName = "Juan Dela Cruz",
-  userRole = "Barangay Official",
 }: {
   title: string;
   subtitle: string;
-  userName?: string;
-  userRole?: string;
 }) {
   return (
-    <div className="h-[68px] w-full border-b border-gray-200 bg-white px-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="h-[68px] w-full border-b border-gray-200 bg-white px-6 flex flex-wrap items-center gap-3">
       <div>
         <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
         <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="text-right">
-          <div className="text-sm font-medium text-slate-800">{userName}</div>
-          <div className="text-xs text-slate-500">{userRole}</div>
-        </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B6477] text-xs font-semibold text-white">
-          {userName
-            .split(" ")
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((part) => part[0]?.toUpperCase())
-            .join("")}
-        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Eye, FileUp, AlertTriangle } from "lucide-react";
 import type { DashboardAip } from "@/features/dashboard/types/dashboard-types";
 
 function formatStatusLabel(status: string): string {
@@ -25,22 +26,27 @@ const STATUS_PIE_COLORS: Record<string, string> = {
 
 export function AipCoverageCard({ selectedAip }: { selectedAip: DashboardAip | null }) {
   return (
-    <Card className="bg-white border border-gray-200 rounded-xl border-l-4 border-l-amber-500 py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">AIP Coverage</CardTitle></CardHeader>
+    <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-medium text-slate-700">AIP Coverage</CardTitle></CardHeader>
       <CardContent className="p-5">
         {selectedAip ? (
-          <div className="space-y-2 text-sm">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm">
             <div className="text-slate-600">FY {selectedAip.fiscalYear}</div>
-            <Badge className={`w-fit border ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>
+            <Badge className={`mt-2 w-fit border ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>
           </div>
         ) : (
           <div className="space-y-3">
-            <div>
-              <div className="text-xs text-slate-500">Missing AIP</div>
-              <div className="text-sm font-semibold text-slate-700">No AIP uploaded for selected year.</div>
+            <div className="rounded-xl border border-rose-200 bg-white p-4">
+              <div className="flex items-center gap-2 text-rose-500">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-xl font-medium">Missing AIP</span>
+              </div>
+              <div className="mt-1 text-xl font-semibold text-rose-500">No AIP uploaded for selected year.</div>
             </div>
-            <Badge className="bg-amber-100 text-amber-800 border-transparent w-fit">Action Needed</Badge>
-            <Button className="w-full bg-slate-800 text-white hover:bg-slate-800/90 rounded-lg" size="sm">Upload City AIP</Button>
+            <Button className="h-10 w-full rounded-lg bg-[#0B6477] text-white hover:bg-[#095565]" size="sm">
+              <FileUp className="mr-2 h-4 w-4" />
+              Upload City AIP
+            </Button>
           </div>
         )}
       </CardContent>
@@ -48,25 +54,21 @@ export function AipCoverageCard({ selectedAip }: { selectedAip: DashboardAip | n
   );
 }
 
-function tinyBarWidth(value: number, max: number): string {
-  if (max <= 0) return "0%";
-  return `${Math.max(8, Math.round((value / max) * 100))}%`;
-}
-
 export function PublicationTimelineCard({ years }: { years: Array<{ year: number; count: number }> }) {
   const max = Math.max(1, ...years.map((item) => item.count));
   return (
     <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">Publication Timeline</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        <div className="border border-dashed border-gray-300 rounded-lg p-6 text-sm text-slate-500 space-y-3">
-          {years.map((item) => (
-            <div key={item.year} className="grid grid-cols-[56px_1fr_24px] items-center gap-2 text-sm">
-              <span className="text-slate-600">{item.year}</span>
-              <div className="h-2.5 rounded-full bg-slate-100"><div className="h-2.5 rounded-full bg-emerald-500" style={{ width: tinyBarWidth(item.count, max) }} /></div>
-              <span className="text-slate-700">{item.count}</span>
-            </div>
-          ))}
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-medium text-slate-700">Publication Timeline</CardTitle></CardHeader>
+      <CardContent className="p-5">
+        <div className="rounded-lg border border-dashed border-gray-300 p-5">
+          <div className="flex h-44 items-end gap-4 border-b border-gray-400 px-2">
+            {years.map((item) => (
+              <div key={item.year} className="flex flex-1 flex-col items-center gap-2">
+                <div className="w-full rounded-t-sm bg-emerald-500" style={{ height: `${Math.max(24, Math.round((item.count / max) * 120))}px` }} />
+                <span className="text-xs text-slate-500">{item.year}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -80,7 +82,7 @@ function formatDate(value: string): string {
 export function AipsByYearTable({ rows }: { rows: DashboardAip[] }) {
   return (
     <Card className="bg-white border border-gray-200 rounded-xl py-0 shadow-sm">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-slate-700">AIPs by Year</CardTitle></CardHeader>
+      <CardHeader className="p-5 pb-0"><CardTitle className="text-xl font-medium text-slate-700">AIPs by Year</CardTitle></CardHeader>
       <CardContent className="p-5 space-y-2">
         <div className="grid grid-cols-[72px_140px_1fr_120px_auto] rounded-md border border-gray-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600"><span>Year</span><span>Status</span><span>Uploaded By</span><span>Upload Date</span><span className="text-right">Action</span></div>
         {rows.slice(0, 8).map((aip) => (
@@ -89,7 +91,10 @@ export function AipsByYearTable({ rows }: { rows: DashboardAip[] }) {
             <Badge variant={aip.status === "published" ? "secondary" : "outline"} className={aip.status === "published" ? "" : `w-fit border ${STATUS_STYLES[aip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(aip.status)}</Badge>
             <span className="text-slate-600">{(aip as DashboardAip & { uploadedBy?: string }).uploadedBy ?? "System User"}</span>
             <span className="text-slate-600">{formatDate((aip as DashboardAip & { uploadedDate?: string }).uploadedDate ?? aip.statusUpdatedAt)}</span>
-            <Button size="sm" variant="ghost" className="justify-self-end text-slate-600">View</Button>
+            <Button size="sm" variant="ghost" className="justify-self-end text-slate-600">
+              <Eye className="mr-1 h-4 w-4" />
+              View
+            </Button>
           </div>
         ))}
       </CardContent>

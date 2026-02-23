@@ -26,13 +26,22 @@ export default function CategoryOverviewSection({ scopeLabel, cards }: CategoryO
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => {
+        {cards.map((card, idx) => {
           const Icon = CATEGORY_ICON[card.categoryKey] ?? Wallet;
+          // choose gradient backgrounds similar to Figma
+          const gradients = [
+            'linear-gradient(135deg,#eff6ff,#dbeafe)',
+            'linear-gradient(135deg,#f0fdf4,#dcfce7)',
+            'linear-gradient(135deg,#fefce8,#fef9c2)',
+            'linear-gradient(135deg,#f9fafb,#f3f4f6)',
+          ];
+          const textColors = ['text-steelblue','text-mediumspringgreen','text-goldenrod','text-slategray-400'];
+
           return (
-            <Card key={card.categoryKey} className={`border ${categoryAccentClass(card.categoryKey)} shadow-sm`}>
+            <Card key={card.categoryKey} className="shadow-sm" style={{ border: '1px solid #e6eef7', background: gradients[idx] }}>
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-center gap-2">
-                  <div className={`grid h-20 w-20 place-items-center rounded-md bg-transparent ${categoryIconClass(card.categoryKey)}`}>
+                  <div className={`grid h-20 w-20 place-items-center rounded-md ${categoryIconClass(card.categoryKey)}`}>
                     <Icon className="h-10 w-10" />
                   </div>
                   <div>
@@ -41,7 +50,7 @@ export default function CategoryOverviewSection({ scopeLabel, cards }: CategoryO
                   </div>
                 </div>
                 <div>
-                  <p className="text-4xl font-semibold leading-none" title={formatPeso(card.totalAmount)}>
+                  <p className={`text-4xl font-semibold leading-none ${textColors[idx]}`} title={formatPeso(card.totalAmount)}>
                     {formatCompactPeso(card.totalAmount)}
                   </p>
                   <p className="mt-2 text-sm text-slate-700">Projects</p>

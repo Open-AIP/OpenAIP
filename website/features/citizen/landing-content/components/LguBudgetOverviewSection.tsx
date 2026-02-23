@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
@@ -14,8 +15,19 @@ const MAP_PANEL_HEIGHT_CLASS = "h-[420px]";
 
 export default function LguBudgetOverviewSection({ vm }: LguBudgetOverviewSectionProps) {
   return (
-    <FullScreenSection id="lgu-budget-overview" className="bg-[#DCE6EC]">
-      <div className="mx-auto w-full max-w-6xl rounded-[28px] border border-slate-200 bg-white/85 p-6 shadow-sm backdrop-blur-sm md:p-8">
+    <FullScreenSection id="lgu-budget-overview" className="relative overflow-hidden bg-[#DCE6EC]">
+      <div className="pointer-events-none absolute inset-0">
+        <Image
+          src="/citizen-dashboard/school.png"
+          alt=""
+          fill
+          sizes="10vw"
+          className="object-cover object-center opacity-90"
+        />
+        <div className="absolute inset-0 bg-[#DCE6EC]/58" />
+      </div>
+
+      <div className="relative mx-auto w-full max-w-5xl rounded-[28px] border border-slate-200 bg-white/60 p-6 shadow-sm backdrop-blur-sm md:p-8">
         <SectionHeader
           align="center"
           title="LGU Budget Overview"
@@ -24,7 +36,7 @@ export default function LguBudgetOverviewSection({ vm }: LguBudgetOverviewSectio
 
         <div className="mt-7 grid grid-cols-12 gap-6">
           <div className="col-span-12 space-y-4 lg:col-span-5">
-            <div className="flex items-center gap-3 bg-white p-3">
+            <div className="flex items-center gap-3 p-3">
               <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#0E7490]/12 text-[#0E5D6F]">
                 <Building2 className="h-5 w-5" aria-hidden="true" />
               </div>
@@ -69,7 +81,7 @@ export default function LguBudgetOverviewSection({ vm }: LguBudgetOverviewSectio
               <Card className="rounded-2xl border-slate-200 bg-white py-0">
                 <CardContent className="space-y-3 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">AIP Status</p>
-                  <div className="inline-flex items-center gap-2 text-4xl font-semibold leading-none text-[#0C2C3A]">
+                  <div className="inline-flex items-center gap-2 text-3xl font-semibold leading-none text-[#0C2C3A]">
                     <span className="h-2.5 w-2.5 rounded-full bg-[#0EA97B]" />
                     {vm.aipStatus}
                   </div>

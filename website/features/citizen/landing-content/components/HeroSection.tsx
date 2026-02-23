@@ -20,7 +20,7 @@ export default function HeroSection({ vm }: HeroSectionProps) {
       : { actionKey: vm.ctaHrefOrAction.value };
 
   return (
-    <FullScreenSection id="hero" variant="dark" className="bg-[#D7E0E6] text-linen">
+    <FullScreenSection id="hero" variant="dark" className="bg-[#EAF1F5] text-linen">
       <div className="relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-4 md:px-6">
         <div className="relative w-full overflow-hidden rounded-2xl h-[calc(100vh-120px)] min-h-[640px] supports-[height:100svh]:h-[calc(100svh-120px)]">
           <div className="pointer-events-none absolute inset-0">

@@ -10,7 +10,7 @@ export default function LandingContentCanvas({ children, className }: LandingCon
   return (
     <div
       className={cn(
-        "relative left-1/2 w-screen -translate-x-1/2 h-screen supports-[height:100svh]:h-[100svh] overflow-y-auto snap-y snap-mandatory scroll-smooth overscroll-y-contain bg-[#E6EDF2]",
+        "relative left-1/2 w-screen -translate-x-1/2 min-h-screen supports-[height:100svh]:min-h-[100svh] bg-[#E6EDF2]",
         className
       )}
     >
@@ -18,4 +18,3 @@ export default function LandingContentCanvas({ children, className }: LandingCon
     </div>
   );
 }
-

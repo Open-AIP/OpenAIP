@@ -2,7 +2,7 @@ import { ForgotPasswordForm } from '@/components/forgot-password-form'
 
 export default function Page() {
 
-  const role = 'barangay';
+  const role = 'admin';
   const baseURL = process.env.BASE_URL;
   if (!baseURL) {
     throw new Error('BASE_URL environment variable is not configured');

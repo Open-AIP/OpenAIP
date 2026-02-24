@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -23,9 +24,11 @@ export function LoginForm({role, baseURL}:AuthParameters) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   const rolePath = getRolePath(baseURL, role);
+  const isStaffRole = role !== 'citizen'
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,8 +66,146 @@ export function LoginForm({role, baseURL}:AuthParameters) {
     }
   }
 
+  if (isStaffRole) {
+    return (
+      <div className="relative min-h-screen overflow-hidden bg-[#022034]">
+        <div className="absolute inset-0 bg-[url('/login/building.png')] bg-cover bg-center opacity-35" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#033455]/80 via-[#033455]/75 to-[#022034]/95" aria-hidden />
+        <div className="relative z-10 grid min-h-screen lg:grid-cols-5">
+          <main className="order-1 flex min-h-screen items-stretch lg:order-2 lg:col-span-2">
+            <div className="w-full p-4 sm:p-6 lg:p-8">
+              <Card className="h-full w-full gap-0 rounded-2xl border-slate-200 bg-white shadow-xl">
+              <CardHeader className="space-y-5 px-9 pt-11 sm:px-12">
+                <Image
+                  src="/brand/logo3.svg"
+                  alt="OpenAIP logo"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8"
+                />
+                <div className="space-y-2">
+                  <CardTitle className="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">
+                    Welcome back!
+                  </CardTitle>
+                  <CardDescription className="text-sm leading-relaxed text-slate-500 sm:text-base">
+                    Sign in to continue to OpenAIP.
+                  </CardDescription>
+                </div>
+                <span className="inline-flex w-fit items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
+                  Authorized LGU Access
+                </span>
+              </CardHeader>
+              <CardContent className="px-9 pb-11 sm:px-12">
+                <form onSubmit={handleLogin} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder={getRoleEmailPlaceholder(role)}
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-12 border-slate-300 bg-white text-base text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-primary/40"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+                        Password
+                      </Label>
+                      <Link
+                        href={`${rolePath}/forgot-password`}
+                        className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="h-12 border-slate-300 bg-white pr-16 text-base text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-primary/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute inset-y-0 right-2 my-auto h-8 rounded-md px-2 text-sm font-medium text-slate-600 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                  {error && (
+                    <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {error}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="h-12 w-full text-base font-medium focus-visible:ring-2 focus-visible:ring-primary/40"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Logging in...' : 'Sign in'}
+                  </Button>
+                  <div className="space-y-2">
+                    <a
+                      href="mailto:administrator@lgu.gov.ph"
+                      className="inline-flex rounded-sm text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      Contact system administrator
+                    </a>
+                    <p className="text-sm leading-relaxed text-slate-500">
+                      For account access or resets, contact your LGU administrator.
+                    </p>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+            </div>
+          </main>
+
+          <aside className="order-2 relative min-h-[360px] overflow-hidden lg:order-1 lg:col-span-3 lg:min-h-screen">
+            <Image
+              src="/login/faded-logo.png"
+              alt=""
+              aria-hidden
+              width={440}
+              height={440}
+              className="pointer-events-none absolute left-1/2 top-1/2 hidden h-auto w-[360px] -translate-x-1/2 -translate-y-1/2 opacity-30 lg:block"
+            />
+
+            <div className="relative z-10 flex h-full flex-col justify-between p-8 text-white sm:p-10 lg:p-14">
+              <div className="flex items-center gap-3">
+                <Image src="/brand/logo3.svg" alt="OpenAIP logo" width={34} height={34} className="h-8 w-8" />
+                <span className="text-3xl font-semibold leading-none tracking-tight">OpenAIP</span>
+              </div>
+              <div className="max-w-2xl space-y-6 pb-2 lg:pb-10">
+                <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
+                  Turn AIP documents into actionable planning data.
+                </h1>
+                <p className="text-base leading-relaxed text-slate-100/90 sm:text-lg">
+                  OpenAIP converts Annual Investment Plans into structured, searchable records so officials can publish,
+                  review, and monitor budgets and projects with clarity and accountability.
+                </p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className='flex flex-col gap-6'>
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
@@ -78,6 +219,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder={getRoleEmailPlaceholder(role)}
                   required
                   value={email}
@@ -99,6 +241,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

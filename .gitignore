@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-aip-extraction-pipeline/.venv/
-aip-extraction-pipeline/__pycache__/
-aip-extraction-pipeline/outputs/
-aip-extraction-pipeline/.env
-node_modules
-.env.local
-.next
-=======
 aip-intelligence-pipeline/.venv/
 aip-intelligence-pipeline/__pycache__/
 aip-intelligence-pipeline/outputs/
@@ -14,4 +5,11 @@ aip-intelligence-pipeline/.env
 aip-intelligence-pipeline/aips/
 aip-intelligence-pipeline/data/aips/
 aip-intelligence-pipeline/data/outputs/
->>>>>>> 85f4e451b52e4c2ed0b9fa35783826a5193f7ba9
+
+# Node dependencies
+node_modules/
+
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -302,6 +302,9 @@ class PipelineRepository:
             existing = existing_by_ref.get(ref_code)
             if existing and bool(existing.get("is_human_edited")):
                 continue
+            amounts = raw.get("amounts") if isinstance(raw.get("amounts"), dict) else {}
+            climate = raw.get("climate") if isinstance(raw.get("climate"), dict) else {}
+            classification = raw.get("classification") if isinstance(raw.get("classification"), dict) else {}
             payload = {
                 "extraction_artifact_id": extraction_artifact_id,
                 "aip_ref_code": ref_code,
@@ -311,19 +314,31 @@ class PipelineRepository:
                 "completion_date": raw.get("completion_date"),
                 "expected_output": raw.get("expected_output"),
                 "source_of_funds": raw.get("source_of_funds"),
-                "personal_services": _to_float_or_none(raw.get("personal_services")),
-                "maintenance_and_other_operating_expenses": _to_float_or_none(
-                    raw.get("maintenance_and_other_operating_expenses")
+                "personal_services": _to_float_or_none(
+                    amounts.get("personal_services", raw.get("personal_services"))
                 ),
-                "financial_expenses": _to_float_or_none(raw.get("financial_expenses")),
-                "capital_outlay": _to_float_or_none(raw.get("capital_outlay")),
-                "total": _to_float_or_none(raw.get("total")),
-                "climate_change_adaptation": raw.get("climate_change_adaptation"),
-                "climate_change_mitigation": raw.get("climate_change_mitigation"),
-                "cc_topology_code": raw.get("cc_topology_code"),
-                "prm_ncr_lgu_rm_objective_results_indicator": raw.get("prm_ncr_lgu_rm_objective_results_indicator"),
+                "maintenance_and_other_operating_expenses": _to_float_or_none(
+                    amounts.get(
+                        "maintenance_and_other_operating_expenses",
+                        raw.get("maintenance_and_other_operating_expenses"),
+                    )
+                ),
+                "financial_expenses": _to_float_or_none(amounts.get("financial_expenses", raw.get("financial_expenses"))),
+                "capital_outlay": _to_float_or_none(amounts.get("capital_outlay", raw.get("capital_outlay"))),
+                "total": _to_float_or_none(amounts.get("total", raw.get("total"))),
+                "climate_change_adaptation": climate.get(
+                    "climate_change_adaptation", raw.get("climate_change_adaptation")
+                ),
+                "climate_change_mitigation": climate.get(
+                    "climate_change_mitigation", raw.get("climate_change_mitigation")
+                ),
+                "cc_topology_code": climate.get("cc_topology_code", raw.get("cc_topology_code")),
+                "prm_ncr_lgu_rm_objective_results_indicator": climate.get(
+                    "prm_ncr_lgu_rm_objective_results_indicator",
+                    raw.get("prm_ncr_lgu_rm_objective_results_indicator"),
+                ),
                 "errors": _normalize_errors(raw.get("errors")),
-                "category": _map_category(raw.get("category")),
+                "category": _map_category(classification.get("category", raw.get("category"))),
             }
             if existing:
                 self.client.update("projects", payload, filters={"id": f"eq.{existing['id']}"})
@@ -331,4 +346,3 @@ class PipelineRepository:
             create_payload = dict(payload)
             create_payload["aip_id"] = aip_id
             self.client.insert("projects", create_payload)
-

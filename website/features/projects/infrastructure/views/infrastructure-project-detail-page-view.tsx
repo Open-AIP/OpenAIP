@@ -52,9 +52,13 @@ export default function InfrastructureProjectDetailPageView({
   const tab = searchParams.get("tab");
   const threadId = searchParams.get("thread");
   const activeTab = tab === "comments" ? "comments" : "updates";
+  const projectsListHref =
+    scope === "citizen"
+      ? "/projects/infrastructure"
+      : `/${scope}/projects/infrastructure`;
 
   const breadcrumb = [
-    { label: "Infrastructure Project", href: `/${scope}/projects/infrastructure` },
+    { label: "Infrastructure Project", href: projectsListHref },
     { label: "Detail & Updates", href: "#" },
   ];
 
@@ -135,7 +139,10 @@ export default function InfrastructureProjectDetailPageView({
       </div>
 
       {activeTab === "updates" ? (
-        <ProjectUpdatesSection initialUpdates={initialUpdates} />
+        <ProjectUpdatesSection
+          initialUpdates={initialUpdates}
+          allowPosting={scope !== "citizen"}
+        />
       ) : (
         <CommentThreadsSplitView
           scope={scope}

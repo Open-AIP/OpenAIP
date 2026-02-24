@@ -104,7 +104,7 @@ function resolvePresetVariant(
 }
 
 export function MotionInView({ children, className, variants, variant }: MotionInViewProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   return (
     <motion.div
@@ -134,7 +134,7 @@ export function MotionStagger({
   staggerChildren,
   variants,
 }: MotionStaggerProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   return (
     <motion.div
@@ -163,7 +163,7 @@ type MotionItemProps = {
 };
 
 export function MotionItem({ children, className, variants, variant }: MotionItemProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   return (
     <motion.div
@@ -181,7 +181,7 @@ type MotionPressableProps = {
 };
 
 export function MotionPressable({ children, className }: MotionPressableProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   return (
     <motion.div

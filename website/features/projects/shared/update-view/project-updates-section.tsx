@@ -31,10 +31,16 @@ import PostUpdateForm from "./post-update-form";
  */
 export default function ProjectUpdatesSection({
   initialUpdates,
+  allowPosting = true,
 }: {
   initialUpdates: ProjectUpdateUi[];
+  allowPosting?: boolean;
 }) {
   const [updates, setUpdates] = React.useState<ProjectUpdateUi[]>(initialUpdates);
+
+  if (!allowPosting) {
+    return <UpdatesTimelineView updates={updates} />;
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">

@@ -25,6 +25,9 @@ export function PublishSuccessCard({
             The Annual Investment Plan for {barangayLabel} has been published and is now available
             for viewing.
           </div>
+          <div className="max-w-xl text-xs text-slate-500">
+            Search indexing has started and may take a short while to complete.
+          </div>
           <div className="mt-2 flex items-center gap-3">
             <Button variant="outline" className="gap-2" onClick={onBackToSubmissions}>
               <ArrowLeft className="h-4 w-4" />

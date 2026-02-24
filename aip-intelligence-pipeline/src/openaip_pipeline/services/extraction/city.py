@@ -2,58 +2,34 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import tempfile
 import time
 from typing import Any, Callable
 
 from openai import OpenAI
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from pypdf import PdfReader, PdfWriter
 
+from openaip_pipeline.core.artifact_contract import (
+    build_project_key,
+    compute_row_signature,
+    compute_quality,
+    ensure_project_has_provenance,
+    make_source_ref,
+    make_stage_root,
+    normalize_description,
+    normalize_identifier,
+    normalize_source_refs,
+    normalize_text,
+    parse_amount,
+    to_amount_raw,
+)
 from openaip_pipeline.core.resources import read_text
+from openaip_pipeline.services.extraction.document_metadata import extract_document_metadata
 from openaip_pipeline.services.openai_utils import build_openai_client, safe_usage_dict
 
 
 AmountLike = float | int | str | None
-
-
-def _to_float_or_none(value: Any) -> float | None:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).strip()
-    if text == "" or text.lower() in {"n/a", "na", "none"} or text in {"-", "—", "–"}:
-        return None
-    percent_match = re.fullmatch(r"\(?\s*([0-9]+(?:\.[0-9]+)?)\s*%\s*\)?", text)
-    if percent_match:
-        return float(percent_match.group(1))
-    text = (
-        text.replace("₱", "")
-        .replace("PHP", "")
-        .replace("Php", "")
-        .replace(",", "")
-        .replace(" ", "")
-        .strip()
-    )
-    neg = text.startswith("(") and text.endswith(")")
-    if neg:
-        text = text[1:-1].strip()
-    try:
-        parsed = float(text)
-    except ValueError:
-        return None
-    return -parsed if neg else parsed
-
-
-def _blank_to_none(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    if text == "" or text.lower() in {"n/a", "na", "none"} or text in {"-", "—", "–"}:
-        return None
-    return text
 
 
 class CityAIPProjectRow(BaseModel):
@@ -72,41 +48,6 @@ class CityAIPProjectRow(BaseModel):
     climate_change_mitigation: AmountLike = None
     cc_topology_code: str | None = None
     prm_ncr_lgu_rm_objective_results_indicator: str | None = None
-    errors: None = None
-    category: None = None
-
-    @field_validator(
-        "personal_services",
-        "maintenance_and_other_operating_expenses",
-        "capital_outlay",
-        "total",
-        "climate_change_adaptation",
-        "climate_change_mitigation",
-        mode="before",
-    )
-    @classmethod
-    def _coerce_amounts(cls, value: Any) -> float | None:
-        return _to_float_or_none(value)
-
-    @field_validator("cc_topology_code", mode="before")
-    @classmethod
-    def _coerce_cc_topology_code(cls, value: Any) -> str | None:
-        return _blank_to_none(value)
-
-    @field_validator("prm_ncr_lgu_rm_objective_results_indicator", mode="before")
-    @classmethod
-    def _coerce_combined(cls, value: Any) -> str | None:
-        return _blank_to_none(value)
-
-    @field_validator("errors", mode="before")
-    @classmethod
-    def _force_errors_null(cls, _value: Any) -> None:
-        return None
-
-    @field_validator("category", mode="before")
-    @classmethod
-    def _force_category_null(cls, _value: Any) -> None:
-        return None
 
 
 class CityAIPExtraction(BaseModel):
@@ -117,7 +58,7 @@ class ExtractionResult(BaseModel):
     job_id: str | None = None
     model: str
     source_pdf: str
-    extracted: CityAIPExtraction
+    extracted: dict[str, Any]
     usage: dict[str, Any]
     payload: dict[str, Any]
     json_str: str
@@ -137,11 +78,91 @@ def extract_single_page_pdf(original_pdf_path: str, page_index: int) -> str:
     return temp_file.name
 
 
-def _enforce_nulls(payload: dict[str, Any]) -> dict[str, Any]:
-    for row in payload.get("projects", []):
-        row["errors"] = None
-        row["category"] = None
-    return payload
+def _normalize_city_row(*, row: dict[str, Any], page: int, row_index: int) -> tuple[dict[str, Any], int]:
+    normalized_ref = normalize_identifier(row.get("aip_ref_code"))
+    raw_ref = normalize_text(row.get("aip_ref_code"))
+    key_normalized_change = 1 if (raw_ref or "").replace("\n", " ").strip() != (normalized_ref or "") else 0
+    ps_raw = to_amount_raw(row.get("personal_services"))
+    mooe_raw = to_amount_raw(row.get("maintenance_and_other_operating_expenses"))
+    co_raw = to_amount_raw(row.get("capital_outlay"))
+    total_raw = to_amount_raw(row.get("total"))
+    normalized: dict[str, Any] = {
+        "aip_ref_code": normalized_ref,
+        "program_project_description": normalize_description(row.get("program_project_description")) or "Unspecified project",
+        "implementing_agency": normalize_identifier(row.get("implementing_agency")),
+        "start_date": normalize_identifier(row.get("start_date")),
+        "completion_date": normalize_identifier(row.get("completion_date")),
+        "expected_output": normalize_description(row.get("expected_output")),
+        "source_of_funds": normalize_description(row.get("source_of_funds")),
+        "amounts": {
+            "personal_services_raw": ps_raw,
+            "mooe_raw": mooe_raw,
+            "financial_expenses_raw": None,
+            "capital_outlay_raw": co_raw,
+            "total_raw": total_raw,
+            "personal_services": parse_amount(ps_raw),
+            "maintenance_and_other_operating_expenses": parse_amount(mooe_raw),
+            "financial_expenses": None,
+            "capital_outlay": parse_amount(co_raw),
+            "total": parse_amount(total_raw),
+        },
+        "errors": None,
+        "source_refs": [],
+    }
+    row_signature = compute_row_signature(normalized)
+    normalized["source_refs"] = [
+        make_source_ref(
+            page=page,
+            kind="table_row",
+            table_index=0,
+            row_index=row_index,
+            evidence_text=normalize_description(row.get("program_project_description")),
+            row_signature=row_signature,
+        )
+    ]
+    climate = {
+        "climate_change_adaptation": normalize_identifier(row.get("climate_change_adaptation")),
+        "climate_change_mitigation": normalize_identifier(row.get("climate_change_mitigation")),
+        "cc_topology_code": normalize_identifier(row.get("cc_topology_code")),
+        "prm_ncr_lgu_rm_objective_results_indicator": normalize_identifier(
+            row.get("prm_ncr_lgu_rm_objective_results_indicator")
+        ),
+    }
+    if any(value is not None for value in climate.values()):
+        normalized["climate"] = climate
+
+    normalized["project_key"] = build_project_key(normalized)
+    normalized_project_key = normalize_identifier(normalized["project_key"])
+    if normalized_project_key != normalized["project_key"]:
+        key_normalized_change += 1
+        normalized["project_key"] = normalized_project_key
+    return ensure_project_has_provenance(normalized), key_normalized_change
+
+
+def _dedupe_projects(projects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+    order: list[tuple[str, str, str, str, str, str]] = []
+    for project in projects:
+        amounts = project.get("amounts", {})
+        key = (
+            str(project.get("project_key") or ""),
+            str(project.get("program_project_description") or ""),
+            str(project.get("implementing_agency") or ""),
+            str(project.get("start_date") or ""),
+            str(project.get("completion_date") or ""),
+            str(amounts.get("total_raw") if isinstance(amounts, dict) else ""),
+        )
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = project
+            order.append(key)
+            continue
+        existing_refs = existing.get("source_refs") if isinstance(existing, dict) else []
+        incoming_refs = project.get("source_refs") if isinstance(project, dict) else []
+        existing["source_refs"] = normalize_source_refs(
+            [*(existing_refs or []), *(incoming_refs or [])], default_kind="table_row"
+        )
+    return [merged[key] for key in order]
 
 
 def extract_city_aip_from_pdf_page(
@@ -186,12 +207,13 @@ def extract_city_aip_from_pdf_all_pages(
     pdf_path: str,
     model: str,
     on_progress: Callable[[int, int], None] | None,
-) -> tuple[CityAIPExtraction, dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any], int]:
     reader = PdfReader(pdf_path)
     total_pages = len(reader.pages)
     if total_pages == 0:
         raise ValueError("PDF has no pages")
-    merged = CityAIPExtraction(projects=[])
+    projects: list[dict[str, Any]] = []
+    project_key_normalized_changes_count = 0
     usage_total: dict[str, Any] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     system_prompt = read_text("prompts/extraction/city_system.txt")
     user_prompt = read_text("prompts/extraction/city_user.txt")
@@ -205,7 +227,11 @@ def extract_city_aip_from_pdf_all_pages(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
-        merged.projects.extend(page_data.projects)
+        for row_index, row in enumerate(page_data.projects):
+            row_payload = row.model_dump(mode="python")
+            normalized_row, normalized_changes = _normalize_city_row(row=row_payload, page=index + 1, row_index=row_index)
+            project_key_normalized_changes_count += normalized_changes
+            projects.append(normalized_row)
         for key in ["input_tokens", "output_tokens", "total_tokens"]:
             value = page_usage.get(key)
             if isinstance(value, int) and isinstance(usage_total.get(key), int):
@@ -214,13 +240,16 @@ def extract_city_aip_from_pdf_all_pages(
                 usage_total[key] = None
         if on_progress:
             on_progress(index + 1, total_pages)
-    return merged, usage_total
+    deduped = _dedupe_projects(projects)
+    return deduped, {**usage_total, "project_key_normalized_changes_count": project_key_normalized_changes_count}, total_pages
 
 
 def run_extraction(
     pdf_path: str,
     model: str = "gpt-5.2",
     job_id: str | None = None,
+    aip_id: str | None = None,
+    uploaded_file_id: str | None = None,
     on_progress: Callable[[int, int], None] | None = None,
     client: OpenAI | None = None,
 ) -> ExtractionResult:
@@ -228,23 +257,37 @@ def run_extraction(
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
     resolved_client = client or build_openai_client()
     start_ts = time.perf_counter()
-    extracted, usage = extract_city_aip_from_pdf_all_pages(
+    projects, usage, page_count = extract_city_aip_from_pdf_all_pages(
         client=resolved_client,
         pdf_path=pdf_path,
         model=model,
         on_progress=on_progress,
     )
-    payload = _enforce_nulls(extracted.model_dump(mode="python"))
+    document, doc_warnings = extract_document_metadata(pdf_path, scope="city", page_count_hint=page_count)
+    quality = compute_quality(
+        projects=projects,
+        document=document,
+        warnings=doc_warnings,
+        project_key_normalized_changes_count=int(usage.get("project_key_normalized_changes_count") or 0),
+    )
+    payload = make_stage_root(
+        stage="extract",
+        aip_id=aip_id or job_id or "local-aip",
+        uploaded_file_id=uploaded_file_id,
+        document=document,
+        projects=projects,
+        warnings=doc_warnings,
+        quality=quality,
+    )
     json_str = json.dumps(payload, indent=2, ensure_ascii=False)
     elapsed = round(time.perf_counter() - start_ts, 4)
-    print(f"[EXTRACTION][CITY] elapsed={elapsed:.2f}s projects={len(payload.get('projects', []))}", flush=True)
+    print(f"[EXTRACTION][CITY] elapsed={elapsed:.2f}s projects={len(projects)}", flush=True)
     return ExtractionResult(
         job_id=job_id,
         model=model,
         source_pdf=pdf_path,
-        extracted=extracted,
+        extracted={"projects": projects},
         usage=usage,
         payload=payload,
         json_str=json_str,
     )
-

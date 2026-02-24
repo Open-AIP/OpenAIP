@@ -102,6 +102,7 @@ export function CommentAipThreadList({
               authorName={thread?.preview.authorName ?? "Citizen"}
               authorScopeLabel={thread?.preview.authorScopeLabel ?? null}
               updatedAt={item.updatedAt}
+              kind={thread?.preview.kind ?? "question"}
               contextTitle={item.contextTitle}
               contextSubtitle={item.contextSubtitle}
               snippet={item.snippet}

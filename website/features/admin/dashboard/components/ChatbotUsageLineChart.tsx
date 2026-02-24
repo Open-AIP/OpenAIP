@@ -7,7 +7,7 @@ import { DASHBOARD_CHART_STROKES, DASHBOARD_SEMANTIC_COLORS } from "@/lib/ui/tok
 export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetricsVM }) {
   const data = metrics.chatbotUsageTrend;
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const chartHeight = 180;
+  const chartHeight = 210;
   const svgWidth = Math.max(data.length * 80, 700);
   const plotWidth = svgWidth - 40;
   const gridLines = 4;
@@ -22,16 +22,16 @@ export default function ChatbotUsageLineChart({ metrics }: { metrics: UsageMetri
     .join(" ");
 
   return (
-    <Card className="border-slate-200">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-[15px]">Chatbot Usage Over Time</CardTitle>
+    <Card className="border-slate-200 py-0 shadow-none">
+      <CardHeader className="space-y-1 pb-0">
+        <CardTitle className="text-[18px]">Chatbot Usage Over Time</CardTitle>
         <div className="text-[12px] text-slate-500">
           Daily chatbot request volume showing usage trends and patterns.
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         <div className="w-full overflow-x-auto">
-          <svg width="100%" height={220} viewBox={`0 0 ${svgWidth} 220`}>
+          <svg width="100%" height={250} viewBox={`0 0 ${svgWidth} 250`}>
             <g transform="translate(20,20)">
               {Array.from({ length: gridLines + 1 }, (_, idx) => {
                 const y = (chartHeight / gridLines) * idx;

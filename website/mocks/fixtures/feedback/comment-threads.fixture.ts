@@ -4,6 +4,7 @@ import {
   COMMENT_THREAD_IDS,
   PROJECT_IDS,
 } from "@/mocks/fixtures/shared/id-contract.fixture";
+import type { FeedbackKind } from "@/lib/contracts/databasev2";
 
 type CommentTarget =
   | { targetKind: "project"; projectId: string }
@@ -18,6 +19,7 @@ type CommentThread = {
     text: string;
     updatedAt: string;
     status: "no_response" | "responded";
+    kind: FeedbackKind;
     authorName?: string;
     authorScopeLabel?: string | null;
   };
@@ -36,6 +38,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Please place warning signs near the school entrance.",
       updatedAt: "2026-01-18T02:05:00.000Z",
       status: "no_response",
+      kind: "concern",
       authorName: "Rafael Santos",
       authorScopeLabel: "Brgy. San Isidro",
     },
@@ -52,6 +55,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Please post the weekly progress schedule for transparency.",
       updatedAt: "2026-01-14T08:30:00.000Z",
       status: "responded",
+      kind: "suggestion",
       authorName: "Liza Mercado",
       authorScopeLabel: "Brgy. San Isidro",
     },
@@ -69,6 +73,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Can you share the material breakdown for this road project?",
       updatedAt: "2026-01-16T09:15:00.000Z",
       status: "no_response",
+      kind: "question",
       authorName: "Ana Reyes",
       authorScopeLabel: "Brgy. Mamadid",
     },
@@ -86,6 +91,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Will the procurement include training for staff on new equipment?",
       updatedAt: "2026-01-21T04:10:00.000Z",
       status: "responded",
+      kind: "question",
       authorName: "Joanna Lim",
       authorScopeLabel: "Brgy. San Isidro",
     },
@@ -102,6 +108,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Will the market include a covered loading bay for vendors?",
       updatedAt: "2026-01-22T01:40:00.000Z",
       status: "no_response",
+      kind: "question",
       authorName: "Marco Dizon",
       authorScopeLabel: "Brgy. Poblacion",
     },
@@ -118,6 +125,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Can we have monthly counseling sessions for seniors?",
       updatedAt: "2026-01-24T02:10:00.000Z",
       status: "responded",
+      kind: "suggestion",
       authorName: "Lina Bautista",
       authorScopeLabel: "Brgy. Santa Rita",
     },
@@ -135,6 +143,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Is there a separate budget for senior citizen facilities?",
       updatedAt: "2026-01-25T08:15:00.000Z",
       status: "no_response",
+      kind: "question",
       authorName: "Anton Reyes",
       authorScopeLabel: "Brgy. Poblacion",
     },
@@ -152,6 +161,7 @@ export const COMMENT_THREADS_FIXTURE: CommentThread[] = [
       text: "Please confirm if stall upgrades include improved drainage.",
       updatedAt: "2026-01-27T03:00:00.000Z",
       status: "responded",
+      kind: "commend",
       authorName: "Janelle Cruz",
       authorScopeLabel: "City District 2",
     },

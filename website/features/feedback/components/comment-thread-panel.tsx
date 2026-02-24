@@ -3,11 +3,13 @@
 import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
 import { getCommentRepo } from "@/lib/repos/feedback/repo";
 import type { CommentMessage, CommentThread } from "../types";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
 
 const ROLE_LABELS: Record<string, string> = {
   citizen: "Citizen",
@@ -29,7 +31,7 @@ export function CommentThreadPanel({
   const [reply, setReply] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
-  const [showReply, setShowReply] = React.useState(false);
+  const [showReply, setShowReply] = React.useState(variant === "embedded");
   const [error, setError] = React.useState<string | null>(null);
 
   const isEmbedded = variant === "embedded";
@@ -109,6 +111,7 @@ export function CommentThreadPanel({
           const isCitizen = message.authorRole === "citizen";
           const roleLabel = ROLE_LABELS[message.authorRole] ?? message.authorRole;
           const displayName = isCitizen ? "Citizen" : "Official";
+          const kindBadge = getFeedbackKindBadge(message.kind);
 
           return (
             <div
@@ -130,6 +133,14 @@ export function CommentThreadPanel({
                     <p className="text-sm font-semibold text-slate-900">
                       {displayName}
                     </p>
+                    {message.kind !== "lgu_note" ? (
+                      <Badge
+                        variant="outline"
+                        className={cn("rounded-full px-2 py-0 text-[10px]", kindBadge.className)}
+                      >
+                        {kindBadge.label}
+                      </Badge>
+                    ) : null}
                     {!isCitizen ? (
                       <>
                         <span className="text-xs text-slate-400">•</span>
@@ -162,32 +173,23 @@ export function CommentThreadPanel({
       </div>
 
       <div className={cn(isEmbedded ? "mt-4 space-y-3" : "mt-6 space-y-3")}>
-        {isEmbedded && !showReply ? (
-          <button
-            type="button"
-            className="text-xs font-semibold text-slate-700"
-            onClick={() => setShowReply(true)}
-          >
-            Reply
-          </button>
-        ) : null}
-
         {showReply ? (
           <>
-            <label className="text-xs font-semibold text-slate-600">Reply</label>
             <Textarea
               value={reply}
               onChange={(event) => setReply(event.target.value)}
               placeholder="Write your response here..."
-              className="min-h-[120px] border-slate-200 bg-white"
+              className="min-h-30 border-slate-200 bg-white"
             />
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  setShowReply(false);
                   setReply("");
+                  if (!isEmbedded) {
+                    setShowReply(false);
+                  }
                 }}
                 className="rounded-xl"
               >

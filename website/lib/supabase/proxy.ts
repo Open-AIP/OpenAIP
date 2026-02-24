@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { RoleType } from '@/lib/contracts/databasev2'
+// NEW IMPORT - Added for mock mode bypass (to revert, remove this import)
+// ORIGINAL: import type { RoleType } from '@/lib/contracts/databasev2'
+import { isMockModeEnabled } from '@/lib/auth/dev-bypass'
 
 type RouteRole = 'citizen' | 'barangay' | 'city' | 'municipality' | 'admin'
 
@@ -100,9 +103,23 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.endsWith('/update-password') ||
     request.nextUrl.pathname.endsWith('/confirm')
 
+  // Skip auth check for citizen pages in mock mode
+  // ORIGINAL CODE (to revert, remove the `&& !isMockBypassForCitizen` condition below):
+  // if (
+  //   !userId && 
+  //   !isPublicAuthRoute
+  // ) {
+  //   const url = request.nextUrl.clone()
+  //   url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/sign-in`
+  //   return NextResponse.redirect(url)
+  // }
+  
+  const isMockBypassForCitizen = isMockModeEnabled() && pathRole === 'citizen'
+  
   if (
     !userId && 
-    !isPublicAuthRoute
+    !isPublicAuthRoute &&
+    !isMockBypassForCitizen
   ) {
     const url = request.nextUrl.clone()
     url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/sign-in`

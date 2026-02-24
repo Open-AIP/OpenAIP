@@ -44,7 +44,7 @@ export default function InfrastructureProjectDetailPageView({
 }: {
   aipYear: number;
   project: InfrastructureProject;
-  scope?: "city" | "barangay";
+  scope?: "city" | "barangay" | "citizen";
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();

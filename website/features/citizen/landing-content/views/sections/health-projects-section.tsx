@@ -1,42 +1,37 @@
-﻿"use client";
+"use client";
 
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProjectHighlightVM } from "@/lib/domain/landing-content";
 import CardShell from "../../components/atoms/card-shell";
 import FullScreenSection from "../../components/layout/full-screen-section";
+import { MOTION_TOKENS, VIEWPORT_ONCE } from "../../components/motion/motion-primitives";
 import ProjectShowcaseCard from "./project-showcase-card";
 
 type HealthProjectsSectionProps = {
   vm: ProjectHighlightVM;
 };
 
-type VisibleProject = {
-  index: number;
-  delta: number;
-  project: ProjectHighlightVM["projects"][number];
-};
-
 function formatCompactPeso(amount: number): string {
   if (amount >= 1_000_000_000) {
-    return `₱${(amount / 1_000_000_000).toFixed(1)}B`;
+    return `\u20b1${(amount / 1_000_000_000).toFixed(1)}B`;
   }
   if (amount >= 1_000_000) {
-    return `₱${(amount / 1_000_000).toFixed(1)}M`;
+    return `\u20b1${(amount / 1_000_000).toFixed(1)}M`;
   }
   if (amount >= 1_000) {
-    return `₱${(amount / 1_000).toFixed(1)}K`;
+    return `\u20b1${(amount / 1_000).toFixed(1)}K`;
   }
-  return `₱${amount.toLocaleString("en-PH")}`;
+  return `\u20b1${amount.toLocaleString("en-PH")}`;
 }
 
 function formatCompactCount(value: number): string {
@@ -72,8 +67,9 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
   const cooldownUntilRef = useRef(0);
   const virtualIndexRef = useRef(0);
   const edgeStepRef = useRef<(ts: number) => void>(() => {});
+  const reducedMotion = useReducedMotion();
 
-  const safeProjects = useMemo(() => vm.projects ?? [], [vm.projects]);
+  const safeProjects = vm.projects ?? [];
   const hasMultipleProjects = safeProjects.length > 1;
   const edgeHoverWidth = 80;
   const effectiveActiveIndex =
@@ -193,26 +189,6 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
   useEffect(() => stopEdgeScroll, [stopEdgeScroll]);
 
-  const visibleProjects = useMemo<VisibleProject[]>(() => {
-    if (!safeProjects.length) {
-      return [];
-    }
-
-    const start = Math.max(0, effectiveActiveIndex - 1);
-    const end = Math.min(safeProjects.length - 1, effectiveActiveIndex + 1);
-    const windowProjects: VisibleProject[] = [];
-
-    for (let index = start; index <= end; index += 1) {
-      windowProjects.push({
-        index,
-        delta: index - effectiveActiveIndex,
-        project: safeProjects[index],
-      });
-    }
-
-    return windowProjects;
-  }, [effectiveActiveIndex, safeProjects]);
-
   const goToNext = useCallback(() => {
     if (!hasMultipleProjects) {
       return;
@@ -230,41 +206,103 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
   }, [hasMultipleProjects, safeProjects.length, stopEdgeScroll]);
 
   const primaryValue = vm.primaryKpiValue ?? vm.totalBudget ?? 0;
+  const activeProject = safeProjects[effectiveActiveIndex];
+  const previousProject = effectiveActiveIndex > 0 ? safeProjects[effectiveActiveIndex - 1] : null;
+  const nextProject =
+    effectiveActiveIndex < safeProjects.length - 1 ? safeProjects[effectiveActiveIndex + 1] : null;
+
+  const headerVariants: Variants = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 16 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reducedMotion ? 0.24 : 0.65,
+        ease: MOTION_TOKENS.enterEase,
+      },
+    },
+  };
+
+  const kpiContainerVariants: Variants = {
+    hidden: { opacity: 1 },
+    visible: {
+      opacity: 1,
+      transition: {
+        delayChildren: reducedMotion ? 0.08 : 0.12,
+        staggerChildren: reducedMotion ? 0 : 0.1,
+      },
+    },
+  };
+
+  const kpiItemVariants: Variants = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 14 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reducedMotion ? 0.24 : 0.6,
+        ease: MOTION_TOKENS.enterEase,
+      },
+    },
+  };
+
+  const carouselVariants: Variants = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 12 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reducedMotion ? 0.28 : 0.7,
+        delay: reducedMotion ? 0.1 : 0.26,
+        ease: MOTION_TOKENS.enterEase,
+      },
+    },
+  };
 
   return (
     <FullScreenSection id="health-projects" className="bg-[#EFF4F7]">
-      <div className="grid grid-cols-12 items-center gap-10 lg:gap-16">
+      <motion.div
+        className="grid grid-cols-12 items-center gap-10 lg:gap-16"
+        initial="hidden"
+        whileInView="visible"
+        viewport={VIEWPORT_ONCE}
+      >
         <div className="col-span-12 space-y-8 lg:col-span-5 xl:col-span-4">
-          <div className="space-y-6">
+          <motion.div className="space-y-6" variants={headerVariants}>
             <h2 className="max-w-[12ch] text-4xl font-extrabold leading-[0.95] tracking-tight text-[#052434] sm:text-5xl">
               {vm.heading}
             </h2>
             <p className="max-w-[24ch] text-xl leading-[1.45] text-[#4F7D92] sm:text-2xl">
               {vm.description}
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2">
-            <CardShell className="w-full min-w-0 py-0">
-              <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                <p className="text-3xl font-bold leading-none text-[#EC4899] sm:text-3xl">
-                  {formatCompactPeso(primaryValue)}
-                </p>
-                <p className="text-base font-medium text-slate-500">{vm.primaryKpiLabel}</p>
-              </div>
-            </CardShell>
-            <CardShell className="w-full min-w-0 py-0">
-              <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                <p className="text-4xl font-bold leading-none text-[#EC4899] sm:text-4xl">
-                  {formatCompactCount(vm.secondaryKpiValue)}
-                </p>
-                <p className="text-base font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
-              </div>
-            </CardShell>
-          </div>
+          <motion.div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2" variants={kpiContainerVariants}>
+            <motion.div variants={kpiItemVariants}>
+              <CardShell className="w-full min-w-0 py-0">
+                <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
+                  <p className="text-3xl font-bold leading-none text-[#EC4899] sm:text-3xl">
+                    {formatCompactPeso(primaryValue)}
+                  </p>
+                  <p className="text-base font-medium text-slate-500">{vm.primaryKpiLabel}</p>
+                </div>
+              </CardShell>
+            </motion.div>
+
+            <motion.div variants={kpiItemVariants}>
+              <CardShell className="w-full min-w-0 py-0">
+                <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
+                  <p className="text-4xl font-bold leading-none text-[#EC4899] sm:text-4xl">
+                    {formatCompactCount(vm.secondaryKpiValue)}
+                  </p>
+                  <p className="text-base font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
+                </div>
+              </CardShell>
+            </motion.div>
+          </motion.div>
         </div>
 
-        <div className="col-span-12 lg:col-span-7 xl:col-span-8">
+        <motion.div className="col-span-12 lg:col-span-7 xl:col-span-8" variants={carouselVariants}>
           <div className="relative w-full lg:max-w-[920px]">
             <div className="relative overflow-hidden rounded-2xl" onMouseLeave={stopEdgeScroll}>
               <div
@@ -275,72 +313,109 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                   cooldownUntilRef.current = performance.now() + 250;
                 }}
               >
-              {visibleProjects.map(({ project, index, delta }) => (
+                {previousProject ? (
+                  <div
+                    className="absolute left-1/2 top-1/2 w-[400px]"
+                    style={getStackStyle(-1)}
+                    onClick={() => setActiveIndex(effectiveActiveIndex - 1)}
+                  >
+                    <ProjectShowcaseCard
+                      project={previousProject}
+                      budgetLabel={previousProject.budgetLabel ?? formatCompactPeso(previousProject.budget)}
+                    />
+                  </div>
+                ) : null}
+
+                {nextProject ? (
+                  <div
+                    className="absolute left-1/2 top-1/2 w-[400px]"
+                    style={getStackStyle(1)}
+                    onClick={() => setActiveIndex(effectiveActiveIndex + 1)}
+                  >
+                    <ProjectShowcaseCard
+                      project={nextProject}
+                      budgetLabel={nextProject.budgetLabel ?? formatCompactPeso(nextProject.budget)}
+                    />
+                  </div>
+                ) : null}
+
+                {activeProject ? (
+                  <div
+                    key={activeProject.id}
+                    className="absolute left-1/2 top-1/2 z-[56] w-[400px]"
+                    style={{ transform: "translate(-50%, -50%)" }}
+                  >
+                    <ProjectShowcaseCard
+                      project={activeProject}
+                      budgetLabel={activeProject.budgetLabel ?? formatCompactPeso(activeProject.budget)}
+                    />
+                  </div>
+                ) : null}
+
                 <div
-                  key={project.id}
-                  className="absolute left-1/2 top-1/2 w-[400px] will-change-transform transition-transform transition-opacity duration-300 ease-out"
-                  style={getStackStyle(delta)}
-                  onClick={() => setActiveIndex(index)}
-                >
-                  <ProjectShowcaseCard
-                    project={project}
-                    budgetLabel={project.budgetLabel ?? formatCompactPeso(project.budget)}
-                  />
-                </div>
-              ))}
+                  className="absolute inset-y-0 left-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
+                  onMouseEnter={() => startEdgeScroll(-1)}
+                  onMouseLeave={stopEdgeScroll}
+                  onPointerDown={onEdgePointerDown(-1)}
+                  onPointerUp={onEdgePointerUp}
+                  onPointerCancel={onEdgePointerUp}
+                  onPointerLeave={onEdgePointerUp}
+                  onLostPointerCapture={onEdgePointerUp}
+                />
 
-              <div
-                className="absolute inset-y-0 left-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
-                onMouseEnter={() => startEdgeScroll(-1)}
-                onMouseLeave={stopEdgeScroll}
-                onPointerDown={onEdgePointerDown(-1)}
-                onPointerUp={onEdgePointerUp}
-                onPointerCancel={onEdgePointerUp}
-                onPointerLeave={onEdgePointerUp}
-                onLostPointerCapture={onEdgePointerUp}
-              />
-
-              <div
-                className="absolute inset-y-0 right-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
-                onMouseEnter={() => startEdgeScroll(1)}
-                onMouseLeave={stopEdgeScroll}
-                onPointerDown={onEdgePointerDown(1)}
-                onPointerUp={onEdgePointerUp}
-                onPointerCancel={onEdgePointerUp}
-                onPointerLeave={onEdgePointerUp}
-                onLostPointerCapture={onEdgePointerUp}
-              />
+                <div
+                  className="absolute inset-y-0 right-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
+                  onMouseEnter={() => startEdgeScroll(1)}
+                  onMouseLeave={stopEdgeScroll}
+                  onPointerDown={onEdgePointerDown(1)}
+                  onPointerUp={onEdgePointerUp}
+                  onPointerCancel={onEdgePointerUp}
+                  onPointerLeave={onEdgePointerUp}
+                  onLostPointerCapture={onEdgePointerUp}
+                />
               </div>
             </div>
 
             <div className="pointer-events-none absolute inset-y-0 -left-[43px] -right-[43px] z-[70] hidden items-center justify-between lg:flex">
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                aria-label="Go to previous health project"
-                disabled={!hasMultipleProjects || effectiveActiveIndex <= 0}
-                className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
-                onClick={goToPrevious}
+              <motion.div
+                whileHover={reducedMotion ? undefined : { x: -2, scale: 1.03 }}
+                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
               >
-                <ArrowLeft className="h-14 w-14 stroke-[1.6]" />
-              </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Go to previous health project"
+                  disabled={!hasMultipleProjects || effectiveActiveIndex <= 0}
+                  className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                  onClick={goToPrevious}
+                >
+                  <ArrowLeft className="h-14 w-14 stroke-[1.6]" />
+                </Button>
+              </motion.div>
 
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                aria-label="Advance to next health project"
-                disabled={!hasMultipleProjects || effectiveActiveIndex >= safeProjects.length - 1}
-                className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
-                onClick={goToNext}
+              <motion.div
+                whileHover={reducedMotion ? undefined : { x: 2, scale: 1.03 }}
+                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
               >
-                <ArrowRight className="h-14 w-14 stroke-[1.6]" />
-              </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Advance to next health project"
+                  disabled={!hasMultipleProjects || effectiveActiveIndex >= safeProjects.length - 1}
+                  className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                  onClick={goToNext}
+                >
+                  <ArrowRight className="h-14 w-14 stroke-[1.6]" />
+                </Button>
+              </motion.div>
             </div>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </FullScreenSection>
   );
 }

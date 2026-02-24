@@ -16,6 +16,7 @@ function isActivePath(pathname: string, href: string) {
 
 export default function CitizenTopNav() {
   const pathname = usePathname();
+  const mobileSheetId = "citizen-mobile-nav-sheet";
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#D3DBE0]">
@@ -53,11 +54,11 @@ export default function CitizenTopNav() {
 
         <Sheet>
           <SheetTrigger asChild className="md:hidden">
-            <Button variant="outline" size="icon" aria-label="Open menu">
+            <Button variant="outline" size="icon" aria-label="Open menu" aria-controls={mobileSheetId}>
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[280px]">
+          <SheetContent id={mobileSheetId} side="right" className="w-[280px]">
             <SheetTitle className="sr-only">Citizen navigation</SheetTitle>
             <div className="mt-8 flex flex-col gap-2">
               {CITIZEN_NAV.map((item) => {

@@ -1,0 +1,1 @@
+select app.embed_categorize_url();

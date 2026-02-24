@@ -13,6 +13,7 @@ export async function GET(
       .from("extraction_runs")
       .select("id,aip_id,stage,status,error_message,created_at")
       .eq("aip_id", aipId)
+      .in("stage", ["extract", "validate", "summarize", "categorize"])
       .in("status", ["queued", "running"])
       .order("created_at", { ascending: false })
       .limit(1)

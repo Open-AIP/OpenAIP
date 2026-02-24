@@ -10,6 +10,7 @@ Requires-Dist: pydantic>=2.8.0
 Requires-Dist: python-dotenv>=1.0.1
 Requires-Dist: openai>=1.97.0
 Requires-Dist: pypdf>=5.0.1
+Requires-Dist: pdfplumber>=0.11.0
 Requires-Dist: supabase>=2.7.0
 Requires-Dist: langchain-core>=0.3.0
 Requires-Dist: langchain-openai>=0.2.0
@@ -27,8 +28,8 @@ Production-grade Python service for AIP extraction workflows, including extracti
 Run these commands one by one inside `aip-intelligence-pipeline`.
 
 ```powershell
-cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
-py -3.11 -m venv .venv
+cd aip-intelligence-pipeline
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
@@ -46,7 +47,7 @@ Required keys in `.env`:
 API (terminal 1):
 
 ```powershell
-cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+cd aip-intelligence-pipeline
 .\.venv\Scripts\Activate.ps1
 openaip-api
 ```
@@ -54,7 +55,7 @@ openaip-api
 Worker (terminal 2):
 
 ```powershell
-cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+cd aip-intelligence-pipeline
 .\.venv\Scripts\Activate.ps1
 openaip-worker
 ```
@@ -62,7 +63,7 @@ openaip-worker
 Dev CLI local file run:
 
 ```powershell
-cd "c:\Users\Cj\Documents\College\4th Year 2nd Sem\CPP122 CpE Practice and Design 2\open-aip\aip-intelligence-pipeline"
+cd aip-intelligence-pipeline
 .\.venv\Scripts\Activate.ps1
 openaip-cli run-local --pdf-path data/aips/sample.pdf --scope barangay
 ```
@@ -81,7 +82,7 @@ If you renamed this folder and get a `Fatal error in launcher` from `pip`, recre
 ```powershell
 deactivate
 Remove-Item -Recurse -Force .venv
-py -3.11 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
@@ -110,6 +111,53 @@ Common optional runtime vars:
 - `PIPELINE_DEV_ROUTES` (default `false`)
 - `PIPELINE_ENABLE_RAG` (default `false`)
 
+## Validation resources
+
+Barangay validation prompt source:
+- `src/openaip_pipeline/resources/prompts/validation/barangay_system.txt`
+
+Barangay rules metadata source:
+- `src/openaip_pipeline/resources/rules/barangay.rules.json`
+
+City validation prompt source:
+- `src/openaip_pipeline/resources/prompts/validation/city_system.txt`
+
+City rules metadata source:
+- `src/openaip_pipeline/resources/rules/city.rules.json`
+
+Quick rules inspection:
+
+```powershell
+openaip-cli validate-rules --scope barangay
+openaip-cli validate-rules --scope city
+```
+
+## Extraction prompt resources
+
+Barangay extraction prompt sources:
+- `src/openaip_pipeline/resources/prompts/extraction/barangay_system.txt`
+- `src/openaip_pipeline/resources/prompts/extraction/barangay_user.txt`
+
+City extraction prompt sources:
+- `src/openaip_pipeline/resources/prompts/extraction/city_system.txt`
+- `src/openaip_pipeline/resources/prompts/extraction/city_user.txt`
+
+These prompt files are runtime source-of-truth for extraction instructions.
+
+## Summarization prompt resources
+
+Summarization prompt source:
+- `src/openaip_pipeline/resources/prompts/summarization/system.txt`
+
+This prompt file is runtime source-of-truth for summarization instructions.
+
+## Categorization prompt resources
+
+Categorization prompt source:
+- `src/openaip_pipeline/resources/prompts/categorization/system.txt`
+
+This prompt file is runtime source-of-truth for categorization instructions.
+
 ## Artifacts and versioning
 
 Definition artifacts (repo-tracked):
@@ -122,16 +170,8 @@ Definition artifacts (repo-tracked):
 Execution artifacts (Supabase source of truth):
 
 - Per-stage payloads stored in `public.extraction_artifacts`
-- Small payloads inline in `artifact_json.data`
-- Large payloads uploaded to Supabase Storage and referenced via `artifact_json.storage_path`
-- Metadata recorded in `artifact_json.meta` including:
-  - `pipeline_version`
-  - `prompt_set_version`
-  - `schema_version`
-  - `ruleset_version`
-  - `model_id`
-  - `embedding_model_id`
-  - prompt snapshot identifiers (`prompt_id`, `prompt_version`)
+- Stage payloads are stored directly in `artifact_json` using schema `aip_artifact_v1.x.x`
+- `artifact_text` stores summarize/categorize summary text for convenience reads
 
 ## Dev-local output policy
 

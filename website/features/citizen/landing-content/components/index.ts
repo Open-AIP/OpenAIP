@@ -8,3 +8,16 @@ export { default as LguMapPanel } from "./map/lgu-map-panel";
 export { default as LguMapPanelPlaceholder } from "./map/lgu-map-panel-placeholder";
 export { default as LguMapPanelLeaflet } from "./map/lgu-map-panel-leaflet";
 export { default as DonutChartCitizenDashboard } from "./chart/donut-chart-citizen-dashboard";
+export {
+  VIEWPORT_ONCE,
+  MOTION_TOKENS,
+  fadeUp,
+  fadeIn,
+  scaleIn,
+  staggerContainer,
+  staggerItem,
+  MotionInView,
+  MotionStagger,
+  MotionItem,
+  MotionPressable,
+} from "./motion/motion-primitives";

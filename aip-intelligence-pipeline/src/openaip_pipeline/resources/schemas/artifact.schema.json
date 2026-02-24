@@ -1,15 +1,53 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ExecutionArtifactEnvelope",
+  "title": "AipArtifactV11",
   "type": "object",
-  "required": ["artifact_stage", "meta"],
+  "required": [
+    "schema_version",
+    "generated_at",
+    "stage",
+    "aip_id",
+    "uploaded_file_id",
+    "document",
+    "projects"
+  ],
   "properties": {
-    "artifact_stage": { "type": "string" },
-    "data": { "type": ["object", "null"] },
-    "storage_path": { "type": ["string", "null"] },
-    "usage": { "type": ["object", "null"] },
-    "meta": { "type": "object" }
+    "schema_version": {
+      "type": "string",
+      "pattern": "^aip_artifact_v1\\.[0-9]+\\.[0-9]+$"
+    },
+    "generated_at": { "type": "string" },
+    "stage": {
+      "type": "string",
+      "enum": ["extract", "validate", "summarize", "categorize"]
+    },
+    "aip_id": { "type": "string" },
+    "uploaded_file_id": { "type": ["string", "null"] },
+    "document": { "type": "object" },
+    "projects": { "type": "array" },
+    "summary": { "type": ["object", "null"] },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message", "source_refs"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": { "type": ["object", "null"] },
+          "source_refs": { "type": "array" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "quality": {
+      "type": ["object", "null"],
+      "properties": {
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "signals": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }
-

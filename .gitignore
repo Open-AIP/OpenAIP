@@ -5,3 +5,11 @@ aip-intelligence-pipeline/.env
 aip-intelligence-pipeline/aips/
 aip-intelligence-pipeline/data/aips/
 aip-intelligence-pipeline/data/outputs/
+
+# Node dependencies
+node_modules/
+
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

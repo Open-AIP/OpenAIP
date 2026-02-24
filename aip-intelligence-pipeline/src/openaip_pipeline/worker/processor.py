@@ -6,18 +6,12 @@ import traceback
 from typing import Any
 
 from openaip_pipeline.adapters.supabase.repositories import PipelineRepository
-from openaip_pipeline.adapters.supabase.storage import persist_json_payload
-from openaip_pipeline.core.clock import now_utc_iso
 from openaip_pipeline.core.settings import Settings
-from openaip_pipeline.core.versioning import resolve_version_bundle
 from openaip_pipeline.services.categorization.categorize import categorize_from_summarized_json_str
 from openaip_pipeline.services.extraction.barangay import run_extraction as run_barangay_extraction
 from openaip_pipeline.services.extraction.city import run_extraction as run_city_extraction
 from openaip_pipeline.services.rag.rag import answer_with_rag
-from openaip_pipeline.services.summarization.summarize import (
-    attach_summary_to_validated_json_str,
-    summarize_aip_overall_json_str,
-)
+from openaip_pipeline.services.summarization.summarize import summarize_aip_overall_json_str
 from openaip_pipeline.services.validation.barangay import validate_projects_json_str as validate_barangay
 from openaip_pipeline.services.validation.city import validate_projects_json_str as validate_city
 from openaip_pipeline.worker.progress import clamp_pct, read_positive_float_env, run_with_heartbeat
@@ -31,60 +25,20 @@ def _sanitize_error(message: str, settings: Settings) -> str:
     return sanitized
 
 
-def _run_context_meta(settings: Settings, model_name: str) -> dict[str, Any]:
-    bundle = resolve_version_bundle()
-    return {
-        "pipeline_version": bundle.pipeline_version,
-        "prompt_set_version": bundle.prompt_set_version,
-        "schema_version": bundle.schema_version,
-        "ruleset_version": bundle.ruleset_version,
-        "model_id": model_name,
-        "embedding_model_id": settings.embedding_model,
-        "generation_params": {"temperature": 0},
-    }
-
-
-def _prompt_snapshot(scope: str, stage: str, run_meta: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "prompt_id": f"{scope}.{stage}",
-        "prompt_version": run_meta.get("prompt_set_version"),
-        "schema_version": run_meta.get("schema_version"),
-        "rule_version": run_meta.get("ruleset_version"),
-    }
-
-
 def _persist_stage_artifact(
     *,
     repo: PipelineRepository,
-    settings: Settings,
     run_id: str,
     aip_id: str,
     stage: str,
     payload: dict[str, Any],
-    usage: dict[str, Any] | None,
     text: str | None,
-    meta: dict[str, Any],
 ) -> str:
-    object_prefix = f"runs/{run_id}/{stage}_{now_utc_iso().replace(':', '-')}"
-    inlined_payload, storage_path = persist_json_payload(
-        client=repo.client,
-        bucket_id=settings.supabase_storage_artifact_bucket,
-        object_prefix=object_prefix,
-        payload=payload,
-        inline_max_bytes=settings.artifact_inline_max_bytes,
-    )
-    artifact_json = {
-        "artifact_stage": stage,
-        "data": inlined_payload,
-        "storage_path": storage_path,
-        "usage": usage,
-        "meta": meta,
-    }
     return repo.insert_artifact(
         run_id=run_id,
         aip_id=aip_id,
         artifact_type=stage,
-        artifact_json=artifact_json,
+        artifact_json=payload,
         artifact_text=text,
     )
 
@@ -95,7 +49,6 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
     model_name = str(run.get("model_name") or settings.pipeline_model)
     current_stage = "extract"
     tmp_pdf_path: str | None = None
-    run_meta = _run_context_meta(settings, model_name)
     try:
         aip_scope = repo.get_aip_scope(aip_id)
         extraction_fn = run_city_extraction if aip_scope == "city" else run_barangay_extraction
@@ -124,23 +77,18 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
             tmp_pdf_path,
             model=model_name,
             job_id=run_id,
+            aip_id=aip_id,
+            uploaded_file_id=uploaded.id,
             on_progress=extraction_progress,
         )
         repo.set_run_progress(run_id=run_id, stage="extract", stage_progress_pct=100, progress_message="Extraction complete.")
         _persist_stage_artifact(
             repo=repo,
-            settings=settings,
             run_id=run_id,
             aip_id=aip_id,
             stage="extract",
             payload=extraction_res.payload,
-            usage=extraction_res.usage,
             text=None,
-            meta={
-                **run_meta,
-                "prompt_snapshot": _prompt_snapshot(aip_scope, "extract", run_meta),
-                "source_uploaded_file_id": uploaded.id,
-            },
         )
 
         current_stage = "validate"
@@ -165,17 +113,11 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
         repo.set_run_progress(run_id=run_id, stage=current_stage, stage_progress_pct=100, progress_message="Validation complete.")
         _persist_stage_artifact(
             repo=repo,
-            settings=settings,
             run_id=run_id,
             aip_id=aip_id,
             stage="validate",
             payload=validation_res.validated_obj,
-            usage=validation_res.usage,
             text=None,
-            meta={
-                **run_meta,
-                "prompt_snapshot": _prompt_snapshot(aip_scope, "validate", run_meta),
-            },
         )
 
         current_stage = "summarize"
@@ -190,25 +132,15 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
         )
         _persist_stage_artifact(
             repo=repo,
-            settings=settings,
             run_id=run_id,
             aip_id=aip_id,
             stage="summarize",
             payload=summary_res.summary_obj,
-            usage=summary_res.usage,
             text=summary_res.summary_text,
-            meta={
-                **run_meta,
-                "prompt_snapshot": _prompt_snapshot(aip_scope, "summarize", run_meta),
-            },
         )
 
         current_stage = "categorize"
         repo.set_run_stage(run_id=run_id, stage=current_stage)
-        summarized_doc = attach_summary_to_validated_json_str(
-            validation_res.validated_json_str,
-            summary_res.summary_text,
-        )
 
         def categorize_progress(
             categorized_count: int,
@@ -228,7 +160,7 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
             )
 
         categorized_res = categorize_from_summarized_json_str(
-            summarized_doc,
+            summary_res.summary_json_str,
             model=model_name,
             batch_size=settings.batch_size,
             on_progress=categorize_progress,
@@ -241,17 +173,11 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
         )
         categorize_artifact_id = _persist_stage_artifact(
             repo=repo,
-            settings=settings,
             run_id=run_id,
             aip_id=aip_id,
             stage="categorize",
             payload=categorized_res.categorized_obj,
-            usage=categorized_res.usage,
             text=summary_res.summary_text,
-            meta={
-                **run_meta,
-                "prompt_snapshot": _prompt_snapshot(aip_scope, "categorize", run_meta),
-            },
         )
         repo.upsert_projects(
             aip_id=aip_id,
@@ -273,14 +199,11 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
                 )
                 _persist_stage_artifact(
                     repo=repo,
-                    settings=settings,
                     run_id=run_id,
                     aip_id=aip_id,
                     stage="embed",
                     payload={"rag_trace": rag_trace},
-                    usage=None,
                     text=None,
-                    meta={**run_meta, "prompt_snapshot": _prompt_snapshot(aip_scope, "rag", run_meta)},
                 )
 
         repo.set_run_progress(
@@ -298,7 +221,6 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
         try:
             _persist_stage_artifact(
                 repo=repo,
-                settings=settings,
                 run_id=run_id,
                 aip_id=aip_id,
                 stage=current_stage if current_stage in {"extract", "validate", "summarize", "categorize", "embed"} else "extract",
@@ -306,9 +228,7 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
                     "error": sanitized_message,
                     "trace_summary": sanitized_trace[:8000],
                 },
-                usage=None,
                 text=None,
-                meta={**run_meta, "failed_at": now_utc_iso(), "failure_stage": current_stage},
             )
         except Exception:
             pass
@@ -320,3 +240,4 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
                 os.remove(tmp_pdf_path)
             except OSError:
                 pass
+

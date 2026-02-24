@@ -46,8 +46,8 @@ def test_resource_loading() -> None:
         "PS -> MOOE -> FINANCIAL EXPENSES (FE) -> CAPITAL OUTLAY (CO) -> TOTAL"
         in barangay_extraction_user_prompt
     )
-    assert "errors MUST always be null" in barangay_extraction_user_prompt
-    assert "category MUST always be null" in barangay_extraction_user_prompt
+    assert "errors MUST always be null" not in barangay_extraction_user_prompt
+    assert "category MUST always be null" not in barangay_extraction_user_prompt
     assert "return an empty projects array" in barangay_extraction_user_prompt
 
     city_extraction_system_prompt = read_text("prompts/extraction/city_system.txt")
@@ -58,13 +58,13 @@ def test_resource_loading() -> None:
     assert "prm_ncr_lgu_rm_objective_results_indicator" in city_extraction_user_prompt
     assert "PS -> MOOE -> CO -> TOTAL -> CCA -> CCM" in city_extraction_user_prompt
     assert "cc_topology_code" in city_extraction_user_prompt
-    assert "errors MUST always be null" in city_extraction_user_prompt
-    assert "category MUST always be null" in city_extraction_user_prompt
+    assert "errors MUST always be null" not in city_extraction_user_prompt
+    assert "category MUST always be null" not in city_extraction_user_prompt
 
     categorization_prompt = read_text("prompts/categorization/system.txt")
     assert "Annual Investment Plan (AIP) project rows" in categorization_prompt
     assert "Return ONLY structured output matching the schema" in categorization_prompt
-    assert "Infrastructure" in categorization_prompt
-    assert "Healthcare" in categorization_prompt
-    assert "Other" in categorization_prompt
+    assert "infrastructure" in categorization_prompt
+    assert "health" in categorization_prompt
+    assert "other" in categorization_prompt
     assert "Choose exactly ONE category per item." in categorization_prompt

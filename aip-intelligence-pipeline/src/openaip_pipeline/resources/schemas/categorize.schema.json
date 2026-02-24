@@ -1,17 +1,29 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "CategorizeOutput",
+  "title": "CategorizeArtifact",
   "type": "object",
-  "required": ["projects"],
+  "required": ["stage", "projects"],
   "properties": {
+    "stage": { "const": "categorize" },
     "projects": {
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["classification"],
         "properties": {
-          "category": {
-            "type": "string",
-            "enum": ["Infrastructure", "Healthcare", "Other", "infrastructure", "health", "other"]
+          "classification": {
+            "type": "object",
+            "required": ["sector_code", "category"],
+            "properties": {
+              "sector_code": {
+                "type": "string",
+                "enum": ["1000", "3000", "8000", "9000", "unknown"]
+              },
+              "category": {
+                "type": "string",
+                "enum": ["health", "infrastructure", "other"]
+              }
+            }
           }
         }
       }

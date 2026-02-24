@@ -47,6 +47,7 @@ import {
   useExtractionRunsRealtime,
   type ExtractionRunRealtimeEvent,
 } from "../hooks/use-extraction-runs-realtime";
+import { isEmbedSkipNoArtifactMessage } from "@/lib/constants/embedding";
 
 const PIPELINE_STAGES: PipelineStageUi[] = [
   "extract",
@@ -63,6 +64,47 @@ const FINALIZE_PROGRESS_MESSAGE =
   "Saving processed data to the database. You will be redirected shortly.";
 const LIVE_STATUS_UNAVAILABLE_NOTICE =
   "Live extraction updates are unavailable right now. Refresh this page to check the latest status.";
+
+function isEmbeddingSkipped(embedding: AipHeader["embedding"]): boolean {
+  return Boolean(
+    embedding &&
+      embedding.status === "succeeded" &&
+      isEmbedSkipNoArtifactMessage(embedding.progressMessage)
+  );
+}
+
+function getEmbeddingStatusMessage(embedding: AipHeader["embedding"]): string {
+  if (!embedding) {
+    return "Indexing has not started yet.";
+  }
+  if (embedding.status === "queued") {
+    return embedding.progressMessage ?? "Indexing for search...";
+  }
+  if (embedding.status === "running") {
+    return embedding.progressMessage ?? "Indexing for search...";
+  }
+  if (embedding.status === "succeeded") {
+    if (isEmbeddingSkipped(embedding)) {
+      return "Indexing was skipped because no categorize artifact was available. You can embed for search now.";
+    }
+    return embedding.progressMessage ?? "Search index is ready.";
+  }
+  return embedding.errorMessage ?? "Indexing failed. You can retry indexing.";
+}
+
+function getEmbeddingStatusTitle(embedding: AipHeader["embedding"]): string {
+  if (!embedding) return "Search Index Pending";
+  if (embedding.status === "queued" || embedding.status === "running") {
+    return "Search Indexing In Progress";
+  }
+  if (embedding.status === "succeeded") {
+    if (isEmbeddingSkipped(embedding)) {
+      return "Search Index Pending";
+    }
+    return "Search Index Ready";
+  }
+  return "Search Indexing Failed";
+}
 
 type RunStatusPayload = {
   runId: string;
@@ -245,6 +287,9 @@ export default function AipDetailView({
   const [isFinalizingAfterSuccess, setIsFinalizingAfterSuccess] = useState(false);
   const [finalizingNotice, setFinalizingNotice] = useState<string | null>(null);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const [isRetryingEmbedding, setIsRetryingEmbedding] = useState(false);
+  const [embeddingRetryError, setEmbeddingRetryError] = useState<string | null>(null);
+  const [embeddingRetrySuccess, setEmbeddingRetrySuccess] = useState<string | null>(null);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [unresolvedAiCount, setUnresolvedAiCount] = useState(0);
@@ -262,6 +307,17 @@ export default function AipDetailView({
   const [cityPublishConfirmOpen, setCityPublishConfirmOpen] = useState(false);
   const [deleteDraftConfirmOpen, setDeleteDraftConfirmOpen] = useState(false);
   const lastHydratedRunIdRef = useRef<string | null>(null);
+  const isEmbedMissing = !aip.embedding;
+  const isEmbedFailed = aip.embedding?.status === "failed";
+  const isEmbedRunning =
+    aip.embedding?.status === "queued" || aip.embedding?.status === "running";
+  const isEmbedSkipped = isEmbeddingSkipped(aip.embedding);
+  const canManualEmbedDispatch =
+    aip.status === "published" &&
+    (isBarangayScope || isCityScope) &&
+    !isEmbedRunning &&
+    (isEmbedMissing || isEmbedFailed || isEmbedSkipped);
+  const embedActionButtonLabel = isEmbedFailed ? "Retry Indexing" : "Embed for Search";
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
 
@@ -570,6 +626,34 @@ export default function AipDetailView({
     }, 1200);
   }, [router]);
 
+  const handleRetryEmbedding = useCallback(async () => {
+    try {
+      setIsRetryingEmbedding(true);
+      setEmbeddingRetryError(null);
+      setEmbeddingRetrySuccess(null);
+      const runApiScope = isCityScope ? "city" : "barangay";
+      const response = await fetch(
+        `/api/${runApiScope}/aips/${encodeURIComponent(aip.id)}/embed/retry`,
+        { method: "POST" }
+      );
+      const payload = (await response.json()) as {
+        message?: string;
+        reason?: "missing" | "failed" | "skipped";
+      };
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Failed to dispatch search indexing.");
+      }
+      setEmbeddingRetrySuccess(payload.message ?? "Search indexing job dispatched.");
+      router.refresh();
+    } catch (error) {
+      setEmbeddingRetryError(
+        error instanceof Error ? error.message : "Failed to dispatch search indexing."
+      );
+    } finally {
+      setIsRetryingEmbedding(false);
+    }
+  }, [aip.id, isCityScope, router]);
+
   const handleRetryFailedRun = useCallback(async () => {
     if (!failedRun) return;
 
@@ -615,6 +699,8 @@ export default function AipDetailView({
     setRevisionReplyDraft("");
     setCityPublishConfirmOpen(false);
     setDeleteDraftConfirmOpen(false);
+    setEmbeddingRetryError(null);
+    setEmbeddingRetrySuccess(null);
     setProjectsLoading(true);
     setProjectsError(null);
     setUnresolvedAiCount(0);
@@ -1230,7 +1316,53 @@ export default function AipDetailView({
                 ) : null}
 
                 {showStatusSidebar ? (
-                  <AipStatusInfoCard status={aip.status} reviewerMessage={aip.feedback} />
+              <AipStatusInfoCard status={aip.status} reviewerMessage={aip.feedback} />
+                ) : null}
+
+                {aip.status === "published" ? (
+                  <Card className="border-slate-200">
+                    <CardContent className="space-y-3 p-5">
+                      <div className="text-sm font-semibold text-slate-900">
+                        {getEmbeddingStatusTitle(aip.embedding)}
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        {getEmbeddingStatusMessage(aip.embedding)}
+                      </div>
+                      {typeof aip.embedding?.overallProgressPct === "number" &&
+                      (aip.embedding.status === "queued" ||
+                        aip.embedding.status === "running") ? (
+                        <div className="text-xs text-slate-500">
+                          Progress:{" "}
+                          {Math.max(
+                            0,
+                            Math.min(100, Math.round(aip.embedding.overallProgressPct))
+                          )}
+                          %
+                        </div>
+                      ) : null}
+                      {embeddingRetrySuccess ? (
+                        <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                          {embeddingRetrySuccess}
+                        </div>
+                      ) : null}
+                      {embeddingRetryError ? (
+                        <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                          {embeddingRetryError}
+                        </div>
+                      ) : null}
+                      {canManualEmbedDispatch ? (
+                        <Button
+                          className="w-full bg-rose-600 hover:bg-rose-700"
+                          onClick={() => {
+                            void handleRetryEmbedding();
+                          }}
+                          disabled={isRetryingEmbedding}
+                        >
+                          {isRetryingEmbedding ? "Dispatching..." : embedActionButtonLabel}
+                        </Button>
+                      ) : null}
+                    </CardContent>
+                  </Card>
                 ) : null}
 
                 {aip.status === "published" && aip.publishedBy ? (

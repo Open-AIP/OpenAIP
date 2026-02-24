@@ -40,25 +40,27 @@ export default function ProjectInformationCard({
 }: {
   aipYear: number;
   project: HealthProject;
-  scope?: "city" | "barangay";
+  scope?: "city" | "barangay" | "citizen";
 }) {
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900">Project Information</h2>
+          {scope !== "citizen" ? (
             <Button asChild className={PRIMARY_BUTTON_CLASS}>
               <Link href={`/${scope}/projects/health/${project.id}/add-information`}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Information
               </Link>
             </Button>
+          ) : null}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Project Image */}
-          <div className="lg:w-96 flex-shrink-0">
-            <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden">
+          <div className="lg:w-96 shrink-0">
+            <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden">
               <Image
                 src={project.imageUrl || "/default/default-no-image.jpg"}
                 alt={project.title}

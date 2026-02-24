@@ -17,7 +17,7 @@ export function CommentThreadsSplitView({
   target,
   selectedThreadId,
 }: {
-  scope: "city" | "barangay";
+  scope: "city" | "barangay" | "citizen";
   target: Target;
   selectedThreadId?: string | null;
 }) {
@@ -105,6 +105,7 @@ export function CommentThreadsSplitView({
           authorName: thread?.preview.authorName ?? "Citizen",
           authorScopeLabel: thread?.preview.authorScopeLabel ?? null,
           updatedAt: item.updatedAt,
+          kind: thread?.preview.kind ?? "question",
           status: item.status,
           contextTitle: item.contextTitle,
           contextSubtitle: item.contextSubtitle,

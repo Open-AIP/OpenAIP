@@ -19,5 +19,9 @@ export function LogoutButton({role}:AuthParameters) {
     router.push(`/${role === 'citizen' ? '' : role}`)
   }
 
-  return <Button onClick={logout}>Logout</Button>
+  return (
+    <Button onClick={logout} className="bg-[#022437] text-white hover:bg-[#022437]/90">
+      Logout
+    </Button>
+  )
 }

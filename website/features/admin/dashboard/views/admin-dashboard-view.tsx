@@ -25,25 +25,30 @@ export default function AdminDashboardView({ actions }: AdminDashboardViewProps)
   };
 
   return (
-    <div className="space-y-8 text-[13.5px] text-slate-700">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6 text-[13px] text-slate-700">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-semibold text-slate-900">Dashboard</h1>
-          <p className="mt-2 text-[14px] text-muted-foreground">
+          <h1 className="text-[30px] font-semibold leading-9 text-slate-900">Dashboard</h1>
+          <p className="mt-1.5 text-[14px] text-slate-500">
             Read-only operational overview with drill-down access to oversight areas.
           </p>
         </div>
-        <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-700">
+        <Badge
+          variant="outline"
+          className="rounded-full border-blue-200 bg-blue-50 px-3 py-1 text-[12px] font-medium text-blue-700"
+        >
           Read-only
         </Badge>
       </div>
 
-      <DashboardFiltersRow
-        filters={filters}
-        lguOptions={viewModel.lguOptions}
-        onChange={setFilters}
-        onReset={handleReset}
-      />
+      <div className="rounded-[10px] border border-slate-200 bg-[#F4F6F8] px-8 py-4">
+        <DashboardFiltersRow
+          filters={filters}
+          lguOptions={viewModel.lguOptions}
+          onChange={setFilters}
+          onReset={handleReset}
+        />
+      </div>
 
       {error && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
@@ -98,7 +103,7 @@ export default function AdminDashboardView({ actions }: AdminDashboardViewProps)
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[2.1fr_1fr]">
         <AipStatusDonutCard
           data={viewModel.distribution}
           onStatusClick={handleStatusClick}
@@ -112,7 +117,7 @@ export default function AdminDashboardView({ actions }: AdminDashboardViewProps)
       </div>
 
       {viewModel.usageMetrics && (
-        <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <div className="grid gap-6 xl:grid-cols-[2.1fr_1fr]">
           <div className="space-y-6">
             <ErrorRateBarChart metrics={viewModel.usageMetrics} />
             <ChatbotUsageLineChart metrics={viewModel.usageMetrics} />

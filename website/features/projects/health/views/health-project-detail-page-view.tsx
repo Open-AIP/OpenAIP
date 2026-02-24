@@ -45,7 +45,7 @@ export default function HealthProjectDetailPageView({
 }: {
   aipYear: number;
   project: HealthProject;
-  scope?: "city" | "barangay";
+  scope?: "city" | "barangay" | "citizen";
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();

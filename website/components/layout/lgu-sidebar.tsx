@@ -65,7 +65,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
   };
 
   return (
-    <aside className="w-[275px] shrink-0 bg-[#022437] text-white h-screen flex flex-col sticky top-0 overflow-y-auto">
+    <aside className="w-68.75 shrink-0 bg-[#022437] text-white h-screen flex flex-col sticky top-0 overflow-y-auto">
       {/* Brand */}
       <div className="px-6 pt-8 pb-3">
         <div className="flex flex-col items-center gap-3">
@@ -79,11 +79,8 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
           <div className="text-3xl font-semibold leading-none">OpenAIP</div>
         </div>
 
-        {/* CTA Panel */}
-        <div className="mt-6 rounded-xl bg-[#114B59] border border-white/10 p-3 shadow-sm">
-          <div className="rounded-lg bg-[#1B6272] px-4 py-3 text-sm font-medium text-center">
-            {headerLabel}
-          </div>
+        <div className="mt-6 h-21 rounded-[9px] border-2 border-[#1B6272] bg-[#114B59] shadow-[0_4px_4px_rgba(0,0,0,0.25)] flex items-center justify-center px-4 text-sm font-semibold text-center">
+          {headerLabel}
         </div>
       </div>
 

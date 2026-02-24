@@ -12,7 +12,7 @@ export async function resolveCommentSidebar({
   scope = "barangay",
 }: {
   threads: CommentThread[];
-  scope?: "city" | "barangay";
+  scope?: "city" | "barangay" | "citizen";
 } & CommentTargetLookup): Promise<CommentSidebarItem[]> {
   const threadDuplicates = findDuplicateKeys(threads, (thread) => thread.id);
   if (threadDuplicates.length > 0) {

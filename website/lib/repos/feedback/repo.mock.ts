@@ -105,6 +105,7 @@ export function createMockCommentRepo(): CommentRepo {
         threadId,
         authorRole: "barangay_official",
         authorId: "official_001",
+        kind: "lgu_note",
         text,
         createdAt,
       };
@@ -203,7 +204,7 @@ function buildInitialStore(threads: CommentThread[], messages: CommentMessage[])
         aipId: thread.target.targetKind === "aip_item" ? thread.target.aipId : null,
         projectId: thread.target.targetKind === "project" ? thread.target.projectId : null,
         parentFeedbackId: firstMessageId && message.id !== firstMessageId ? firstMessageId : null,
-        kind: "question",
+        kind: message.kind ?? thread.preview.kind,
         body: message.text,
         authorId: message.authorId ?? null,
         createdAt: message.createdAt,

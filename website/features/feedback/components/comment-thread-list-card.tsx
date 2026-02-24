@@ -4,11 +4,14 @@ import { cn } from "@/ui/utils";
 import { formatCommentDate } from "../lib/format";
 import { getCommentStatusBadge } from "../lib/status";
 import type { CommentThreadStatus } from "../types";
+import { getFeedbackKindBadge } from "@/lib/constants/feedback-kind";
+import type { FeedbackKind } from "@/lib/contracts/databasev2";
 
 export function CommentThreadListCard({
   authorName,
   authorScopeLabel,
   updatedAt,
+  kind,
   status,
   contextTitle,
   contextSubtitle,
@@ -19,6 +22,7 @@ export function CommentThreadListCard({
   authorName: string;
   authorScopeLabel?: string | null;
   updatedAt: string | Date;
+  kind: FeedbackKind;
   status: CommentThreadStatus;
   contextTitle: string;
   contextSubtitle: string;
@@ -29,6 +33,7 @@ export function CommentThreadListCard({
   const safeAuthorName = authorName.trim() || "Citizen";
   const initial = safeAuthorName.charAt(0).toUpperCase() || "C";
   const badge = getCommentStatusBadge(status);
+  const kindBadge = getFeedbackKindBadge(kind);
 
   const content = (
     <div className="flex items-start justify-between gap-4">
@@ -65,20 +70,29 @@ export function CommentThreadListCard({
               {formatCommentDate(updatedAt)}
             </time>
             <span className="text-slate-300">•</span>
+            <Badge
+              variant="outline"
+              className={cn("rounded-full px-2.5 py-0 text-[10px] font-medium", badge.className)}
+            >
+              {badge.label}
+            </Badge>
+            <span className="text-slate-300">•</span>
             <span className="font-semibold text-slate-700">Reply</span>
           </div>
         </div>
       </div>
 
-      <Badge
-        variant="outline"
-        className={cn(
-          "shrink-0 rounded-full px-3 py-1 text-xs font-medium",
-          badge.className
-        )}
-      >
-        {badge.label}
-      </Badge>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <Badge
+          variant="outline"
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium",
+            kindBadge.className
+          )}
+        >
+          {kindBadge.label}
+        </Badge>
+      </div>
     </div>
   );
 

@@ -91,7 +91,7 @@ export default function ManifestoMotion({
       variants={containerVariants}
     >
       <motion.p
-        className="text-center text-lg font-semibold leading-[21px] tracking-[0.7px] text-steelblue"
+        className="text-center text-xl font-semibold leading-[24px] tracking-[0.7px] text-steelblue"
         variants={itemFadeIn}
       >
         {eyebrow}
@@ -101,7 +101,7 @@ export default function ManifestoMotion({
         {lines.map((line, index) => (
           <motion.p
             key={`${line}-${index}`}
-            className="text-center text-5xl font-bold leading-[50px] text-darkslategray"
+            className="text-center text-6xl font-bold leading-[60px] text-darkslategray"
             variants={itemFadeUp}
           >
             {line}
@@ -110,13 +110,13 @@ export default function ManifestoMotion({
       </motion.div>
 
       <motion.p
-        className="mt-6 text-center text-6xl font-bold text-steelblue drop-shadow-[0px_3px_10px_rgba(0,0,0,0.25)]"
+        className="mt-6 text-center text-7xl font-bold text-steelblue drop-shadow-[0px_3px_10px_rgba(0,0,0,0.25)]"
         variants={itemScaleIn}
       >
         {emphasis}
       </motion.p>
 
-      <motion.p className="mt-4 text-center text-lg leading-6 text-gray" variants={supportFadeIn}>
+      <motion.p className="mt-4 text-center text-xl leading-7 text-gray" variants={supportFadeIn}>
         {supportingLine}
       </motion.p>
     </motion.div>

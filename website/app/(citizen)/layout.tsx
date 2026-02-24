@@ -10,8 +10,7 @@ import { cn } from "@/ui/utils";
 const CitizenLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
-  const isLandingDashboard =
-    normalizedPathname === "/" || normalizedPathname.startsWith("/dashboard");
+  const isLandingDashboard = normalizedPathname === "/";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#D3DBE0] to-[#FFFFFF]">

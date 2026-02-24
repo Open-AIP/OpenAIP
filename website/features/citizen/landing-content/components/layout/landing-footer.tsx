@@ -19,7 +19,7 @@ export default function LandingFooter({ className }: LandingFooterProps) {
         <div className="space-y-2">
           <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-white/80">Quick Links</h3>
           <nav className="flex flex-col gap-1.5 text-sm text-white/60">
-            <Link href="/dashboard" className="transition hover:text-white">
+            <Link href="/" className="transition hover:text-white">
               Dashboard
             </Link>
             <Link href="/aips" className="transition hover:text-white">

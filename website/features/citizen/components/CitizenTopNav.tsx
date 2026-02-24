@@ -17,7 +17,7 @@ import { CITIZEN_NAV } from '@/features/citizen/constants/nav';
 import { cn } from '@/ui/utils';
 
 function isActivePath(pathname: string, href: string) {
-  if (href === '/dashboard') return pathname === '/dashboard' || pathname === '/';
+  if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -31,7 +31,7 @@ export default function CitizenTopNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#D3DBE0]">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 md:px-8">
-        <Link href="/dashboard" className="flex items-center gap-2" aria-label="OpenAIP home">
+        <Link href="/" className="flex items-center gap-2" aria-label="OpenAIP home">
           <Image src="/brand/logo3.svg" alt="OpenAIP logo" width={32} height={32} className="h-8 w-8" priority />
           <span className="text-xl font-semibold tracking-tight text-slate-900">OpenAIP</span>
         </Link>

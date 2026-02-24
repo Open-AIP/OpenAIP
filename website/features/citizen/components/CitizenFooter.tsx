@@ -6,7 +6,7 @@ import LandingFooter from "@/features/citizen/landing-content/components/layout/
 export default function CitizenFooter() {
   const pathname = usePathname();
 
-  if (pathname === "/" || pathname === "/dashboard") {
+  if (pathname === "/") {
     return null;
   }
 

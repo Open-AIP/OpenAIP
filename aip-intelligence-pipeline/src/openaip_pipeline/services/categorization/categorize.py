@@ -8,11 +8,18 @@ from typing import Any, Callable, Literal
 from openai import OpenAI
 from pydantic import BaseModel, Field, field_validator
 
+from openaip_pipeline.core.artifact_contract import (
+    SCHEMA_VERSION,
+    infer_sector_code,
+    make_stage_root,
+    normalize_category,
+)
+from openaip_pipeline.core.clock import now_utc_iso
 from openaip_pipeline.core.resources import read_text
 from openaip_pipeline.services.openai_utils import build_openai_client, safe_usage_dict
 
 
-Category = Literal["Infrastructure", "Healthcare", "Other"]
+Category = Literal["Infrastructure", "Healthcare", "Other", "infrastructure", "health", "other"]
 
 
 class ProjectForCategorization(BaseModel):
@@ -132,10 +139,14 @@ def categorize_all_projects(
             batch_no=batch_index,
             total_batches=total_batches,
         )
-        idx_to_cat = {item.index: item.category for item in parsed.items}
+        idx_to_cat = {item.index: normalize_category(item.category) for item in parsed.items}
         for local_idx in range(end - start):
             global_idx = start + local_idx
-            projects_raw[global_idx]["category"] = idx_to_cat.get(local_idx, "Other")
+            row = projects_raw[global_idx]
+            classification = row.get("classification") if isinstance(row.get("classification"), dict) else {}
+            classification["category"] = idx_to_cat.get(local_idx, "other")
+            classification["sector_code"] = infer_sector_code(row.get("aip_ref_code"))
+            row["classification"] = classification
         for key in ["input_tokens", "output_tokens", "total_tokens"]:
             value = usage.get(key)
             if isinstance(value, int) and isinstance(usage_total.get(key), int):
@@ -145,6 +156,15 @@ def categorize_all_projects(
         if on_progress:
             on_progress(end, total, batch_index, total_batches)
     return projects_raw, usage_total
+
+
+def _fallback_document() -> dict[str, Any]:
+    year = int(now_utc_iso()[:4])
+    return {
+        "lgu": {"name": "Unknown LGU", "type": "unknown"},
+        "fiscal_year": year,
+        "source": {"document_type": "unknown", "page_count": None},
+    }
 
 
 def categorize_from_summarized_json_str(
@@ -181,11 +201,22 @@ def categorize_from_summarized_json_str(
         on_progress=on_progress,
         client=resolved_client,
     )
-    doc["projects"] = updated_projects
     elapsed = round(time.perf_counter() - started, 4)
+    categorized = make_stage_root(
+        stage="categorize",
+        aip_id=str(doc.get("aip_id") or "unknown-aip"),
+        uploaded_file_id=str(doc.get("uploaded_file_id")) if doc.get("uploaded_file_id") else None,
+        document=doc.get("document") if isinstance(doc.get("document"), dict) else _fallback_document(),
+        projects=updated_projects,
+        summary=doc.get("summary") if isinstance(doc.get("summary"), dict) else None,
+        warnings=doc.get("warnings") if isinstance(doc.get("warnings"), list) else [],
+        quality=doc.get("quality") if isinstance(doc.get("quality"), dict) else None,
+        generated_at=now_utc_iso(),
+        schema_version=str(doc.get("schema_version") or SCHEMA_VERSION),
+    )
     return CategorizationResult(
-        categorized_obj=doc,
-        categorized_json_str=json.dumps(doc, ensure_ascii=False, indent=2),
+        categorized_obj=categorized,
+        categorized_json_str=json.dumps(categorized, ensure_ascii=False, indent=2),
         usage=usage,
         elapsed_seconds=elapsed,
         model=model,

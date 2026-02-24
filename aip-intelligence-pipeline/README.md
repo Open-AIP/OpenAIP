@@ -149,16 +149,8 @@ Definition artifacts (repo-tracked):
 Execution artifacts (Supabase source of truth):
 
 - Per-stage payloads stored in `public.extraction_artifacts`
-- Small payloads inline in `artifact_json.data`
-- Large payloads uploaded to Supabase Storage and referenced via `artifact_json.storage_path`
-- Metadata recorded in `artifact_json.meta` including:
-  - `pipeline_version`
-  - `prompt_set_version`
-  - `schema_version`
-  - `ruleset_version`
-  - `model_id`
-  - `embedding_model_id`
-  - prompt snapshot identifiers (`prompt_id`, `prompt_version`)
+- Stage payloads are stored directly in `artifact_json` using schema `aip_artifact_v1.x.x`
+- `artifact_text` stores summarize/categorize summary text for convenience reads
 
 ## Dev-local output policy
 

@@ -20,7 +20,6 @@ from openaip_pipeline.services.categorization.categorize import (
 from openaip_pipeline.services.extraction.barangay import run_extraction as run_barangay_extraction
 from openaip_pipeline.services.extraction.city import run_extraction as run_city_extraction
 from openaip_pipeline.services.summarization.summarize import (
-    attach_summary_to_validated_json_str,
     summarize_aip_overall_json_str,
 )
 from openaip_pipeline.services.validation.barangay import validate_projects_json_str as validate_barangay
@@ -94,18 +93,21 @@ def run_local(req: LocalRunRequest) -> LocalRunResponse:
     usage: dict[str, Any] = {}
     try:
         if req.scope == "city":
-            extraction_res = run_city_extraction(req.pdf_path, model=req.model, job_id=run_id)
+            extraction_res = run_city_extraction(
+                req.pdf_path, model=req.model, job_id=run_id, aip_id=run_id, uploaded_file_id=None
+            )
             validation_res = validate_city(extraction_res.json_str, model=req.model)
         else:
-            extraction_res = run_barangay_extraction(req.pdf_path, model=req.model, job_id=run_id)
+            extraction_res = run_barangay_extraction(
+                req.pdf_path, model=req.model, job_id=run_id, aip_id=run_id, uploaded_file_id=None
+            )
             validation_res = validate_barangay(extraction_res.json_str, model=req.model)
         usage["extraction"] = extraction_res.usage
         usage["validation"] = validation_res.usage
         summary_res = summarize_aip_overall_json_str(validation_res.validated_json_str, model=req.model)
         usage["summarization"] = summary_res.usage
-        summarized_doc = attach_summary_to_validated_json_str(validation_res.validated_json_str, summary_res.summary_text)
         categorized_res = categorize_from_summarized_json_str(
-            summarized_doc,
+            summary_res.summary_json_str,
             model=req.model,
             batch_size=req.batch_size,
         )
@@ -128,4 +130,3 @@ def run_local(req: LocalRunRequest) -> LocalRunResponse:
             status_code=500,
             detail=json.dumps({"error": str(error), "traceback": traceback_text}),
         ) from error
-

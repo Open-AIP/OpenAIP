@@ -17,6 +17,22 @@ import { CalendarDays, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { getAipStatusBadgeClass } from "../utils";
 
+function getEmbeddingStatusLabel(
+  embedding: AipHeader["embedding"]
+): string | null {
+  if (!embedding) return null;
+  if (embedding.status === "queued" || embedding.status === "running") {
+    return "Indexing for search...";
+  }
+  if (embedding.status === "succeeded") {
+    return "Search index ready";
+  }
+  if (embedding.status === "failed") {
+    return "Indexing failed";
+  }
+  return null;
+}
+
 /**
  * AipCard Component
  * 
@@ -48,6 +64,8 @@ export default function AipCard({
       typeof aip.description === "string" &&
       aip.summaryText.length > aip.description.length
   );
+  const embeddingStatusLabel =
+    aip.status === "published" ? getEmbeddingStatusLabel(aip.embedding) : null;
 
   return (
     <Link href={`/${scope}/aips/${aip.id}`} className="block">
@@ -103,6 +121,9 @@ export default function AipCard({
                       </div>
                     ) : null}
                   </div>
+                  {embeddingStatusLabel ? (
+                    <p className="mt-2 text-xs text-slate-500">{embeddingStatusLabel}</p>
+                  ) : null}
                 </>
               )}
 

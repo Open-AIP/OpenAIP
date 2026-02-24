@@ -1,17 +1,33 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ValidationOutput",
+  "title": "ValidationArtifact",
   "type": "object",
-  "required": ["projects"],
+  "required": ["stage", "projects"],
   "properties": {
+    "stage": { "const": "validate" },
     "projects": {
       "type": "array",
       "items": {
         "type": "object",
+        "required": ["errors", "source_refs"],
         "properties": {
           "errors": {
             "type": ["array", "null"],
             "items": { "type": "string" }
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["page", "kind"],
+              "properties": {
+                "page": { "type": "integer" },
+                "kind": {
+                  "type": "string",
+                  "enum": ["table_row", "text_block", "header", "footer", "unknown"]
+                }
+              }
+            }
           }
         }
       }

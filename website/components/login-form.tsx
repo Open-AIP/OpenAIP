@@ -29,6 +29,8 @@ export function LoginForm({role, baseURL}:AuthParameters) {
 
   const rolePath = getRolePath(baseURL, role);
   const isStaffRole = role !== 'citizen'
+  const roleBadgeLabel =
+    role === 'city' ? 'City Official' : role === 'barangay' ? 'Barangay Official' : 'Admin'
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,7 +89,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
           <main className="order-1 flex min-h-screen items-stretch lg:order-2 lg:col-span-2">
             <div className="w-full p-4 sm:p-6 lg:p-8">
               <Card className="h-full w-full gap-0 rounded-2xl border-slate-200 bg-white shadow-xl">
-              <CardHeader className="space-y-5 px-9 pt-11 sm:px-12">
+              <CardHeader className="items-center space-y-5 px-9 pt-11 text-center sm:px-12">
                 <Image
                   src="/brand/logo3.svg"
                   alt="OpenAIP logo"
@@ -103,8 +105,8 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                     Sign in to continue to OpenAIP.
                   </CardDescription>
                 </div>
-                <span className="inline-flex w-fit items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
-                  Authorized LGU Access
+                <span className="w-full text-center text-xl font-bold text-[#3B7A9D]">
+                  {roleBadgeLabel}
                 </span>
               </CardHeader>
               <CardContent className="px-9 pb-11 sm:px-12">

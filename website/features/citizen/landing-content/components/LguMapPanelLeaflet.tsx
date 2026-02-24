@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, Tooltip } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
 import { cn } from "@/ui/utils";
 
@@ -19,6 +19,34 @@ type LguMapPanelLeafletProps = {
   map: LguOverviewVM["map"];
   heightClass?: string;
 };
+
+type FitMapToMarkersProps = {
+  markers: LguOverviewVM["map"]["markers"];
+  fallbackCenter: LguOverviewVM["map"]["center"];
+  fallbackZoom: number;
+};
+
+function FitMapToMarkers({ markers, fallbackCenter, fallbackZoom }: FitMapToMarkersProps) {
+  const mapInstance = useMap();
+
+  useEffect(() => {
+    if (!markers.length) {
+      mapInstance.setView(fallbackCenter, fallbackZoom);
+      return;
+    }
+
+    if (markers.length === 1) {
+      const marker = markers[0];
+      mapInstance.setView([marker.lat, marker.lng], Math.max(fallbackZoom, 14));
+      return;
+    }
+
+    const bounds = L.latLngBounds(markers.map((marker) => [marker.lat, marker.lng] as [number, number]));
+    mapInstance.fitBounds(bounds, { padding: [36, 36], maxZoom: 14 });
+  }, [fallbackCenter, fallbackZoom, mapInstance, markers]);
+
+  return null;
+}
 
 export default function LguMapPanelLeaflet({
   map,
@@ -39,6 +67,11 @@ export default function LguMapPanelLeaflet({
           className="h-full w-full"
           aria-label="LGU budget map"
         >
+          <FitMapToMarkers
+            markers={map.markers}
+            fallbackCenter={map.center}
+            fallbackZoom={map.zoom}
+          />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -66,4 +99,3 @@ export default function LguMapPanelLeaflet({
     </div>
   );
 }
-

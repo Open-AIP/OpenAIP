@@ -4,8 +4,12 @@ import FullScreenSection from "../../components/layout/full-screen-section";
 import PrimaryButton from "../../components/atoms/primary-button";
 
 type HeroSectionProps = {
-  vm: LandingHeroVM;
+  vm?: LandingHeroVM;
 };
+
+type LegacyHeroShape = Partial<{
+  ctaHref: string;
+}>;
 
 const BLUE_RECTANGLE_SRC = "/citizen-dashboard/blue-rectangle.png";
 const CITY_SRC = "/citizen-dashboard/city.png";
@@ -14,13 +18,24 @@ const GRADIENT_SRC = "/citizen-dashboard/gradient.png";
 const NAVY_RECTANGLE_SRC = "/citizen-dashboard/navy-rectangle.png";
 
 export default function HeroSection({ vm }: HeroSectionProps) {
+  const legacyVm = vm as LandingHeroVM & LegacyHeroShape;
+  const ctaTarget = vm?.ctaHrefOrAction;
   const ctaProps =
-    vm.ctaHrefOrAction.type === "href"
-      ? { href: vm.ctaHrefOrAction.value }
-      : { actionKey: vm.ctaHrefOrAction.value };
+    ctaTarget?.type === "href"
+      ? { href: ctaTarget.value }
+      : ctaTarget?.type === "action"
+        ? { actionKey: ctaTarget.value }
+        : legacyVm?.ctaHref
+          ? { href: legacyVm.ctaHref }
+          : {};
 
   return (
-    <FullScreenSection id="hero" variant="dark" className="bg-[#EAF1F5] text-linen">
+    <FullScreenSection
+      id="hero"
+      variant="dark"
+      className="items-stretch bg-[#EAF1F5] text-linen"
+      contentClassName="max-w-none px-0 py-0"
+    >
       <div className="relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-4 md:px-6">
         <div className="relative w-full overflow-hidden rounded-2xl h-[calc(100vh-120px)] min-h-[640px] supports-[height:100svh]:h-[calc(100svh-120px)]">
           <div className="pointer-events-none absolute inset-0">
@@ -68,13 +83,18 @@ export default function HeroSection({ vm }: HeroSectionProps) {
             <div className="grid h-full grid-cols-12 items-center">
               <div className="col-span-12 lg:col-span-6">
                 <h1 className="max-w-[560px] text-[clamp(2.35rem,5.8vw,4.3rem)] font-semibold leading-[1.02] tracking-tight text-linen">
-                  {vm.title}
+                  {vm?.title ?? "Know Where Every Peso Goes."}
                 </h1>
                 <p className="mt-5 max-w-[520px] text-[15px] leading-7 text-white/80 md:text-[17px] md:leading-[29px]">
-                  {vm.subtitle}
+                  {vm?.subtitle ??
+                    "Explore the Annual Investment Plan through clear budget breakdowns, sector allocations, and funded projects."}
                 </p>
                 <div className="mt-8">
-                  <PrimaryButton label={vm.ctaLabel} ariaLabel={vm.ctaLabel} {...ctaProps} />
+                  <PrimaryButton
+                    label={vm?.ctaLabel ?? "Explore the AIP"}
+                    ariaLabel={vm?.ctaLabel ?? "Explore the AIP"}
+                    {...ctaProps}
+                  />
                 </div>
               </div>
             </div>

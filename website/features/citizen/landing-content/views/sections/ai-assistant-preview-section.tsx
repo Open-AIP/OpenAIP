@@ -1,52 +1,45 @@
-import { CardContent } from "@/components/ui/card";
 import type { ChatPreviewVM } from "@/lib/domain/landing-content";
-import CardShell from "../../components/atoms/card-shell";
 import FullScreenSection from "../../components/layout/full-screen-section";
-import PrimaryButton from "../../components/atoms/primary-button";
-import SectionHeader from "../../components/atoms/section-header";
+import ChatPreviewCard from "./chat-preview-card";
 
 type AiAssistantPreviewSectionProps = {
-  vm: ChatPreviewVM;
+  vm?: ChatPreviewVM;
 };
 
 export default function AiAssistantPreviewSection({ vm }: AiAssistantPreviewSectionProps) {
+  const safeVm: ChatPreviewVM = {
+    pillLabel: vm?.pillLabel ?? "AI Assistant",
+    title: vm?.title ?? "Ask Questions, Get Answers",
+    subtitle:
+      vm?.subtitle ??
+      "Don't understand something? Just ask. Our AI chatbot can answer questions about budgets, projects, and programs.",
+    assistantName: vm?.assistantName ?? "Budget Assistant",
+    assistantStatus: vm?.assistantStatus ?? "Always ready to help",
+    userPrompt: vm?.userPrompt ?? "How much budget went to road projects?",
+    assistantIntro: vm?.assistantIntro ?? "Road projects received \u20B112M in total. This covers:",
+    assistantBullets: Array.isArray(vm?.assistantBullets) ? vm.assistantBullets : [],
+    suggestedPrompts: Array.isArray(vm?.suggestedPrompts) ? vm.suggestedPrompts : [],
+    ctaLabel: vm?.ctaLabel ?? "Open Chatbot",
+    ctaHref: vm?.ctaHref,
+  };
+
   return (
-    <FullScreenSection id="ai-assistant-preview" variant="dark" className="bg-[#023246]">
-      <div className="space-y-8">
-        <SectionHeader
-          align="center"
-          eyebrow="AI Assistant"
-          title="Ask Questions, Get Answers"
-          subtitle="Use plain language to explore AIP details, budgets, and project priorities."
-        />
+    <FullScreenSection
+      id="ai-assistant-preview"
+      variant="dark"
+      className="bg-[#00384B]"
+    >
+      <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-10">
+        <header className="space-y-4 text-center">
+          <p className="mx-auto inline-flex rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold text-white/90">
+            {safeVm.pillLabel}
+          </p>
+          <h2 className="text-5xl font-bold tracking-tight text-white sm:text-6xl">{safeVm.title}</h2>
+          <p className="mx-auto max-w-2xl text-base leading-relaxed text-white/70 sm:text-xl">{safeVm.subtitle}</p>
+        </header>
 
-        <CardShell className="mx-auto max-w-3xl border-white/20 bg-[#064B63] py-0 text-slate-100">
-          <CardContent className="space-y-4 p-5">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#8ED4E4]">{vm.assistantName}</p>
-
-            <div className="ml-auto max-w-[80%] rounded-2xl bg-[#0B3A4D] px-4 py-3 text-sm text-slate-100">
-              {vm.sampleQuestion}
-            </div>
-
-            <div className="max-w-[88%] rounded-2xl bg-white/95 px-4 py-3 text-sm text-[#123243]">
-              {vm.sampleAnswerLines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-2">
-              {vm.suggestedPrompts.map((prompt) => (
-                <span key={prompt} className="rounded-full border border-[#89C7D7]/45 bg-[#0B3A4D] px-3 py-1 text-xs text-slate-100">
-                  {prompt}
-                </span>
-              ))}
-            </div>
-
-            <PrimaryButton label="Open Chatbot" href="/chatbot" className="w-full" />
-          </CardContent>
-        </CardShell>
+        <ChatPreviewCard vm={safeVm} className="w-full max-w-4xl" />
       </div>
     </FullScreenSection>
   );
 }
-

@@ -209,7 +209,7 @@ export default function VoiceMattersSection({ vm }: VoiceMattersSectionProps) {
     <FullScreenSection id="voice-matters" className="bg-[#EDF1F4]">
       <div className="mx-auto w-full max-w-6xl space-y-8">
         <header className="space-y-4 text-center">
-          <h2 className="text-4xl font-bold text-darkslategray text-[#0C2C3A]">{title}</h2>
+          <h2 className="text-6xl font-bold text-darkslategray text-[#0C2C3A]">{title}</h2>
           <p className="mx-auto max-w-3xl text-base text-slate-600">{subtitle}</p>
         </header>
 

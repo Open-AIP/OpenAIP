@@ -229,24 +229,32 @@ function buildLandingContent(): LandingContentVM {
       avgResponseTimeDays: 2.3,
     },
     chatPreview: {
-      assistantName: "OpenAIP Assistant",
-      sampleQuestion: "How much is allocated for health projects this year?",
-      sampleAnswerLines: [
-        "The current AIP earmarks PHP 45.5M for health-related projects.",
-        "Top allocations include the Community Health Center Expansion and Mobile Clinic Fleet Upgrade.",
+      pillLabel: "AI Assistant",
+      title: "Ask Questions, Get Answers",
+      subtitle:
+        "Don't understand something? Just ask. Our AI chatbot can answer questions about budgets, projects, and programs. It's like having a budget expert available 24/7.",
+      assistantName: "Budget Assistant",
+      assistantStatus: "Always ready to help",
+      userPrompt: "How much budget went to road projects?",
+      assistantIntro: "Road projects received \u20B112M in total. This covers:",
+      assistantBullets: [
+        "12 ongoing projects",
+        "8 completed projects",
+        "Includes repairs and new construction",
       ],
       suggestedPrompts: [
-        "Show top funded infrastructure projects",
-        "Compare sector allocations for 2025 vs 2026",
-        "Which barangays receive the highest health funding?",
-        "How fast are citizen feedback reports resolved?",
+        "Where did health funds go?",
+        "Show completed projects",
+        "Which sector got most budget?",
       ],
+      ctaLabel: "Open Chatbot",
+      ctaHref: "/chatbot",
     },
     finalCta: {
       title: "Governance Made Visible.",
-      subtitle: "Stay informed. Stay engaged. Shape transparent local governance.",
-      ctaLabel: "View All AIP",
-      ctaHrefOrAction: { type: "href", value: "/aips" },
+      subtitle: "Stay informed. Stay engaged. Stay empowered.",
+      ctaLabel: "View Full AIP",
+      ctaHref: "/aips",
     },
   };
 }

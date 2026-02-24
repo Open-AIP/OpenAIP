@@ -10,10 +10,7 @@ import {
   FileText,
   Layers,
   ShieldCheck,
-  Users,
   ChevronDown,
-  X,
-  Copy,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -124,7 +121,6 @@ const citizenQuestions = [
 export default function AboutUsPage() {
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const [visible, setVisible] = useState<Record<string, boolean>>({});
-  const [pdfModal, setPdfModal] = useState<string | null>(null);
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -141,7 +137,9 @@ export default function AboutUsPage() {
     return () => obs.disconnect();
   }, []);
 
-  const openPdf = (href: string) => setPdfModal(href);
+  const openPdf = (href: string) => {
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <section className="space-y-12 pb-8 bg-[#F9FAFB]">
@@ -198,7 +196,7 @@ export default function AboutUsPage() {
                 The platform provides real-time insights into how public funds are allocated across sectors, programs,
                 and projects, empowering communities to actively participate in local governance.
               </p>
-              <p className="mt-3 text-sm font-semibold text-[#05C7F2]">Transparency that’s not only procedural—<span className="font-semibold">but understandable.</span></p>
+              <p className="mt-3 text-sm font-semibold text-[#05C7F2]">Transparency that&apos;s not only procedural - <span className="font-semibold">but understandable.</span></p>
               <div className="flex flex-wrap gap-2 pt-2">
                 <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">Official AIP Documents</Badge>
                 <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">Standardized Templates</Badge>
@@ -299,7 +297,7 @@ export default function AboutUsPage() {
               </div>
             ))}
             <div className="rounded-xl border-l-4 border-[#3B82F6] bg-white px-6 py-5 text-xs text-slate-600 shadow-sm">
-              <span className="block text-sm font-semibold text-slate-900">"The AIP serves as the legal bridge between planning and public expenditure."</span>
+              <span className="block text-sm font-semibold text-slate-900">&ldquo;The AIP serves as the legal bridge between planning and public expenditure.&rdquo;</span>
             </div>
           </div>
 

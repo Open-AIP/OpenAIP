@@ -1,11 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { AnchorHTMLAttributes, ReactNode } from "react";
 
 import { SubmissionTable } from "./SubmissionTable";
 import type { AipSubmissionRow } from "@/lib/repos/submissions/repo";
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
+  default: ({
+    href,
+    children,
+    ...props
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & {
+    href: string | URL;
+    children: ReactNode;
+  }) => (
     <a href={typeof href === "string" ? href : String(href)} {...props}>
       {children}
     </a>

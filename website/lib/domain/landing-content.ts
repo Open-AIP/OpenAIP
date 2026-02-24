@@ -95,17 +95,24 @@ export type FeedbackSnapshotVM = {
 };
 
 export type ChatPreviewVM = {
+  pillLabel: string;
+  title: string;
+  subtitle: string;
   assistantName: string;
-  sampleQuestion: string;
-  sampleAnswerLines: string[];
+  assistantStatus: string;
+  userPrompt: string;
+  assistantIntro: string;
+  assistantBullets: string[];
   suggestedPrompts: string[];
+  ctaLabel: string;
+  ctaHref?: string;
 };
 
-export type LandingFinalCtaVM = {
+export type FinalCtaVM = {
   title: string;
   subtitle: string;
   ctaLabel: string;
-  ctaHrefOrAction: LandingCtaTarget;
+  ctaHref?: string;
 };
 
 export type LandingContentVM = {
@@ -117,5 +124,5 @@ export type LandingContentVM = {
   infraHighlights: ProjectHighlightVM;
   feedback: FeedbackSnapshotVM;
   chatPreview: ChatPreviewVM;
-  finalCta: LandingFinalCtaVM;
+  finalCta: FinalCtaVM;
 };

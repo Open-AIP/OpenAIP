@@ -5,6 +5,7 @@ type FullScreenSectionProps = {
   id: string;
   variant?: "light" | "dark";
   className?: string;
+  contentClassName?: string;
   children: ReactNode;
 };
 
@@ -12,6 +13,7 @@ export default function FullScreenSection({
   id,
   variant = "light",
   className,
+  contentClassName,
   children,
 }: FullScreenSectionProps) {
   return (
@@ -23,8 +25,14 @@ export default function FullScreenSection({
         className
       )}
     >
-      <div className="mx-auto w-full max-w-7xl px-6 py-12 md:px-10 lg:px-14 lg:py-16">{children}</div>
+      <div
+        className={cn(
+          "mx-auto w-full max-w-7xl px-6 py-12 md:px-10 lg:px-14 lg:py-16",
+          contentClassName
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }
-

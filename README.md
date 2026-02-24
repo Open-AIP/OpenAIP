@@ -147,6 +147,8 @@ NEXT_PUBLIC_USE_MOCKS=true
 NEXT_PUBLIC_FEEDBACK_DEBUG=0
 NEXT_PUBLIC_TEMP_ADMIN_BYPASS=false
 NEXT_PUBLIC_API_BASE_URL=
+PIPELINE_API_BASE_URL=http://localhost:8000
+PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 ```
 
 `aip-intelligence-pipeline/.env` (safe example):
@@ -167,6 +169,7 @@ PIPELINE_ARTIFACT_INLINE_MAX_BYTES=32768
 PIPELINE_ENABLE_RAG=false
 PIPELINE_RAG_TRACE_QUERY=
 PIPELINE_DEV_ROUTES=false
+PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 
 PIPELINE_VERSION=
 PIPELINE_PROMPT_SET_VERSION=v1.0.0
@@ -192,6 +195,8 @@ Website env reference:
 | `NEXT_PUBLIC_FEEDBACK_DEBUG` | No | Client-exposed | Feedback debug toggle (`1` enables) |
 | `NEXT_PUBLIC_TEMP_ADMIN_BYPASS` | No | Client-exposed | Dev-only bypass toggle |
 | `NEXT_PUBLIC_API_BASE_URL` | No | Client-exposed | Optional API base override |
+| `PIPELINE_API_BASE_URL` | Yes (chatbot) | Server-only | Internal base URL for pipeline chat endpoint |
+| `PIPELINE_INTERNAL_TOKEN` | Yes (chatbot) | Server-only | Shared internal token sent to `/v1/chat/answer` |
 
 \* Set at least one of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
@@ -213,6 +218,7 @@ Pipeline env reference:
 | `PIPELINE_ENABLE_RAG` | No | Server-only | Enable optional RAG trace stage |
 | `PIPELINE_RAG_TRACE_QUERY` | No | Server-only | Query text used when RAG trace is enabled |
 | `PIPELINE_DEV_ROUTES` | No | Server-only | Enables `/v1/runs/dev/local` |
+| `PIPELINE_INTERNAL_TOKEN` | Yes (chat route) | Server-only | Required header auth token for `/v1/chat/answer` |
 | `PIPELINE_VERSION` | No | Server-only | Overrides pipeline version hash |
 | `PIPELINE_PROMPT_SET_VERSION` | No | Server-only | Prompt set version override |
 | `PIPELINE_SCHEMA_VERSION` | No | Server-only | Schema version override |
@@ -462,6 +468,7 @@ Common hosting options for this codebase:
 - `.env.local` and `.env` are ignored by git; do not commit generated env files.
 - Pipeline error sanitization redacts secrets before persisting failure artifacts (`_sanitize_error` in `worker/processor.py`).
 - Vulnerability reporting: use private security reporting channels (GitHub Security Advisories if enabled) and notify maintainers directly.
+- Chatbot rollout checklist: `website/docs/CHATBOT_PRODUCTION_CHECKLIST.md`.
 
 ## Observability
 - Worker lifecycle logs are emitted to stdout (`[WORKER] started`, claimed/succeeded/failed run logs).

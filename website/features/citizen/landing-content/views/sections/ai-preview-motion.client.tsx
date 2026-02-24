@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import type { ChatPreviewVM } from "@/lib/domain/landing-content";
 import ChatPreviewCard from "./chat-preview-card";
@@ -11,6 +12,7 @@ type AiPreviewMotionProps = {
 
 export default function AiPreviewMotion({ vm }: AiPreviewMotionProps) {
   const reducedMotion = useReducedMotion();
+  const [hasEnteredView, setHasEnteredView] = useState(false);
 
   const headerContainer: Variants = {
     hidden: { opacity: 1 },
@@ -68,6 +70,7 @@ export default function AiPreviewMotion({ vm }: AiPreviewMotionProps) {
       initial="hidden"
       whileInView="visible"
       viewport={VIEWPORT_ONCE}
+      onViewportEnter={() => setHasEnteredView(true)}
     >
       <motion.header className="space-y-4 text-center" variants={headerContainer}>
         <motion.p
@@ -85,7 +88,7 @@ export default function AiPreviewMotion({ vm }: AiPreviewMotionProps) {
       </motion.header>
 
       <motion.div className="w-full max-w-4xl" variants={cardVariant}>
-        <ChatPreviewCard vm={vm} />
+        <ChatPreviewCard vm={vm} isActive={hasEnteredView} />
       </motion.div>
     </motion.div>
   );

@@ -11,6 +11,7 @@ import { MOTION_TOKENS } from "../../components/motion/motion-primitives";
 type ChatPreviewCardProps = {
   vm: ChatPreviewVM;
   className?: string;
+  isActive?: boolean;
 };
 
 type LegacyChatPreviewShape = Partial<{
@@ -18,7 +19,7 @@ type LegacyChatPreviewShape = Partial<{
   sampleAnswerLines: string[];
 }>;
 
-export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps) {
+export default function ChatPreviewCard({ vm, className, isActive = true }: ChatPreviewCardProps) {
   const reducedMotion = useReducedMotion();
   const legacyVm = vm as ChatPreviewVM & LegacyChatPreviewShape;
   const assistantBullets = Array.isArray(vm.assistantBullets)
@@ -51,6 +52,14 @@ export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps)
   const [activePromptIndex, setActivePromptIndex] = useState(-1);
 
   useEffect(() => {
+    if (!isActive) {
+      setTypedUserPrompt("");
+      setShowAssistantBubble(false);
+      setTypedAssistantText("");
+      setActivePromptIndex(-1);
+      return;
+    }
+
     if (reducedMotion) {
       setTypedUserPrompt(userPrompt);
       setShowAssistantBubble(true);
@@ -108,10 +117,10 @@ export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps)
       if (pauseTimer) clearTimeout(pauseTimer);
       if (promptTimer) clearInterval(promptTimer);
     };
-  }, [assistantScript, reducedMotion, suggestedPrompts, userPrompt]);
+  }, [assistantScript, isActive, reducedMotion, suggestedPrompts, userPrompt]);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (!isActive || reducedMotion) {
       return;
     }
 
@@ -120,7 +129,7 @@ export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps)
     }, 2800);
 
     return () => clearTimeout(failSafe);
-  }, [assistantScript, reducedMotion]);
+  }, [assistantScript, isActive, reducedMotion]);
 
   const userBubble: Variants = {
     hidden: { opacity: 0, x: reducedMotion ? 0 : 10 },

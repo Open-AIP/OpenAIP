@@ -16,10 +16,27 @@ import CardShell from "../../components/atoms/card-shell";
 import FullScreenSection from "../../components/layout/full-screen-section";
 import { MOTION_TOKENS, VIEWPORT_ONCE } from "../../components/motion/motion-primitives";
 import ProjectShowcaseCard from "./project-showcase-card";
+import ViewAllProjectsCard from "./view-all-projects-card";
 
 type HealthProjectsSectionProps = {
   vm: ProjectHighlightVM;
 };
+
+type CarouselProjectItem = {
+  kind: "project";
+  id: string;
+  project: ProjectHighlightVM["projects"][number];
+};
+
+type CarouselCtaItem = {
+  kind: "cta";
+  id: "__view_all_health__";
+  title: string;
+  href: string;
+  actionLabel: string;
+};
+
+type CarouselItem = CarouselProjectItem | CarouselCtaItem;
 
 function formatCompactPeso(amount: number): string {
   if (amount >= 1_000_000_000) {
@@ -70,10 +87,24 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
   const reducedMotion = useReducedMotion();
 
   const safeProjects = vm.projects ?? [];
-  const hasMultipleProjects = safeProjects.length > 1;
+  const carouselItems: CarouselItem[] = [
+    ...safeProjects.map((project) => ({
+      kind: "project" as const,
+      id: project.id,
+      project,
+    })),
+    {
+      kind: "cta",
+      id: "__view_all_health__",
+      title: "View All Health Projects",
+      href: "/projects?sector=health",
+      actionLabel: "View All Projects",
+    },
+  ];
+  const hasMultipleItems = carouselItems.length > 1;
   const edgeHoverWidth = 80;
   const effectiveActiveIndex =
-    safeProjects.length === 0 ? 0 : Math.max(0, Math.min(activeIndex, safeProjects.length - 1));
+    carouselItems.length === 0 ? 0 : Math.max(0, Math.min(activeIndex, carouselItems.length - 1));
 
   useEffect(() => {
     virtualIndexRef.current = effectiveActiveIndex;
@@ -90,7 +121,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
   useEffect(() => {
     edgeStepRef.current = (ts: number) => {
-      if (!hasMultipleProjects) {
+      if (!hasMultipleItems) {
         stopEdgeScroll();
         return;
       }
@@ -109,7 +140,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
       const pxPerCard = 300;
       const deltaIndex = (dir * dt * speed) / pxPerCard;
 
-      const maxIndex = safeProjects.length - 1;
+      const maxIndex = carouselItems.length - 1;
       const nextFloat = Math.max(0, Math.min(maxIndex, virtualIndexRef.current + deltaIndex));
       virtualIndexRef.current = nextFloat;
 
@@ -123,11 +154,11 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
       rafIdRef.current = requestAnimationFrame((frameTs) => edgeStepRef.current(frameTs));
     };
-  }, [hasMultipleProjects, safeProjects.length, stopEdgeScroll]);
+  }, [carouselItems.length, hasMultipleItems, stopEdgeScroll]);
 
   const startEdgeScroll = useCallback(
     (dir: -1 | 1) => {
-      if (!hasMultipleProjects) {
+      if (!hasMultipleItems) {
         return;
       }
 
@@ -136,7 +167,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
         rafIdRef.current = requestAnimationFrame((ts) => edgeStepRef.current(ts));
       }
     },
-    [hasMultipleProjects]
+    [hasMultipleItems]
   );
 
   const onEdgePointerDown = useCallback(
@@ -164,7 +195,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
   const handleStageMouseMove = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (!hasMultipleProjects) {
+      if (!hasMultipleItems) {
         stopEdgeScroll();
         return;
       }
@@ -184,32 +215,53 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
       stopEdgeScroll();
     },
-    [edgeHoverWidth, hasMultipleProjects, startEdgeScroll, stopEdgeScroll]
+    [edgeHoverWidth, hasMultipleItems, startEdgeScroll, stopEdgeScroll]
   );
 
   useEffect(() => stopEdgeScroll, [stopEdgeScroll]);
 
   const goToNext = useCallback(() => {
-    if (!hasMultipleProjects) {
+    if (!hasMultipleItems) {
       return;
     }
     stopEdgeScroll();
-    setActiveIndex((current) => Math.max(0, Math.min(current + 1, safeProjects.length - 1)));
-  }, [hasMultipleProjects, safeProjects.length, stopEdgeScroll]);
+    setActiveIndex((current) => Math.max(0, Math.min(current + 1, carouselItems.length - 1)));
+  }, [carouselItems.length, hasMultipleItems, stopEdgeScroll]);
 
   const goToPrevious = useCallback(() => {
-    if (!hasMultipleProjects) {
+    if (!hasMultipleItems) {
       return;
     }
     stopEdgeScroll();
-    setActiveIndex((current) => Math.max(0, Math.min(current - 1, safeProjects.length - 1)));
-  }, [hasMultipleProjects, safeProjects.length, stopEdgeScroll]);
+    setActiveIndex((current) => Math.max(0, Math.min(current - 1, carouselItems.length - 1)));
+  }, [carouselItems.length, hasMultipleItems, stopEdgeScroll]);
 
   const primaryValue = vm.primaryKpiValue ?? vm.totalBudget ?? 0;
-  const activeProject = safeProjects[effectiveActiveIndex];
-  const previousProject = effectiveActiveIndex > 0 ? safeProjects[effectiveActiveIndex - 1] : null;
-  const nextProject =
-    effectiveActiveIndex < safeProjects.length - 1 ? safeProjects[effectiveActiveIndex + 1] : null;
+  const activeItem = carouselItems[effectiveActiveIndex];
+  const previousItem = effectiveActiveIndex > 0 ? carouselItems[effectiveActiveIndex - 1] : null;
+  const nextItem =
+    effectiveActiveIndex < carouselItems.length - 1 ? carouselItems[effectiveActiveIndex + 1] : null;
+
+  const renderCarouselItem = (item: CarouselItem, interactive: boolean) => {
+    if (item.kind === "cta") {
+      return (
+        <ViewAllProjectsCard
+          title={item.title}
+          href={item.href}
+          actionLabel={item.actionLabel}
+          interactive={interactive}
+          actionClassName="bg-[#EC4899]"
+        />
+      );
+    }
+
+    return (
+      <ProjectShowcaseCard
+        project={item.project}
+        budgetLabel={item.project.budgetLabel ?? formatCompactPeso(item.project.budget)}
+      />
+    );
+  };
 
   const headerVariants: Variants = {
     hidden: { opacity: 0, y: reducedMotion ? 0 : 16 },
@@ -313,42 +365,33 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                   cooldownUntilRef.current = performance.now() + 250;
                 }}
               >
-                {previousProject ? (
+                {previousItem ? (
                   <div
                     className="absolute left-1/2 top-1/2 w-[400px]"
                     style={getStackStyle(-1)}
                     onClick={() => setActiveIndex(effectiveActiveIndex - 1)}
                   >
-                    <ProjectShowcaseCard
-                      project={previousProject}
-                      budgetLabel={previousProject.budgetLabel ?? formatCompactPeso(previousProject.budget)}
-                    />
+                    {renderCarouselItem(previousItem, false)}
                   </div>
                 ) : null}
 
-                {nextProject ? (
+                {nextItem ? (
                   <div
                     className="absolute left-1/2 top-1/2 w-[400px]"
                     style={getStackStyle(1)}
                     onClick={() => setActiveIndex(effectiveActiveIndex + 1)}
                   >
-                    <ProjectShowcaseCard
-                      project={nextProject}
-                      budgetLabel={nextProject.budgetLabel ?? formatCompactPeso(nextProject.budget)}
-                    />
+                    {renderCarouselItem(nextItem, false)}
                   </div>
                 ) : null}
 
-                {activeProject ? (
+                {activeItem ? (
                   <div
-                    key={activeProject.id}
+                    key={activeItem.id}
                     className="absolute left-1/2 top-1/2 z-[56] w-[400px]"
                     style={{ transform: "translate(-50%, -50%)" }}
                   >
-                    <ProjectShowcaseCard
-                      project={activeProject}
-                      budgetLabel={activeProject.budgetLabel ?? formatCompactPeso(activeProject.budget)}
-                    />
+                    {renderCarouselItem(activeItem, true)}
                   </div>
                 ) : null}
 
@@ -387,7 +430,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                   size="icon"
                   variant="ghost"
                   aria-label="Go to previous health project"
-                  disabled={!hasMultipleProjects || effectiveActiveIndex <= 0}
+                  disabled={!hasMultipleItems || effectiveActiveIndex <= 0}
                   className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
                   onClick={goToPrevious}
                 >
@@ -405,7 +448,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                   size="icon"
                   variant="ghost"
                   aria-label="Advance to next health project"
-                  disabled={!hasMultipleProjects || effectiveActiveIndex >= safeProjects.length - 1}
+                  disabled={!hasMultipleItems || effectiveActiveIndex >= carouselItems.length - 1}
                   className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
                   onClick={goToNext}
                 >

@@ -1,4 +1,4 @@
-import { CityDashboardView } from "@/features/dashboard/views/city-dashboard-view";
+import { CityDashboardView } from "@/features/dashboard";
 
 export default async function CityDashboardPage({
   searchParams,

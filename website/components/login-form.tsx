@@ -91,11 +91,11 @@ export function LoginForm({role, baseURL}:AuthParameters) {
               <Card className="h-full w-full gap-0 rounded-2xl border-slate-200 bg-white shadow-xl">
               <CardHeader className="items-center space-y-5 px-9 pt-11 text-center sm:px-12">
                 <Image
-                  src="/brand/logo3.svg"
+                  src="/brand/logo.svg"
                   alt="OpenAIP logo"
-                  width={32}
-                  height={32}
-                  className="h-8 w-8"
+                  width={56}
+                  height={56}
+                  className="mx-auto h-14 w-14"
                 />
                 <div className="space-y-2">
                   <CardTitle className="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">

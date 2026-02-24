@@ -43,7 +43,6 @@ export default function DonutChartCitizenDashboard({
   const center = viewBoxSize / 2;
   const normalizedThickness = Math.max(6, Math.min(14, (thickness / size) * viewBoxSize));
   const radius = (viewBoxSize - normalizedThickness) / 2;
-  const circumference = 2 * Math.PI * radius;
   const ringOuterRadius = radius + normalizedThickness / 2;
 
   const processedSegments = useMemo(
@@ -54,8 +53,7 @@ export default function DonutChartCitizenDashboard({
           currentAngleDeg: number;
           items: Array<
             DonutChartSegment & {
-              dashArray: string;
-              dashOffset: number;
+              startPercent: number;
               labelX: number;
               labelY: number;
               linePath: string;
@@ -65,9 +63,7 @@ export default function DonutChartCitizenDashboard({
         }
       >(
         (acc, segment) => {
-          const dash = (segment.percent / 100) * circumference;
-          const dashArray = `${dash} ${circumference - dash}`;
-          const dashOffset = circumference / 4 - acc.offset;
+          const startPercent = acc.offset;
           const sweepDeg = (segment.percent / 100) * 360;
           const midAngleDeg = acc.currentAngleDeg + sweepDeg / 2;
           const theta = (midAngleDeg * Math.PI) / 180;
@@ -82,14 +78,13 @@ export default function DonutChartCitizenDashboard({
           const linePath = `M ${ax} ${ay} L ${ex} ${ey} L ${hx} ${hy}`;
 
           return {
-            offset: acc.offset + dash,
+            offset: acc.offset + segment.percent,
             currentAngleDeg: acc.currentAngleDeg + sweepDeg,
             items: [
               ...acc.items,
               {
                 ...segment,
-                dashArray,
-                dashOffset,
+                startPercent,
                 labelX: hx,
                 labelY: hy,
                 linePath,
@@ -100,8 +95,20 @@ export default function DonutChartCitizenDashboard({
         },
         { offset: 0, currentAngleDeg: -90, items: [] }
       ).items,
-    [center, circumference, ringOuterRadius, segments]
+    [center, ringOuterRadius, segments]
   );
+  const ringRenderSegments = useMemo(() => {
+    if (!activeKey) {
+      return processedSegments;
+    }
+
+    const activeSegment = processedSegments.find((segment) => segment.key === activeKey);
+    if (!activeSegment) {
+      return processedSegments;
+    }
+
+    return [...processedSegments.filter((segment) => segment.key !== activeKey), activeSegment];
+  }, [activeKey, processedSegments]);
 
   return (
     <div className={cn("relative aspect-square h-full w-full", minSizeClass)}>
@@ -110,21 +117,32 @@ export default function DonutChartCitizenDashboard({
         className="relative z-10 h-full w-full overflow-visible"
       >
         <g>
-          {processedSegments.map((segment) => {
-            const isActive = activeKey ? activeKey === segment.key : true;
+          {ringRenderSegments.map((segment) => {
+            const hasActive = Boolean(activeKey);
+            const isActive = hasActive ? activeKey === segment.key : true;
+            const segmentStrokeWidth = hasActive && isActive ? normalizedThickness + 2.2 : normalizedThickness;
+            const segmentRadius = radius;
+            const segmentCircumference = 2 * Math.PI * segmentRadius;
+            const dash = (segment.percent / 100) * segmentCircumference;
+            const gap = Math.max(0, segmentCircumference - dash);
+            const dashArray = `${dash} ${gap}`;
+            const dashOffset = segmentCircumference / 4 - (segment.startPercent / 100) * segmentCircumference;
             return (
               <circle
                 key={segment.key}
-                r={radius}
+                r={segmentRadius}
                 cx={center}
                 cy={center}
                 fill="transparent"
                 stroke={segment.colorHex}
-                strokeWidth={normalizedThickness}
-                strokeDasharray={segment.dashArray}
-                strokeDashoffset={segment.dashOffset}
-                strokeLinecap="round"
-                className={cn("cursor-pointer transition-opacity", isActive ? "opacity-100" : "opacity-35")}
+                strokeWidth={segmentStrokeWidth}
+                strokeDasharray={dashArray}
+                strokeDashoffset={dashOffset}
+                strokeLinecap="butt"
+                className={cn(
+                  "cursor-pointer transition-[opacity,stroke-width] duration-200",
+                  isActive ? "opacity-100" : "opacity-35"
+                )}
                 onMouseEnter={() => onHover(segment.key)}
                 onMouseLeave={() => onHover(null)}
               />

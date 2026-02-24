@@ -42,7 +42,7 @@ export default function DonutChartCitizenDashboard({
   onHover,
   animate = false,
 }: DonutChartCitizenDashboardProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const viewBoxSize = 100;
   const center = viewBoxSize / 2;
   const normalizedThickness = Math.max(6, Math.min(14, (thickness / size) * viewBoxSize));

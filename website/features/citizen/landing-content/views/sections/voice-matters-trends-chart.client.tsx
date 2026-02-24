@@ -53,7 +53,7 @@ export default function VoiceMattersTrendsChart({
   yTicks,
   chartMax,
 }: VoiceMattersTrendsChartProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const chartWidth = 660;
   const chartHeight = 350;
   const leftPad = 52;

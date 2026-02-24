@@ -18,7 +18,7 @@ export default function LguBudgetOverviewMotion({
   vm,
   mapPanelHeightClass,
 }: LguBudgetOverviewMotionProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   const headerVariant: Variants = {
     hidden: { opacity: 0, y: reducedMotion ? 0 : 16 },

@@ -20,7 +20,7 @@ type LegacyChatPreviewShape = Partial<{
 }>;
 
 export default function ChatPreviewCard({ vm, className, isActive = true }: ChatPreviewCardProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const legacyVm = vm as ChatPreviewVM & LegacyChatPreviewShape;
   const assistantBullets = Array.isArray(vm.assistantBullets)
     ? vm.assistantBullets

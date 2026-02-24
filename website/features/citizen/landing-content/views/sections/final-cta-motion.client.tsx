@@ -13,7 +13,7 @@ type FinalCtaMotionProps = {
 };
 
 export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const [hasStarted, setHasStarted] = useState(false);
   const [typedSubtitle, setTypedSubtitle] = useState("");
   const [subtitleDone, setSubtitleDone] = useState(false);

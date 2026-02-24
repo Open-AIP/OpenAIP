@@ -37,7 +37,7 @@ function formatCompactPeso(value: number): string {
 export default function FundsDistributionMotion({ vm }: FundsDistributionMotionProps) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [startDraw, setStartDraw] = useState(false);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const isInView = useInView(rootRef, VIEWPORT_ONCE);
 

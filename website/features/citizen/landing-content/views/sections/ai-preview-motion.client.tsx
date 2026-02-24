@@ -11,7 +11,7 @@ type AiPreviewMotionProps = {
 };
 
 export default function AiPreviewMotion({ vm }: AiPreviewMotionProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const [hasEnteredView, setHasEnteredView] = useState(false);
 
   const headerContainer: Variants = {

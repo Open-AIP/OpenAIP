@@ -18,7 +18,7 @@ const LguMapPanelLeaflet = dynamic(() => import("./lgu-map-panel-leaflet"), {
 });
 
 export default function LguMapPanel({ map, heightClass = "h-[420px]" }: LguMapPanelProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const [isMapReady, setIsMapReady] = useState(false);
   const fadeDuration = reducedMotion ? 0.22 : 0.35;
 

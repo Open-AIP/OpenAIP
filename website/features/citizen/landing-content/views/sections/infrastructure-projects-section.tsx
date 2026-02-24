@@ -84,7 +84,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
   const cooldownUntilRef = useRef(0);
   const virtualIndexRef = useRef(0);
   const edgeStepRef = useRef<(ts: number) => void>(() => {});
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   const safeProjects = vm.projects ?? [];
   const carouselItems: CarouselItem[] = [

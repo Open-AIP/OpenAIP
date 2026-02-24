@@ -26,7 +26,7 @@ function splitHeadlineLines(title: string): string[] {
 
 export default function HeroMotion({ title, subtitle, cta }: HeroMotionProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const hasEntered = useInView(rootRef, VIEWPORT_ONCE);
   const titleLines = useMemo(() => splitHeadlineLines(title), [title]);
 

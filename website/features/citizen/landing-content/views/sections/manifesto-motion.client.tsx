@@ -16,7 +16,7 @@ export default function ManifestoMotion({
   emphasis,
   supportingLine,
 }: ManifestoMotionProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   const containerVariants: Variants = {
     hidden: { opacity: 1 },

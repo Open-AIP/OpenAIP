@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CHAT_DEFAULT_USER_ID } from "@/lib/constants/chat";
 import { getChatRepo } from "@/lib/repos/chat/repo";
 import type { ChatMessage, ChatSession } from "@/lib/repos/chat/repo";
+import { requestAssistantReply } from "./request-assistant-reply";
 import type { ChatMessageBubble, ChatSessionListItem } from "../types/chat.types";
 
 function formatTimeLabel(value: string | null | undefined) {
@@ -41,20 +42,7 @@ function toBubble(message: ChatMessage): ChatMessageBubble {
   };
 }
 
-function buildAssistantReply(content: string): string {
-  if (content.toLowerCase().includes("budget")) {
-    return (
-      "For AIP budgeting, prioritize by outcomes and urgency.\n\n" +
-      "1. Essential services first\n" +
-      "2. Compliance and legal requirements\n" +
-      "3. High-impact community projects\n" +
-      "4. Contingency and sustainability\n\n" +
-      "Share your project category and I can suggest a draft allocation structure."
-    );
-  }
-
-  return "Thanks. I can help with AIP drafting, project scope, and compliance checks. What would you like to work on next?";
-}
+const CHAT_CONTENT_MAX_LENGTH = 12000;
 
 export function useLguChatbot(userId?: string) {
   const repo = useMemo(() => getChatRepo(), []);
@@ -74,8 +62,20 @@ export function useLguChatbot(userId?: string) {
     async function loadSessions() {
       const data = await repo.listSessions(actorUserId);
       if (!isMounted) return;
-      setSessions(data);
-      setActiveSessionId((prev) => prev ?? data[0]?.id ?? null);
+
+      if (data.length > 0) {
+        setSessions(data);
+        setActiveSessionId((prev) => prev ?? data[0]?.id ?? null);
+        return;
+      }
+
+      const newSession = await repo.createSession(actorUserId, { context: {} });
+      if (!isMounted) return;
+
+      setSessions([newSession]);
+      setActiveSessionId(newSession.id);
+      setMessagesBySession((prev) => ({ ...prev, [newSession.id]: [] }));
+      setLoadedSessionIds((prev) => ({ ...prev, [newSession.id]: true }));
     }
 
     loadSessions();
@@ -142,7 +142,7 @@ export function useLguChatbot(userId?: string) {
   }, []);
 
   const handleNewChat = useCallback(async () => {
-    const session = await repo.createSession(actorUserId);
+    const session = await repo.createSession(actorUserId, { context: {} });
     setSessions((prev) => [session, ...prev]);
     setActiveSessionId(session.id);
     setMessagesBySession((prev) => ({ ...prev, [session.id]: [] }));
@@ -156,50 +156,54 @@ export function useLguChatbot(userId?: string) {
     let currentSessionId = activeSessionId;
 
     if (!currentSessionId) {
-      const newSession = await repo.createSession(actorUserId);
+      const newSession = await repo.createSession(actorUserId, { context: {} });
       setSessions((prev) => [newSession, ...prev]);
       setActiveSessionId(newSession.id);
+      setMessagesBySession((prev) => ({ ...prev, [newSession.id]: [] }));
       setLoadedSessionIds((prev) => ({ ...prev, [newSession.id]: true }));
       currentSessionId = newSession.id;
     }
 
     const content = messageInput.trim();
+    if (content.length > CHAT_CONTENT_MAX_LENGTH) {
+      setIsSending(false);
+      return;
+    }
+
     setMessageInput("");
 
-    const userMessage = await repo.appendUserMessage(currentSessionId, content);
+    try {
+      const userMessage = await repo.appendUserMessage(currentSessionId, content);
 
-    setMessagesBySession((prev) => ({
-      ...prev,
-      [currentSessionId]: [...(prev[currentSessionId] ?? []), userMessage],
-    }));
+      setMessagesBySession((prev) => ({
+        ...prev,
+        [currentSessionId]: [...(prev[currentSessionId] ?? []), userMessage],
+      }));
 
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === currentSessionId
-          ? {
-              ...session,
-              lastMessageAt: userMessage.createdAt,
-              updatedAt: userMessage.createdAt,
-            }
-          : session
-      )
-    );
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === currentSessionId
+            ? {
+                ...session,
+                lastMessageAt: userMessage.createdAt,
+                updatedAt: userMessage.createdAt,
+              }
+            : session
+        )
+      );
 
-    setTimeout(() => {
-      const assistantMessage: ChatMessage = {
-        id: `assistant_${Date.now()}`,
+      const assistantMessage: ChatMessage = await requestAssistantReply({
         sessionId: currentSessionId,
-        role: "assistant",
-        content: buildAssistantReply(content),
-        createdAt: new Date().toISOString(),
-      };
+        userMessage: content,
+      });
 
       setMessagesBySession((prev) => ({
         ...prev,
         [currentSessionId]: [...(prev[currentSessionId] ?? []), assistantMessage],
       }));
+    } finally {
       setIsSending(false);
-    }, 500);
+    }
   }, [activeSessionId, actorUserId, messageInput, repo]);
 
   return {

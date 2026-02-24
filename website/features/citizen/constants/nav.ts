@@ -11,6 +11,7 @@ export const CITIZEN_NAV: CitizenNavItem[] = [
   { label: 'Dashboard', href: '/' },
   { label: 'AIPs', href: '/aips' },
   { label: 'Budget Allocation', href: '/budget-allocation' },
+  { label: 'AI Assistant', href: '/ai-assistant' },
   {
     label: 'Projects',
     href: '/projects',

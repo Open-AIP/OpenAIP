@@ -13,11 +13,11 @@ const CitizenLayout = ({ children }: { children: ReactNode }) => {
   const isLandingDashboard = normalizedPathname === "/";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#D3DBE0] to-[#FFFFFF]">
+    <div className="flex min-h-screen flex-col bg-gradient-to-b from-[#D3DBE0] to-[#FFFFFF]">
       <CitizenTopNav />
       <main
         className={cn(
-          "mx-auto w-full",
+          "mx-auto w-full flex-1",
           isLandingDashboard ? "m-0 max-w-none p-0" : "max-w-screen-2xl px-4 py-6 md:px-8 md:py-8"
         )}
       >

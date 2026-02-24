@@ -209,16 +209,24 @@ function buildLandingContent(): LandingContentVM {
       projects: buildInfrastructureProjects(),
     },
     feedback: {
-      trendSeries: [
-        { label: "Jan", valueA: 18, valueB: 11 },
-        { label: "Feb", valueA: 24, valueB: 13 },
-        { label: "Mar", valueA: 31, valueB: 16 },
-        { label: "Apr", valueA: 27, valueB: 15 },
-        { label: "May", valueA: 34, valueB: 19 },
-        { label: "Jun", valueA: 29, valueB: 17 },
+      title: "Your Voice Matters.",
+      subtitle:
+        "Track feedback trends and response performance to ensure continued accountability.",
+      months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+      series: [
+        {
+          key: "2020",
+          label: "2020",
+          points: [72, 78, 61, 90, 56, 54],
+        },
+        {
+          key: "2021",
+          label: "2021",
+          points: [102, 172, 86, 124, 82, 140],
+        },
       ],
       responseRate: 94,
-      avgResponseTimeDays: 2.4,
+      avgResponseTimeDays: 2.3,
     },
     chatPreview: {
       assistantName: "OpenAIP Assistant",

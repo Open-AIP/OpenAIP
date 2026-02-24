@@ -28,6 +28,13 @@ export async function runLandingContentRepoMockTests() {
     "Expected infrastructure projects imageSrc to use citizen dashboard assets"
   );
   assert(vm.infraHighlights.projects.length >= 5, "Expected at least 5 infrastructure projects");
-  assert(vm.feedback.trendSeries.length === 6, "Expected exactly 6 feedback trend points");
+  assert(vm.feedback.months.length === 6, "Expected exactly 6 feedback month labels");
+  assert(vm.feedback.series.length === 2, "Expected exactly 2 feedback series");
+  assert(
+    vm.feedback.series.every((series) => series.points.length === 6),
+    "Expected each feedback series to contain exactly 6 points"
+  );
+  assert(vm.feedback.responseRate === 94, "Expected feedback response rate to be 94");
+  assert(vm.feedback.avgResponseTimeDays === 2.3, "Expected average response time to be 2.3 days");
   assert(vm.chatPreview.suggestedPrompts.length >= 3, "Expected at least 3 suggested prompts");
 }

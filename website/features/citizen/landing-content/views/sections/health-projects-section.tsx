@@ -236,7 +236,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
       <div className="grid grid-cols-12 items-center gap-10 lg:gap-16">
         <div className="col-span-12 space-y-8 lg:col-span-5 xl:col-span-4">
           <div className="space-y-6">
-            <h2 className="max-w-[12ch] text-5xl font-extrabold leading-[0.95] tracking-tight text-[#052434] sm:text-6xl">
+            <h2 className="max-w-[12ch] text-4xl font-extrabold leading-[0.95] tracking-tight text-[#052434] sm:text-5xl">
               {vm.heading}
             </h2>
             <p className="max-w-[24ch] text-xl leading-[1.45] text-[#4F7D92] sm:text-2xl">
@@ -244,16 +244,16 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CardShell className="py-0">
+          <div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2">
+            <CardShell className="w-full min-w-0 py-0">
               <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                <p className="text-4xl font-bold leading-none text-[#EC4899] sm:text-4xl">
+                <p className="text-3xl font-bold leading-none text-[#EC4899] sm:text-3xl">
                   {formatCompactPeso(primaryValue)}
                 </p>
                 <p className="text-base font-medium text-slate-500">{vm.primaryKpiLabel}</p>
               </div>
             </CardShell>
-            <CardShell className="py-0">
+            <CardShell className="w-full min-w-0 py-0">
               <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
                 <p className="text-4xl font-bold leading-none text-[#EC4899] sm:text-4xl">
                   {formatCompactCount(vm.secondaryKpiValue)}

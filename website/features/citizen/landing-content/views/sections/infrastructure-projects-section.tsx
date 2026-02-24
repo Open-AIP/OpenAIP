@@ -325,7 +325,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
           <div className="grid gap-4 sm:grid-cols-2">
             <CardShell className="py-0">
               <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                <p className="text-4xl font-bold leading-none text-[#1F2937] sm:text-4xl">{formatCompactPeso(primaryValue)}</p>
+                <p className="text-3xl font-bold leading-none text-[#1F2937] sm:text-3xl">{formatCompactPeso(primaryValue)}</p>
                 <p className="text-base font-medium text-slate-500">{vm.primaryKpiLabel}</p>
               </div>
             </CardShell>

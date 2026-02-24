@@ -79,14 +79,17 @@ export type ProjectHighlightVM = {
   totalBudget?: number;
 };
 
-export type FeedbackTrendPointVM = {
+export type FeedbackSeriesVM = {
+  key: "2020" | "2021" | string;
   label: string;
-  valueA: number;
-  valueB?: number;
+  points: number[];
 };
 
 export type FeedbackSnapshotVM = {
-  trendSeries: FeedbackTrendPointVM[];
+  title?: string;
+  subtitle?: string;
+  months: string[];
+  series: FeedbackSeriesVM[];
   responseRate: number;
   avgResponseTimeDays: number;
 };

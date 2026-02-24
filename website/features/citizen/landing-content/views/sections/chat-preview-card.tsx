@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Bot, MessageCircle } from "lucide-react";
 import type { ChatPreviewVM } from "@/lib/domain/landing-content";
 import { cn } from "@/ui/utils";
+import { MOTION_TOKENS } from "../../components/motion/motion-primitives";
 
 type ChatPreviewCardProps = {
   vm: ChatPreviewVM;
@@ -13,29 +18,8 @@ type LegacyChatPreviewShape = Partial<{
   sampleAnswerLines: string[];
 }>;
 
-function renderAssistantIntro(text: string) {
-  const amountPattern = /(\u20B1[\d,.]+(?:\s?[MBK])?)/;
-  const match = text.match(amountPattern);
-
-  if (!match || !match[0]) {
-    return <p className="text-sm text-slate-700">{text}</p>;
-  }
-
-  const amount = match[0];
-  const amountStart = text.indexOf(amount);
-  const before = text.slice(0, amountStart);
-  const after = text.slice(amountStart + amount.length);
-
-  return (
-    <p className="text-sm text-slate-700">
-      {before}
-      <span className="font-semibold text-cyan-600">{amount}</span>
-      {after}
-    </p>
-  );
-}
-
 export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps) {
+  const reducedMotion = useReducedMotion();
   const legacyVm = vm as ChatPreviewVM & LegacyChatPreviewShape;
   const assistantBullets = Array.isArray(vm.assistantBullets)
     ? vm.assistantBullets
@@ -51,14 +35,149 @@ export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps)
     typeof vm.assistantIntro === "string" && vm.assistantIntro.trim().length > 0
       ? vm.assistantIntro
       : "Road projects received \u20B112M in total. This covers:";
+  const fallbackBullets = [
+    "12 ongoing projects",
+    "8 completed projects",
+    "Includes repairs and new construction",
+  ];
+  const assistantScript = useMemo(() => {
+    const effectiveBullets = assistantBullets.length > 0 ? assistantBullets : fallbackBullets;
+    const bulletText = effectiveBullets.join("\n");
+    return bulletText ? `${assistantIntro}\n\n${bulletText}` : assistantIntro;
+  }, [assistantBullets, assistantIntro]);
+  const [typedUserPrompt, setTypedUserPrompt] = useState("");
+  const [showAssistantBubble, setShowAssistantBubble] = useState(false);
+  const [typedAssistantText, setTypedAssistantText] = useState("");
+  const [activePromptIndex, setActivePromptIndex] = useState(-1);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setTypedUserPrompt(userPrompt);
+      setShowAssistantBubble(true);
+      setTypedAssistantText(assistantScript);
+      setActivePromptIndex(suggestedPrompts.length - 1);
+      return;
+    }
+
+    setTypedUserPrompt("");
+    setShowAssistantBubble(false);
+    setTypedAssistantText("");
+    setActivePromptIndex(-1);
+
+    let userIdx = 0;
+    let assistantIdx = 0;
+    let userTimer: ReturnType<typeof setInterval> | null = null;
+    let assistantTimer: ReturnType<typeof setInterval> | null = null;
+    let pauseTimer: ReturnType<typeof setTimeout> | null = null;
+    let promptTimer: ReturnType<typeof setInterval> | null = null;
+
+    userTimer = setInterval(() => {
+      userIdx += 1;
+      setTypedUserPrompt(userPrompt.slice(0, userIdx));
+      if (userIdx >= userPrompt.length && userTimer) {
+        clearInterval(userTimer);
+        pauseTimer = setTimeout(() => {
+          setShowAssistantBubble(true);
+          assistantTimer = setInterval(() => {
+            assistantIdx += 1;
+            setTypedAssistantText(assistantScript.slice(0, assistantIdx));
+            if (assistantIdx >= assistantScript.length && assistantTimer) {
+              clearInterval(assistantTimer);
+              pauseTimer = setTimeout(() => {
+                if (!suggestedPrompts.length) {
+                  return;
+                }
+                let idx = -1;
+                promptTimer = setInterval(() => {
+                  idx += 1;
+                  setActivePromptIndex(idx);
+                  if (idx >= suggestedPrompts.length - 1 && promptTimer) {
+                    clearInterval(promptTimer);
+                  }
+                }, 380);
+              }, 350);
+            }
+          }, 45);
+        }, 850);
+      }
+    }, 65);
+
+    return () => {
+      if (userTimer) clearInterval(userTimer);
+      if (assistantTimer) clearInterval(assistantTimer);
+      if (pauseTimer) clearTimeout(pauseTimer);
+      if (promptTimer) clearInterval(promptTimer);
+    };
+  }, [assistantScript, reducedMotion, suggestedPrompts, userPrompt]);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      return;
+    }
+
+    const failSafe = setTimeout(() => {
+      setShowAssistantBubble(true);
+    }, 2800);
+
+    return () => clearTimeout(failSafe);
+  }, [assistantScript, reducedMotion]);
+
+  const userBubble: Variants = {
+    hidden: { opacity: 0, x: reducedMotion ? 0 : 10 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: reducedMotion ? 0.24 : 0.5,
+        delay: reducedMotion ? 0.06 : 0.2,
+        ease: MOTION_TOKENS.enterEase,
+      },
+    },
+  };
+
+  const chipsContainer: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: reducedMotion ? 0.24 : 0.45,
+        delay: reducedMotion ? 0.1 : 0.86,
+        ease: MOTION_TOKENS.enterEase,
+      },
+    },
+  };
+
+  const chipItem: Variants = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reducedMotion ? 0.22 : 0.42, ease: MOTION_TOKENS.enterEase },
+    },
+  };
+
+  const ctaBar: Variants = {
+    hidden: { opacity: 0, y: reducedMotion ? 0 : 8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reducedMotion ? 0.26 : 0.55,
+        delay: reducedMotion ? 0.1 : 1.06,
+        ease: MOTION_TOKENS.enterEase,
+      },
+    },
+  };
 
   return (
-    <article
+    <motion.article
       className={cn(
         "overflow-hidden rounded-2xl border border-white/10 bg-[#e8edf1] shadow-[0_0_24px_rgba(34,211,238,0.12),0_16px_42px_rgba(1,21,33,0.35)]",
         className
       )}
       aria-label={`${vm.assistantName} preview`}
+      initial="hidden"
+      animate="visible"
     >
       <header className="bg-gradient-to-r from-[#0d5b71] via-[#0f8daa] to-[#0b7490] px-5 py-4 text-white">
         <div className="flex items-start gap-3">
@@ -73,50 +192,85 @@ export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps)
       </header>
 
       <div className="space-y-6 px-4 py-5 sm:px-5 sm:py-6">
-        <div className="flex justify-end">
+        <motion.div className="flex justify-end" variants={userBubble}>
           <p className="max-w-[88%] rounded-2xl bg-[#0b5a70] px-4 py-2.5 text-sm text-white">
-            {userPrompt}
+            {typedUserPrompt}
           </p>
-        </div>
+        </motion.div>
 
-        <div className="max-w-[88%] rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-[0_6px_18px_rgba(15,23,42,0.07)]">
-          {renderAssistantIntro(assistantIntro)}
-          <ul className="mt-2 space-y-1.5 pl-4 text-sm text-slate-500">
-            {assistantBullets.map((bullet) => (
-              <li key={bullet} className="list-disc marker:text-slate-400">
-                {bullet}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <motion.div
+          className="max-w-[88%] rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-[0_6px_18px_rgba(15,23,42,0.07)]"
+          initial={{ opacity: 0, x: reducedMotion ? 0 : -10 }}
+          animate={{
+            opacity: showAssistantBubble ? 1 : 0,
+            x: reducedMotion ? 0 : showAssistantBubble ? 0 : -10,
+          }}
+          transition={{
+            duration: reducedMotion ? 0.22 : 0.4,
+            ease: MOTION_TOKENS.enterEase,
+          }}
+          aria-hidden={!showAssistantBubble}
+        >
+          <p className="whitespace-pre-line text-sm text-slate-700">
+            {showAssistantBubble ? typedAssistantText : ""}
+          </p>
+        </motion.div>
       </div>
 
-      <div className="border-y border-slate-200 bg-[#f5f7fa] px-4 py-4 sm:px-5">
+      <motion.div className="border-y border-slate-200 bg-[#f5f7fa] px-4 py-4 sm:px-5" variants={chipsContainer}>
         <p className="mb-2 text-sm text-slate-500">Try asking:</p>
-        <div className="flex flex-wrap gap-2">
-          {suggestedPrompts.map((prompt) => (
-            <button
+        <motion.div
+          className="flex flex-wrap gap-2"
+          variants={{
+            hidden: { opacity: 1 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: reducedMotion ? 0 : 0.08,
+                delayChildren: reducedMotion ? 0.02 : 0.08,
+              },
+            },
+          }}
+        >
+          {suggestedPrompts.map((prompt, index) => (
+            <motion.button
               key={prompt}
               type="button"
-              className="rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-700 transition hover:bg-slate-200"
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs transition",
+                activePromptIndex >= 0 && activePromptIndex === index
+                  ? "bg-cyan-100 text-cyan-800 ring-1 ring-cyan-300"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              )}
               aria-label={`Suggested prompt: ${prompt}`}
+              variants={chipItem}
+              whileHover={reducedMotion ? undefined : { scale: 1.02 }}
+              whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+              transition={{ duration: reducedMotion ? 0.12 : 0.18, ease: MOTION_TOKENS.hoverEase }}
             >
               {prompt}
-            </button>
+            </motion.button>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      <footer className="bg-gradient-to-r from-[#0a5166] via-[#0a6f88] to-[#0a8bac] px-5 py-5">
+      <motion.footer className="bg-gradient-to-r from-[#0a5166] via-[#0a6f88] to-[#0a8bac] px-5 py-5" variants={ctaBar}>
         {vm.ctaHref ? (
-          <Link
-            href={vm.ctaHref}
-            aria-label={vm.ctaLabel}
-            className="mx-auto flex w-fit items-center gap-2 rounded-full px-4 py-1.5 text-3xl font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/80"
+          <motion.div
+            whileHover={reducedMotion ? undefined : { scale: 1.02 }}
+            whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+            transition={{ duration: reducedMotion ? 0.12 : 0.18, ease: MOTION_TOKENS.hoverEase }}
+            className="mx-auto w-fit"
           >
-            <MessageCircle className="h-6 w-6" aria-hidden="true" />
-            <span>{vm.ctaLabel}</span>
-          </Link>
+            <Link
+              href={vm.ctaHref}
+              aria-label={vm.ctaLabel}
+              className="flex items-center gap-2 rounded-full px-4 py-1.5 text-3xl font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/80"
+            >
+              <MessageCircle className="h-6 w-6" aria-hidden="true" />
+              <span>{vm.ctaLabel}</span>
+            </Link>
+          </motion.div>
         ) : (
           // TODO: Wire CTA click behavior when chat route is available.
           <button
@@ -129,7 +283,7 @@ export default function ChatPreviewCard({ vm, className }: ChatPreviewCardProps)
             <span>{vm.ctaLabel}</span>
           </button>
         )}
-      </footer>
-    </article>
+      </motion.footer>
+    </motion.article>
   );
 }

@@ -175,13 +175,14 @@ function buildLandingContent(): LandingContentVM {
       },
     },
     distribution: {
+      total: 412_800_000,
+      unitLabel: "M",
       sectors: [
-        { key: "social", label: "Social Sector", amount: 412_800_000, percent: 34.4 },
-        { key: "economic", label: "Economic Sector", amount: 339_600_000, percent: 28.3 },
-        { key: "general", label: "General Public Services", amount: 278_400_000, percent: 23.2 },
-        { key: "other", label: "Other Services", amount: 169_200_000, percent: 14.1 },
+        { key: "general", label: "General Services", amount: 120_000_000, percent: 29.1 },
+        { key: "social", label: "Social Services", amount: 150_000_000, percent: 36.4 },
+        { key: "economic", label: "Economic Services", amount: 90_000_000, percent: 21.8 },
+        { key: "other", label: "Other Services", amount: 52_800_000, percent: 12.7 },
       ],
-      totalAmount: 1_200_000_000,
     },
     healthHighlights: {
       categoryKey: "health",

@@ -51,8 +51,9 @@ export type SectorDistributionItemVM = {
 };
 
 export type SectorDistributionVM = {
+  total: number;
+  unitLabel?: string;
   sectors: SectorDistributionItemVM[];
-  totalAmount: number;
 };
 
 export type ProjectCardVM = {

@@ -69,8 +69,20 @@ export function LoginForm({role, baseURL}:AuthParameters) {
   if (isStaffRole) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-[#022034]">
-        <div className="absolute inset-0 bg-[url('/login/building.png')] bg-cover bg-center opacity-35" aria-hidden />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#033455]/80 via-[#033455]/75 to-[#022034]/95" aria-hidden />
+        <Image
+          src="/login/building.png"
+          alt=""
+          fill
+          priority
+          className="object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-[#022437]/50" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#022437]/30 via-[#022437]/5 to-transparent" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/22 via-black/12 to-transparent" aria-hidden />
+        <div
+          className="absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.14)_70%,rgba(0,0,0,0.26)_100%)]"
+          aria-hidden
+        />
         <div className="relative z-10 grid min-h-screen lg:grid-cols-5">
           <main className="order-1 flex min-h-screen items-stretch lg:order-2 lg:col-span-2">
             <div className="w-full p-4 sm:p-6 lg:p-8">
@@ -180,7 +192,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
               aria-hidden
               width={440}
               height={440}
-              className="pointer-events-none absolute left-1/2 top-1/2 hidden h-auto w-[360px] -translate-x-1/2 -translate-y-1/2 opacity-30 lg:block"
+              className="pointer-events-none absolute left-1/2 top-1/2 hidden h-auto w-[360px] -translate-x-1/2 -translate-y-1/2 opacity-20 lg:block"
             />
 
             <div className="relative z-10 flex h-full flex-col justify-between p-8 text-white sm:p-10 lg:p-14">

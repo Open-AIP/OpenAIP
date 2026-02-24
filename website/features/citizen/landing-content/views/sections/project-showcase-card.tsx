@@ -8,9 +8,21 @@ type ProjectShowcaseCardProps = {
   project: ProjectCardVM;
   budgetLabel: string;
   className?: string;
+  tagChipClassName?: string;
+  budgetChipClassName?: string;
+  ctaClassName?: string;
+  ctaHref?: string;
 };
 
-export default function ProjectShowcaseCard({ project, budgetLabel, className }: ProjectShowcaseCardProps) {
+export default function ProjectShowcaseCard({
+  project,
+  budgetLabel,
+  className,
+  tagChipClassName,
+  budgetChipClassName,
+  ctaClassName,
+  ctaHref = "/projects/health",
+}: ProjectShowcaseCardProps) {
   return (
     <article
       tabIndex={0}
@@ -22,10 +34,20 @@ export default function ProjectShowcaseCard({ project, budgetLabel, className }:
       <div className="relative h-[218px]">
         <Image src={project.imageSrc} alt={project.title} fill className="object-cover" sizes="400px" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/10 to-black/45" />
-        <div className="absolute left-3 top-3 rounded-full bg-[#EC4899]/90 px-3 py-1 text-[11px] font-semibold text-white">
+        <div
+          className={cn(
+            "absolute left-3 top-3 rounded-full bg-[#EC4899]/90 px-3 py-1 text-[11px] font-semibold text-white",
+            tagChipClassName
+          )}
+        >
           {project.tagLabel}
         </div>
-        <div className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-[#BE185D]">
+        <div
+          className={cn(
+            "absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-[#BE185D]",
+            budgetChipClassName
+          )}
+        >
           {budgetLabel}
         </div>
       </div>
@@ -35,8 +57,12 @@ export default function ProjectShowcaseCard({ project, budgetLabel, className }:
           <p className="text-sm text-slate-600">{project.subtitle}</p>
         </div>
         <div className="mt-auto">
-          <Button asChild variant="outline" className="w-full rounded-full border-[#3A80A6] text-[#25647E]">
-            <Link href="/projects/health">View Project</Link>
+          <Button
+            asChild
+            variant="outline"
+            className={cn("w-full rounded-full border-[#3A80A6] text-[#25647E]", ctaClassName)}
+          >
+            <Link href={ctaHref}>View Project</Link>
           </Button>
         </div>
       </div>

@@ -313,17 +313,17 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
               </div>
             </div>
 
-            <div className="pointer-events-none absolute inset-y-0 -left-14 -right-14 z-[70] hidden items-center justify-between lg:flex">
+            <div className="pointer-events-none absolute inset-y-0 -left-[43px] -right-[43px] z-[70] hidden items-center justify-between lg:flex">
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
                 aria-label="Go to previous health project"
                 disabled={!hasMultipleProjects || effectiveActiveIndex <= 0}
-                className="pointer-events-auto h-11 w-11 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
                 onClick={goToPrevious}
               >
-                <ArrowLeft className="h-9 w-9 stroke-[1.6]" />
+                <ArrowLeft className="h-14 w-14 stroke-[1.6]" />
               </Button>
 
               <Button
@@ -332,10 +332,10 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                 variant="ghost"
                 aria-label="Advance to next health project"
                 disabled={!hasMultipleProjects || effectiveActiveIndex >= safeProjects.length - 1}
-                className="pointer-events-auto h-11 w-11 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
                 onClick={goToNext}
               >
-                <ArrowRight className="h-9 w-9 stroke-[1.6]" />
+                <ArrowRight className="h-14 w-14 stroke-[1.6]" />
               </Button>
             </div>
           </div>

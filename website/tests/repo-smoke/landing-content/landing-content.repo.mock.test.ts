@@ -21,6 +21,12 @@ export async function runLandingContentRepoMockTests() {
     "Expected health projects imageSrc to use citizen dashboard assets"
   );
   assert(vm.healthHighlights.projects.length >= 5, "Expected at least 5 health projects");
+  assert(!!vm.infraHighlights.primaryKpiLabel, "Expected infrastructure primary KPI label");
+  assert(vm.infraHighlights.primaryKpiValue > 0, "Expected infrastructure primary KPI value");
+  assert(
+    vm.infraHighlights.projects.every((project) => project.imageSrc.startsWith("/citizen-dashboard/")),
+    "Expected infrastructure projects imageSrc to use citizen dashboard assets"
+  );
   assert(vm.infraHighlights.projects.length >= 5, "Expected at least 5 infrastructure projects");
   assert(vm.feedback.trendSeries.length === 6, "Expected exactly 6 feedback trend points");
   assert(vm.chatPreview.suggestedPrompts.length >= 3, "Expected at least 3 suggested prompts");

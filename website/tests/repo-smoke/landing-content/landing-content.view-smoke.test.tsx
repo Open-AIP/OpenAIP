@@ -38,6 +38,8 @@ export async function runLandingContentViewSmokeTests() {
     "Total Beneficiaries",
     "View Project",
     "Infrastructure Development",
+    "Total Infrastructure Budget",
+    "Total Projects",
     "Your Voice Matters.",
     "Ask Questions, Get Answers",
     "Governance Made Visible.",

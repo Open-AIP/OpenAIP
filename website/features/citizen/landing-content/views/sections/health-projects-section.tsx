@@ -97,7 +97,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
       kind: "cta",
       id: "__view_all_health__",
       title: "View All Health Projects",
-      href: "/projects?sector=health",
+      href: "/projects/health",
       actionLabel: "View All Projects",
     },
   ];

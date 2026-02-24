@@ -97,7 +97,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
       kind: "cta",
       id: "__view_all_infrastructure__",
       title: "View All Infrastructure Projects",
-      href: "/projects?sector=infrastructure",
+      href: "/projects/infrastructure",
       actionLabel: "View All Projects",
     },
   ];

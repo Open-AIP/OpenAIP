@@ -1,9 +1,9 @@
 import { CardContent } from "@/components/ui/card";
 import type { FeedbackSnapshotVM } from "@/lib/domain/landing-content";
-import CardShell from "./CardShell";
-import FullScreenSection from "./FullScreenSection";
-import PrimaryButton from "./PrimaryButton";
-import SectionHeader from "./SectionHeader";
+import CardShell from "../../components/atoms/card-shell";
+import FullScreenSection from "../../components/layout/full-screen-section";
+import PrimaryButton from "../../components/atoms/primary-button";
+import SectionHeader from "../../components/atoms/section-header";
 
 type VoiceMattersSectionProps = {
   vm: FeedbackSnapshotVM;

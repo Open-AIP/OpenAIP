@@ -1,0 +1,184 @@
+"use client";
+
+import { useMemo } from "react";
+import { cn } from "@/ui/utils";
+
+export type DonutChartSegment = {
+  key: string;
+  label: string;
+  percent: number;
+  colorClass: string;
+  colorHex: string;
+};
+
+type DonutChartCitizenDashboardProps = {
+  total: number;
+  unitLabel?: string;
+  segments: DonutChartSegment[];
+  size?: number;
+  thickness?: number;
+  minSizeClass?: string;
+  activeKey: string | null;
+  onHover: (key: string | null) => void;
+};
+
+function formatCompactTotal(total: number, unitLabel?: string): string {
+  if (unitLabel || total >= 1_000_000) {
+    return (total / 1_000_000).toFixed(1);
+  }
+  return total.toFixed(1);
+}
+
+export default function DonutChartCitizenDashboard({
+  total,
+  unitLabel,
+  segments,
+  size = 260,
+  thickness = 22,
+  minSizeClass = "min-w-[260px] min-h-[260px]",
+  activeKey,
+  onHover,
+}: DonutChartCitizenDashboardProps) {
+  const viewBoxSize = 100;
+  const center = viewBoxSize / 2;
+  const normalizedThickness = Math.max(6, Math.min(14, (thickness / size) * viewBoxSize));
+  const radius = (viewBoxSize - normalizedThickness) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const ringOuterRadius = radius + normalizedThickness / 2;
+
+  const processedSegments = useMemo(
+    () =>
+      segments.reduce<
+        {
+          offset: number;
+          currentAngleDeg: number;
+          items: Array<
+            DonutChartSegment & {
+              dashArray: string;
+              dashOffset: number;
+              labelX: number;
+              labelY: number;
+              linePath: string;
+              isRight: boolean;
+            }
+          >;
+        }
+      >(
+        (acc, segment) => {
+          const dash = (segment.percent / 100) * circumference;
+          const dashArray = `${dash} ${circumference - dash}`;
+          const dashOffset = circumference / 4 - acc.offset;
+          const sweepDeg = (segment.percent / 100) * 360;
+          const midAngleDeg = acc.currentAngleDeg + sweepDeg / 2;
+          const theta = (midAngleDeg * Math.PI) / 180;
+          const isRight = Math.cos(theta) >= 0;
+
+          const ax = center + ringOuterRadius * Math.cos(theta);
+          const ay = center + ringOuterRadius * Math.sin(theta);
+          const ex = center + (ringOuterRadius + 4.5) * Math.cos(theta);
+          const ey = center + (ringOuterRadius + 4.5) * Math.sin(theta);
+          const hx = ex + (isRight ? 9.5 : -9.5);
+          const hy = ey;
+          const linePath = `M ${ax} ${ay} L ${ex} ${ey} L ${hx} ${hy}`;
+
+          return {
+            offset: acc.offset + dash,
+            currentAngleDeg: acc.currentAngleDeg + sweepDeg,
+            items: [
+              ...acc.items,
+              {
+                ...segment,
+                dashArray,
+                dashOffset,
+                labelX: hx,
+                labelY: hy,
+                linePath,
+                isRight,
+              },
+            ],
+          };
+        },
+        { offset: 0, currentAngleDeg: -90, items: [] }
+      ).items,
+    [center, circumference, ringOuterRadius, segments]
+  );
+
+  return (
+    <div className={cn("relative aspect-square h-full w-full", minSizeClass)}>
+      <svg
+        viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+        className="relative z-10 h-full w-full overflow-visible"
+      >
+        <g>
+          {processedSegments.map((segment) => {
+            const isActive = activeKey ? activeKey === segment.key : true;
+            return (
+              <circle
+                key={segment.key}
+                r={radius}
+                cx={center}
+                cy={center}
+                fill="transparent"
+                stroke={segment.colorHex}
+                strokeWidth={normalizedThickness}
+                strokeDasharray={segment.dashArray}
+                strokeDashoffset={segment.dashOffset}
+                strokeLinecap="round"
+                className={cn("cursor-pointer transition-opacity", isActive ? "opacity-100" : "opacity-35")}
+                onMouseEnter={() => onHover(segment.key)}
+                onMouseLeave={() => onHover(null)}
+              />
+            );
+          })}
+        </g>
+        {processedSegments.map((segment) => {
+          const isActive = activeKey ? activeKey === segment.key : true;
+          return (
+            <path
+              key={`${segment.key}-leader`}
+              d={segment.linePath}
+              fill="none"
+              stroke="rgba(255,255,255,0.38)"
+              strokeWidth={0.35}
+              strokeLinecap="round"
+              className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-40")}
+            />
+          );
+        })}
+      </svg>
+
+      <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
+        <p className="text-xs uppercase tracking-[0.24em] text-white/50">Total</p>
+        <p className="text-4xl font-semibold text-white">{formatCompactTotal(total, unitLabel)}</p>
+        {unitLabel ? <p className="text-xs uppercase text-white/50">{unitLabel}</p> : null}
+      </div>
+
+      {processedSegments.map((segment, index) => {
+        const yNudge = index % 2 === 0 ? -2 : 2;
+        const isActive = activeKey ? activeKey === segment.key : true;
+        return (
+          <div
+            key={`${segment.key}-label`}
+            className={cn(
+              "absolute flex items-center gap-2 text-xs text-white/75 transition-opacity",
+              segment.isRight ? "flex-row" : "flex-row-reverse",
+              isActive ? "opacity-100" : "opacity-45"
+            )}
+            style={{
+              left: `${(segment.labelX / viewBoxSize) * 100}%`,
+              top: `${(segment.labelY / viewBoxSize) * 100}%`,
+              translate: segment.isRight
+                ? `8px calc(-50% + ${yNudge}px)`
+                : `calc(-100% - 8px) calc(-50% + ${yNudge}px)`,
+            }}
+            onMouseEnter={() => onHover(segment.key)}
+            onMouseLeave={() => onHover(null)}
+          >
+            <span className={cn("h-2 w-2 rounded-full", segment.colorClass.split(" ")[0])} />
+            <span className="whitespace-nowrap">{segment.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import type { LandingContentVM } from "@/lib/domain/landing-content";
+import LandingContentCanvas from "../components/layout/landing-content-canvas";
 import {
   AiAssistantPreviewSection,
   FinalCtaSection,
@@ -6,11 +7,10 @@ import {
   HealthProjectsSection,
   HeroSection,
   InfrastructureProjectsSection,
-  LandingContentCanvas,
   LguBudgetOverviewSection,
   ManifestoSection,
   VoiceMattersSection,
-} from "../components";
+} from "./sections";
 
 type LandingContentViewProps = {
   vm: LandingContentVM;
@@ -31,4 +31,3 @@ export default function LandingContentView({ vm }: LandingContentViewProps) {
     </LandingContentCanvas>
   );
 }
-

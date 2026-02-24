@@ -1,7 +1,7 @@
 import Image from "next/image";
 import type { LandingHeroVM } from "@/lib/domain/landing-content";
-import FullScreenSection from "./FullScreenSection";
-import PrimaryButton from "./PrimaryButton";
+import FullScreenSection from "../../components/layout/full-screen-section";
+import PrimaryButton from "../../components/atoms/primary-button";
 
 type HeroSectionProps = {
   vm: LandingHeroVM;

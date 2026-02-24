@@ -1,11 +1,11 @@
 import { CardContent } from "@/components/ui/card";
 import { formatNumber, formatPeso } from "@/lib/formatting";
 import type { ProjectHighlightVM } from "@/lib/domain/landing-content";
-import CardShell from "./CardShell";
-import FullScreenSection from "./FullScreenSection";
-import KpiCard from "./KpiCard";
-import PrimaryButton from "./PrimaryButton";
-import SectionHeader from "./SectionHeader";
+import CardShell from "../../components/atoms/card-shell";
+import FullScreenSection from "../../components/layout/full-screen-section";
+import KpiCard from "../../components/atoms/kpi-card";
+import PrimaryButton from "../../components/atoms/primary-button";
+import SectionHeader from "../../components/atoms/section-header";
 
 type InfrastructureProjectsSectionProps = {
   vm: ProjectHighlightVM;

@@ -1,6 +1,6 @@
 import type { LandingFinalCtaVM } from "@/lib/domain/landing-content";
-import FullScreenSection from "./FullScreenSection";
-import PrimaryButton from "./PrimaryButton";
+import FullScreenSection from "../../components/layout/full-screen-section";
+import PrimaryButton from "../../components/atoms/primary-button";
 
 type FinalCtaSectionProps = {
   vm: LandingFinalCtaVM;

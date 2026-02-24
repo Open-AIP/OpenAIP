@@ -2,14 +2,14 @@
 
 import dynamic from "next/dynamic";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
-import LguMapPanelPlaceholder from "./LguMapPanelPlaceholder";
+import LguMapPanelPlaceholder from "./lgu-map-panel-placeholder";
 
 type LguMapPanelProps = {
   map: LguOverviewVM["map"];
   heightClass?: string;
 };
 
-const LguMapPanelLeaflet = dynamic(() => import("./LguMapPanelLeaflet"), {
+const LguMapPanelLeaflet = dynamic(() => import("./lgu-map-panel-leaflet"), {
   ssr: false,
   loading: () => <LguMapPanelPlaceholder heightClass="h-[420px]" />,
 });

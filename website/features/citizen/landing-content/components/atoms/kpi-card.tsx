@@ -1,5 +1,5 @@
 import { CardContent } from "@/components/ui/card";
-import CardShell from "./CardShell";
+import CardShell from "./card-shell";
 
 type KpiCardProps = {
   label: string;

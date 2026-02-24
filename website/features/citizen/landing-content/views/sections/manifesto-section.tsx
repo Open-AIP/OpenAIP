@@ -1,19 +1,13 @@
-import Image from "next/image";
 import type { LandingManifestoVM } from "@/lib/domain/landing-content";
-import FullScreenSection from "./FullScreenSection";
+import FullScreenSection from "../../components/layout/full-screen-section";
 
 type ManifestoSectionProps = {
   vm: LandingManifestoVM;
 };
 
-const MANIFESTO_BG_SRC = "/citizen-dashboard/school.png";
-
 export default function ManifestoSection({ vm }: ManifestoSectionProps) {
   return (
     <FullScreenSection id="manifesto" className="relative overflow-hidden bg-[#EAF1F5] font-inter">
-      <div className="pointer-events-none absolute inset-0">
-      </div>
-
       <div className="relative mx-auto flex min-h-screen max-w-[900px] items-center justify-center">
         <div className="w-full text-center">
           <p className="text-center text-lg font-semibold leading-[21px] tracking-[0.7px] text-steelblue">
@@ -36,4 +30,3 @@ export default function ManifestoSection({ vm }: ManifestoSectionProps) {
     </FullScreenSection>
   );
 }
-

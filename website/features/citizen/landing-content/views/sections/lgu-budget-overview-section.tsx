@@ -3,9 +3,9 @@ import { Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
 import { formatNumber, formatPeso } from "@/lib/formatting";
-import FullScreenSection from "./FullScreenSection";
-import LguMapPanel from "./LguMapPanel";
-import SectionHeader from "./SectionHeader";
+import FullScreenSection from "../../components/layout/full-screen-section";
+import LguMapPanel from "../../components/map/lgu-map-panel";
+import SectionHeader from "../../components/atoms/section-header";
 
 type LguBudgetOverviewSectionProps = {
   vm: LguOverviewVM;

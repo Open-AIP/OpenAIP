@@ -62,17 +62,21 @@ export type ProjectCardVM = {
   subtitle: string;
   tagLabel: string;
   budget: number;
-  meta: string[];
+  budgetLabel?: string;
+  imageSrc: string;
+  meta?: string[];
 };
 
 export type ProjectHighlightVM = {
-  categoryKey: string;
   heading: string;
   description: string;
-  totalBudget: number;
+  primaryKpiLabel: string;
+  primaryKpiValue: number;
   secondaryKpiLabel: string;
   secondaryKpiValue: number;
   projects: ProjectCardVM[];
+  categoryKey?: string;
+  totalBudget?: number;
 };
 
 export type FeedbackTrendPointVM = {

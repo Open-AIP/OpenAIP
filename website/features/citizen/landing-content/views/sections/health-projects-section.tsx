@@ -1,54 +1,221 @@
-import { CardContent } from "@/components/ui/card";
-import { formatNumber, formatPeso } from "@/lib/formatting";
+﻿"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { ProjectHighlightVM } from "@/lib/domain/landing-content";
 import CardShell from "../../components/atoms/card-shell";
 import FullScreenSection from "../../components/layout/full-screen-section";
-import KpiCard from "../../components/atoms/kpi-card";
-import PrimaryButton from "../../components/atoms/primary-button";
-import SectionHeader from "../../components/atoms/section-header";
+import { cn } from "@/ui/utils";
+import ProjectShowcaseCard from "./project-showcase-card";
 
 type HealthProjectsSectionProps = {
   vm: ProjectHighlightVM;
 };
 
+type StackStyle = {
+  transform: string;
+  opacity: number;
+  zIndex: number;
+  visible: boolean;
+};
+
+function formatCompactPeso(amount: number): string {
+  if (amount >= 1_000_000_000) {
+    return `₱${(amount / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (amount >= 1_000_000) {
+    return `₱${(amount / 1_000_000).toFixed(1)}M`;
+  }
+  if (amount >= 1_000) {
+    return `₱${(amount / 1_000).toFixed(1)}K`;
+  }
+  return `₱${amount.toLocaleString("en-PH")}`;
+}
+
+function formatCompactCount(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`;
+  }
+  return value.toLocaleString("en-PH");
+}
+
+function normalizeWrappedDelta(index: number, activeIndex: number, length: number): number {
+  if (length <= 0) {
+    return 0;
+  }
+
+  let delta = index - activeIndex;
+  const half = Math.floor(length / 2);
+
+  if (delta > half) {
+    delta -= length;
+  } else if (delta < -half) {
+    delta += length;
+  }
+
+  return delta;
+}
+
+function getCardStackStyle(delta: number): StackStyle {
+  const absDelta = Math.abs(delta);
+
+  if (absDelta > 2) {
+    return {
+      transform: "translate(-50%, -50%) translate3d(0px, 22px, 0) scale(0.84)",
+      opacity: 0,
+      zIndex: 0,
+      visible: false,
+    };
+  }
+
+  if (absDelta === 0) {
+    return {
+      transform: "translate(-50%, -50%) translate3d(0px, 0px, 0) scale(1)",
+      opacity: 1,
+      zIndex: 50,
+      visible: true,
+    };
+  }
+
+  const direction = delta > 0 ? 1 : -1;
+  const translateX = absDelta === 1 ? 220 : 380;
+  const translateY = absDelta === 1 ? 8 : 18;
+  const scale = absDelta === 1 ? 0.95 : 0.9;
+  const opacity = absDelta === 1 ? 0.76 : 0.55;
+  const zIndex = absDelta === 1 ? 40 : 30;
+
+  return {
+    transform: `translate(-50%, -50%) translate3d(${direction * translateX}px, ${translateY}px, 0) scale(${scale})`,
+    opacity,
+    zIndex,
+    visible: true,
+  };
+}
+
 export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const safeProjects = useMemo(() => vm.projects ?? [], [vm.projects]);
+  const hasMultipleProjects = safeProjects.length > 1;
+
+  useEffect(() => {
+    if (safeProjects.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+
+    setActiveIndex((current) => ((current % safeProjects.length) + safeProjects.length) % safeProjects.length);
+  }, [safeProjects.length]);
+
+  const goToNext = () => {
+    if (!hasMultipleProjects) {
+      return;
+    }
+
+    setActiveIndex((current) => (current + 1) % safeProjects.length);
+  };
+
+  const goToPrevious = () => {
+    if (!hasMultipleProjects) {
+      return;
+    }
+
+    setActiveIndex((current) => (current - 1 + safeProjects.length) % safeProjects.length);
+  };
+
+  const primaryValue = vm.primaryKpiValue ?? vm.totalBudget ?? 0;
+
   return (
     <FullScreenSection id="health-projects" className="bg-[#EFF4F7]">
-      <div className="space-y-8">
-        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="space-y-5">
-            <SectionHeader title={vm.heading} subtitle={vm.description} />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <KpiCard label="Total Budget" value={formatPeso(vm.totalBudget)} />
-              <KpiCard label={vm.secondaryKpiLabel} value={formatNumber(vm.secondaryKpiValue)} />
-            </div>
+      <div className="grid grid-cols-12 items-center gap-10">
+        <div className="col-span-12 space-y-6 lg:col-span-5">
+          <div className="space-y-4">
+            <h2 className="text-4xl font-bold leading-none tracking-tight text-[#052434] sm:text-5xl">{vm.heading}</h2>
+            <p className="max-w-md text-lg leading-relaxed text-[#4F6E7F]">{vm.description}</p>
           </div>
 
-          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
-            {vm.projects.map((project) => (
-              <CardShell key={project.id} className="min-w-[290px] snap-start py-0">
-                <CardContent className="space-y-4 p-5">
-                  <span className="inline-block rounded-full bg-[#EC4899]/15 px-3 py-1 text-[11px] font-semibold text-[#BE185D]">
-                    {project.tagLabel}
-                  </span>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-[#0C2C3A]">{project.title}</h3>
-                    <p className="text-sm text-slate-600">{project.subtitle}</p>
-                  </div>
-                  <p className="text-xl font-semibold text-[#0E5D6F]">{formatPeso(project.budget)}</p>
-                  <ul className="space-y-1 text-xs text-slate-500">
-                    {project.meta.map((item) => (
-                      <li key={item}>• {item}</li>
-                    ))}
-                  </ul>
-                  <PrimaryButton label="View Project" href="/projects/health" className="w-full" />
-                </CardContent>
-              </CardShell>
-            ))}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CardShell className="py-0">
+              <div className="space-y-1 px-5 py-4">
+                <p className="text-xs font-medium text-slate-500">{vm.primaryKpiLabel}</p>
+                <p className="text-3xl font-bold leading-none text-[#EC4899]">{formatCompactPeso(primaryValue)}</p>
+              </div>
+            </CardShell>
+            <CardShell className="py-0">
+              <div className="space-y-1 px-5 py-4">
+                <p className="text-xs font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
+                <p className="text-3xl font-bold leading-none text-[#EC4899]">
+                  {formatCompactCount(vm.secondaryKpiValue)}
+                </p>
+              </div>
+            </CardShell>
+          </div>
+        </div>
+
+        <div className="col-span-12 lg:col-span-7">
+          <div className="relative h-[470px] overflow-hidden" tabIndex={0}>
+            {safeProjects.map((project, index) => {
+              const delta = normalizeWrappedDelta(index, activeIndex, safeProjects.length);
+              const stackStyle = getCardStackStyle(delta);
+
+              return (
+                <div
+                  key={project.id}
+                  className={cn(
+                    "absolute left-1/2 top-1/2 w-[360px] will-change-transform transition-transform transition-opacity duration-300 ease-out",
+                    !stackStyle.visible && "pointer-events-none"
+                  )}
+                  style={{
+                    transform: stackStyle.transform,
+                    opacity: stackStyle.opacity,
+                    zIndex: stackStyle.zIndex,
+                  }}
+                  onClick={() => {
+                    if (stackStyle.visible) {
+                      setActiveIndex(index);
+                    }
+                  }}
+                >
+                  <ProjectShowcaseCard
+                    project={project}
+                    budgetLabel={project.budgetLabel ?? formatCompactPeso(project.budget)}
+                  />
+                </div>
+              );
+            })}
+
+            <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-[60] flex items-center justify-between px-2">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="Go to previous health project"
+                disabled={!hasMultipleProjects}
+                className="pointer-events-auto rounded-full border-[#3A80A6] bg-white/95 text-[#1F5D79] hover:bg-white disabled:opacity-40"
+                onClick={goToPrevious}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="Advance to next health project"
+                disabled={!hasMultipleProjects}
+                className="pointer-events-auto rounded-full border-[#3A80A6] bg-white/95 text-[#1F5D79] hover:bg-white disabled:opacity-40"
+                onClick={goToNext}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
     </FullScreenSection>
   );
 }
-

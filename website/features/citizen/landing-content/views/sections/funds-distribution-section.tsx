@@ -51,7 +51,7 @@ export default function FundsDistributionSection({ vm }: FundsDistributionSectio
       <div className="mx-auto grid w-full max-w-6xl grid-cols-12 items-center gap-10">
         <div className="col-span-12 space-y-5 lg:col-span-5">
           <div className="space-y-3">
-            <h2 className="text-4xl font-semibold text-white">How Funds Are Distributed</h2>
+            <h2 className="text-6xl font-semibold text-white">How Funds Are Distributed</h2>
             <p className="text-sm text-white/70">
               A clear view of allocations across General, Social, Economic, and Other sectors.
             </p>

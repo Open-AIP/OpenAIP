@@ -1,4 +1,4 @@
-import { CardContent } from "@/components/ui/card";
+﻿import { CardContent } from "@/components/ui/card";
 import { formatNumber, formatPeso } from "@/lib/formatting";
 import type { ProjectHighlightVM } from "@/lib/domain/landing-content";
 import CardShell from "../../components/atoms/card-shell";
@@ -12,6 +12,8 @@ type InfrastructureProjectsSectionProps = {
 };
 
 export default function InfrastructureProjectsSection({ vm }: InfrastructureProjectsSectionProps) {
+  const totalBudgetValue = vm.totalBudget ?? vm.primaryKpiValue;
+
   return (
     <FullScreenSection id="infrastructure-projects" className="bg-[#E8E3DD]">
       <div className="grid items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
@@ -27,11 +29,13 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
                   <p className="text-sm text-slate-600">{project.subtitle}</p>
                 </div>
                 <p className="text-xl font-semibold text-[#0E5D6F]">{formatPeso(project.budget)}</p>
-                <ul className="space-y-1 text-xs text-slate-500">
-                  {project.meta.map((item) => (
-                    <li key={item}>• {item}</li>
-                  ))}
-                </ul>
+                {project.meta?.length ? (
+                  <ul className="space-y-1 text-xs text-slate-500">
+                    {project.meta.map((item) => (
+                      <li key={item}>- {item}</li>
+                    ))}
+                  </ul>
+                ) : null}
                 <PrimaryButton label="View Project" href="/projects/infrastructure" className="w-full" />
               </CardContent>
             </CardShell>
@@ -41,7 +45,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
         <div className="space-y-5">
           <SectionHeader title={vm.heading} subtitle={vm.description} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <KpiCard label="Total Budget" value={formatPeso(vm.totalBudget)} />
+            <KpiCard label="Total Budget" value={formatPeso(totalBudgetValue)} />
             <KpiCard label={vm.secondaryKpiLabel} value={formatNumber(vm.secondaryKpiValue)} />
           </div>
         </div>
@@ -49,4 +53,3 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
     </FullScreenSection>
   );
 }
-

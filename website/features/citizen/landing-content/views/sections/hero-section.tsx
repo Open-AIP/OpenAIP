@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { LandingHeroVM } from "@/lib/domain/landing-content";
 import FullScreenSection from "../../components/layout/full-screen-section";
 import PrimaryButton from "../../components/atoms/primary-button";
+import HeroMotion from "./hero-motion.client";
 
 type HeroSectionProps = {
   vm?: LandingHeroVM;
@@ -20,6 +21,11 @@ const NAVY_RECTANGLE_SRC = "/citizen-dashboard/navy-rectangle.png";
 export default function HeroSection({ vm }: HeroSectionProps) {
   const legacyVm = vm as LandingHeroVM & LegacyHeroShape;
   const ctaTarget = vm?.ctaHrefOrAction;
+  const title = vm?.title ?? "Know Where Every Peso Goes.";
+  const subtitle =
+    vm?.subtitle ??
+    "Explore the Annual Investment Plan through clear budget breakdowns, sector allocations, and funded projects.";
+  const ctaLabel = vm?.ctaLabel ?? "Explore the AIP";
   const ctaProps =
     ctaTarget?.type === "href"
       ? { href: ctaTarget.value }
@@ -76,38 +82,19 @@ export default function HeroSection({ vm }: HeroSectionProps) {
               sizes="100vw"
               className="object-cover object-center opacity-62"
             />
-            
           </div>
 
-          <div className="relative z-10 h-full px-6 sm:px-10 lg:px-16">
-            <div className="grid h-full grid-cols-12 items-center">
-              <div className="col-span-12 lg:col-span-6">
-                <h1 className="max-w-[560px] text-[clamp(2.35rem,5.8vw,4.3rem)] font-semibold leading-[1.02] tracking-tight text-linen">
-                  {vm?.title ?? "Know Where Every Peso Goes."}
-                </h1>
-                <p className="mt-5 max-w-[520px] text-[15px] leading-7 text-white/80 md:text-[17px] md:leading-[29px]">
-                  {vm?.subtitle ??
-                    "Explore the Annual Investment Plan through clear budget breakdowns, sector allocations, and funded projects."}
-                </p>
-                <div className="mt-8">
-                  <PrimaryButton
-                    label={vm?.ctaLabel ?? "Explore the AIP"}
-                    ariaLabel={vm?.ctaLabel ?? "Explore the AIP"}
-                    {...ctaProps}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/60">
-              <span className="inline-flex items-center gap-2 text-sm">
-                Scroll to explore
-                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-                  <path d="M5 8.5L10 13.5L15 8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </span>
-            </div>
-          </div>
+          <HeroMotion
+            title={title}
+            subtitle={subtitle}
+            cta={
+              <PrimaryButton
+                label={ctaLabel}
+                ariaLabel={ctaLabel}
+                {...ctaProps}
+              />
+            }
+          />
         </div>
       </div>
     </FullScreenSection>

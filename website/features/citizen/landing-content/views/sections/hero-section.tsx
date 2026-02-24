@@ -36,8 +36,8 @@ export default function HeroSection({ vm }: HeroSectionProps) {
       className="items-stretch bg-[#EAF1F5] text-linen"
       contentClassName="max-w-none px-0 py-0"
     >
-      <div className="relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-4 md:px-6">
-        <div className="relative w-full overflow-hidden rounded-2xl h-[calc(100vh-120px)] min-h-[640px] supports-[height:100svh]:h-[calc(100svh-120px)]">
+      <div className="relative left-1/2 -mt-4 w-screen -translate-x-1/2 px-3 sm:px-4 md:-mt-6 md:px-6">
+        <div className="relative h-[calc(100vh-96px)] min-h-[620px] w-full overflow-hidden rounded-2xl supports-[height:100svh]:h-[calc(100svh-96px)]">
           <div className="pointer-events-none absolute inset-0">
             <Image
               src={BLUE_RECTANGLE_SRC}

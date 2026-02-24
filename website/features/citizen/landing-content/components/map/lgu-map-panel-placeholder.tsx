@@ -1,36 +1,33 @@
 import { cn } from "@/ui/utils";
 
 type LguMapPanelPlaceholderProps = {
-  heightClass?: string;
+  className?: string;
 };
 
 export default function LguMapPanelPlaceholder({
-  heightClass = "h-[420px]",
+  className,
 }: LguMapPanelPlaceholderProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-slate-200 bg-white/70 p-3 backdrop-blur-sm",
-        heightClass
+        "relative h-full overflow-hidden rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#F7FAFC,#EAF1F6)]",
+        className
       )}
       role="status"
       aria-label="Map loading placeholder"
     >
-      <div className="relative h-full overflow-hidden rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#F7FAFC,#EAF1F6)]">
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:24px_24px]" />
-        <div className="absolute left-3 top-3 rounded-md border border-dashed border-slate-300 bg-white/80 px-2.5 py-1 text-xs text-slate-500">
-          Map Preview
-        </div>
-        <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
-          <span className="rounded-full bg-[#0E7490]/15 px-2.5 py-1 text-xs font-medium text-[#0E5D6F]">
-            Main marker
-          </span>
-          <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700">
-            Barangay markers
-          </span>
-        </div>
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:24px_24px]" />
+      <div className="absolute left-3 top-3 rounded-md border border-dashed border-slate-300 bg-white/80 px-2.5 py-1 text-xs text-slate-500">
+        Map Preview
+      </div>
+      <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
+        <span className="rounded-full bg-[#0E7490]/15 px-2.5 py-1 text-xs font-medium text-[#0E5D6F]">
+          Main marker
+        </span>
+        <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700">
+          Barangay markers
+        </span>
       </div>
     </div>
   );
 }
-

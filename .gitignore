@@ -1,4 +1,5 @@
 aip-intelligence-pipeline/.venv/
+aip-intelligence-pipeline/.venv*/
 aip-intelligence-pipeline/__pycache__/
 aip-intelligence-pipeline/outputs/
 aip-intelligence-pipeline/.env

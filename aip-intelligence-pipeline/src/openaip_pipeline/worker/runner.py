@@ -32,6 +32,8 @@ def run_worker() -> None:
 
 
 def main() -> None:
+    # Prefer project-local developer config while still allowing .env defaults.
+    load_dotenv(".env.local")
     load_dotenv()
     configure_logging()
     run_worker()

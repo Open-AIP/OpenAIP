@@ -90,6 +90,10 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
             payload=extraction_res.payload,
             text=None,
         )
+        repo.upsert_aip_totals(
+            aip_id=aip_id,
+            totals=extraction_res.payload.get("totals") if isinstance(extraction_res.payload, dict) else [],
+        )
 
         current_stage = "validate"
         repo.set_run_stage(run_id=run_id, stage=current_stage)
@@ -240,4 +244,3 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
                 os.remove(tmp_pdf_path)
             except OSError:
                 pass
-

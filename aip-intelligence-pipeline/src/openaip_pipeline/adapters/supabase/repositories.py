@@ -52,6 +52,19 @@ def _to_float_or_none(value: Any) -> float | None:
         return None
 
 
+def _to_int_or_none(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value).strip())
+    except ValueError:
+        return None
+
+
 def _map_category(value: Any) -> str:
     if not isinstance(value, str):
         return "other"
@@ -187,10 +200,23 @@ class PipelineRepository:
         return UploadedFileDTO.from_row(rows[0])
 
     def get_aip_scope(self, aip_id: str) -> str:
-        rows = self.client.select("aips", select="id,city_id", filters={"id": f"eq.{aip_id}"}, limit=1)
+        context = self.get_aip_context(aip_id)
+        if context.get("city_id"):
+            return "city"
+        if context.get("municipality_id"):
+            return "municipality"
+        return "barangay"
+
+    def get_aip_context(self, aip_id: str) -> dict[str, Any]:
+        rows = self.client.select(
+            "aips",
+            select="id,fiscal_year,barangay_id,city_id,municipality_id",
+            filters={"id": f"eq.{aip_id}"},
+            limit=1,
+        )
         if not rows:
             raise RuntimeError("AIP not found for extraction run.")
-        return "city" if rows[0].get("city_id") else "barangay"
+        return rows[0]
 
     def set_run_progress(
         self,
@@ -273,6 +299,51 @@ class PipelineRepository:
         if not rows:
             raise RuntimeError(f"Failed to insert artifact: {artifact_type}")
         return str(rows[0]["id"])
+
+    def upsert_aip_totals(self, *, aip_id: str, totals: Any) -> None:
+        if not isinstance(totals, list) or not totals:
+            return
+
+        aip_context = self.get_aip_context(aip_id)
+        fiscal_year = _to_int_or_none(aip_context.get("fiscal_year"))
+        if fiscal_year is None:
+            return
+
+        barangay_id = aip_context.get("barangay_id")
+        city_id = aip_context.get("city_id")
+        municipality_id = aip_context.get("municipality_id")
+
+        for item in totals:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("source_label") or "").strip() != "total_investment_program":
+                continue
+
+            value = _to_float_or_none(item.get("value"))
+            evidence_text = str(item.get("evidence_text") or "").strip()
+            if value is None or not evidence_text:
+                continue
+
+            page_no = _to_int_or_none(item.get("page_no"))
+            currency = str(item.get("currency") or "PHP").strip() or "PHP"
+            payload = {
+                "aip_id": aip_id,
+                "fiscal_year": fiscal_year,
+                "barangay_id": barangay_id,
+                "city_id": city_id,
+                "municipality_id": municipality_id,
+                "total_investment_program": value,
+                "currency": currency,
+                "page_no": page_no,
+                "evidence_text": evidence_text,
+                "source_label": "total_investment_program",
+            }
+            self.client.insert(
+                "aip_totals",
+                payload,
+                on_conflict="aip_id,source_label",
+                upsert=True,
+            )
 
     def upsert_projects(
         self,

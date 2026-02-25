@@ -21,11 +21,58 @@ export type ChatClarificationOption = {
   total: string | null;
 };
 
-export type ChatClarificationPayload = {
-  id: string;
-  kind: "line_item_disambiguation";
-  prompt: string;
-  options: ChatClarificationOption[];
+export type ChatCityFallbackClarificationOption = {
+  optionIndex: number;
+  action: "use_barangays_in_city" | "cancel";
+  label: string;
+};
+
+export type ChatClarificationPayload =
+  | {
+      id: string;
+      kind: "line_item_disambiguation";
+      prompt: string;
+      options: ChatClarificationOption[];
+    }
+  | {
+      id: string;
+      kind: "city_aip_missing_fallback";
+      prompt: string;
+      options: ChatCityFallbackClarificationOption[];
+    };
+
+export type AggregationIntentType =
+  | "top_projects"
+  | "totals_by_sector"
+  | "totals_by_fund_source"
+  | "compare_years";
+
+export type AggregationLogIntentType =
+  | "aggregate_top_projects"
+  | "aggregate_totals_by_sector"
+  | "aggregate_totals_by_fund_source"
+  | "aggregate_compare_years";
+
+export type ChatClarificationContextLineItem = {
+  factFields: string[];
+  scopeReason: string;
+  barangayName: string | null;
+};
+
+export type ChatClarificationContextCityFallback = {
+  cityId: string;
+  cityName: string;
+  fiscalYearParsed: number | null;
+  // Backward compatibility for older persisted clarification payloads.
+  fiscalYear?: number | null;
+  originalIntent:
+    | "total_investment_program"
+    | AggregationLogIntentType
+    | AggregationIntentType;
+  limit?: number | null;
+  yearA?: number | null;
+  yearB?: number | null;
+  listOnly?: boolean;
 };
 
 export type ChatCitation = {
@@ -86,15 +133,20 @@ export type ChatRetrievalMeta = {
   status?: ChatResponseStatus;
   kind?: "clarification" | "clarification_resolved";
   clarification?: ChatClarificationPayload & {
-    context?: {
-      factFields: string[];
-      scopeReason: string;
-      barangayName: string | null;
-    };
+    context?: ChatClarificationContextLineItem | ChatClarificationContextCityFallback;
   };
   clarificationResolution?: {
     clarificationId: string;
     selectedLineItemId: string;
+  };
+  scopeReason?: string;
+  fallbackContext?: {
+    mode: "barangays_in_city";
+    cityId: string;
+    cityName: string;
+    barangayIdsCount: number;
+    coverageBarangays: string[];
+    aggregationSource: string;
   };
 };
 

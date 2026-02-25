@@ -2,6 +2,14 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { formatTotalsEvidence } from "@/lib/chat/evidence";
 import { detectAggregationIntent } from "@/lib/chat/aggregation-intent";
+import {
+  detectExplicitCityMention,
+  listBarangayIdsInCity,
+  resolveCityByNameExact,
+  selectPublishedCityAip,
+  type CityRef,
+  type CityScopeResult,
+} from "@/lib/chat/city-scope";
 import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
 import {
   buildClarificationOptions,
@@ -38,9 +46,13 @@ import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getChatRepo } from "@/lib/repos/chat/repo.server";
 import type {
+  AggregationIntentType,
   ChatCitation,
+  ChatClarificationContextCityFallback,
+  ChatClarificationContextLineItem,
   ChatClarificationOption,
   ChatClarificationPayload,
+  ChatCityFallbackClarificationOption,
   ChatMessage,
   ChatResponseStatus,
   ChatRetrievalMeta,
@@ -167,17 +179,28 @@ type ScopeLookupRow = {
   name: string | null;
 };
 
+type RouteScopeReason =
+  | LineItemScopeReason
+  | TotalsScopeReason
+  | "explicit_city"
+  | "fallback_barangays_in_city";
+
 type TotalsRoutingLogPayload = {
   request_id: string;
   intent: "total_investment_program";
   route: "sql_totals";
   fiscal_year_parsed: number | null;
-  scope_reason: TotalsScopeReason;
+  scope_reason: RouteScopeReason;
   explicit_scope_detected: boolean;
   barangay_id_used: string | null;
   aip_id_selected: string | null;
   totals_found: boolean;
   vector_called: false;
+  city_id?: string | null;
+  fallback_mode?: "barangays_in_city" | null;
+  barangay_ids_count?: number | null;
+  coverage_barangays?: string[];
+  aggregation_source?: "aip_line_items" | "aip_totals_total_investment_program" | null;
 };
 
 type NonTotalsRoutingLogPayload = {
@@ -193,7 +216,7 @@ type NonTotalsRoutingLogPayload = {
     | "aggregate_compare_years";
   route: "row_sql" | "pipeline_fallback" | "aggregate_sql";
   fiscal_year_parsed: number | null;
-  scope_reason: LineItemScopeReason;
+  scope_reason: RouteScopeReason;
   barangay_id_used: string | null;
   match_count_used: number | null;
   limit_used?: number | null;
@@ -202,6 +225,11 @@ type NonTotalsRoutingLogPayload = {
   answered: boolean;
   // vector_called means the row-match RPC was called (not the query-embedding call).
   vector_called: boolean;
+  city_id?: string | null;
+  fallback_mode?: "barangays_in_city" | null;
+  barangay_ids_count?: number | null;
+  coverage_barangays?: string[];
+  aggregation_source?: "aip_line_items" | "aip_totals_total_investment_program" | null;
 };
 
 type ClarificationLifecycleLogPayload =
@@ -226,15 +254,16 @@ type ClarificationSelection =
   | { kind: "ref"; refCode: string }
   | { kind: "title"; titleQuery: string };
 
+type CityFallbackClarificationContext = ChatClarificationContextCityFallback;
+type LineItemClarificationContext = ChatClarificationContextLineItem;
+
+type PendingClarificationPayload = ChatClarificationPayload & {
+  context?: LineItemClarificationContext | CityFallbackClarificationContext;
+};
+
 type PendingClarificationRecord = {
   messageId: string;
-  payload: ChatClarificationPayload & {
-    context?: {
-      factFields: string[];
-      scopeReason: string;
-      barangayName: string | null;
-    };
-  };
+  payload: PendingClarificationPayload;
 };
 
 type AssistantMetaRow = {
@@ -427,7 +456,21 @@ function isClarificationCancelMessage(message: string): boolean {
   );
 }
 
-function resolveClarificationOptionFromSelection(input: {
+function isLineItemClarificationPayload(
+  payload: ChatClarificationPayload
+): payload is Extract<ChatClarificationPayload, { kind: "line_item_disambiguation" }> {
+  if (payload.kind !== "line_item_disambiguation") return false;
+  return payload.options.length > 0;
+}
+
+function isCityFallbackClarificationPayload(
+  payload: ChatClarificationPayload
+): payload is Extract<ChatClarificationPayload, { kind: "city_aip_missing_fallback" }> {
+  if (payload.kind !== "city_aip_missing_fallback") return false;
+  return payload.options.length > 0;
+}
+
+function resolveLineItemClarificationOptionFromSelection(input: {
   selection: ClarificationSelection;
   options: ChatClarificationOption[];
 }): ChatClarificationOption | null {
@@ -451,6 +494,17 @@ function resolveClarificationOptionFromSelection(input: {
   return titleMatches.length === 1 ? titleMatches[0] : null;
 }
 
+function resolveCityFallbackClarificationOptionFromSelection(input: {
+  selection: ClarificationSelection;
+  options: ChatCityFallbackClarificationOption[];
+}): ChatCityFallbackClarificationOption | null {
+  if (input.selection.kind !== "numeric") {
+    return null;
+  }
+  const option = input.options.find((item) => item.optionIndex === input.selection.optionIndex);
+  return option ?? null;
+}
+
 function parseFactFields(input: string[] | undefined): LineItemFactField[] {
   const fields = new Set<LineItemFactField>();
   for (const raw of input ?? []) {
@@ -468,6 +522,11 @@ function parseFactFields(input: string[] | undefined): LineItemFactField[] {
 }
 
 function buildClarificationPromptContent(payload: ChatClarificationPayload): string {
+  if (payload.kind === "city_aip_missing_fallback") {
+    const optionsText = payload.options.map((option) => `${option.optionIndex}. ${option.label}`).join("\n");
+    return `${payload.prompt}\n${optionsText}`;
+  }
+
   return `${payload.prompt}\n${payload.options
     .map(
       (option) =>
@@ -675,6 +734,204 @@ function isFundSourceListQuery(message: string): boolean {
 function parseInteger(value: unknown): number | null {
   const parsed = toNumberOrNull(value);
   return parsed === null ? null : Math.trunc(parsed);
+}
+
+type CityFallbackOriginalIntent = "total_investment_program" | AggregationLogIntent;
+
+function toCityFallbackOriginalIntent(intent: AggregationIntentType): AggregationLogIntent {
+  if (intent === "top_projects") return "aggregate_top_projects";
+  if (intent === "totals_by_sector") return "aggregate_totals_by_sector";
+  if (intent === "totals_by_fund_source") return "aggregate_totals_by_fund_source";
+  return "aggregate_compare_years";
+}
+
+function fromCityFallbackOriginalIntent(
+  intent: CityFallbackClarificationContext["originalIntent"]
+): CityFallbackOriginalIntent | null {
+  if (intent === "total_investment_program") return intent;
+  if (
+    intent === "aggregate_top_projects" ||
+    intent === "aggregate_totals_by_sector" ||
+    intent === "aggregate_totals_by_fund_source" ||
+    intent === "aggregate_compare_years"
+  ) {
+    return intent;
+  }
+  // Backward compatibility with previously persisted payloads.
+  if (intent === "top_projects") return "aggregate_top_projects";
+  if (intent === "totals_by_sector") return "aggregate_totals_by_sector";
+  if (intent === "totals_by_fund_source") return "aggregate_totals_by_fund_source";
+  if (intent === "compare_years") return "aggregate_compare_years";
+  return null;
+}
+
+function normalizeCityLabel(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "the city";
+  if (/^city of\s+/i.test(trimmed)) return trimmed;
+  if (/\bcity\b/i.test(trimmed)) return `City of ${trimmed.replace(/\bcity\b/gi, "").trim()}`;
+  return `City of ${trimmed}`;
+}
+
+function isLineItemClarificationContext(value: unknown): value is LineItemClarificationContext {
+  if (!value || typeof value !== "object") return false;
+  const typed = value as Partial<LineItemClarificationContext>;
+  return (
+    Array.isArray(typed.factFields) &&
+    typeof typed.scopeReason === "string" &&
+    (typed.barangayName === null || typeof typed.barangayName === "string")
+  );
+}
+
+function isCityFallbackClarificationContext(
+  value: unknown
+): value is CityFallbackClarificationContext {
+  if (!value || typeof value !== "object") return false;
+  const typed = value as Partial<CityFallbackClarificationContext>;
+  const normalizedIntent =
+    typed.originalIntent === undefined
+      ? null
+      : fromCityFallbackOriginalIntent(typed.originalIntent);
+  const fiscalYearParsed =
+    typeof typed.fiscalYearParsed === "number" || typed.fiscalYearParsed === null
+      ? typed.fiscalYearParsed
+      : typeof typed.fiscalYear === "number" || typed.fiscalYear === null
+        ? typed.fiscalYear
+        : undefined;
+  return (
+    typeof typed.cityId === "string" &&
+    typeof typed.cityName === "string" &&
+    normalizedIntent !== null &&
+    fiscalYearParsed !== undefined
+  );
+}
+
+function buildCityAipMissingClarificationPayload(input: {
+  cityName: string;
+  fiscalYearParsed: number | null;
+}): Extract<ChatClarificationPayload, { kind: "city_aip_missing_fallback" }> {
+  const cityLabel = normalizeCityLabel(input.cityName);
+  const yearLabel = input.fiscalYearParsed === null ? "" : ` (FY ${input.fiscalYearParsed})`;
+  const prompt =
+    `No published City AIP for ${cityLabel}${yearLabel}. ` +
+    `Would you like to query across all barangays within ${cityLabel} instead?`;
+  return {
+    id: randomUUID(),
+    kind: "city_aip_missing_fallback",
+    prompt,
+    options: [
+      {
+        optionIndex: 1,
+        action: "use_barangays_in_city",
+        label: `Use barangays in ${cityLabel}`,
+      },
+      {
+        optionIndex: 2,
+        action: "cancel",
+        label: "Cancel",
+      },
+    ],
+  };
+}
+
+type CoverageSummary = {
+  line: string;
+  coverageBarangays: string[];
+  coveredCount: number;
+  totalCount: number;
+  missingCount: number;
+};
+
+function formatCoverageNames(names: string[]): string[] {
+  const sorted = [...names].sort((a, b) => a.localeCompare(b));
+  if (sorted.length <= 10) return sorted;
+  return [...sorted.slice(0, 10), "..."];
+}
+
+async function buildCoverageSummary(input: {
+  cityBarangayIds: string[];
+  coveredBarangayIds: string[];
+  fiscalLabel: string;
+}): Promise<CoverageSummary> {
+  const uniqueCoveredIds = input.coveredBarangayIds.filter(
+    (id, index, all) => id && all.indexOf(id) === index
+  );
+  const cityBarangayNameMap = await fetchBarangayNameMap(input.cityBarangayIds);
+  const coveredNameSet = new Set<string>();
+  for (const coveredId of uniqueCoveredIds) {
+    const name = cityBarangayNameMap.get(coveredId);
+    if (name) coveredNameSet.add(normalizeBarangayLabel(name).replace(/^Barangay\s+/i, ""));
+  }
+  const coverageBarangays = formatCoverageNames(Array.from(coveredNameSet));
+  const coveredCount = uniqueCoveredIds.length;
+  const totalCount = input.cityBarangayIds.length;
+  const missingCount = Math.max(0, totalCount - coveredCount);
+  const coverageListText = coverageBarangays.length > 0 ? coverageBarangays.join(", ") : "none";
+  return {
+    line:
+      `Coverage: ${coveredCount}/${totalCount} barangays have published ${input.fiscalLabel} AIPs ` +
+      `(${coverageListText}).`,
+    coverageBarangays,
+    coveredCount,
+    totalCount,
+    missingCount,
+  };
+}
+
+async function resolveExplicitCityScopeFromMessage(input: {
+  message: string;
+  scopeResolution: ChatScopeResolution;
+}): Promise<CityScopeResult> {
+  if (input.scopeResolution.mode === "named_scopes") {
+    const target =
+      input.scopeResolution.resolvedTargets.length === 1
+        ? input.scopeResolution.resolvedTargets[0]
+        : null;
+    if (target?.scopeType === "city") {
+      return {
+        kind: "explicit_city",
+        city: {
+          id: target.scopeId,
+          name: target.scopeName,
+        },
+        matchedBy: "label",
+      };
+    }
+
+    if (target) {
+      return { kind: "none" };
+    }
+  }
+
+  const admin = supabaseAdmin();
+  const explicitMention = detectExplicitCityMention(input.message);
+  if (explicitMention.cityNameCandidate) {
+    const resolved = await resolveCityByNameExact(admin, explicitMention.cityNameCandidate);
+    if (resolved) {
+      return {
+        kind: "explicit_city",
+        city: resolved,
+        matchedBy: "label",
+      };
+    }
+  }
+
+  const looseScopeName = parseLooseScopeName(input.message);
+  if (
+    looseScopeName &&
+    !/\b(?:fy|fiscal|year|20\d{2})\b/i.test(looseScopeName)
+  ) {
+    const resolved = await resolveCityByNameExact(admin, looseScopeName);
+    if (resolved) {
+      return {
+        kind: "explicit_city",
+        city: resolved,
+        matchedBy: "name",
+      };
+    }
+  }
+
+  return { kind: "none" };
 }
 
 type AggregationScopeDecision = {
@@ -936,8 +1193,12 @@ function chatResponsePayload(input: {
   };
 }
 
-function isExplicitScopeDetected(scopeReason: TotalsScopeReason): boolean {
-  return scopeReason === "explicit_barangay" || scopeReason === "explicit_our_barangay";
+function isExplicitScopeDetected(scopeReason: RouteScopeReason): boolean {
+  return (
+    scopeReason === "explicit_barangay" ||
+    scopeReason === "explicit_our_barangay" ||
+    scopeReason === "explicit_city"
+  );
 }
 
 function makeTotalsLogPayload(
@@ -998,18 +1259,18 @@ async function getLatestPendingClarification(
   if (!retrievalMeta || typeof retrievalMeta !== "object") return null;
   if (retrievalMeta.kind !== "clarification" && retrievalMeta.status !== "clarification") return null;
   if (!retrievalMeta.clarification) return null;
-  if (
-    retrievalMeta.clarification.kind !== "line_item_disambiguation" ||
-    !retrievalMeta.clarification.id ||
-    !Array.isArray(retrievalMeta.clarification.options) ||
-    retrievalMeta.clarification.options.length === 0
-  ) {
+
+  const clarification = retrievalMeta.clarification as PendingClarificationPayload;
+  if (!clarification.id || !Array.isArray(clarification.options) || clarification.options.length === 0) {
+    return null;
+  }
+  if (!isLineItemClarificationPayload(clarification) && !isCityFallbackClarificationPayload(clarification)) {
     return null;
   }
 
   return {
     messageId: row.id,
-    payload: retrievalMeta.clarification,
+    payload: clarification,
   };
 }
 
@@ -1097,6 +1358,55 @@ async function fetchBarangayNameMap(barangayIds: string[]): Promise<Map<string, 
     }
   }
   return nameMap;
+}
+
+type PublishedBarangayAip = {
+  id: string;
+  fiscal_year: number;
+  barangay_id: string;
+};
+
+async function fetchPublishedBarangayAips(input: {
+  barangayIds: string[];
+  fiscalYear?: number | null;
+  fiscalYears?: number[];
+}): Promise<PublishedBarangayAip[]> {
+  const deduped = input.barangayIds.filter((id, index, all) => id && all.indexOf(id) === index);
+  if (deduped.length === 0) return [];
+
+  const admin = supabaseAdmin();
+  let query = admin
+    .from("aips")
+    .select("id,fiscal_year,barangay_id")
+    .eq("status", "published")
+    .in("barangay_id", deduped);
+
+  if (Array.isArray(input.fiscalYears) && input.fiscalYears.length > 0) {
+    query = query.in("fiscal_year", input.fiscalYears);
+  } else if (input.fiscalYear !== undefined && input.fiscalYear !== null) {
+    query = query.eq("fiscal_year", input.fiscalYear);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map((row) => {
+      const typed = row as { id?: unknown; fiscal_year?: unknown; barangay_id?: unknown };
+      return {
+        id: typeof typed.id === "string" ? typed.id : null,
+        fiscal_year: typeof typed.fiscal_year === "number" ? typed.fiscal_year : null,
+        barangay_id: typeof typed.barangay_id === "string" ? typed.barangay_id : null,
+      };
+    })
+    .filter(
+      (
+        row
+      ): row is {
+        id: string;
+        fiscal_year: number;
+        barangay_id: string;
+      } => Boolean(row.id && row.fiscal_year !== null && row.barangay_id)
+    );
 }
 
 function resolveExplicitBarangayByCandidate(
@@ -1380,6 +1690,202 @@ async function resolveTotalsAssistantPayload(input: {
   requestId: string;
 }): Promise<TotalsAssistantPayload> {
   const requestedFiscalYear = extractFiscalYear(input.message);
+  const explicitCityScope = await resolveExplicitCityScopeFromMessage({
+    message: input.message,
+    scopeResolution: input.scopeResolution,
+  });
+
+  if (explicitCityScope.kind === "explicit_city") {
+    const cityLabel = normalizeCityLabel(explicitCityScope.city.name);
+    const admin = supabaseAdmin();
+    const cityAip = await selectPublishedCityAip(
+      admin,
+      explicitCityScope.city.id,
+      requestedFiscalYear
+    );
+
+    if (!cityAip.aipId) {
+      const clarificationPayload = buildCityAipMissingClarificationPayload({
+        cityName: explicitCityScope.city.name,
+        fiscalYearParsed: requestedFiscalYear,
+      });
+      logTotalsRouting(
+        makeTotalsLogPayload({
+          request_id: input.requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: "explicit_city",
+          barangay_id_used: null,
+          aip_id_selected: null,
+          totals_found: false,
+          vector_called: false,
+          city_id: explicitCityScope.city.id,
+        })
+      );
+
+      return {
+        content: buildClarificationPromptContent(clarificationPayload),
+        citations: [
+          makeSystemCitation("City AIP not found; offered barangays-in-city fallback.", {
+            reason: "city_aip_missing_fallback_offered",
+            city_id: explicitCityScope.city.id,
+            city_name: explicitCityScope.city.name,
+            fiscal_year: requestedFiscalYear,
+          }),
+        ],
+        retrievalMeta: {
+          refused: false,
+          reason: "clarification_needed",
+          status: "clarification",
+          kind: "clarification",
+          clarification: {
+            ...clarificationPayload,
+            context: {
+              cityId: explicitCityScope.city.id,
+              cityName: explicitCityScope.city.name,
+              fiscalYearParsed: requestedFiscalYear,
+              originalIntent: "total_investment_program",
+            },
+          },
+          scopeReason: "explicit_city",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
+
+    const totalsRow = await findAipTotal(cityAip.aipId);
+    if (!totalsRow) {
+      const missingMessage = buildTotalsMissingMessage({
+        fiscalYear: cityAip.fiscalYearFound ?? requestedFiscalYear,
+        scopeLabel: cityLabel,
+      });
+      logTotalsRouting(
+        makeTotalsLogPayload({
+          request_id: input.requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: "explicit_city",
+          barangay_id_used: null,
+          aip_id_selected: cityAip.aipId,
+          totals_found: false,
+          vector_called: false,
+          city_id: explicitCityScope.city.id,
+        })
+      );
+      return {
+        content: missingMessage,
+        citations: [
+          makeSystemCitation("No aip_totals row found for city AIP.", {
+            type: "aip_total_missing",
+            aip_id: cityAip.aipId,
+            city_id: explicitCityScope.city.id,
+            fiscal_year: cityAip.fiscalYearFound ?? requestedFiscalYear,
+          }),
+        ],
+        retrievalMeta: {
+          refused: true,
+          reason: "insufficient_evidence",
+          scopeReason: "explicit_city",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
+
+    const parsedAmount = parseAmount(totalsRow.total_investment_program);
+    if (parsedAmount === null) {
+      const missingMessage = buildTotalsMissingMessage({
+        fiscalYear: cityAip.fiscalYearFound ?? requestedFiscalYear,
+        scopeLabel: cityLabel,
+      });
+      logTotalsRouting(
+        makeTotalsLogPayload({
+          request_id: input.requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: "explicit_city",
+          barangay_id_used: null,
+          aip_id_selected: cityAip.aipId,
+          totals_found: false,
+          vector_called: false,
+          city_id: explicitCityScope.city.id,
+        })
+      );
+      return {
+        content: missingMessage,
+        citations: [
+          makeSystemCitation("Invalid city total_investment_program format in aip_totals.", {
+            type: "aip_total_missing",
+            aip_id: cityAip.aipId,
+            city_id: explicitCityScope.city.id,
+          }),
+        ],
+        retrievalMeta: {
+          refused: true,
+          reason: "insufficient_evidence",
+          scopeReason: "explicit_city",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
+
+    const rawEvidence = totalsRow.evidence_text.trim();
+    const formattedEvidence = formatTotalsEvidence(rawEvidence);
+    const evidenceText = formattedEvidence || rawEvidence;
+    const resolvedFiscalYear = cityAip.fiscalYearFound ?? requestedFiscalYear ?? null;
+    const pageLabel = totalsRow.page_no !== null ? `page ${totalsRow.page_no}` : "page not specified";
+    const answer =
+      `The Total Investment Program for FY ${resolvedFiscalYear ?? "N/A"} (${cityLabel}) is ${formatPhp(parsedAmount)}. ` +
+      `Evidence: ${pageLabel}, "${evidenceText}".`;
+    logTotalsRouting(
+      makeTotalsLogPayload({
+        request_id: input.requestId,
+        intent: "total_investment_program",
+        route: "sql_totals",
+        fiscal_year_parsed: requestedFiscalYear,
+        scope_reason: "explicit_city",
+        barangay_id_used: null,
+        aip_id_selected: cityAip.aipId,
+        totals_found: true,
+        vector_called: false,
+        city_id: explicitCityScope.city.id,
+      })
+    );
+
+    return {
+      content: answer,
+      citations: [
+        {
+          sourceId: "T1",
+          aipId: cityAip.aipId,
+          fiscalYear: resolvedFiscalYear,
+          scopeType: "city",
+          scopeId: explicitCityScope.city.id,
+          scopeName: `${cityLabel} - FY ${resolvedFiscalYear ?? "Any"} - Total Investment Program`,
+          snippet: evidenceText,
+          insufficient: false,
+          metadata: {
+            type: "aip_total",
+            page_no: totalsRow.page_no,
+            evidence_text: evidenceText,
+            evidence_text_raw: rawEvidence,
+            aip_id: cityAip.aipId,
+            fiscal_year: resolvedFiscalYear,
+            city_id: explicitCityScope.city.id,
+          },
+        },
+      ],
+      retrievalMeta: {
+        refused: false,
+        reason: "ok",
+        scopeReason: "explicit_city",
+        scopeResolution: input.scopeResolution,
+      },
+    };
+  }
+
   const scopeResult = await resolveTotalsScopeTarget({
     actor: input.actor,
     message: input.message,
@@ -1825,18 +2331,801 @@ export async function POST(request: Request) {
     const pendingClarification = await getLatestPendingClarification(session.id);
     if (pendingClarification) {
       const selection = parseClarificationSelection(content);
-      const selectedOption =
-        selection !== null
-          ? resolveClarificationOptionFromSelection({
-              selection,
-              options: pendingClarification.payload.options,
-            })
-          : null;
 
-      if (selectedOption) {
-        const { data: selectedRowData, error: selectedRowError } = await client
-          .from("aip_line_items")
-          .select(
+      if (isCityFallbackClarificationPayload(pendingClarification.payload)) {
+        const cityContext = isCityFallbackClarificationContext(pendingClarification.payload.context)
+          ? pendingClarification.payload.context
+          : null;
+        const selectedCityOption =
+          selection !== null
+            ? resolveCityFallbackClarificationOptionFromSelection({
+                selection,
+                options: pendingClarification.payload.options,
+              })
+            : null;
+
+        if (isClarificationCancelMessage(content) || selectedCityOption?.action === "cancel") {
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: "Okay. Please specify a barangay or remove the city scope.",
+            citations: [
+              makeSystemCitation("City fallback clarification cancelled.", {
+                reason: "city_fallback_cancelled",
+                clarification_id: pendingClarification.payload.id,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              status: "answer",
+              kind: "clarification_resolved",
+              scopeReason: "fallback_barangays_in_city",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (selectedCityOption?.action === "use_barangays_in_city" && cityContext) {
+          const admin = supabaseAdmin();
+          const cityLabel = normalizeCityLabel(cityContext.cityName);
+          const cityBarangayIds = await listBarangayIdsInCity(admin, cityContext.cityId);
+
+          const normalizedOriginalIntent = fromCityFallbackOriginalIntent(cityContext.originalIntent);
+          const fiscalYearParsed = cityContext.fiscalYearParsed ?? cityContext.fiscalYear ?? null;
+          const fiscalLabel = fiscalYearParsed === null ? "All fiscal years" : `FY ${fiscalYearParsed}`;
+          if (!normalizedOriginalIntent) {
+            throw new Error("Unsupported city fallback intent in clarification context.");
+          }
+
+          if (cityBarangayIds.length === 0) {
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content: `No active barangays were found for ${cityLabel}.`,
+              citations: [
+                makeSystemCitation("City fallback could not run because city has no active barangays.", {
+                  city_id: cityContext.cityId,
+                  city_name: cityContext.cityName,
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                status: "answer",
+                kind: "clarification_resolved",
+                scopeReason: "fallback_barangays_in_city",
+                fallbackContext: {
+                  mode: "barangays_in_city",
+                  cityId: cityContext.cityId,
+                  cityName: cityContext.cityName,
+                  barangayIdsCount: 0,
+                  coverageBarangays: [],
+                  aggregationSource:
+                    normalizedOriginalIntent === "total_investment_program"
+                      ? "aip_totals_total_investment_program"
+                      : "aip_line_items",
+                },
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            if (normalizedOriginalIntent === "total_investment_program") {
+              logTotalsRouting(
+                makeTotalsLogPayload({
+                  request_id: requestId,
+                  intent: "total_investment_program",
+                  route: "sql_totals",
+                  fiscal_year_parsed: fiscalYearParsed,
+                  scope_reason: "fallback_barangays_in_city",
+                  barangay_id_used: null,
+                  aip_id_selected: null,
+                  totals_found: false,
+                  vector_called: false,
+                  city_id: cityContext.cityId,
+                  fallback_mode: "barangays_in_city",
+                  barangay_ids_count: 0,
+                  coverage_barangays: [],
+                  aggregation_source: "aip_totals_total_investment_program",
+                })
+              );
+            } else {
+              logNonTotalsRouting({
+                request_id: requestId,
+                intent: normalizedOriginalIntent,
+                route: "aggregate_sql",
+                fiscal_year_parsed:
+                  normalizedOriginalIntent === "aggregate_compare_years" ? null : fiscalYearParsed,
+                scope_reason: "fallback_barangays_in_city",
+                barangay_id_used: null,
+                match_count_used: null,
+                limit_used: cityContext.limit ?? null,
+                top_candidate_ids: [],
+                top_candidate_distances: [],
+                answered: true,
+                vector_called: false,
+                city_id: cityContext.cityId,
+                fallback_mode: "barangays_in_city",
+                barangay_ids_count: 0,
+                coverage_barangays: [],
+                aggregation_source: "aip_line_items",
+              });
+            }
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          const baseFallbackMetadata = (inputMeta: {
+            aggregationSource: "aip_line_items" | "aip_totals_total_investment_program";
+            coverageBarangays: string[];
+            barangayIdsCount: number;
+          }) => ({
+            aggregated: true,
+            fallback_mode: "barangays_in_city" as const,
+            city_id: cityContext.cityId,
+            city_name: cityContext.cityName,
+            barangay_ids_count: inputMeta.barangayIdsCount,
+            coverage_barangays: inputMeta.coverageBarangays,
+            aggregation_source: inputMeta.aggregationSource,
+          });
+
+          if (normalizedOriginalIntent === "total_investment_program") {
+            if (fiscalYearParsed === null) {
+              const assistantMessage = await appendAssistantMessage({
+                sessionId: session.id,
+                content:
+                  `To compute the totals fallback for ${cityLabel}, please specify a fiscal year (for example, FY 2026).`,
+                citations: [
+                  makeSystemCitation("Totals city fallback requires fiscal year.", {
+                    city_id: cityContext.cityId,
+                    city_name: cityContext.cityName,
+                    fallback_mode: "barangays_in_city",
+                  }),
+                ],
+                retrievalMeta: {
+                  refused: false,
+                  reason: "clarification_needed",
+                  status: "answer",
+                  kind: "clarification_resolved",
+                  scopeReason: "fallback_barangays_in_city",
+                  scopeResolution,
+                  latencyMs: Date.now() - startedAt,
+                },
+              });
+              return NextResponse.json(
+                chatResponsePayload({
+                  sessionId: session.id,
+                  userMessage,
+                  assistantMessage,
+                }),
+                { status: 200 }
+              );
+            }
+
+            const publishedBarangayAips = await fetchPublishedBarangayAips({
+              barangayIds: cityBarangayIds,
+              fiscalYear: fiscalYearParsed,
+            });
+            const coveredBarangayIds = publishedBarangayAips.map((row) => row.barangay_id);
+            const coverage = await buildCoverageSummary({
+              cityBarangayIds,
+              coveredBarangayIds,
+              fiscalLabel: `FY ${fiscalYearParsed}`,
+            });
+            const selectedAipIds = publishedBarangayAips.map((row) => row.id);
+
+            if (selectedAipIds.length === 0) {
+              const assistantMessage = await appendAssistantMessage({
+                sessionId: session.id,
+                content:
+                  `No published City AIP and no published Barangay AIPs found for ${cityLabel} (FY ${fiscalYearParsed}). ` +
+                  `${coverage.line}\nPlease try another fiscal year.`,
+                citations: [
+                  makeAggregateCitation("No published barangay AIPs were found for city fallback totals.", {
+                    ...baseFallbackMetadata({
+                      aggregationSource: "aip_totals_total_investment_program",
+                      coverageBarangays: coverage.coverageBarangays,
+                      barangayIdsCount: cityBarangayIds.length,
+                    }),
+                    fiscal_year: fiscalYearParsed,
+                    covered_barangay_ids_count: 0,
+                    missing_barangay_ids_count: coverage.missingCount,
+                  }),
+                ],
+                retrievalMeta: {
+                  refused: false,
+                  reason: "ok",
+                  status: "answer",
+                  kind: "clarification_resolved",
+                  scopeReason: "fallback_barangays_in_city",
+                  fallbackContext: {
+                    mode: "barangays_in_city",
+                    cityId: cityContext.cityId,
+                    cityName: cityContext.cityName,
+                    barangayIdsCount: cityBarangayIds.length,
+                    coverageBarangays: coverage.coverageBarangays,
+                    aggregationSource: "aip_totals_total_investment_program",
+                  },
+                  scopeResolution,
+                  latencyMs: Date.now() - startedAt,
+                },
+              });
+              logTotalsRouting(
+                makeTotalsLogPayload({
+                  request_id: requestId,
+                  intent: "total_investment_program",
+                  route: "sql_totals",
+                  fiscal_year_parsed: fiscalYearParsed,
+                  scope_reason: "fallback_barangays_in_city",
+                  barangay_id_used: null,
+                  aip_id_selected: null,
+                  totals_found: false,
+                  vector_called: false,
+                  city_id: cityContext.cityId,
+                  fallback_mode: "barangays_in_city",
+                  barangay_ids_count: cityBarangayIds.length,
+                  coverage_barangays: coverage.coverageBarangays,
+                  aggregation_source: "aip_totals_total_investment_program",
+                })
+              );
+
+              return NextResponse.json(
+                chatResponsePayload({
+                  sessionId: session.id,
+                  userMessage,
+                  assistantMessage,
+                }),
+                { status: 200 }
+              );
+            }
+
+            const { data: totalsRows, error: totalsError } = await admin
+              .from("aip_totals")
+              .select("aip_id,total_investment_program")
+              .eq("source_label", "total_investment_program")
+              .in("aip_id", selectedAipIds);
+            if (totalsError) throw new Error(totalsError.message);
+
+            let summedTotal = 0;
+            const contributingAipIds: string[] = [];
+            for (const row of totalsRows ?? []) {
+              const typed = row as { aip_id?: unknown; total_investment_program?: unknown };
+              const amount = parseAmount(typed.total_investment_program);
+              const aipId = typeof typed.aip_id === "string" ? typed.aip_id : null;
+              if (aipId && amount !== null) {
+                summedTotal += amount;
+                contributingAipIds.push(aipId);
+              }
+            }
+            const uniqueContributingAipIds = contributingAipIds.filter(
+              (id, index, all) => id && all.indexOf(id) === index
+            );
+            const contributingSample =
+              uniqueContributingAipIds.length > 10
+                ? [...uniqueContributingAipIds.slice(0, 10), "..."]
+                : uniqueContributingAipIds;
+
+            const answerLines = [
+              `No published City AIP for ${cityLabel} (FY ${fiscalYearParsed}).`,
+              `Using published Barangay AIPs within ${cityLabel} instead.`,
+              coverage.line,
+              `Total Investment Program (sum of barangay totals) = ${formatPhp(summedTotal)}.`,
+            ];
+
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content: answerLines.join("\n"),
+              citations: [
+                makeAggregateCitation(
+                  "Sum of barangay Total Investment Program totals from aip_totals.",
+                  {
+                    ...baseFallbackMetadata({
+                      aggregationSource: "aip_totals_total_investment_program",
+                      coverageBarangays: coverage.coverageBarangays,
+                      barangayIdsCount: cityBarangayIds.length,
+                    }),
+                    fiscal_year: fiscalYearParsed,
+                    contributing_aip_ids: contributingSample,
+                    contributing_aip_ids_count: uniqueContributingAipIds.length,
+                    covered_barangay_ids_count: coverage.coveredCount,
+                    missing_barangay_ids_count: coverage.missingCount,
+                  }
+                ),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                status: "answer",
+                kind: "clarification_resolved",
+                scopeReason: "fallback_barangays_in_city",
+                fallbackContext: {
+                  mode: "barangays_in_city",
+                  cityId: cityContext.cityId,
+                  cityName: cityContext.cityName,
+                  barangayIdsCount: cityBarangayIds.length,
+                  coverageBarangays: coverage.coverageBarangays,
+                  aggregationSource: "aip_totals_total_investment_program",
+                },
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logTotalsRouting(
+              makeTotalsLogPayload({
+                request_id: requestId,
+                intent: "total_investment_program",
+                route: "sql_totals",
+                fiscal_year_parsed: fiscalYearParsed,
+                scope_reason: "fallback_barangays_in_city",
+                barangay_id_used: null,
+                aip_id_selected: null,
+                totals_found: uniqueContributingAipIds.length > 0,
+                vector_called: false,
+                city_id: cityContext.cityId,
+                fallback_mode: "barangays_in_city",
+                barangay_ids_count: cityBarangayIds.length,
+                coverage_barangays: coverage.coverageBarangays,
+                aggregation_source: "aip_totals_total_investment_program",
+              })
+            );
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          const aggregateIntent = normalizedOriginalIntent;
+
+          const fallbackRpcName =
+            aggregateIntent === "aggregate_top_projects"
+              ? "get_top_projects_for_barangays"
+              : aggregateIntent === "aggregate_totals_by_sector"
+                ? "get_totals_by_sector_for_barangays"
+                : aggregateIntent === "aggregate_totals_by_fund_source"
+                  ? "get_totals_by_fund_source_for_barangays"
+                  : "compare_fiscal_year_totals_for_barangays";
+
+          const fallbackRpcArgs =
+            aggregateIntent === "aggregate_top_projects"
+              ? {
+                  p_limit: cityContext.limit ?? 10,
+                  p_fiscal_year: fiscalYearParsed,
+                  p_barangay_ids: cityBarangayIds,
+                }
+              : aggregateIntent === "aggregate_totals_by_sector"
+                ? {
+                    p_fiscal_year: fiscalYearParsed,
+                    p_barangay_ids: cityBarangayIds,
+                  }
+                : aggregateIntent === "aggregate_totals_by_fund_source"
+                  ? {
+                      p_fiscal_year: fiscalYearParsed,
+                      p_barangay_ids: cityBarangayIds,
+                    }
+                  : {
+                      p_year_a: cityContext.yearA,
+                      p_year_b: cityContext.yearB,
+                      p_barangay_ids: cityBarangayIds,
+                    };
+
+          const { data: fallbackData, error: fallbackError } = await client.rpc(
+            fallbackRpcName,
+            fallbackRpcArgs
+          );
+          if (fallbackError) throw new Error(fallbackError.message);
+
+          const fallbackLogBase = {
+            request_id: requestId,
+            intent: aggregateIntent,
+            route: "aggregate_sql" as const,
+            fiscal_year_parsed: aggregateIntent === "aggregate_compare_years" ? null : fiscalYearParsed,
+            scope_reason: "fallback_barangays_in_city" as const,
+            barangay_id_used: null,
+            match_count_used: null,
+            limit_used: cityContext.limit ?? null,
+            top_candidate_ids: [] as string[],
+            top_candidate_distances: [] as number[],
+            answered: true,
+            vector_called: false,
+            city_id: cityContext.cityId,
+            fallback_mode: "barangays_in_city" as const,
+            aggregation_source: "aip_line_items" as const,
+          };
+
+          if (aggregateIntent === "aggregate_top_projects") {
+            const coveredRows = await fetchPublishedBarangayAips({
+              barangayIds: cityBarangayIds,
+              fiscalYear: fiscalYearParsed,
+            });
+            const coverage = await buildCoverageSummary({
+              cityBarangayIds,
+              coveredBarangayIds: coveredRows.map((row) => row.barangay_id),
+              fiscalLabel,
+            });
+            const rows = toTopProjectRows(fallbackData);
+            const listLines =
+              rows.length === 0
+                ? ["No published AIP line items matched the selected filters."]
+                : rows.map((row, index) => {
+                    const total = formatPhpAmount(toNumberOrNull(row.total));
+                    const fund = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+                    const fyLabel = typeof row.fiscal_year === "number" ? `FY ${row.fiscal_year}` : "FY Any";
+                    const refLabel = row.aip_ref_code ? `Ref ${row.aip_ref_code}` : "Ref N/A";
+                    return `${index + 1}. ${row.program_project_title} - ${total} - ${fund} - ${fyLabel} - ${refLabel}`;
+                  });
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content:
+                `Top ${Math.max(rows.length, 0)} projects by total (All barangays in ${cityLabel}; ${fiscalLabel}):\n` +
+                `${coverage.line}\n` +
+                "Aggregated from published AIP line items of covered barangays.\n" +
+                listLines.join("\n"),
+              citations: [
+                makeAggregateCitation("Aggregated from published AIP line items of covered barangays.", {
+                  ...baseFallbackMetadata({
+                    aggregationSource: "aip_line_items",
+                    coverageBarangays: coverage.coverageBarangays,
+                    barangayIdsCount: cityBarangayIds.length,
+                  }),
+                  aggregate_type: "top_projects",
+                  fiscal_year_filter: fiscalYearParsed,
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                status: "answer",
+                kind: "clarification_resolved",
+                scopeReason: "fallback_barangays_in_city",
+                fallbackContext: {
+                  mode: "barangays_in_city",
+                  cityId: cityContext.cityId,
+                  cityName: cityContext.cityName,
+                  barangayIdsCount: cityBarangayIds.length,
+                  coverageBarangays: coverage.coverageBarangays,
+                  aggregationSource: "aip_line_items",
+                },
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logNonTotalsRouting({
+              ...fallbackLogBase,
+              barangay_ids_count: cityBarangayIds.length,
+              coverage_barangays: coverage.coverageBarangays,
+            });
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          if (aggregateIntent === "aggregate_totals_by_sector") {
+            const coveredRows = await fetchPublishedBarangayAips({
+              barangayIds: cityBarangayIds,
+              fiscalYear: fiscalYearParsed,
+            });
+            const coverage = await buildCoverageSummary({
+              cityBarangayIds,
+              coveredBarangayIds: coveredRows.map((row) => row.barangay_id),
+              fiscalLabel,
+            });
+            const rows = toTotalsBySectorRows(fallbackData);
+            const contentLines =
+              rows.length === 0
+                ? ["No published AIP line items matched the selected filters."]
+                : rows.map((row, index) => {
+                    const label =
+                      [row.sector_code, row.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
+                    return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.sector_total))} (${parseInteger(row.count_items) ?? 0} items)`;
+                  });
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content:
+                `Budget totals by sector (All barangays in ${cityLabel}; ${fiscalLabel}):\n` +
+                `${coverage.line}\n` +
+                "Aggregated from published AIP line items of covered barangays.\n" +
+                contentLines.join("\n"),
+              citations: [
+                makeAggregateCitation("Aggregated from published AIP line items of covered barangays.", {
+                  ...baseFallbackMetadata({
+                    aggregationSource: "aip_line_items",
+                    coverageBarangays: coverage.coverageBarangays,
+                    barangayIdsCount: cityBarangayIds.length,
+                  }),
+                  aggregate_type: "totals_by_sector",
+                  fiscal_year_filter: fiscalYearParsed,
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                status: "answer",
+                kind: "clarification_resolved",
+                scopeReason: "fallback_barangays_in_city",
+                fallbackContext: {
+                  mode: "barangays_in_city",
+                  cityId: cityContext.cityId,
+                  cityName: cityContext.cityName,
+                  barangayIdsCount: cityBarangayIds.length,
+                  coverageBarangays: coverage.coverageBarangays,
+                  aggregationSource: "aip_line_items",
+                },
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logNonTotalsRouting({
+              ...fallbackLogBase,
+              barangay_ids_count: cityBarangayIds.length,
+              coverage_barangays: coverage.coverageBarangays,
+            });
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          if (aggregateIntent === "aggregate_totals_by_fund_source") {
+            const coveredRows = await fetchPublishedBarangayAips({
+              barangayIds: cityBarangayIds,
+              fiscalYear: fiscalYearParsed,
+            });
+            const coverage = await buildCoverageSummary({
+              cityBarangayIds,
+              coveredBarangayIds: coveredRows.map((row) => row.barangay_id),
+              fiscalLabel,
+            });
+            const rows = toTotalsByFundSourceRows(fallbackData);
+            const listOnly = cityContext.listOnly === true;
+            const contentLines =
+              rows.length === 0
+                ? ["No published AIP line items matched the selected filters."]
+                : listOnly
+                  ? Array.from(
+                      new Set(
+                        rows
+                          .map((row) => (row.fund_source ?? "Unspecified").trim() || "Unspecified")
+                          .sort((a, b) => a.localeCompare(b))
+                      )
+                    ).map((label, index) => `${index + 1}. ${label}`)
+                  : rows.map((row, index) => {
+                      const label = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+                      return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.fund_total))} (${parseInteger(row.count_items) ?? 0} items)`;
+                    });
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content:
+                (listOnly
+                  ? `Fund sources (All barangays in ${cityLabel}; ${fiscalLabel}):\n`
+                  : `Budget totals by fund source (All barangays in ${cityLabel}; ${fiscalLabel}):\n`) +
+                `${coverage.line}\n` +
+                "Aggregated from published AIP line items of covered barangays.\n" +
+                contentLines.join("\n"),
+              citations: [
+                makeAggregateCitation("Aggregated from published AIP line items of covered barangays.", {
+                  ...baseFallbackMetadata({
+                    aggregationSource: "aip_line_items",
+                    coverageBarangays: coverage.coverageBarangays,
+                    barangayIdsCount: cityBarangayIds.length,
+                  }),
+                  aggregate_type: "totals_by_fund_source",
+                  fiscal_year_filter: fiscalYearParsed,
+                  output_mode: listOnly ? "fund_source_list" : "totals_with_counts",
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                status: "answer",
+                kind: "clarification_resolved",
+                scopeReason: "fallback_barangays_in_city",
+                fallbackContext: {
+                  mode: "barangays_in_city",
+                  cityId: cityContext.cityId,
+                  cityName: cityContext.cityName,
+                  barangayIdsCount: cityBarangayIds.length,
+                  coverageBarangays: coverage.coverageBarangays,
+                  aggregationSource: "aip_line_items",
+                },
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logNonTotalsRouting({
+              ...fallbackLogBase,
+              barangay_ids_count: cityBarangayIds.length,
+              coverage_barangays: coverage.coverageBarangays,
+            });
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          const comparison = toCompareTotalsRow(fallbackData);
+          const yearA = cityContext.yearA ?? 0;
+          const yearB = cityContext.yearB ?? 0;
+          const coveredRowsByYear = await fetchPublishedBarangayAips({
+            barangayIds: cityBarangayIds,
+            fiscalYears: [yearA, yearB],
+          });
+          const yearACoverage = await buildCoverageSummary({
+            cityBarangayIds,
+            coveredBarangayIds: coveredRowsByYear
+              .filter((row) => row.fiscal_year === yearA)
+              .map((row) => row.barangay_id),
+            fiscalLabel: `FY ${yearA}`,
+          });
+          const yearBCoverage = await buildCoverageSummary({
+            cityBarangayIds,
+            coveredBarangayIds: coveredRowsByYear
+              .filter((row) => row.fiscal_year === yearB)
+              .map((row) => row.barangay_id),
+            fiscalLabel: `FY ${yearB}`,
+          });
+          const combinedCoverage = formatCoverageNames(
+            Array.from(new Set([...yearACoverage.coverageBarangays, ...yearBCoverage.coverageBarangays]))
+          );
+          const yearATotal = toNumberOrNull(comparison?.year_a_total) ?? 0;
+          const yearBTotal = toNumberOrNull(comparison?.year_b_total) ?? 0;
+          const delta = toNumberOrNull(comparison?.delta) ?? yearBTotal - yearATotal;
+          const deltaPhrase =
+            delta > 0
+              ? `an increase of ${formatPhpAmount(delta)}`
+              : delta < 0
+                ? `a decrease of ${formatPhpAmount(Math.abs(delta))}`
+                : "no change";
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content:
+              `Fiscal year comparison (All barangays in ${cityLabel}): FY ${yearA} = ${formatPhpAmount(yearATotal)}; ` +
+              `FY ${yearB} = ${formatPhpAmount(yearBTotal)}; difference = ${deltaPhrase}.\n` +
+              `${yearACoverage.line}\n${yearBCoverage.line}\n` +
+              "Aggregated from published AIP line items of covered barangays.",
+            citations: [
+              makeAggregateCitation("Aggregated from published AIP line items of covered barangays.", {
+                ...baseFallbackMetadata({
+                  aggregationSource: "aip_line_items",
+                  coverageBarangays: combinedCoverage,
+                  barangayIdsCount: cityBarangayIds.length,
+                }),
+                aggregate_type: "compare_fiscal_year_totals",
+                year_a: yearA,
+                year_b: yearB,
+                year_a_coverage: {
+                  covered_count: yearACoverage.coveredCount,
+                  total_count: yearACoverage.totalCount,
+                  coverage_barangays: yearACoverage.coverageBarangays,
+                },
+                year_b_coverage: {
+                  covered_count: yearBCoverage.coveredCount,
+                  total_count: yearBCoverage.totalCount,
+                  coverage_barangays: yearBCoverage.coverageBarangays,
+                },
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              status: "answer",
+              kind: "clarification_resolved",
+              scopeReason: "fallback_barangays_in_city",
+              fallbackContext: {
+                mode: "barangays_in_city",
+                cityId: cityContext.cityId,
+                cityName: cityContext.cityName,
+                barangayIdsCount: cityBarangayIds.length,
+                coverageBarangays: combinedCoverage,
+                aggregationSource: "aip_line_items",
+              },
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            ...fallbackLogBase,
+            fiscal_year_parsed: null,
+            barangay_ids_count: cityBarangayIds.length,
+            coverage_barangays: combinedCoverage,
+          });
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (!selectedCityOption && isShortClarificationInput(content)) {
+          const reminderPayload: ChatClarificationPayload = {
+            id: pendingClarification.payload.id,
+            kind: "city_aip_missing_fallback",
+            prompt: "Please reply with 1-2.",
+            options: pendingClarification.payload.options,
+          };
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: buildClarificationPromptContent(reminderPayload),
+            citations: [
+              makeSystemCitation("City fallback clarification reminder: awaiting valid selection.", {
+                reason: "clarification_selection_required",
+                clarification_id: pendingClarification.payload.id,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "clarification_needed",
+              status: "clarification",
+              kind: "clarification",
+              scopeReason: "fallback_barangays_in_city",
+              clarification: {
+                ...reminderPayload,
+                context: pendingClarification.payload.context,
+              },
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+      }
+
+      if (isLineItemClarificationPayload(pendingClarification.payload)) {
+        const selectedOption =
+          selection !== null
+            ? resolveLineItemClarificationOptionFromSelection({
+                selection,
+                options: pendingClarification.payload.options,
+              })
+            : null;
+
+        if (selectedOption) {
+          const lineItemContext = isLineItemClarificationContext(pendingClarification.payload.context)
+            ? pendingClarification.payload.context
+            : null;
+          const { data: selectedRowData, error: selectedRowError } = await client
+            .from("aip_line_items")
+            .select(
             "id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title,implementing_agency,start_date,end_date,fund_source,ps,mooe,co,fe,total,expected_output,page_no,row_no,table_no"
           )
           .eq("id", selectedOption.lineItemId)
@@ -1848,15 +3137,13 @@ export async function POST(request: Request) {
         const selectedRows = toLineItemRows(selectedRowData ? [selectedRowData] : []);
         if (selectedRows.length > 0) {
           const resolvedRow = selectedRows[0];
-          const contextFactFields = parseFactFields(
-            pendingClarification.payload.context?.factFields
-          );
+          const contextFactFields = parseFactFields(lineItemContext?.factFields);
           const factFields =
             contextFactFields.length > 0
               ? contextFactFields
               : parsedLineItemQuestion.factFields;
 
-          const contextScopeReason = pendingClarification.payload.context?.scopeReason;
+          const contextScopeReason = lineItemContext?.scopeReason;
           const resolvedScopeReason =
             contextScopeReason === "explicit_barangay" ||
             contextScopeReason === "explicit_our_barangay" ||
@@ -1867,7 +3154,7 @@ export async function POST(request: Request) {
               : lineItemScope.scopeReason;
 
           const resolvedBarangayName =
-            pendingClarification.payload.context?.barangayName ?? scopeBarangayName;
+            lineItemContext?.barangayName ?? scopeBarangayName;
 
           const scopeDisclosure = buildLineItemScopeDisclosure({
             scopeReason: resolvedScopeReason,
@@ -1955,99 +3242,104 @@ export async function POST(request: Request) {
         }
       }
 
-      if (!selectedOption && isClarificationCancelMessage(content)) {
-        const assistantMessage = await appendAssistantMessage({
-          sessionId: session.id,
-          content: "Okay - please restate the project title or provide the Ref code.",
-          citations: [
-            makeSystemCitation("Clarification flow cancelled by user.", {
-              reason: "clarification_cancelled",
-              clarification_id: pendingClarification.payload.id,
-            }),
-          ],
-          retrievalMeta: {
-            refused: false,
-            reason: "ok",
-            status: "answer",
-            kind: "clarification_resolved",
-            scopeResolution,
-            latencyMs: Date.now() - startedAt,
-          },
-        });
-        logNonTotalsRouting({
-          request_id: requestId,
-          intent: "clarification_needed",
-          route: "row_sql",
-          fiscal_year_parsed: requestedFiscalYear,
-          scope_reason: lineItemScope.scopeReason,
-          barangay_id_used: lineItemScope.barangayIdUsed,
-          match_count_used: null,
-          top_candidate_ids: [],
-          top_candidate_distances: [],
-          answered: true,
-          vector_called: false,
-        });
-
-        return NextResponse.json(chatResponsePayload({
-          sessionId: session.id,
-          userMessage,
-          assistantMessage,
-        }), { status: 200 });
-      }
-
-      if (!selectedOption && isShortClarificationInput(content)) {
-        const reminderPayload: ChatClarificationPayload = {
-          id: pendingClarification.payload.id,
-          kind: pendingClarification.payload.kind,
-          prompt: "Please reply with 1-3, or type the Ref code.",
-          options: pendingClarification.payload.options,
-        };
-
-        const assistantMessage = await appendAssistantMessage({
-          sessionId: session.id,
-          content: buildClarificationPromptContent(reminderPayload),
-          citations: [
-            makeSystemCitation("Clarification reminder: awaiting valid selection.", {
-              reason: "clarification_selection_required",
-              clarification_id: pendingClarification.payload.id,
-            }),
-          ],
-          retrievalMeta: {
-            refused: false,
-            reason: "clarification_needed",
-            status: "clarification",
-            kind: "clarification",
-            clarification: {
-              ...reminderPayload,
-              context: pendingClarification.payload.context,
+        if (!selectedOption && isClarificationCancelMessage(content)) {
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: "Okay - please restate the project title or provide the Ref code.",
+            citations: [
+              makeSystemCitation("Clarification flow cancelled by user.", {
+                reason: "clarification_cancelled",
+                clarification_id: pendingClarification.payload.id,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              status: "answer",
+              kind: "clarification_resolved",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
             },
-            scopeResolution,
-            latencyMs: Date.now() - startedAt,
-          },
-        });
-        logNonTotalsRouting({
-          request_id: requestId,
-          intent: "clarification_needed",
-          route: "row_sql",
-          fiscal_year_parsed: requestedFiscalYear,
-          scope_reason: lineItemScope.scopeReason,
-          barangay_id_used: lineItemScope.barangayIdUsed,
-          match_count_used: null,
-          top_candidate_ids: pendingClarification.payload.options.map((option) => option.lineItemId),
-          top_candidate_distances: [],
-          answered: true,
-          vector_called: false,
-        });
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "clarification_needed",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: lineItemScope.scopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+          });
 
-        return NextResponse.json(chatResponsePayload({
-          sessionId: session.id,
-          userMessage,
-          assistantMessage,
-        }), { status: 200 });
+          return NextResponse.json(chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }), { status: 200 });
+        }
+
+        if (!selectedOption && isShortClarificationInput(content)) {
+          const reminderPayload: ChatClarificationPayload = {
+            id: pendingClarification.payload.id,
+            kind: pendingClarification.payload.kind,
+            prompt: "Please reply with 1-3, or type the Ref code.",
+            options: pendingClarification.payload.options,
+          };
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: buildClarificationPromptContent(reminderPayload),
+            citations: [
+              makeSystemCitation("Clarification reminder: awaiting valid selection.", {
+                reason: "clarification_selection_required",
+                clarification_id: pendingClarification.payload.id,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "clarification_needed",
+              status: "clarification",
+              kind: "clarification",
+              clarification: {
+                ...reminderPayload,
+                context: pendingClarification.payload.context,
+              },
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "clarification_needed",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: lineItemScope.scopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: null,
+            top_candidate_ids: pendingClarification.payload.options.map((option) => option.lineItemId),
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+          });
+
+          return NextResponse.json(chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }), { status: 200 });
+        }
       }
     }
 
     if (aggregationIntent.intent !== "none" && !shouldDeferAggregation) {
+      const explicitCityScope = await resolveExplicitCityScopeFromMessage({
+        message: content,
+        scopeResolution,
+      });
       const aggregationScope = await resolveAggregationScopeDecision({
         message: content,
         scopeResolution,
@@ -2058,6 +3350,434 @@ export async function POST(request: Request) {
         aggregationIntent.intent === "compare_years" ? null : requestedFiscalYear;
       const aggregationLimit =
         aggregationIntent.intent === "top_projects" ? aggregationIntent.limit ?? 10 : null;
+
+      if (explicitCityScope.kind === "explicit_city") {
+        const admin = supabaseAdmin();
+        const cityLabel = normalizeCityLabel(explicitCityScope.city.name);
+        const cityAip = await selectPublishedCityAip(
+          admin,
+          explicitCityScope.city.id,
+          fiscalYearForAggregation
+        );
+
+        if (!cityAip.aipId) {
+          const clarificationPayload = buildCityAipMissingClarificationPayload({
+            cityName: explicitCityScope.city.name,
+            fiscalYearParsed: fiscalYearForAggregation,
+          });
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: buildClarificationPromptContent(clarificationPayload),
+            citations: [
+              makeSystemCitation("City AIP not found; offered barangays-in-city fallback.", {
+                reason: "city_aip_missing_fallback_offered",
+                city_id: explicitCityScope.city.id,
+                city_name: explicitCityScope.city.name,
+                fiscal_year: fiscalYearForAggregation,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "clarification_needed",
+              status: "clarification",
+              kind: "clarification",
+              clarification: {
+                ...clarificationPayload,
+                context: {
+                  cityId: explicitCityScope.city.id,
+                  cityName: explicitCityScope.city.name,
+                  fiscalYearParsed: fiscalYearForAggregation,
+                  originalIntent: toCityFallbackOriginalIntent(aggregationIntent.intent),
+                  limit: aggregationLimit,
+                  yearA: aggregationIntent.yearA ?? null,
+                  yearB: aggregationIntent.yearB ?? null,
+                  listOnly: aggregationIntent.intent === "totals_by_fund_source" ? isFundSourceListQuery(content) : undefined,
+                },
+              },
+              scopeReason: "explicit_city",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: "explicit_city",
+            barangay_id_used: null,
+            match_count_used: null,
+            limit_used: aggregationLimit,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+            city_id: explicitCityScope.city.id,
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        const cityScopeLabel = cityLabel;
+        const cityFiscalLabel =
+          fiscalYearForAggregation === null ? "All fiscal years" : `FY ${fiscalYearForAggregation}`;
+
+        if (aggregationIntent.intent === "top_projects") {
+          let topProjectsQuery = client
+            .from("aip_line_items")
+            .select(
+              "id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title,fund_source,start_date,end_date,total,page_no,row_no,table_no"
+            )
+            .eq("aip_id", cityAip.aipId)
+            .not("total", "is", null)
+            .order("total", { ascending: false })
+            .limit(Math.max(1, Math.min(aggregationLimit ?? 10, 50)));
+
+          if (fiscalYearForAggregation !== null) {
+            topProjectsQuery = topProjectsQuery.eq("fiscal_year", fiscalYearForAggregation);
+          }
+
+          const { data, error } = await topProjectsQuery;
+          if (error) throw new Error(error.message);
+          const rows = toTopProjectRows(
+            (data ?? []).map((row) => ({
+              line_item_id: (row as { id: string }).id,
+              ...(row as Record<string, unknown>),
+            }))
+          );
+
+          const listLines =
+            rows.length === 0
+              ? ["No published AIP line items matched the selected filters."]
+              : rows.map((row, index) => {
+                  const total = formatPhpAmount(toNumberOrNull(row.total));
+                  const fund = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+                  const fyLabel = typeof row.fiscal_year === "number" ? `FY ${row.fiscal_year}` : "FY Any";
+                  const refLabel = row.aip_ref_code ? `Ref ${row.aip_ref_code}` : "Ref N/A";
+                  return `${index + 1}. ${row.program_project_title} - ${total} - ${fund} - ${fyLabel} - ${refLabel}`;
+                });
+
+          const citations: ChatCitation[] = rows.map((row, index) => ({
+            sourceId: `A${index + 1}`,
+            aipId: row.aip_id,
+            fiscalYear: row.fiscal_year,
+            scopeType: "city",
+            scopeId: explicitCityScope.city.id,
+            scopeName: `${cityScopeLabel} - FY ${row.fiscal_year ?? "Any"} - ${row.program_project_title}`,
+            snippet:
+              `Total: ${formatPhpAmount(toNumberOrNull(row.total))} - ` +
+              `Fund: ${(row.fund_source ?? "Unspecified").trim() || "Unspecified"} - ` +
+              `Schedule: ${formatScheduleRange(row.start_date, row.end_date)} - ` +
+              `Ref: ${row.aip_ref_code ?? "N/A"}`,
+            insufficient: false,
+            metadata: {
+              type: "aip_line_item",
+              aggregate_type: "top_projects_city_aip",
+              line_item_id: row.line_item_id,
+              aip_id: row.aip_id,
+              city_id: explicitCityScope.city.id,
+              fiscal_year: row.fiscal_year,
+              page_no: row.page_no,
+              row_no: row.row_no,
+              table_no: row.table_no,
+            },
+          }));
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: `Top ${rows.length} projects by total (${cityScopeLabel}; ${cityFiscalLabel}):\n${listLines.join("\n")}`,
+            citations:
+              citations.length > 0
+                ? citations
+                : [
+                    makeAggregateCitation("Aggregated from published AIP line items.", {
+                      aggregated: true,
+                      city_id_filter: explicitCityScope.city.id,
+                      city_aip_id: cityAip.aipId,
+                    }),
+                  ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeReason: "explicit_city",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: "explicit_city",
+            barangay_id_used: null,
+            match_count_used: null,
+            limit_used: aggregationLimit,
+            top_candidate_ids: rows.slice(0, 3).map((row) => row.line_item_id),
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+            city_id: explicitCityScope.city.id,
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        let cityRowsQuery = client
+          .from("aip_line_items")
+          .select(
+            "id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title,sector_code,sector_name,fund_source,total"
+          )
+          .eq("aip_id", cityAip.aipId);
+        if (fiscalYearForAggregation !== null) {
+          cityRowsQuery = cityRowsQuery.eq("fiscal_year", fiscalYearForAggregation);
+        }
+        const { data: cityRowsData, error: cityRowsError } = await cityRowsQuery;
+        if (cityRowsError) throw new Error(cityRowsError.message);
+        const cityRows = (cityRowsData ?? []) as Array<{
+          fiscal_year: number | null;
+          fund_source: string | null;
+          total: number | null;
+        }>;
+
+        if (aggregationIntent.intent === "totals_by_sector") {
+          const sectorMap = new Map<string, { code: string | null; name: string | null; total: number; count: number }>();
+          for (const row of cityRowsData ?? []) {
+            const typed = row as { sector_code?: string | null; sector_name?: string | null; total?: unknown };
+            const key = `${typed.sector_code ?? ""}|${typed.sector_name ?? ""}`;
+            const current = sectorMap.get(key) ?? {
+              code: typed.sector_code ?? null,
+              name: typed.sector_name ?? null,
+              total: 0,
+              count: 0,
+            };
+            current.total += parseAmount(typed.total ?? null) ?? 0;
+            current.count += 1;
+            sectorMap.set(key, current);
+          }
+          const rows = Array.from(sectorMap.values()).sort((a, b) => b.total - a.total);
+          const contentLines =
+            rows.length === 0
+              ? ["No published AIP line items matched the selected filters."]
+              : rows.map((row, index) => {
+                  const label = [row.code, row.name].filter(Boolean).join(" - ") || "Unspecified sector";
+                  return `${index + 1}. ${label}: ${formatPhpAmount(row.total)} (${row.count} items)`;
+                });
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: `Budget totals by sector (${cityScopeLabel}; ${cityFiscalLabel}):\n${contentLines.join("\n")}`,
+            citations: [
+              makeAggregateCitation("Aggregated from published AIP line items.", {
+                aggregated: true,
+                source: "aip_line_items",
+                aggregate_type: "totals_by_sector",
+                city_id_filter: explicitCityScope.city.id,
+                city_aip_id: cityAip.aipId,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeReason: "explicit_city",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: "explicit_city",
+            barangay_id_used: null,
+            match_count_used: null,
+            limit_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+            city_id: explicitCityScope.city.id,
+          });
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (aggregationIntent.intent === "totals_by_fund_source") {
+          const fundMap = new Map<string, { label: string; total: number; count: number }>();
+          for (const row of cityRows) {
+            const label = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+            const current = fundMap.get(label) ?? { label, total: 0, count: 0 };
+            current.total += parseAmount(row.total) ?? 0;
+            current.count += 1;
+            fundMap.set(label, current);
+          }
+          const rows = Array.from(fundMap.values()).sort((a, b) => b.total - a.total);
+          const listOnly = isFundSourceListQuery(content);
+          const contentLines =
+            rows.length === 0
+              ? ["No published AIP line items matched the selected filters."]
+              : listOnly
+                ? rows.map((row, index) => `${index + 1}. ${row.label}`)
+                : rows.map(
+                    (row, index) =>
+                      `${index + 1}. ${row.label}: ${formatPhpAmount(row.total)} (${row.count} items)`
+                  );
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: listOnly
+              ? `Fund sources (${cityScopeLabel}; ${cityFiscalLabel}):\n${contentLines.join("\n")}`
+              : `Budget totals by fund source (${cityScopeLabel}; ${cityFiscalLabel}):\n${contentLines.join("\n")}`,
+            citations: [
+              makeAggregateCitation("Aggregated from published AIP line items.", {
+                aggregated: true,
+                source: "aip_line_items",
+                aggregate_type: "totals_by_fund_source",
+                city_id_filter: explicitCityScope.city.id,
+                city_aip_id: cityAip.aipId,
+                output_mode: listOnly ? "fund_source_list" : "totals_with_counts",
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeReason: "explicit_city",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: "explicit_city",
+            barangay_id_used: null,
+            match_count_used: null,
+            limit_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+            city_id: explicitCityScope.city.id,
+          });
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        const yearA = aggregationIntent.yearA ?? null;
+        const yearB = aggregationIntent.yearB ?? null;
+        if (yearA === null || yearB === null) {
+          throw new Error("Aggregation compare years intent requires two years.");
+        }
+
+        const { data: compareAips, error: compareAipsError } = await admin
+          .from("aips")
+          .select("id,fiscal_year")
+          .eq("status", "published")
+          .eq("city_id", explicitCityScope.city.id)
+          .in("fiscal_year", [yearA, yearB]);
+        if (compareAipsError) throw new Error(compareAipsError.message);
+        const compareAipRows = (compareAips ?? []) as Array<{ id: string; fiscal_year: number }>;
+        const compareAipIds = compareAipRows.map((row) => row.id);
+        const { data: compareRows, error: compareRowsError } = await admin
+          .from("aip_line_items")
+          .select("aip_id,total")
+          .in("aip_id", compareAipIds);
+        if (compareRowsError) throw new Error(compareRowsError.message);
+
+        let yearATotal = 0;
+        let yearBTotal = 0;
+        const yearByAipId = new Map(compareAipRows.map((row) => [row.id, row.fiscal_year]));
+        for (const row of compareRows ?? []) {
+          const typed = row as { aip_id?: string; total?: unknown };
+          const year = typed.aip_id ? yearByAipId.get(typed.aip_id) : null;
+          const amount = parseAmount(typed.total ?? null) ?? 0;
+          if (year === yearA) yearATotal += amount;
+          if (year === yearB) yearBTotal += amount;
+        }
+        const delta = yearBTotal - yearATotal;
+        const deltaPhrase =
+          delta > 0
+            ? `an increase of ${formatPhpAmount(delta)}`
+            : delta < 0
+              ? `a decrease of ${formatPhpAmount(Math.abs(delta))}`
+              : "no change";
+
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content:
+            `Fiscal year comparison (${cityScopeLabel}): FY ${yearA} = ${formatPhpAmount(yearATotal)}; ` +
+            `FY ${yearB} = ${formatPhpAmount(yearBTotal)}; difference = ${deltaPhrase}.`,
+          citations: [
+            makeAggregateCitation("Aggregated from published AIP line items.", {
+              aggregated: true,
+              source: "aip_line_items",
+              aggregate_type: "compare_fiscal_year_totals",
+              city_id_filter: explicitCityScope.city.id,
+              year_a: yearA,
+              year_b: yearB,
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "ok",
+            scopeReason: "explicit_city",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: aggregationLogIntent,
+          route: "aggregate_sql",
+          fiscal_year_parsed: null,
+          scope_reason: "explicit_city",
+          barangay_id_used: null,
+          match_count_used: null,
+          limit_used: null,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: true,
+          vector_called: false,
+          city_id: explicitCityScope.city.id,
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
 
       if (aggregationScope.clarificationMessage) {
         const assistantMessage = await appendAssistantMessage({
@@ -2101,7 +3821,7 @@ export async function POST(request: Request) {
         );
       }
 
-      if (aggregationScope.unsupportedScopeType === "city" || aggregationScope.unsupportedScopeType === "municipality") {
+      if (aggregationScope.unsupportedScopeType === "municipality") {
         const assistantMessage = await appendAssistantMessage({
           sessionId: session.id,
           content:

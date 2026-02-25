@@ -768,7 +768,7 @@ describe("aggregation routing", () => {
     ).toBe(true);
   });
 
-  it("returns clarification when aggregate query is scoped to city/municipality", async () => {
+  it("returns city fallback clarification when city-scoped aggregate has no published city AIP", async () => {
     mockResolveRetrievalScope.mockResolvedValueOnce({
       mode: "named_scopes",
       retrievalScope: {
@@ -797,9 +797,9 @@ describe("aggregation routing", () => {
 
     expect(payload.status).toBe("clarification");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain(
-      "I can aggregate by one barangay or across all barangays."
-    );
+    expect(assistant.content).toContain("No published City AIP for");
+    expect(assistant.content).toContain("Would you like to query across all barangays within");
+    expect(assistant.content).toContain("1. Use barangays in");
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "get_top_projects")
     ).toBe(false);

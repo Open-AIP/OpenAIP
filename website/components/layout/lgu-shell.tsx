@@ -30,7 +30,7 @@ export default function LguShell({
       <div className="flex-1 min-w-0 flex flex-col">
         <LguTopbar name={userName} roleLabel={roleLabel} accountHref={accountHref} />
 
-        <main className="flex-1 px-8 py-6">{children}</main>
+        <main className="flex-1 min-h-0 px-8 py-6">{children}</main>
 
         <LguFooter />
       </div>

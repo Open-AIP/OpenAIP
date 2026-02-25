@@ -18,7 +18,9 @@ export default function ChatMessageBubble({
           isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
         )}
       >
-        <div className="whitespace-pre-line">{message.content}</div>
+        <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+          {message.content}
+        </div>
         <div
           className={cn(
             "mt-2 text-[11px]",

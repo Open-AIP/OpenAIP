@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import {
@@ -24,9 +24,11 @@ function isActivePath(pathname: string, href: string) {
 export default function CitizenTopNav() {
   const pathname = usePathname();
   const mobileSheetId = "citizen-mobile-nav-sheet";
-  const [mobileProjectsOpen, setMobileProjectsOpen] = useState<boolean>(
-    pathname === '/projects' || pathname.startsWith('/projects/')
-  );
+  const [mobileProjectsOpen, setMobileProjectsOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMobileProjectsOpen(pathname === '/projects' || pathname.startsWith('/projects/'));
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#D3DBE0]">

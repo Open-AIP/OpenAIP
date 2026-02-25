@@ -20,8 +20,8 @@ export default function ChatSessionsPanel({
   onNewChat: () => void;
 }) {
   return (
-    <div className="rounded-2xl border bg-card shadow-sm">
-      <div className="flex items-center justify-between border-b px-5 py-4">
+    <div className="flex h-full min-h-0 flex-col rounded-2xl border bg-card shadow-sm">
+      <div className="flex shrink-0 items-center justify-between border-b px-5 py-4">
         <div className="text-base font-semibold">Conversations</div>
         <Button className="h-9 gap-2 rounded-lg px-3 text-xs" onClick={onNewChat}>
           <Plus className="h-4 w-4" />
@@ -29,7 +29,7 @@ export default function ChatSessionsPanel({
         </Button>
       </div>
 
-      <div className="p-4">
+      <div className="shrink-0 p-4">
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
@@ -41,7 +41,7 @@ export default function ChatSessionsPanel({
         </div>
       </div>
 
-      <div className="max-h-130 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {sessions.map((session) => (
           <button
             key={session.id}

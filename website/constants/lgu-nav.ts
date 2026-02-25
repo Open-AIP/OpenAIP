@@ -1,6 +1,7 @@
 import {
   Activity,
   LayoutDashboard,
+  LayoutGrid,
   FileText,
   Folder,
   Building2,
@@ -8,8 +9,11 @@ import {
   Bot,
   Shield,
   ClipboardList,
+  ClipboardCheck,
+  Heart,
   Settings,
   Users,
+  UserRound,
   Workflow,
 } from "lucide-react";
 import type { NavItem } from "@/types";
@@ -28,7 +32,7 @@ export const ADMIN_NAV: NavItem[] = [
 ];
 
 export const BARANGAY_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/barangay", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/barangay", icon: LayoutGrid },
   { label: "AIP Management", href: "/barangay/aips", icon: FileText },
 
   {
@@ -36,29 +40,32 @@ export const BARANGAY_NAV: NavItem[] = [
     href: "/barangay/projects",
     icon: Folder,
     children: [
-      { label: "Health Project", href: "/barangay/projects/health", icon: ClipboardList },
-      { label: "Infrastructure Projects", href: "/barangay/projects/infrastructure", icon: ClipboardList },
+      { label: "Health Project", href: "/barangay/projects/health", icon: Heart },
+      { label: "Infrastructure Projects", href: "/barangay/projects/infrastructure", icon: Building2 },
     ],
   },
 
-  { label: "Feedback", href: "/barangay/comments", icon: MessageSquare },
+  { label: "Comments", href: "/barangay/comments", icon: MessageSquare },
   { label: "Chatbot", href: "/barangay/chatbot", icon: Bot },
+  { label: "Account", href: "/barangay/account", icon: UserRound },
   { label: "Audit & Accountability", href: "/barangay/audit", icon: Shield },
 ];
 
 export const CITY_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/city", icon: LayoutDashboard },
-  { label: "AIPs", href: "/city/aips", icon: FileText },
-  { label: "Submissions", href: "/city/submissions", icon: ClipboardList },
-  
-  { label: "Audit", href: "/city/audit", icon: Shield },
-  { label: "Feedback", href: "/city/comments", icon: MessageSquare },
-  { label: "Chatbot", href: "/city/chatbot", icon: Bot },
-  { label: "Projects", href: "/city/projects", icon: Folder,
+  { label: "Dashboard", href: "/city", icon: LayoutGrid },
+  { label: "Barangay Submissions", href: "/city/submissions", icon: ClipboardCheck },
+  { label: "City AIP Management", href: "/city/aips", icon: FileText },
+  {
+    label: "Projects",
+    href: "/city/projects",
+    icon: Folder,
     children: [
-      { label: "Health Project", href: "/city/projects/health", icon: ClipboardList },
-      { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: ClipboardList },
+      { label: "Health Project", href: "/city/projects/health", icon: Heart },
+      { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: Building2 },
     ],
-   },
-
+  },
+  { label: "Comments", href: "/city/comments", icon: MessageSquare },
+  { label: "Chatbot", href: "/city/chatbot", icon: Bot },
+  { label: "Account", href: "/city/account", icon: UserRound },
+  { label: "Audit & Accountability", href: "/city/audit", icon: Shield },
 ];

@@ -1,7 +1,11 @@
 import { LguChatbotView } from "@/features/chat";
 
 const CitizenAiAssistantPage = () => {
-  return <LguChatbotView />;
+  return (
+    <div className="h-full min-h-0">
+      <LguChatbotView />
+    </div>
+  );
 };
 
 export default CitizenAiAssistantPage;

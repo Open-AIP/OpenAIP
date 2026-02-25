@@ -258,6 +258,18 @@ async function callMessagesRoute(input: { sessionId?: string; content: string })
   };
 }
 
+function parseJsonLogs(): Array<Record<string, unknown>> {
+  return mockConsoleInfo.mock.calls
+    .map((call) => {
+      try {
+        return JSON.parse(String(call[0])) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry): entry is Record<string, unknown> => Boolean(entry));
+}
+
 describe("chat messages clarification state machine", () => {
   beforeEach(() => {
     assistantRows = [];
@@ -437,10 +449,37 @@ describe("chat messages clarification state machine", () => {
     expect((clarification.options as unknown[]).length).toBeGreaterThanOrEqual(2);
 
     const assistant = payload.assistantMessage as {
-      retrievalMeta?: { status?: string; refused?: boolean };
+      retrievalMeta?: { status?: string; refused?: boolean; refusalReason?: string };
     };
     expect(assistant.retrievalMeta?.status).toBe("clarification");
     expect(assistant.retrievalMeta?.refused).toBe(false);
+    expect(assistant.retrievalMeta?.refusalReason).toBeUndefined();
+
+    const clarificationLog = parseJsonLogs().find(
+      (entry) => entry.intent === "clarification_needed" && entry.route === "row_sql"
+    );
+    expect(clarificationLog).toBeDefined();
+    expect(clarificationLog?.answered).toBe(false);
+    expect(clarificationLog && "refusal_reason" in clarificationLog).toBe(false);
+  });
+
+  it("returns document limitation refusal for contractor queries before scope ambiguity handling", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: "session-1",
+      content: "Who are the contractors for Construction of 3-Storey Barangay Hall?",
+    });
+
+    expect(payload.status).toBe("refusal");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: { status?: string; refusalReason?: string };
+    };
+    expect(assistant.retrievalMeta?.status).toBe("refusal");
+    expect(assistant.retrievalMeta?.refusalReason).toBe("document_limitation");
+    expect(assistant.content).toContain("does not list contractors, suppliers, or winning bidders");
+    expect(assistant.content.toLowerCase()).not.toContain("couldn't match the requested barangay/city");
+
+    expect(mockResolveRetrievalScope).not.toHaveBeenCalled();
   });
 
   it("resolves numeric selection using pending clarification without vector rerun", async () => {
@@ -461,15 +500,7 @@ describe("chat messages clarification state machine", () => {
     expect(mockRequestPipelineQueryEmbedding).toHaveBeenCalledTimes(1);
     expect(mockMatchLineItemsRpc).toHaveBeenCalledTimes(1);
 
-    const jsonLogs = mockConsoleInfo.mock.calls
-      .map((call) => {
-        try {
-          return JSON.parse(String(call[0])) as Record<string, unknown>;
-        } catch {
-          return null;
-        }
-      })
-      .filter((entry): entry is Record<string, unknown> => Boolean(entry));
+    const jsonLogs = parseJsonLogs();
     expect(jsonLogs.some((entry) => entry.event === "clarification_resolved")).toBe(true);
   });
 

@@ -782,6 +782,10 @@ describe("aggregation routing", () => {
     expect(assistant.content).toContain("Coverage FY2025:");
     expect(assistant.content).toContain("Coverage FY2026:");
     expect(assistant.content).toContain("Pulo: FY2025=No published AIP");
+    expect(assistant.content).toContain(
+      "FY2025=N/A (no published AIPs with totals)"
+    );
+    expect(assistant.content).not.toContain("FY2025=PHP 0.00");
     expect(assistant.content).toContain("Overall totals (covered LGUs only):");
 
     const aggregateMeta = assistant.citations?.[0]?.metadata ?? {};
@@ -863,11 +867,58 @@ describe("aggregation routing", () => {
     expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
     expect(assistant.content).toContain("Pulo: FY2025=No published AIP");
+    expect(assistant.content).toContain(
+      "FY2025=N/A (no published AIPs with totals)"
+    );
+    expect(assistant.content).not.toContain("FY2025=PHP 0.00");
     expect(assistant.content).toContain("Overall totals (covered LGUs only):");
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "compare_fiscal_year_totals")
     ).toBe(false);
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
+  it("returns retrieval_failure refusal when line-item fact query has zero matches", async () => {
+    rpcResponses.match_aip_line_items = [];
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "How much is allocated for SomeNonexistentProject FY 2026?",
+    });
+
+    expect(payload.status).toBe("refusal");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: {
+        status?: string;
+        refusalReason?: string;
+        suggestions?: string[];
+      };
+    };
+    expect(assistant.retrievalMeta?.status).toBe("refusal");
+    expect(assistant.retrievalMeta?.refusalReason).toBe("retrieval_failure");
+    expect(assistant.content).not.toContain("Please specify which barangay");
+    expect(assistant.retrievalMeta?.suggestions?.length).toBeGreaterThan(0);
+  });
+
+  it("returns document_limitation refusal for contractor/procurement style field requests", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "Who are the contractors for Road Concreting?",
+    });
+
+    expect(payload.status).toBe("refusal");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: {
+        status?: string;
+        refusalReason?: string;
+      };
+    };
+    expect(assistant.retrievalMeta?.status).toBe("refusal");
+    expect(assistant.retrievalMeta?.refusalReason).toBe("document_limitation");
+    expect(assistant.content).toContain("does not list contractors, suppliers, or winning bidders");
+    expect(assistant.content.toLowerCase()).not.toContain("specify scope");
   });
 
   it("returns city fallback clarification when city-scoped aggregate has no published city AIP", async () => {

@@ -36,6 +36,19 @@ export default function ChatMessageBubble({
           </div>
         )}
 
+        {!isUser &&
+          Array.isArray(message.retrievalMeta?.suggestions) &&
+          message.retrievalMeta.suggestions.length > 0 && (
+            <div className="mt-2 rounded-md border border-muted-foreground/20 bg-background px-2 py-1 text-[11px] text-muted-foreground">
+              <div className="font-medium">Try:</div>
+              <div className="mt-1 whitespace-pre-line">
+                {message.retrievalMeta.suggestions.slice(0, 3).map((suggestion, index) =>
+                  `${index + 1}. ${suggestion}`
+                ).join("\n")}
+              </div>
+            </div>
+          )}
+
         {!isUser && message.citations.length > 0 && (
           <div className="mt-3 space-y-2 border-t pt-2">
             {message.citations.map((citation) => {

@@ -44,6 +44,21 @@ describe("line-item routing helpers", () => {
     ).toBe(false);
   });
 
+  it("flags winning-bidder phrasing as unanswerable document-limit field", () => {
+    const parsed = parseLineItemQuestion("Who is the winning bidder for Road Concreting?");
+    expect(parsed.isUnanswerableFieldQuestion).toBe(true);
+  });
+
+  it("flags awarded-to phrasing as unanswerable document-limit field", () => {
+    const parsed = parseLineItemQuestion("Who was this awarded to in FY 2026?");
+    expect(parsed.isUnanswerableFieldQuestion).toBe(true);
+  });
+
+  it("flags supplier phrasing as unanswerable document-limit field", () => {
+    const parsed = parseLineItemQuestion("Who are the suppliers for Road Concreting?");
+    expect(parsed.isUnanswerableFieldQuestion).toBe(true);
+  });
+
   it("defaults to user barangay scope and includes account-scope disclosure", () => {
     const parsed = parseLineItemQuestion(
       "How much is allocated for Honoraria - Administrative in FY 2026 and what's the schedule?"

@@ -103,4 +103,40 @@ describe("ChatMessageBubble", () => {
 
     expect(screen.getByText(/Grounded refusal/i)).toBeInTheDocument();
   });
+
+  it("renders retrieval suggestions when provided", () => {
+    render(
+      <ChatMessageBubble
+        message={{
+          id: "msg-suggestions",
+          role: "assistant",
+          content: "I couldn't find a matching entry.",
+          timeLabel: "10:03 AM",
+          retrievalMeta: {
+            refused: true,
+            reason: "insufficient_evidence",
+            status: "refusal",
+            suggestions: [
+              "Try the exact project title as written in the AIP.",
+              "Provide the Ref code (e.g., 8000-003-002-006).",
+              "Remove extra filters (scope/year) to broaden search.",
+            ],
+          },
+          citations: [],
+        }}
+      />
+    );
+
+    expect(screen.getByText("Try:")).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes("1. Try the exact project title as written in the AIP.")
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes("2. Provide the Ref code (e.g., 8000-003-002-006).")
+      )
+    ).toBeInTheDocument();
+  });
 });

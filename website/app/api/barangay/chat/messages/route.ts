@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { formatTotalsEvidence } from "@/lib/chat/evidence";
+import { buildRefusalMessage } from "@/lib/chat/refusal";
 import { detectAggregationIntent } from "@/lib/chat/aggregation-intent";
 import {
   detectExplicitCityMention,
@@ -57,6 +58,7 @@ import type {
   ChatResponseStatus,
   ChatRetrievalMeta,
   ChatScopeResolution,
+  RefusalReason,
 } from "@/lib/repos/chat/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -201,6 +203,9 @@ type TotalsRoutingLogPayload = {
   barangay_ids_count?: number | null;
   coverage_barangays?: string[];
   aggregation_source?: "aip_line_items" | "aip_totals_total_investment_program" | null;
+  answered?: boolean;
+  status?: ChatResponseStatus;
+  refusal_reason?: RefusalReason;
 };
 
 type NonTotalsRoutingLogPayload = {
@@ -234,6 +239,8 @@ type NonTotalsRoutingLogPayload = {
   coverage_year_b_count?: number | null;
   missing_year_a_count?: number | null;
   missing_year_b_count?: number | null;
+  status?: ChatResponseStatus;
+  refusal_reason?: RefusalReason;
 };
 
 type ClarificationLifecycleLogPayload =
@@ -1226,8 +1233,24 @@ function buildCompareYearsVerboseAnswer(input: {
   const overallYearATotal = input.yearAResult.coveredRows.reduce((sum, row) => sum + row.total, 0);
   const overallYearBTotal = input.yearBResult.coveredRows.reduce((sum, row) => sum + row.total, 0);
   const overallDelta = overallYearBTotal - overallYearATotal;
+  const yearAUnavailable = input.yearAResult.coveredCount === 0;
+  const yearBUnavailable = input.yearBResult.coveredCount === 0;
+  const overallYearAText = yearAUnavailable
+    ? "N/A (no published AIPs with totals)"
+    : formatPhpAmount(overallYearATotal);
+  const overallYearBText = yearBUnavailable
+    ? "N/A (no published AIPs with totals)"
+    : formatPhpAmount(overallYearBTotal);
+  const overallDeltaText =
+    yearAUnavailable || yearBUnavailable ? "N/A" : formatCompareDelta(overallDelta);
   const deltaDirection =
-    overallDelta > 0 ? "increase" : overallDelta < 0 ? "decrease" : "no change";
+    yearAUnavailable || yearBUnavailable
+      ? null
+      : overallDelta > 0
+        ? "increase"
+        : overallDelta < 0
+          ? "decrease"
+          : "no change";
 
   const coverageBarangays = formatCoverageNames(
     Array.from(new Set([...input.yearAResult.coverageNames, ...input.yearBResult.coverageNames]))
@@ -1242,7 +1265,7 @@ function buildCompareYearsVerboseAnswer(input: {
       input.yearBResult.missingLine,
       "Per-LGU totals:",
       ...perLguLines,
-      `Overall totals (covered LGUs only): FY${input.yearA}=${formatPhpAmount(overallYearATotal)} | FY${input.yearB}=${formatPhpAmount(overallYearBTotal)} | Δ=${formatCompareDelta(overallDelta)} (${deltaDirection}).`,
+      `Overall totals (covered LGUs only): FY${input.yearA}=${overallYearAText} | FY${input.yearB}=${overallYearBText} | Δ=${overallDeltaText}${deltaDirection ? ` (${deltaDirection})` : ""}.`,
       `Notes: ${input.sourceNote}`,
     ].join("\n"),
     overallYearATotal,
@@ -1478,6 +1501,105 @@ function formatPhp(value: number): string {
   }).format(value)}`;
 }
 
+function mapRefusalReasonToMetaReason(
+  status: "answer" | "clarification" | "refusal",
+  refusalReason: RefusalReason | undefined
+): ChatRetrievalMeta["reason"] {
+  if (status === "answer") return "ok";
+  if (status === "clarification") return "clarification_needed";
+  if (refusalReason === "ambiguous_scope") return "ambiguous_scope";
+  if (refusalReason === "missing_required_parameter") return "clarification_needed";
+  if (
+    refusalReason === "retrieval_failure" ||
+    refusalReason === "document_limitation" ||
+    refusalReason === "unsupported_request"
+  ) {
+    return "insufficient_evidence";
+  }
+  return "unknown";
+}
+
+function normalizeRetrievalMetaStatus(retrievalMeta: ChatRetrievalMeta): ChatRetrievalMeta {
+  const explicitStatus = retrievalMeta.status;
+  const derivedStatus: ChatResponseStatus =
+    explicitStatus ??
+    (retrievalMeta.kind === "clarification"
+      ? "clarification"
+      : retrievalMeta.refused
+        ? "refusal"
+        : "answer");
+
+  const nextReason: ChatRetrievalMeta["reason"] =
+    derivedStatus === "clarification"
+      ? "clarification_needed"
+      : retrievalMeta.reason ?? mapRefusalReasonToMetaReason(derivedStatus, retrievalMeta.refusalReason);
+
+  const refusedValue =
+    derivedStatus === "clarification"
+      ? false
+      : derivedStatus === "refusal"
+        ? true
+        : Boolean(retrievalMeta.refused);
+
+  const nextRefusalReason =
+    derivedStatus === "clarification" ? undefined : retrievalMeta.refusalReason;
+  const nextRefusalDetail =
+    derivedStatus === "clarification" ? undefined : retrievalMeta.refusalDetail;
+
+  return {
+    ...retrievalMeta,
+    status: derivedStatus,
+    refused: refusedValue,
+    reason: nextReason,
+    refusalReason: nextRefusalReason,
+    refusalDetail: nextRefusalDetail,
+    suggestions: Array.isArray(retrievalMeta.suggestions)
+      ? retrievalMeta.suggestions.map((entry) => entry.trim()).filter(Boolean).slice(0, 3)
+      : undefined,
+  };
+}
+
+function detectDocLimitFieldFromQuery(
+  normalizedQuestion: string
+):
+  | "contractor"
+  | "procurement_mode"
+  | "exact_address"
+  | "beneficiary_count"
+  | "supplier"
+  | null {
+  if (
+    /\bcontractor(s)?\b/i.test(normalizedQuestion) ||
+    /\bsupplier(s)?\b/i.test(normalizedQuestion) ||
+    /\bwinning bidder(s)?\b/i.test(normalizedQuestion) ||
+    /\bawarded to\b/i.test(normalizedQuestion) ||
+    /\bcontractor name\b/i.test(normalizedQuestion) ||
+    /\bsupplier name\b/i.test(normalizedQuestion)
+  ) {
+    return "contractor";
+  }
+  if (/\bprocurement\b|\bprocurement mode\b/i.test(normalizedQuestion)) return "procurement_mode";
+  if (/\bexact address\b|\bsite address\b|\bexact site\b/i.test(normalizedQuestion)) {
+    return "exact_address";
+  }
+  if (/\bbeneficiary\b|\bbeneficiaries\b|\bbeneficiary count\b/i.test(normalizedQuestion)) {
+    return "beneficiary_count";
+  }
+  return null;
+}
+
+function isUnsupportedRequestQuery(queryText: string): boolean {
+  const normalized = queryText.toLowerCase();
+  return (
+    /\bwho stole\b/.test(normalized) ||
+    /\bembezzl/.test(normalized) ||
+    /\bcorrupt(ion)?\b/.test(normalized) ||
+    /\bpredict\b/.test(normalized) ||
+    /\bforecast\b/.test(normalized) ||
+    /\bnext year\b.*\bbudget\b/.test(normalized)
+  );
+}
+
 function formatScopeLabel(target: TotalsScopeTarget): string {
   const scopedName = target.scopeName?.trim();
   if (!scopedName) {
@@ -1505,12 +1627,24 @@ function isTotalsDebugEnabled(): boolean {
 
 function logTotalsRouting(payload: TotalsRoutingLogPayload): void {
   if (!isTotalsDebugEnabled()) return;
-  console.info(JSON.stringify(payload));
+  const sanitized: TotalsRoutingLogPayload = { ...payload };
+  if (sanitized.status === "clarification") {
+    sanitized.answered = false;
+    delete sanitized.refusal_reason;
+  }
+  console.info(JSON.stringify(sanitized));
 }
 
 function logNonTotalsRouting(payload: NonTotalsRoutingLogPayload): void {
   if (!isTotalsDebugEnabled()) return;
-  console.info(JSON.stringify(payload));
+  const sanitized: NonTotalsRoutingLogPayload = { ...payload };
+  const isClarification =
+    sanitized.status === "clarification" || sanitized.intent === "clarification_needed";
+  if (isClarification) {
+    sanitized.answered = false;
+    delete sanitized.refusal_reason;
+  }
+  console.info(JSON.stringify(sanitized));
 }
 
 function logClarificationLifecycle(payload: ClarificationLifecycleLogPayload): void {
@@ -1591,6 +1725,7 @@ async function appendAssistantMessage(params: {
   retrievalMeta: ChatRetrievalMeta;
 }): Promise<ChatMessage> {
   const admin = supabaseAdmin();
+  const normalizedMeta = normalizeRetrievalMetaStatus(params.retrievalMeta);
   const { data, error } = await admin
     .from("chat_messages")
     .insert({
@@ -1598,7 +1733,7 @@ async function appendAssistantMessage(params: {
       role: "assistant",
       content: params.content,
       citations: params.citations,
-      retrieval_meta: params.retrievalMeta,
+      retrieval_meta: normalizedMeta,
     })
     .select("id,session_id,role,content,citations,retrieval_meta,created_at")
     .single();
@@ -2269,9 +2404,13 @@ async function resolveTotalsAssistantPayload(input: {
   const totalsScope = resolveTotalsScope(input.message, userBarangay, scopeResult.explicitBarangay);
 
   if (!scopeResult.target) {
-    const fallbackMessage =
-      scopeResult.errorMessage ??
-      "I couldn't determine the requested place. Please specify the exact barangay/city/municipality.";
+    const scopeRefusal = buildRefusalMessage({
+      intent: "totals",
+      queryText: input.message,
+      fiscalYear: requestedFiscalYear,
+      explicitScopeRequested: input.scopeResolution.requestedScopes.length > 0,
+      scopeResolved: input.scopeResolution.resolvedTargets.length > 0,
+    });
     logTotalsRouting(
       makeTotalsLogPayload({
       request_id: input.requestId,
@@ -2283,19 +2422,25 @@ async function resolveTotalsAssistantPayload(input: {
       aip_id_selected: null,
       totals_found: false,
       vector_called: false,
+      status: scopeRefusal.status,
+      refusal_reason: scopeRefusal.reason,
       })
     );
     return {
-      content: fallbackMessage,
+      content: scopeRefusal.message,
       citations: [
         makeSystemCitation("Scope clarification required for totals SQL lookup.", {
-          reason: "scope_clarification_required",
+          reason: scopeRefusal.reason,
           scope_resolution: input.scopeResolution,
         }),
       ],
       retrievalMeta: {
-        refused: true,
-        reason: "ambiguous_scope",
+        refused: scopeRefusal.status === "refusal",
+        reason: mapRefusalReasonToMetaReason(scopeRefusal.status, scopeRefusal.reason),
+        status: scopeRefusal.status,
+        refusalReason: scopeRefusal.reason,
+        refusalDetail: scopeResult.errorMessage ?? null,
+        suggestions: scopeRefusal.suggestions,
         scopeResolution: input.scopeResolution,
       },
     };
@@ -2303,7 +2448,13 @@ async function resolveTotalsAssistantPayload(input: {
 
   const target = scopeResult.target;
   if (target.scopeType === "barangay" && totalsScope.scopeReason === "unknown") {
-    const clarificationMessage = "Please specify which barangay you mean for this total investment query.";
+    const scopeRefusal = buildRefusalMessage({
+      intent: "totals",
+      queryText: input.message,
+      fiscalYear: requestedFiscalYear,
+      explicitScopeRequested: true,
+      scopeResolved: false,
+    });
     logTotalsRouting(
       makeTotalsLogPayload({
       request_id: input.requestId,
@@ -2315,20 +2466,25 @@ async function resolveTotalsAssistantPayload(input: {
       aip_id_selected: null,
       totals_found: false,
       vector_called: false,
+      status: scopeRefusal.status,
+      refusal_reason: scopeRefusal.reason,
       })
     );
     return {
-      content: clarificationMessage,
+      content: scopeRefusal.message,
       citations: [
         makeSystemCitation("Barangay clarification required for totals SQL lookup.", {
-          reason: "scope_clarification_required",
+          reason: scopeRefusal.reason,
           scope_reason: totalsScope.scopeReason,
           scope_resolution: input.scopeResolution,
         }),
       ],
       retrievalMeta: {
-        refused: true,
-        reason: "ambiguous_scope",
+        refused: scopeRefusal.status === "refusal",
+        reason: mapRefusalReasonToMetaReason(scopeRefusal.status, scopeRefusal.reason),
+        status: scopeRefusal.status,
+        refusalReason: scopeRefusal.reason,
+        suggestions: scopeRefusal.suggestions,
         scopeResolution: input.scopeResolution,
       },
     };
@@ -2347,10 +2503,14 @@ async function resolveTotalsAssistantPayload(input: {
   });
 
   if (!aip) {
-    const noAipMessage =
-      requestedFiscalYear !== null
-        ? `I couldn't find a published AIP for FY ${requestedFiscalYear} (${answerScopeLabel}).`
-        : `I couldn't find a published AIP for ${answerScopeLabel}.`;
+    const retrievalFailure = buildRefusalMessage({
+      intent: "totals",
+      queryText: input.message,
+      fiscalYear: requestedFiscalYear,
+      scopeLabel: answerScopeLabel,
+      explicitScopeRequested: input.scopeResolution.requestedScopes.length > 0,
+      scopeResolved: true,
+    });
     logTotalsRouting(
       makeTotalsLogPayload({
       request_id: input.requestId,
@@ -2362,10 +2522,12 @@ async function resolveTotalsAssistantPayload(input: {
       aip_id_selected: null,
       totals_found: false,
       vector_called: false,
+      status: retrievalFailure.status,
+      refusal_reason: retrievalFailure.reason,
       })
     );
     return {
-      content: noAipMessage,
+      content: retrievalFailure.message,
       citations: [
         makeSystemCitation("No published AIP matched the totals query scope/year.", {
           type: "aip_total_missing",
@@ -2375,8 +2537,11 @@ async function resolveTotalsAssistantPayload(input: {
         }),
       ],
       retrievalMeta: {
-        refused: true,
-        reason: "insufficient_evidence",
+        refused: retrievalFailure.status === "refusal",
+        reason: mapRefusalReasonToMetaReason(retrievalFailure.status, retrievalFailure.reason),
+        status: retrievalFailure.status,
+        refusalReason: retrievalFailure.reason,
+        suggestions: retrievalFailure.suggestions,
         scopeResolution: input.scopeResolution,
       },
     };
@@ -2387,6 +2552,14 @@ async function resolveTotalsAssistantPayload(input: {
     const missingMessage = buildTotalsMissingMessage({
       fiscalYear: requestedFiscalYear ?? aip.fiscal_year ?? null,
       scopeLabel: answerScopeLabel,
+    });
+    const retrievalFailure = buildRefusalMessage({
+      intent: "totals",
+      queryText: input.message,
+      fiscalYear: requestedFiscalYear ?? aip.fiscal_year ?? null,
+      scopeLabel: answerScopeLabel,
+      explicitScopeRequested: input.scopeResolution.requestedScopes.length > 0,
+      scopeResolved: true,
     });
     logTotalsRouting(
       makeTotalsLogPayload({
@@ -2399,6 +2572,8 @@ async function resolveTotalsAssistantPayload(input: {
       aip_id_selected: aip.id,
       totals_found: false,
       vector_called: false,
+      status: retrievalFailure.status,
+      refusal_reason: retrievalFailure.reason,
       })
     );
     return {
@@ -2413,8 +2588,11 @@ async function resolveTotalsAssistantPayload(input: {
         }),
       ],
       retrievalMeta: {
-        refused: true,
-        reason: "insufficient_evidence",
+        refused: retrievalFailure.status === "refusal",
+        reason: mapRefusalReasonToMetaReason(retrievalFailure.status, retrievalFailure.reason),
+        status: retrievalFailure.status,
+        refusalReason: retrievalFailure.reason,
+        suggestions: retrievalFailure.suggestions,
         scopeResolution: input.scopeResolution,
       },
     };
@@ -2425,6 +2603,14 @@ async function resolveTotalsAssistantPayload(input: {
     const missingMessage = buildTotalsMissingMessage({
       fiscalYear: requestedFiscalYear ?? aip.fiscal_year ?? null,
       scopeLabel: answerScopeLabel,
+    });
+    const retrievalFailure = buildRefusalMessage({
+      intent: "totals",
+      queryText: input.message,
+      fiscalYear: requestedFiscalYear ?? aip.fiscal_year ?? null,
+      scopeLabel: answerScopeLabel,
+      explicitScopeRequested: input.scopeResolution.requestedScopes.length > 0,
+      scopeResolved: true,
     });
     logTotalsRouting(
       makeTotalsLogPayload({
@@ -2437,6 +2623,8 @@ async function resolveTotalsAssistantPayload(input: {
       aip_id_selected: aip.id,
       totals_found: false,
       vector_called: false,
+      status: retrievalFailure.status,
+      refusal_reason: retrievalFailure.reason,
       })
     );
     return {
@@ -2449,8 +2637,11 @@ async function resolveTotalsAssistantPayload(input: {
         }),
       ],
       retrievalMeta: {
-        refused: true,
-        reason: "insufficient_evidence",
+        refused: retrievalFailure.status === "refusal",
+        reason: mapRefusalReasonToMetaReason(retrievalFailure.status, retrievalFailure.reason),
+        status: retrievalFailure.status,
+        refusalReason: retrievalFailure.reason,
+        suggestions: retrievalFailure.suggestions,
         scopeResolution: input.scopeResolution,
       },
     };
@@ -2558,6 +2749,67 @@ export async function POST(request: Request) {
     }
 
     const userMessage = await repo.appendUserMessage(session.id, content);
+    const startedAt = Date.now();
+    const requestedFiscalYear = extractFiscalYear(content);
+    const earlyDocLimitField = detectDocLimitFieldFromQuery(content.toLowerCase());
+    if (earlyDocLimitField === "contractor") {
+      const refusal = buildRefusalMessage({
+        intent: "unanswerable_field",
+        queryText: content,
+        fiscalYear: requestedFiscalYear,
+        docLimitField: "contractor",
+      });
+      const scopeResolution: ChatScopeResolution = {
+        mode: "global",
+        requestedScopes: [],
+        resolvedTargets: [],
+        unresolvedScopes: [],
+        ambiguousScopes: [],
+      };
+      const assistantMessage = await appendAssistantMessage({
+        sessionId: session.id,
+        content: refusal.message,
+        citations: [
+          makeSystemCitation("Requested field is outside published AIP structured line-item coverage.", {
+            reason: refusal.reason,
+          }),
+        ],
+        retrievalMeta: {
+          refused: true,
+          reason: mapRefusalReasonToMetaReason(refusal.status, refusal.reason),
+          status: refusal.status,
+          refusalReason: refusal.reason,
+          suggestions: refusal.suggestions,
+          scopeResolution,
+          latencyMs: Date.now() - startedAt,
+        },
+      });
+
+      logNonTotalsRouting({
+        request_id: requestId,
+        intent: "unanswerable_field",
+        route: "row_sql",
+        fiscal_year_parsed: requestedFiscalYear,
+        scope_reason: "unknown",
+        barangay_id_used: null,
+        match_count_used: null,
+        top_candidate_ids: [],
+        top_candidate_distances: [],
+        answered: false,
+        vector_called: false,
+        status: refusal.status,
+        refusal_reason: refusal.reason,
+      });
+
+      return NextResponse.json(
+        chatResponsePayload({
+          sessionId: session.id,
+          userMessage,
+          assistantMessage,
+        }),
+        { status: 200 }
+      );
+    }
 
     const client = await supabaseServer();
     const scope = await resolveRetrievalScope({
@@ -2576,16 +2828,25 @@ export async function POST(request: Request) {
     const intent = detectIntent(content).intent;
 
     if (!scope.retrievalScope && intent !== "total_investment_program") {
-      const assistantContent =
-        scope.clarificationMessage ??
-        "I couldn't confidently identify the requested place. Please provide the exact barangay/city/municipality name.";
+      const explicitScopeRequested = scopeResolution.requestedScopes.length > 0;
+      const scopeResolved = scopeResolution.resolvedTargets.length > 0;
+      const refusal = buildRefusalMessage({
+        intent: "pipeline_fallback",
+        queryText: content,
+        explicitScopeRequested,
+        scopeResolved,
+      });
       const assistantMessage = await appendAssistantMessage({
         sessionId: session.id,
-        content: assistantContent,
+        content: refusal.message,
         citations: [makeSystemCitation("Scope clarification required before retrieval.", scope.scopeResolution)],
         retrievalMeta: {
-          refused: true,
-          reason: "ambiguous_scope",
+          refused: refusal.status === "refusal",
+          reason: mapRefusalReasonToMetaReason(refusal.status, refusal.reason),
+          status: refusal.status,
+          refusalReason: refusal.reason,
+          refusalDetail: "Scope resolution failed before retrieval.",
+          suggestions: refusal.suggestions,
           scopeResolution,
         },
       });
@@ -2599,8 +2860,10 @@ export async function POST(request: Request) {
         match_count_used: null,
         top_candidate_ids: [],
         top_candidate_distances: [],
-        answered: true,
+        answered: refusal.status !== "refusal",
         vector_called: false,
+        status: refusal.status,
+        refusal_reason: refusal.reason,
       });
 
       return NextResponse.json(
@@ -2613,7 +2876,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const startedAt = Date.now();
     const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
       intent,
       resolveTotals: async () =>
@@ -2679,7 +2941,6 @@ export async function POST(request: Request) {
     }
 
     const parsedLineItemQuestion = parseLineItemQuestion(content);
-    const requestedFiscalYear = extractFiscalYear(content);
     const aggregationIntent = detectAggregationIntent(content);
     const shouldDeferAggregation =
       aggregationIntent.intent === "totals_by_fund_source" && isLineItemSpecificQuery(content);
@@ -4736,18 +4997,30 @@ export async function POST(request: Request) {
     }
 
     if (parsedLineItemQuestion.isUnanswerableFieldQuestion && !parsedLineItemQuestion.isFactQuestion) {
+      const refusal = buildRefusalMessage({
+        intent: "unanswerable_field",
+        queryText: content,
+        scopeLabel:
+          lineItemScope.barangayIdUsed !== null
+            ? normalizeBarangayLabel(scopeBarangayName ?? "your barangay")
+            : "All barangays",
+        fiscalYear: requestedFiscalYear,
+        docLimitField: detectDocLimitFieldFromQuery(parsedLineItemQuestion.normalizedQuestion),
+      });
       const assistantMessage = await appendAssistantMessage({
         sessionId: session.id,
-        content:
-          "The published AIP does not contain that field. This is a document limitation, not a retrieval failure.",
+        content: refusal.message,
         citations: [
           makeSystemCitation("Requested field is outside published AIP structured line-item coverage.", {
-            reason: "document_field_limit",
+            reason: refusal.reason,
           }),
         ],
         retrievalMeta: {
-          refused: true,
-          reason: "insufficient_evidence",
+          refused: refusal.status === "refusal",
+          reason: mapRefusalReasonToMetaReason(refusal.status, refusal.reason),
+          status: refusal.status,
+          refusalReason: refusal.reason,
+          suggestions: refusal.suggestions,
           scopeResolution,
           latencyMs: Date.now() - startedAt,
         },
@@ -4762,8 +5035,10 @@ export async function POST(request: Request) {
         match_count_used: null,
         top_candidate_ids: [],
         top_candidate_distances: [],
-        answered: true,
+        answered: refusal.status !== "refusal",
         vector_called: false,
+        status: refusal.status,
+        refusal_reason: refusal.reason,
       });
 
       return NextResponse.json(
@@ -4842,28 +5117,38 @@ export async function POST(request: Request) {
           }
 
           if (refRows.length === 0) {
-            const fyLabel = requestedFiscalYear !== null ? `FY ${requestedFiscalYear}` : "any fiscal year";
             const scopeLabel =
               barangayFilterId !== null
                 ? normalizeBarangayLabel(scopeBarangayName ?? "your barangay")
-                : "all barangays";
+                : "All barangays";
+            const refusal = buildRefusalMessage({
+              intent: "line_item_fact",
+              queryText: content,
+              fiscalYear: requestedFiscalYear,
+              scopeLabel,
+              explicitScopeRequested: scopeResolution.requestedScopes.length > 0,
+              scopeResolved: true,
+              hadVectorSearch: false,
+              foundCandidates: 0,
+            });
 
             const assistantMessage = await appendAssistantMessage({
               sessionId: session.id,
-              content:
-                `I couldn't find a published line item with Ref ${refCode} ` +
-                `(${fyLabel}; ${scopeLabel}). Please verify the Ref code or try loosening the filters.`,
+              content: refusal.message,
               citations: [
                 makeSystemCitation("No published line item matched the requested Ref code.", {
-                  reason: "line_item_ref_not_found",
+                  reason: refusal.reason,
                   ref_code: refCode,
                   fiscal_year: requestedFiscalYear,
                   barangay_id: barangayFilterId,
                 }),
               ],
               retrievalMeta: {
-                refused: false,
-                reason: "ok",
+                refused: refusal.status === "refusal",
+                reason: mapRefusalReasonToMetaReason(refusal.status, refusal.reason),
+                status: refusal.status,
+                refusalReason: refusal.reason,
+                suggestions: refusal.suggestions,
                 scopeResolution,
                 latencyMs: Date.now() - startedAt,
               },
@@ -4878,8 +5163,10 @@ export async function POST(request: Request) {
               match_count_used: null,
               top_candidate_ids: [],
               top_candidate_distances: [],
-              answered: true,
+              answered: refusal.status !== "refusal",
               vector_called: false,
+              status: refusal.status,
+              refusal_reason: refusal.reason,
             });
 
             return NextResponse.json(
@@ -5078,20 +5365,36 @@ export async function POST(request: Request) {
         }).slice(0, 10);
 
         if (ranked.length === 0) {
+          const refusal = buildRefusalMessage({
+            intent: "line_item_fact",
+            queryText: content,
+            fiscalYear: requestedFiscalYear,
+            scopeLabel:
+              lineItemScope.barangayIdUsed !== null
+                ? normalizeBarangayLabel(scopeBarangayName ?? "your barangay")
+                : "All barangays",
+            hadVectorSearch: true,
+            matchCount,
+            foundCandidates: 0,
+            explicitScopeRequested: scopeResolution.requestedScopes.length > 0,
+            scopeResolved: true,
+          });
           const assistantMessage = await appendAssistantMessage({
             sessionId: session.id,
-            content:
-              "I couldn't find a matching published AIP line item for that question. Try adding a specific project title or reference code.",
+            content: refusal.message,
             citations: [
               makeSystemCitation("No line-item matches found in row-level index.", {
-                reason: "line_item_not_found",
+                reason: refusal.reason,
                 fiscal_year: requestedFiscalYear,
                 barangay_id: barangayFilterId,
               }),
             ],
             retrievalMeta: {
-              refused: true,
-              reason: "insufficient_evidence",
+              refused: refusal.status === "refusal",
+              reason: mapRefusalReasonToMetaReason(refusal.status, refusal.reason),
+              status: refusal.status,
+              refusalReason: refusal.reason,
+              suggestions: refusal.suggestions,
               scopeResolution,
               latencyMs: Date.now() - startedAt,
               topK: matchCount,
@@ -5108,8 +5411,10 @@ export async function POST(request: Request) {
             match_count_used: matchCount,
             top_candidate_ids: [],
             top_candidate_distances: [],
-            answered: false,
+            answered: refusal.status !== "refusal",
             vector_called: vectorRpcCalled,
+            status: refusal.status,
+            refusal_reason: refusal.reason,
           });
 
           return NextResponse.json(
@@ -5394,6 +5699,55 @@ export async function POST(request: Request) {
           { status: 200 }
         );
       }
+    }
+
+    if (isUnsupportedRequestQuery(content)) {
+      const refusal = buildRefusalMessage({
+        intent: "pipeline_fallback",
+        queryText: content,
+      });
+      const assistantMessage = await appendAssistantMessage({
+        sessionId: session.id,
+        content: refusal.message,
+        citations: [
+          makeSystemCitation("Request is outside supported published AIP data answers.", {
+            reason: refusal.reason,
+          }),
+        ],
+        retrievalMeta: {
+          refused: refusal.status === "refusal",
+          reason: mapRefusalReasonToMetaReason(refusal.status, refusal.reason),
+          status: refusal.status,
+          refusalReason: refusal.reason,
+          suggestions: refusal.suggestions,
+          scopeResolution,
+          latencyMs: Date.now() - startedAt,
+        },
+      });
+      logNonTotalsRouting({
+        request_id: requestId,
+        intent: "pipeline_fallback",
+        route: "pipeline_fallback",
+        fiscal_year_parsed: requestedFiscalYear,
+        scope_reason: lineItemScope.scopeReason,
+        barangay_id_used: lineItemScope.barangayIdUsed,
+        match_count_used: null,
+        top_candidate_ids: [],
+        top_candidate_distances: [],
+        answered: false,
+        vector_called: false,
+        status: refusal.status,
+        refusal_reason: refusal.reason,
+      });
+
+      return NextResponse.json(
+        chatResponsePayload({
+          sessionId: session.id,
+          userMessage,
+          assistantMessage,
+        }),
+        { status: 200 }
+      );
     }
 
     let assistantContent = "";

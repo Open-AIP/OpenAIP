@@ -11,6 +11,13 @@ export type ChatCitationScopeType =
 
 export type ChatResponseStatus = "answer" | "clarification" | "refusal";
 
+export type RefusalReason =
+  | "retrieval_failure"
+  | "document_limitation"
+  | "ambiguous_scope"
+  | "missing_required_parameter"
+  | "unsupported_request";
+
 export type ChatClarificationOption = {
   optionIndex: number;
   lineItemId: string;
@@ -131,6 +138,9 @@ export type ChatRetrievalMeta = {
   scopeResolution?: ChatScopeResolution;
   latencyMs?: number;
   status?: ChatResponseStatus;
+  refusalReason?: RefusalReason;
+  refusalDetail?: string;
+  suggestions?: string[];
   kind?: "clarification" | "clarification_resolved";
   clarification?: ChatClarificationPayload & {
     context?: ChatClarificationContextLineItem | ChatClarificationContextCityFallback;

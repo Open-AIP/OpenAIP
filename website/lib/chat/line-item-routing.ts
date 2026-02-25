@@ -295,6 +295,11 @@ function detectFactFields(normalizedQuestion: string): LineItemFactField[] {
 function isUnanswerableFieldQuestion(normalizedQuestion: string): boolean {
   return (
     normalizedQuestion.includes("contractor") ||
+    normalizedQuestion.includes("supplier") ||
+    normalizedQuestion.includes("winning bidder") ||
+    normalizedQuestion.includes("awarded to") ||
+    normalizedQuestion.includes("contractor name") ||
+    normalizedQuestion.includes("supplier name") ||
     normalizedQuestion.includes("procurement mode") ||
     normalizedQuestion.includes("procurement") ||
     normalizedQuestion.includes("site address") ||

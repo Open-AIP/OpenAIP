@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import AipListCard from '@/features/citizen/aips/components/AipListCard';
-import CitizenExplainerCard from '@/features/citizen/components/CitizenExplainerCard';
-import CitizenFiltersBar from '@/features/citizen/components/CitizenFiltersBar';
-import CitizenPageHero from '@/features/citizen/components/CitizenPageHero';
+import AipListCard from '@/features/citizen/aips/components/aip-list-card';
+import CitizenExplainerCard from '@/features/citizen/components/citizen-explainer-card';
+import CitizenFiltersBar from '@/features/citizen/components/citizen-filters-bar';
+import CitizenPageHero from '@/features/citizen/components/citizen-page-hero';
 import { FISCAL_YEAR_OPTIONS, LGU_OPTIONS, getCitizenAipList } from '@/features/citizen/aips/data/aips.data';
 
 const CitizenAipsPage = () => {

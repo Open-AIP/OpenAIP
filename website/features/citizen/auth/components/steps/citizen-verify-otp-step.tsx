@@ -1,8 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import CitizenAuthHeader from "@/features/citizen/auth/components/CitizenAuthHeader";
-import CitizenOtpInput from "@/features/citizen/auth/components/CitizenOtpInput";
+import CitizenAuthHeader from "@/features/citizen/auth/components/citizen-auth-header";
+import CitizenOtpInput from "@/features/citizen/auth/components/citizen-otp-input";
 
 type CitizenVerifyOtpStepProps = {
   titleId: string;

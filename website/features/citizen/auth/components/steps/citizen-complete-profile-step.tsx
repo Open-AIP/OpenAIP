@@ -4,7 +4,7 @@ import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import CitizenAuthHeader from "@/features/citizen/auth/components/CitizenAuthHeader";
+import CitizenAuthHeader from "@/features/citizen/auth/components/citizen-auth-header";
 
 type CitizenCompleteProfileStepProps = {
   titleId: string;

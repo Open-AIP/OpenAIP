@@ -2,11 +2,11 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { AipDetails } from '@/features/citizen/aips/types';
-import AipAccountabilityCard from '@/features/citizen/aips/components/AipAccountabilityCard';
-import AipCommentsTab from '@/features/citizen/aips/components/AipCommentsTab';
-import AipOverviewDocumentCard from '@/features/citizen/aips/components/AipOverviewDocumentCard';
-import AipProjectsTable from '@/features/citizen/aips/components/AipProjectsTable';
-import AipSummaryCard from '@/features/citizen/aips/components/AipSummaryCard';
+import AipAccountabilityCard from '@/features/citizen/aips/components/aip-accountability-card';
+import AipCommentsTab from '@/features/citizen/aips/components/aip-comments-tab';
+import AipOverviewDocumentCard from '@/features/citizen/aips/components/aip-overview-document-card';
+import AipProjectsTable from '@/features/citizen/aips/components/aip-projects-table';
+import AipSummaryCard from '@/features/citizen/aips/components/aip-summary-card';
 
 export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
   return (

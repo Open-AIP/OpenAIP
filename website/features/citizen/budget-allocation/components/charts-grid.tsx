@@ -1,5 +1,5 @@
-import DonutCard, { type DonutSectorItem } from "./DonutCard";
-import LineTrendsCard, { type SectorTrendPoint } from "./LineTrendsCard";
+import DonutCard, { type DonutSectorItem } from "./donut-card";
+import LineTrendsCard, { type SectorTrendPoint } from "./line-trends-card";
 
 type ChartsGridProps = {
   fiscalYear: number;

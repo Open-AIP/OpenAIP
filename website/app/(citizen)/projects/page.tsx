@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import CitizenExplainerCard from "@/features/citizen/components/CitizenExplainerCard";
-import CitizenPageHero from "@/features/citizen/components/CitizenPageHero";
+import CitizenExplainerCard from "@/features/citizen/components/citizen-explainer-card";
+import CitizenPageHero from "@/features/citizen/components/citizen-page-hero";
 
 export default function CitizenProjectsPage() {
   return (

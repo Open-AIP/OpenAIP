@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import CitizenAuthModal from "@/features/citizen/auth/components/CitizenAuthModal";
+import CitizenAuthModal from "@/features/citizen/auth/components/citizen-auth-modal";
 import {
   buildCitizenAuthHref,
   clearCitizenAuthQuery,

@@ -4,12 +4,12 @@ import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { GEO_OPTIONS } from "@/features/citizen/auth/constants/geo-options";
-import CitizenAuthBrandPanel from "@/features/citizen/auth/components/CitizenAuthBrandPanel";
-import CitizenAuthSplitShell from "@/features/citizen/auth/components/CitizenAuthSplitShell";
-import CitizenCompleteProfileStep from "@/features/citizen/auth/components/steps/CitizenCompleteProfileStep";
-import CitizenLoginStep from "@/features/citizen/auth/components/steps/CitizenLoginStep";
-import CitizenSignupEmailStep from "@/features/citizen/auth/components/steps/CitizenSignupEmailStep";
-import CitizenVerifyOtpStep from "@/features/citizen/auth/components/steps/CitizenVerifyOtpStep";
+import CitizenAuthBrandPanel from "@/features/citizen/auth/components/citizen-auth-brand-panel";
+import CitizenAuthSplitShell from "@/features/citizen/auth/components/citizen-auth-split-shell";
+import CitizenCompleteProfileStep from "@/features/citizen/auth/components/steps/citizen-complete-profile-step";
+import CitizenLoginStep from "@/features/citizen/auth/components/steps/citizen-login-step";
+import CitizenSignupEmailStep from "@/features/citizen/auth/components/steps/citizen-signup-email-step";
+import CitizenVerifyOtpStep from "@/features/citizen/auth/components/steps/citizen-verify-otp-step";
 import type { CitizenAuthMode, CitizenAuthStep } from "@/features/citizen/auth/types";
 import { maskEmail } from "@/features/citizen/auth/utils/mask-email";
 

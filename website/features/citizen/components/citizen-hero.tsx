@@ -1,4 +1,4 @@
-import HeroSection from '@/features/citizen/components/HeroSection';
+import HeroSection from '@/features/citizen/components/hero-section';
 
 export default function CitizenHero() {
   return (

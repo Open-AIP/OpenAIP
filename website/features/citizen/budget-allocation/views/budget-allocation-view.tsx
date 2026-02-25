@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { DBV2_SECTOR_CODES, getSectorLabel, type DashboardSectorCode } from "@/lib/constants/dashboard";
 import type { BudgetCategoryKey, AipDetailsRowVM } from "@/lib/domain/citizen-budget-allocation";
-import CitizenExplainerCard from "@/features/citizen/components/CitizenExplainerCard";
-import CitizenPageHero from "@/features/citizen/components/CitizenPageHero";
+import CitizenExplainerCard from "@/features/citizen/components/citizen-explainer-card";
+import CitizenPageHero from "@/features/citizen/components/citizen-page-hero";
 import {
   AipDetailsSection,
   ChartsGrid,

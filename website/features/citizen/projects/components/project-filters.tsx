@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import CitizenFiltersBar from "@/features/citizen/components/CitizenFiltersBar";
+import CitizenFiltersBar from "@/features/citizen/components/citizen-filters-bar";
 
 type ProjectFiltersProps = {
   fiscalYears: number[];

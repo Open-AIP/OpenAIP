@@ -1,1 +1,1 @@
-export { default as CitizenAuthModalHost } from "./components/CitizenAuthModalHost";
+export { default as CitizenAuthModalHost } from "./components/citizen-auth-modal-host";

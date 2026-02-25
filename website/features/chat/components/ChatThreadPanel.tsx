@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import ChatAssistantLoadingState from "./ChatAssistantLoadingState";
 import ChatMessageBubble from "./ChatMessageBubble";
 import type { ChatMessageBubble as ChatMessageBubbleType } from "../types/chat.types";
 
@@ -34,7 +35,9 @@ export default function ChatThreadPanel({
             <ChatMessageBubble key={message.id} message={message} />
           ))}
 
-          {!messages.length && (
+          {isSending ? <ChatAssistantLoadingState /> : null}
+
+          {!messages.length && !isSending && (
             <div className="text-muted-foreground text-sm">Start a conversation.</div>
           )}
 

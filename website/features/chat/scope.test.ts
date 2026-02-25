@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { detectExplicitBarangayMention, resolveTotalsScope } from "@/lib/chat/scope";
+import {
+  detectBareBarangayScopeMention,
+  detectExplicitBarangayMention,
+  resolveTotalsScope,
+} from "@/lib/chat/scope";
 
 describe("detectExplicitBarangayMention", () => {
   it("detects parenthesized barangay mention", () => {
@@ -21,6 +25,34 @@ describe("detectExplicitBarangayMention", () => {
       "What is the Total Investment Program for FY 2026 Brgy. Mamatid?"
     );
     expect(detected).toBe("Mamatid");
+  });
+});
+
+describe("detectBareBarangayScopeMention", () => {
+  const knownBarangays = new Set(["mamatid", "pulo", "canlubang"]);
+
+  it("detects strict preposition-based bare scope with exact match", () => {
+    const detected = detectBareBarangayScopeMention(
+      "What is the Total Investment Program for FY 2026 of pulo?",
+      knownBarangays
+    );
+    expect(detected).toBe("pulo");
+  });
+
+  it("detects 'for <barangay>' bare scope with exact match", () => {
+    const detected = detectBareBarangayScopeMention(
+      "Total Investment Program for pulo FY 2026",
+      knownBarangays
+    );
+    expect(detected).toBe("pulo");
+  });
+
+  it("rejects non-exact and partial matches", () => {
+    const detected = detectBareBarangayScopeMention(
+      "What is the Total Investment Program for pul?",
+      knownBarangays
+    );
+    expect(detected).toBeNull();
   });
 });
 

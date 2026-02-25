@@ -1,6 +1,36 @@
 ﻿const TOKEN_SPLIT_PATTERN = /[^a-z0-9]+/g;
 const REF_CODE_PATTERN = /\b\d{4}[a-z0-9-]*\b/i;
 
+const STRICT_LINE_ITEM_REF_PATTERN = /\b\d{4}-\d{3}-\d{3}-\d{3}\b/i;
+const HYBRID_LINE_ITEM_REF_PATTERN = /\b\d{4}-[a-z0-9]+(?:-[a-z0-9]+)+\b/i;
+const QUOTED_TITLE_PATTERN = /"[^"]{3,}"|'[^']{3,}'/;
+const FOR_SEGMENT_PATTERN = /\bfor\s+([a-z0-9][a-z0-9\s-]{1,140})/g;
+const FOR_SEGMENT_STOP_PATTERN =
+  /\b(?:in|at|on|fy|fiscal|year|barangay|city|municipality|across|all|within|during|with|from)\b/i;
+const ITEM_SPECIFIC_CUE_PATTERNS: RegExp[] = [
+  /\bfor\s+[a-z0-9]/i,
+  /\bwhat is allocated for\b/i,
+  /\bhow much is allocated for\b/i,
+  /\bschedule for\b/i,
+  /\bfund source for\b/i,
+  /\bwhat is the fund source for\b/i,
+  /\bimplementation schedule for\b/i,
+];
+
+export function extractAipRefCode(message: string): string | null {
+  const strictMatch = message.match(STRICT_LINE_ITEM_REF_PATTERN);
+  if (strictMatch?.[0]) {
+    return strictMatch[0].toUpperCase();
+  }
+
+  const hybridMatch = message.match(HYBRID_LINE_ITEM_REF_PATTERN);
+  if (hybridMatch?.[0]) {
+    return hybridMatch[0].toUpperCase();
+  }
+
+  return null;
+}
+
 const GLOBAL_SCOPE_PATTERNS: RegExp[] = [
   /\ball\s+barangays\b/i,
   /\bacross\s+all\s+barangays\b/i,
@@ -133,6 +163,14 @@ function normalizeText(input: string): string {
   return input.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function normalizeSpecificQueryText(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeRefCode(input: string | null | undefined): string | null {
   if (!input) return null;
   const normalized = input.toLowerCase().replace(/[^a-z0-9-]/g, "").trim();
@@ -161,6 +199,52 @@ function collectKeyTokens(normalizedQuestion: string): string[] {
     if (!unique.includes(token)) unique.push(token);
   }
   return unique;
+}
+
+function hasTwoOrMoreNamedTokensAfterFor(normalizedQuestion: string): boolean {
+  let match: RegExpExecArray | null = FOR_SEGMENT_PATTERN.exec(normalizedQuestion);
+  while (match) {
+    const rawSegment = (match[1] ?? "").trim();
+    if (rawSegment) {
+      const constrainedSegment = rawSegment.split(FOR_SEGMENT_STOP_PATTERN)[0]?.trim() ?? "";
+      const titleTokens = constrainedSegment
+        .split(TOKEN_SPLIT_PATTERN)
+        .map((token) => token.trim())
+        .filter(
+          (token) =>
+            token.length >= 2 && !NOISE_TERMS.has(token) && !/^20\d{2}$/.test(token)
+        );
+      if (titleTokens.length >= 2) {
+        FOR_SEGMENT_PATTERN.lastIndex = 0;
+        return true;
+      }
+    }
+    match = FOR_SEGMENT_PATTERN.exec(normalizedQuestion);
+  }
+
+  FOR_SEGMENT_PATTERN.lastIndex = 0;
+  return false;
+}
+
+export function isLineItemSpecificQuery(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) return false;
+
+  if (STRICT_LINE_ITEM_REF_PATTERN.test(trimmed) || HYBRID_LINE_ITEM_REF_PATTERN.test(trimmed)) {
+    return true;
+  }
+
+  if (QUOTED_TITLE_PATTERN.test(trimmed)) {
+    return true;
+  }
+
+  const normalized = normalizeSpecificQueryText(trimmed);
+  if (!normalized) return false;
+
+  const hasItemCue = ITEM_SPECIFIC_CUE_PATTERNS.some((pattern) => pattern.test(normalized));
+  if (!hasItemCue) return false;
+
+  return hasTwoOrMoreNamedTokensAfterFor(normalized);
 }
 
 function detectFactFields(normalizedQuestion: string): LineItemFactField[] {

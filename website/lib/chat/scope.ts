@@ -11,6 +11,8 @@ export type BarangayRef = {
 
 const EXPLICIT_BARANGAY_PATTERN =
   /\b(?:barangay|brgy\.?)\s+([a-z0-9][a-z0-9 .,'-]{0,80}?)(?=\s+(?:for|fy|fiscal|year|total|investment|program|grand)\b|[.,;:!?)]|$)/gi;
+const BARE_SCOPE_PATTERN =
+  /\b(?:of|for|in)\s+([a-z][a-z\s-]{1,40}?)(?=\s+(?:for|fy|fiscal|year|total|investment|program|grand)\b|$)/gi;
 
 const OWN_BARANGAY_PATTERNS: RegExp[] = [
   /\bin\s+our\s+barangay\b/i,
@@ -27,6 +29,15 @@ function hasOwnBarangayCue(message: string): boolean {
 
 function normalizeMessageForDetection(message: string): string {
   return message.replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normalizeMessageForBareScopeDetection(message: string): string {
+  return message
+    .toLowerCase()
+    .replace(/[()]/g, " ")
+    .replace(/[.,;:!?'"`]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function cleanupDetectedBarangayName(raw: string): string | null {
@@ -66,6 +77,31 @@ export function detectExplicitBarangayMention(message: string): string | null {
     const candidate = cleanupDetectedBarangayName(match[1] ?? "");
     if (candidate) return candidate;
     match = EXPLICIT_BARANGAY_PATTERN.exec(normalizedMessage);
+  }
+
+  return null;
+}
+
+export function detectBareBarangayScopeMention(
+  message: string,
+  knownBarangayNamesNormalized: Set<string>
+): string | null {
+  const normalizedMessage = normalizeMessageForBareScopeDetection(message);
+  if (!normalizedMessage || knownBarangayNamesNormalized.size === 0) return null;
+
+  BARE_SCOPE_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null = BARE_SCOPE_PATTERN.exec(normalizedMessage);
+  while (match) {
+    const candidate = normalizeBarangayNameForMatch(match[1] ?? "");
+    if (candidate && knownBarangayNamesNormalized.has(candidate)) {
+      return candidate;
+    }
+    match = BARE_SCOPE_PATTERN.exec(normalizedMessage);
+  }
+
+  const standaloneCandidate = normalizeBarangayNameForMatch(normalizedMessage);
+  if (standaloneCandidate && knownBarangayNamesNormalized.has(standaloneCandidate)) {
+    return standaloneCandidate;
   }
 
   return null;

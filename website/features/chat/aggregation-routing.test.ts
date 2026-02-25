@@ -13,6 +13,7 @@ const mockCreateSession = vi.fn();
 const mockAppendUserMessage = vi.fn();
 const mockConsumeQuotaRpc = vi.fn();
 const mockServerRpc = vi.fn();
+const mockConsoleInfo = vi.spyOn(console, "info").mockImplementation(() => {});
 
 const session: ChatSession = {
   id: "session-1",
@@ -34,10 +35,33 @@ type StoredAssistantRow = {
   created_at: string;
 };
 
+type LineItemRow = {
+  id: string;
+  aip_id: string;
+  fiscal_year: number;
+  barangay_id: string | null;
+  aip_ref_code: string | null;
+  program_project_title: string;
+  implementing_agency: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  fund_source: string | null;
+  ps: number | null;
+  mooe: number | null;
+  co: number | null;
+  fe: number | null;
+  total: number | null;
+  expected_output: string | null;
+  page_no: number | null;
+  row_no: number | null;
+  table_no: number | null;
+};
+
 let assistantRows: StoredAssistantRow[] = [];
 let assistantCounter = 0;
 let messageCounter = 0;
 let rpcResponses: Record<string, unknown> = {};
+let lineItemsById: Record<string, LineItemRow> = {};
 let routePostHandler: typeof import("@/app/api/barangay/chat/messages/route").POST | null = null;
 
 function createServerClient() {
@@ -49,18 +73,104 @@ function createServerClient() {
       }
       throw new Error(`Unexpected server rpc: ${fn}`);
     },
-    from: (_table: string) => ({
-      select: () => ({
-        in: async () => ({ data: [], error: null }),
-        eq: () => ({
-          maybeSingle: async () => ({ data: null, error: null }),
+    from: (table: string) => {
+      if (table === "aip_line_items") {
+        return {
+          select: () => {
+            const eqFilters: Array<{ field: string; value: unknown }> = [];
+            let ilikeFilter: { field: string; value: string } | null = null;
+
+            const applyFilters = () => {
+              let rows = Object.values(lineItemsById);
+              if (ilikeFilter) {
+                rows = rows.filter((row) => {
+                  const candidate = String((row as Record<string, unknown>)[ilikeFilter.field] ?? "");
+                  return candidate.toLowerCase() === ilikeFilter.value.toLowerCase();
+                });
+              }
+              for (const filter of eqFilters) {
+                rows = rows.filter((row) => (row as Record<string, unknown>)[filter.field] === filter.value);
+              }
+              return rows;
+            };
+
+            const builder = {
+              in: async (field: string, ids: string[]) => ({
+                data: applyFilters().filter((row) => ids.includes(String((row as Record<string, unknown>)[field] ?? ""))),
+                error: null,
+              }),
+              eq: (field: string, value: unknown) => {
+                eqFilters.push({ field, value });
+                return builder;
+              },
+              ilike: (field: string, value: string) => {
+                ilikeFilter = { field, value };
+                return builder;
+              },
+              limit: async (count: number) => ({
+                data: applyFilters().slice(0, count),
+                error: null,
+              }),
+              maybeSingle: async () => ({
+                data: applyFilters()[0] ?? null,
+                error: null,
+              }),
+            };
+
+            return builder;
+          },
+        };
+      }
+
+      return {
+        select: () => ({
+          in: async () => ({ data: [], error: null }),
+          eq: () => ({
+            maybeSingle: async () => ({ data: null, error: null }),
+          }),
         }),
-      }),
-    }),
+      };
+    },
   };
 }
 
 function createAdminClient() {
+  const barangayRows = [
+    { id: "brgy-1", name: "Mamatid", is_active: true },
+    { id: "brgy-2", name: "Canlubang", is_active: true },
+    { id: "brgy-3", name: "Pulo", is_active: true },
+  ];
+  const aipRows = [
+    {
+      id: "aip-1",
+      status: "published",
+      fiscal_year: 2026,
+      barangay_id: "brgy-1",
+      city_id: null,
+      municipality_id: null,
+      created_at: "2026-01-02T00:00:00.000Z",
+    },
+    {
+      id: "aip-pulo-2026",
+      status: "published",
+      fiscal_year: 2026,
+      barangay_id: "brgy-3",
+      city_id: null,
+      municipality_id: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  const totalsRows = [
+    {
+      aip_id: "aip-pulo-2026",
+      source_label: "total_investment_program",
+      total_investment_program: 65824308.28,
+      page_no: 4,
+      evidence_text:
+        "INVESTMENT | PROGRAM Grand Total 11,111.11 22,222.22 65,824,308.28 Prepared by: ABC",
+    },
+  ];
+
   return {
     rpc: async (fn: string, args: Record<string, unknown>) => {
       if (fn === "consume_chat_quota") {
@@ -139,18 +249,167 @@ function createAdminClient() {
 
       if (table === "barangays") {
         return {
-          select: () => ({
-            eq: (_field: string, value: string) => ({
-              maybeSingle: async () => ({
-                data: { id: value, name: value === "brgy-2" ? "Canlubang" : "Mamatid" },
+          select: () => {
+            return {
+              eq: (field: string, value: unknown) => ({
+                maybeSingle: async () => {
+                  const matched =
+                    field === "id"
+                      ? barangayRows.find((row) => row.id === String(value))
+                      : null;
+                  return {
+                    data: matched ? { id: matched.id, name: matched.name } : null,
+                    error: null,
+                  };
+                },
+                limit: async () => {
+                  if (field === "is_active") {
+                    return {
+                      data: barangayRows
+                        .filter((row) => row.is_active === Boolean(value))
+                        .map((row) => ({ id: row.id, name: row.name })),
+                      error: null,
+                    };
+                  }
+                  return { data: [], error: null };
+                },
+              }),
+              in: (_field: string, ids: string[]) => ({
+                data: barangayRows
+                  .filter((row) => ids.includes(row.id))
+                  .map((row) => ({ id: row.id, name: row.name })),
                 error: null,
               }),
-            }),
-            in: (_field: string, ids: string[]) => ({
-              data: ids.map((id) => ({ id, name: id === "brgy-2" ? "Canlubang" : "Mamatid" })),
-              error: null,
-            }),
-          }),
+            };
+          },
+        };
+      }
+
+      if (table === "aips") {
+        return {
+          select: () => {
+            const filters: Record<string, unknown> = {};
+            let inFilter: { field: string; ids: string[] } | null = null;
+            const applyFilters = () =>
+              aipRows.filter((row) => {
+                if (inFilter && !inFilter.ids.includes(String((row as Record<string, unknown>)[inFilter.field] ?? ""))) {
+                  return false;
+                }
+                if (
+                  filters.status !== undefined &&
+                  row.status !== String(filters.status)
+                ) {
+                  return false;
+                }
+                if (
+                  filters.barangay_id !== undefined &&
+                  row.barangay_id !== filters.barangay_id
+                ) {
+                  return false;
+                }
+                if (
+                  filters.city_id !== undefined &&
+                  row.city_id !== filters.city_id
+                ) {
+                  return false;
+                }
+                if (
+                  filters.municipality_id !== undefined &&
+                  row.municipality_id !== filters.municipality_id
+                ) {
+                  return false;
+                }
+                if (
+                  filters.fiscal_year !== undefined &&
+                  row.fiscal_year !== filters.fiscal_year
+                ) {
+                  return false;
+                }
+                if (filters.id !== undefined && row.id !== filters.id) {
+                  return false;
+                }
+                return true;
+              });
+            const builder = {
+              eq: (field: string, value: unknown) => {
+                filters[field] = value;
+                return builder;
+              },
+              in: (field: string, ids: string[]) => {
+                inFilter = { field, ids };
+                return builder;
+              },
+              order: () => builder,
+              limit: () => ({
+                maybeSingle: async () => {
+                  const matched = applyFilters()[0];
+                  return {
+                    data: matched
+                      ? {
+                          id: matched.id,
+                          fiscal_year: matched.fiscal_year,
+                          barangay_id: matched.barangay_id,
+                          city_id: matched.city_id,
+                          municipality_id: matched.municipality_id,
+                          created_at: matched.created_at,
+                        }
+                      : null,
+                    error: null,
+                  };
+                },
+              }),
+              then: (
+                resolve: (value: { data: Array<{ id: string }>; error: null }) => void,
+                reject?: (reason?: unknown) => void
+              ) =>
+                Promise.resolve({
+                  data: applyFilters().map((row) => ({ id: row.id })),
+                  error: null as null,
+                }).then(resolve, reject),
+            };
+            return builder;
+          },
+        };
+      }
+
+      if (table === "aip_totals") {
+        return {
+          select: () => {
+            const filters: Record<string, unknown> = {};
+            const builder = {
+              eq: (field: string, value: unknown) => {
+                filters[field] = value;
+                return builder;
+              },
+              limit: () => ({
+                maybeSingle: async () => {
+                  const matched = totalsRows.find((row) => {
+                    if (filters.aip_id !== undefined && row.aip_id !== filters.aip_id) {
+                      return false;
+                    }
+                    if (
+                      filters.source_label !== undefined &&
+                      row.source_label !== filters.source_label
+                    ) {
+                      return false;
+                    }
+                    return true;
+                  });
+                  return {
+                    data: matched
+                      ? {
+                          total_investment_program: matched.total_investment_program,
+                          page_no: matched.page_no,
+                          evidence_text: matched.evidence_text,
+                        }
+                      : null,
+                    error: null,
+                  };
+                },
+              }),
+            };
+            return builder;
+          },
         };
       }
 
@@ -225,6 +484,21 @@ describe("aggregation routing", () => {
     assistantCounter = 0;
     messageCounter = 0;
     rpcResponses = {
+      match_aip_line_items: [
+        {
+          line_item_id: "line-road-1",
+          aip_id: "aip-1",
+          fiscal_year: 2026,
+          barangay_id: "brgy-1",
+          aip_ref_code: "1000-001-000-001",
+          program_project_title: "Road Concreting",
+          page_no: 4,
+          row_no: 10,
+          table_no: 1,
+          distance: 0.12,
+          score: 0.89,
+        },
+      ],
       get_top_projects: [
         {
           line_item_id: "line-1",
@@ -265,9 +539,54 @@ describe("aggregation routing", () => {
         },
       ],
     };
+    lineItemsById = {
+      "line-ref-1": {
+        id: "line-ref-1",
+        aip_id: "aip-1",
+        fiscal_year: 2026,
+        barangay_id: "brgy-1",
+        aip_ref_code: "8000-003-002-006",
+        program_project_title: "Road Safety Signages",
+        implementing_agency: "Barangay Engineering Office",
+        start_date: "2026-02-01",
+        end_date: "2026-08-31",
+        fund_source: "General Fund",
+        ps: null,
+        mooe: 250000,
+        co: null,
+        fe: null,
+        total: 250000,
+        expected_output: "Installed signages",
+        page_no: 6,
+        row_no: 12,
+        table_no: 1,
+      },
+      "line-road-1": {
+        id: "line-road-1",
+        aip_id: "aip-1",
+        fiscal_year: 2026,
+        barangay_id: "brgy-1",
+        aip_ref_code: "1000-001-000-001",
+        program_project_title: "Road Concreting",
+        implementing_agency: "Barangay Engineering Office",
+        start_date: "2026-03-01",
+        end_date: "2026-10-31",
+        fund_source: "External Source (Loan)",
+        ps: null,
+        mooe: null,
+        co: 5000000,
+        fe: null,
+        total: 5000000,
+        expected_output: "Concreted road section",
+        page_no: 4,
+        row_no: 10,
+        table_no: 1,
+      },
+    };
 
     mockConsumeQuotaRpc.mockReset();
     mockServerRpc.mockReset();
+    mockConsoleInfo.mockClear();
     mockGetSession.mockReset();
     mockCreateSession.mockReset();
     mockAppendUserMessage.mockReset();
@@ -483,6 +802,186 @@ describe("aggregation routing", () => {
     );
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "get_top_projects")
+    ).toBe(false);
+  });
+
+  it("routes totals query with bare barangay mention as explicit scope", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "What is the Total Investment Program for FY 2026 of pulo?",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistantMessage = payload.assistantMessage as { content: string };
+    expect(assistantMessage.content).toContain("FY 2026");
+    expect(assistantMessage.content).not.toContain("based on your account scope");
+
+    const jsonLogs = mockConsoleInfo.mock.calls
+      .map((call) => {
+        try {
+          return JSON.parse(String(call[0])) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is Record<string, unknown> => Boolean(entry));
+
+    const totalsLog = jsonLogs.find((entry) => entry.route === "sql_totals");
+    expect(totalsLog).toBeDefined();
+    expect(totalsLog?.scope_reason).toBe("explicit_barangay");
+  });
+
+  it("does not run fund-source aggregation for project-specific query", async () => {
+    mockResolveRetrievalScope.mockResolvedValueOnce({
+      mode: "named_scopes",
+      retrievalScope: {
+        mode: "named_scopes",
+        targets: [
+          {
+            scope_type: "barangay",
+            scope_id: "brgy-1",
+            scope_name: "Mamatid",
+          },
+        ],
+      },
+      scopeResolution: {
+        mode: "named_scopes",
+        requestedScopes: [{ scopeType: "barangay", scopeName: "Mamatid" }],
+        resolvedTargets: [{ scopeType: "barangay", scopeId: "brgy-1", scopeName: "Mamatid" }],
+        unresolvedScopes: [],
+        ambiguousScopes: [],
+      },
+    });
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "In FY 2026, what is the fund source for Road Concreting in Barangay Mamatid?",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("fund source: External Source (Loan)");
+    expect(assistant.content).not.toContain("Budget totals by fund source");
+
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_fund_source")
+    ).toBe(false);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(true);
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
+  it("runs fund-source aggregation for explicit totals query", async () => {
+    mockResolveRetrievalScope.mockResolvedValueOnce({
+      mode: "named_scopes",
+      retrievalScope: {
+        mode: "named_scopes",
+        targets: [
+          {
+            scope_type: "barangay",
+            scope_id: "brgy-1",
+            scope_name: "Mamatid",
+          },
+        ],
+      },
+      scopeResolution: {
+        mode: "named_scopes",
+        requestedScopes: [{ scopeType: "barangay", scopeName: "Mamatid" }],
+        resolvedTargets: [{ scopeType: "barangay", scopeId: "brgy-1", scopeName: "Mamatid" }],
+        unresolvedScopes: [],
+        ambiguousScopes: [],
+      },
+    });
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "Budget totals by fund source for FY 2026 in Barangay Mamatid",
+    });
+
+    expect(payload.status).toBe("answer");
+    expect(
+      mockServerRpc.mock.calls.some(
+        ([fn, args]) =>
+          fn === "get_totals_by_fund_source" &&
+          (args as Record<string, unknown>).p_fiscal_year === 2026 &&
+          (args as Record<string, unknown>).p_barangay_id === "brgy-1"
+      )
+    ).toBe(true);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(false);
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
+  it("uses deterministic ref fast-path before vector retrieval for line-item fact query", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "What is the fund source for Ref 8000-003-002-006 (FY 2026)?",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("Ref 8000-003-002-006");
+    expect(assistant.content).toContain("fund source: General Fund");
+
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_fund_source")
+    ).toBe(false);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(false);
+    expect(mockRequestPipelineQueryEmbedding).not.toHaveBeenCalled();
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
+  it("routes loans-vs-general-fund query to fund-source aggregation", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "How much is funded by loans vs general fund in FY 2026 across all barangays?",
+    });
+
+    expect(payload.status).toBe("answer");
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_fund_source")
+    ).toBe(true);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(false);
+  });
+
+  it("applies barangay filter for parenthesized aggregation scope mention", async () => {
+    await callMessagesRoute({
+      sessionId: session.id,
+      content: "Funding source distribution for FY 2026 (Barangay Pulo)",
+    });
+
+    expect(
+      mockServerRpc.mock.calls.some(
+        ([fn, args]) =>
+          fn === "get_totals_by_fund_source" &&
+          (args as Record<string, unknown>).p_barangay_id === "brgy-3" &&
+          (args as Record<string, unknown>).p_fiscal_year === 2026
+      )
+    ).toBe(true);
+  });
+
+  it("routes fund-source existence query to aggregation list mode", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "What fund sources exist in FY 2026?",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("Fund sources (");
+    expect(assistant.content).not.toContain("Budget totals by fund source");
+
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_fund_source")
+    ).toBe(true);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
     ).toBe(false);
   });
 });

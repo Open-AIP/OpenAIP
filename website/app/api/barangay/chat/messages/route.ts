@@ -9,11 +9,13 @@ import {
   buildLineItemCitationScopeName,
   buildLineItemCitationSnippet,
   buildLineItemScopeDisclosure,
+  extractAipRefCode,
   formatPhpAmount,
   parseLineItemQuestion,
   rerankLineItemCandidates,
   resolveLineItemScopeDecision,
   shouldAskLineItemClarification,
+  isLineItemSpecificQuery,
   toPgVectorLiteral,
   type LineItemMatchCandidate,
   type LineItemRowRecord,
@@ -22,6 +24,7 @@ import {
 } from "@/lib/chat/line-item-routing";
 import { requestPipelineChatAnswer, requestPipelineQueryEmbedding } from "@/lib/chat/pipeline-client";
 import {
+  detectBareBarangayScopeMention,
   detectExplicitBarangayMention,
   normalizeBarangayNameForMatch,
   resolveTotalsScope,
@@ -410,6 +413,20 @@ function isShortClarificationInput(message: string): boolean {
   return message.trim().length > 0 && message.trim().length <= 30;
 }
 
+function isClarificationCancelMessage(message: string): boolean {
+  const normalized = normalizeSelectionText(message);
+  if (!normalized) return false;
+
+  return (
+    normalized === "none of the above" ||
+    normalized === "cancel" ||
+    normalized.startsWith("cancel ") ||
+    normalized === "stop" ||
+    normalized === "nevermind" ||
+    normalized === "never mind"
+  );
+}
+
 function resolveClarificationOptionFromSelection(input: {
   selection: ClarificationSelection;
   options: ChatClarificationOption[];
@@ -636,6 +653,25 @@ function hasAggregationGlobalCue(message: string): boolean {
   );
 }
 
+function isFundSourceListQuery(message: string): boolean {
+  const normalized = message.toLowerCase();
+  const hasFundTopic =
+    normalized.includes("fund source") ||
+    normalized.includes("fund sources") ||
+    normalized.includes("funding source") ||
+    normalized.includes("source of funds") ||
+    normalized.includes("sources of funds");
+  if (!hasFundTopic) return false;
+
+  return (
+    normalized.includes("exist") ||
+    normalized.includes("available") ||
+    normalized.includes("list") ||
+    normalized.includes("show") ||
+    normalized.includes("what are")
+  );
+}
+
 function parseInteger(value: unknown): number | null {
   const parsed = toNumberOrNull(value);
   return parsed === null ? null : Math.trunc(parsed);
@@ -646,6 +682,7 @@ type AggregationScopeDecision = {
   barangayIdUsed: string | null;
   barangayName: string | null;
   unsupportedScopeType: ScopeType | null;
+  clarificationMessage?: string;
 };
 
 type AggregationLogIntent =
@@ -654,29 +691,11 @@ type AggregationLogIntent =
   | "aggregate_totals_by_fund_source"
   | "aggregate_compare_years";
 
-function resolveAggregationScopeDecision(input: {
+async function resolveAggregationScopeDecision(input: {
   message: string;
   scopeResolution: ChatScopeResolution;
   userBarangay: BarangayRef | null;
-}): AggregationScopeDecision {
-  if (hasAggregationGlobalCue(input.message)) {
-    return {
-      scopeReason: "global",
-      barangayIdUsed: null,
-      barangayName: null,
-      unsupportedScopeType: null,
-    };
-  }
-
-  if (input.scopeResolution.mode === "own_barangay" && input.userBarangay) {
-    return {
-      scopeReason: "explicit_our_barangay",
-      barangayIdUsed: input.userBarangay.id,
-      barangayName: input.userBarangay.name,
-      unsupportedScopeType: null,
-    };
-  }
-
+}): Promise<AggregationScopeDecision> {
   if (input.scopeResolution.mode === "named_scopes") {
     const target =
       input.scopeResolution.resolvedTargets.length === 1
@@ -699,6 +718,93 @@ function resolveAggregationScopeDecision(input: {
         unsupportedScopeType: target.scopeType,
       };
     }
+  }
+
+  let cachedBarangays: BarangayRef[] | null = null;
+  const getActiveBarangays = async (): Promise<BarangayRef[]> => {
+    if (cachedBarangays) return cachedBarangays;
+    cachedBarangays = await fetchActiveBarangaysForMatching();
+    return cachedBarangays;
+  };
+
+  const explicitMentionCandidate = detectExplicitBarangayMention(input.message);
+  if (explicitMentionCandidate) {
+    const barangays = await getActiveBarangays();
+    const match = resolveExplicitBarangayByCandidate(explicitMentionCandidate, barangays);
+    if (match.status === "single" && match.barangay) {
+      return {
+        scopeReason: "explicit_barangay",
+        barangayIdUsed: match.barangay.id,
+        barangayName: match.barangay.name,
+        unsupportedScopeType: null,
+      };
+    }
+
+    if (match.status === "ambiguous") {
+      return {
+        scopeReason: "unknown",
+        barangayIdUsed: null,
+        barangayName: null,
+        unsupportedScopeType: null,
+        clarificationMessage:
+          "I found multiple barangays with that name. Please specify the exact barangay name.",
+      };
+    }
+  }
+
+  const shouldCheckBareMention =
+    /\b(?:barangay|brgy\.?)\b/i.test(input.message) || /\b(?:of|for|in)\s+[a-z]/i.test(input.message);
+  if (shouldCheckBareMention) {
+    const barangays = await getActiveBarangays();
+    const knownBarangayNamesNormalized = new Set(
+      barangays
+        .map((barangay) => normalizeBarangayNameForMatch(barangay.name))
+        .filter((normalizedName) => Boolean(normalizedName))
+    );
+    const bareMentionCandidate = detectBareBarangayScopeMention(
+      input.message,
+      knownBarangayNamesNormalized
+    );
+    if (bareMentionCandidate) {
+      const match = resolveExplicitBarangayByCandidate(bareMentionCandidate, barangays);
+      if (match.status === "single" && match.barangay) {
+        return {
+          scopeReason: "explicit_barangay",
+          barangayIdUsed: match.barangay.id,
+          barangayName: match.barangay.name,
+          unsupportedScopeType: null,
+        };
+      }
+
+      if (match.status === "ambiguous") {
+        return {
+          scopeReason: "unknown",
+          barangayIdUsed: null,
+          barangayName: null,
+          unsupportedScopeType: null,
+          clarificationMessage:
+            "I found multiple barangays with that name. Please specify the exact barangay name.",
+        };
+      }
+    }
+  }
+
+  if (hasAggregationGlobalCue(input.message)) {
+    return {
+      scopeReason: "global",
+      barangayIdUsed: null,
+      barangayName: null,
+      unsupportedScopeType: null,
+    };
+  }
+
+  if (input.scopeResolution.mode === "own_barangay" && input.userBarangay) {
+    return {
+      scopeReason: "explicit_our_barangay",
+      barangayIdUsed: input.userBarangay.id,
+      barangayName: input.userBarangay.name,
+      unsupportedScopeType: null,
+    };
   }
 
   return {
@@ -1060,6 +1166,13 @@ async function resolveTotalsScopeTarget(input: {
   explicitBarangay: BarangayRef | null;
   errorMessage?: string;
 }> {
+  let cachedBarangays: BarangayRef[] | null = null;
+  const getActiveBarangays = async (): Promise<BarangayRef[]> => {
+    if (cachedBarangays) return cachedBarangays;
+    cachedBarangays = await fetchActiveBarangaysForMatching();
+    return cachedBarangays;
+  };
+
   const resolved = input.scopeResolution.resolvedTargets;
   if (resolved.length > 1) {
     return {
@@ -1088,8 +1201,40 @@ async function resolveTotalsScopeTarget(input: {
 
   const explicitMentionCandidate = detectExplicitBarangayMention(input.message);
   if (explicitMentionCandidate) {
-    const barangays = await fetchActiveBarangaysForMatching();
+    const barangays = await getActiveBarangays();
     const match = resolveExplicitBarangayByCandidate(explicitMentionCandidate, barangays);
+    if (match.status === "single" && match.barangay) {
+      return {
+        target: {
+          scopeType: "barangay",
+          scopeId: match.barangay.id,
+          scopeName: match.barangay.name,
+        },
+        explicitBarangay: match.barangay,
+      };
+    }
+    if (match.status === "ambiguous") {
+      return {
+        target: null,
+        explicitBarangay: null,
+        errorMessage:
+          "I found multiple barangays with that name. Please specify the exact barangay name.",
+      };
+    }
+  }
+
+  const barangays = await getActiveBarangays();
+  const knownBarangayNamesNormalized = new Set(
+    barangays
+      .map((barangay) => normalizeBarangayNameForMatch(barangay.name))
+      .filter((normalizedName) => Boolean(normalizedName))
+  );
+  const bareMentionCandidate = detectBareBarangayScopeMention(
+    input.message,
+    knownBarangayNamesNormalized
+  );
+  if (bareMentionCandidate) {
+    const match = resolveExplicitBarangayByCandidate(bareMentionCandidate, barangays);
     if (match.status === "single" && match.barangay) {
       return {
         target: {
@@ -1656,6 +1801,8 @@ export async function POST(request: Request) {
     const parsedLineItemQuestion = parseLineItemQuestion(content);
     const requestedFiscalYear = extractFiscalYear(content);
     const aggregationIntent = detectAggregationIntent(content);
+    const shouldDeferAggregation =
+      aggregationIntent.intent === "totals_by_fund_source" && isLineItemSpecificQuery(content);
     const userBarangay = await resolveUserBarangay(actor);
     const lineItemScope = resolveLineItemScopeDecision({
       question: parsedLineItemQuestion,
@@ -1808,6 +1955,46 @@ export async function POST(request: Request) {
         }
       }
 
+      if (!selectedOption && isClarificationCancelMessage(content)) {
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content: "Okay - please restate the project title or provide the Ref code.",
+          citations: [
+            makeSystemCitation("Clarification flow cancelled by user.", {
+              reason: "clarification_cancelled",
+              clarification_id: pendingClarification.payload.id,
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "ok",
+            status: "answer",
+            kind: "clarification_resolved",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: "clarification_needed",
+          route: "row_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: lineItemScope.scopeReason,
+          barangay_id_used: lineItemScope.barangayIdUsed,
+          match_count_used: null,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: true,
+          vector_called: false,
+        });
+
+        return NextResponse.json(chatResponsePayload({
+          sessionId: session.id,
+          userMessage,
+          assistantMessage,
+        }), { status: 200 });
+      }
+
       if (!selectedOption && isShortClarificationInput(content)) {
         const reminderPayload: ChatClarificationPayload = {
           id: pendingClarification.payload.id,
@@ -1860,8 +2047,8 @@ export async function POST(request: Request) {
       }
     }
 
-    if (aggregationIntent.intent !== "none") {
-      const aggregationScope = resolveAggregationScopeDecision({
+    if (aggregationIntent.intent !== "none" && !shouldDeferAggregation) {
+      const aggregationScope = await resolveAggregationScopeDecision({
         message: content,
         scopeResolution,
         userBarangay,
@@ -1871,6 +2058,48 @@ export async function POST(request: Request) {
         aggregationIntent.intent === "compare_years" ? null : requestedFiscalYear;
       const aggregationLimit =
         aggregationIntent.intent === "top_projects" ? aggregationIntent.limit ?? 10 : null;
+
+      if (aggregationScope.clarificationMessage) {
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content: aggregationScope.clarificationMessage,
+          citations: [
+            makeSystemCitation("Aggregation scope clarification required.", {
+              reason: "aggregation_scope_ambiguous_barangay_name",
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "clarification_needed",
+            status: "clarification",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: aggregationLogIntent,
+          route: "aggregate_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: aggregationScope.scopeReason,
+          barangay_id_used: null,
+          match_count_used: null,
+          limit_used: aggregationLimit,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: true,
+          vector_called: false,
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
 
       if (aggregationScope.unsupportedScopeType === "city" || aggregationScope.unsupportedScopeType === "municipality") {
         const assistantMessage = await appendAssistantMessage({
@@ -2159,17 +2388,28 @@ export async function POST(request: Request) {
           }
 
           const rows = toTotalsByFundSourceRows(data);
+          const listOnly = isFundSourceListQuery(content);
           const contentLines =
             rows.length === 0
               ? ["No published AIP line items matched the selected filters."]
-              : rows.map((row, index) => {
-                  const label = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
-                  return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.fund_total))} (${parseInteger(row.count_items) ?? 0} items)`;
-                });
+              : listOnly
+                ? Array.from(
+                    new Set(
+                      rows
+                        .map((row) => (row.fund_source ?? "Unspecified").trim() || "Unspecified")
+                        .sort((a, b) => a.localeCompare(b))
+                    )
+                  ).map((label, index) => `${index + 1}. ${label}`)
+                : rows.map((row, index) => {
+                    const label = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+                    return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.fund_total))} (${parseInteger(row.count_items) ?? 0} items)`;
+                  });
 
           const assistantMessage = await appendAssistantMessage({
             sessionId: session.id,
-            content: `Budget totals by fund source (${scopeLabel}; ${fiscalLabel}):\n${contentLines.join("\n")}`,
+            content: listOnly
+              ? `Fund sources (${scopeLabel}; ${fiscalLabel}):\n${contentLines.join("\n")}`
+              : `Budget totals by fund source (${scopeLabel}; ${fiscalLabel}):\n${contentLines.join("\n")}`,
             citations: [
               makeAggregateCitation("Aggregated from published AIP line items.", {
                 aggregated: true,
@@ -2177,6 +2417,7 @@ export async function POST(request: Request) {
                 aggregate_type: "totals_by_fund_source",
                 fiscal_year_filter: fiscalYearForAggregation,
                 barangay_id_filter: aggregationScope.barangayIdUsed,
+                output_mode: listOnly ? "fund_source_list" : "totals_with_counts",
               }),
             ],
             retrievalMeta: {
@@ -2367,9 +2608,286 @@ export async function POST(request: Request) {
     if (parsedLineItemQuestion.isFactQuestion) {
       let vectorRpcCalled = false;
       try {
-        const embeddedQuery = await requestPipelineQueryEmbedding({ text: content });
         const barangayFilterId = lineItemScope.barangayIdUsed;
         const matchCount = barangayFilterId === null && requestedFiscalYear === null ? 40 : 20;
+        const refCode = extractAipRefCode(content);
+
+        if (refCode) {
+          let refQuery = client
+            .from("aip_line_items")
+            .select(
+              "id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title,implementing_agency,start_date,end_date,fund_source,ps,mooe,co,fe,total,expected_output,page_no,row_no,table_no"
+            )
+            .ilike("aip_ref_code", refCode);
+
+          if (requestedFiscalYear !== null) {
+            refQuery = refQuery.eq("fiscal_year", requestedFiscalYear);
+          }
+          if (barangayFilterId !== null) {
+            refQuery = refQuery.eq("barangay_id", barangayFilterId);
+          }
+
+          const { data: refData, error: refError } = await refQuery.limit(30);
+          if (refError) {
+            throw new Error(refError.message);
+          }
+
+          let refRows = toLineItemRows(refData);
+          if (refRows.length > 0) {
+            const admin = supabaseAdmin();
+            const candidateAipIds = refRows
+              .map((row) => row.aip_id)
+              .filter((aipId, index, all) => Boolean(aipId) && all.indexOf(aipId) === index);
+
+            if (candidateAipIds.length > 0) {
+              let publishedAipQuery = admin
+                .from("aips")
+                .select("id")
+                .in("id", candidateAipIds)
+                .eq("status", "published");
+
+              if (requestedFiscalYear !== null) {
+                publishedAipQuery = publishedAipQuery.eq("fiscal_year", requestedFiscalYear);
+              }
+
+              if (barangayFilterId !== null) {
+                publishedAipQuery = publishedAipQuery.eq("barangay_id", barangayFilterId);
+              }
+
+              const { data: publishedAips, error: publishedError } = await publishedAipQuery;
+              if (publishedError) {
+                throw new Error(publishedError.message);
+              }
+
+              const publishedAipIds = new Set(
+                (publishedAips ?? [])
+                  .map((row) => (row as { id?: string }).id ?? null)
+                  .filter((id): id is string => Boolean(id))
+              );
+              refRows = refRows.filter((row) => publishedAipIds.has(row.aip_id));
+            } else {
+              refRows = [];
+            }
+          }
+
+          if (refRows.length === 0) {
+            const fyLabel = requestedFiscalYear !== null ? `FY ${requestedFiscalYear}` : "any fiscal year";
+            const scopeLabel =
+              barangayFilterId !== null
+                ? normalizeBarangayLabel(scopeBarangayName ?? "your barangay")
+                : "all barangays";
+
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content:
+                `I couldn't find a published line item with Ref ${refCode} ` +
+                `(${fyLabel}; ${scopeLabel}). Please verify the Ref code or try loosening the filters.`,
+              citations: [
+                makeSystemCitation("No published line item matched the requested Ref code.", {
+                  reason: "line_item_ref_not_found",
+                  ref_code: refCode,
+                  fiscal_year: requestedFiscalYear,
+                  barangay_id: barangayFilterId,
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logNonTotalsRouting({
+              request_id: requestId,
+              intent: "line_item_fact",
+              route: "row_sql",
+              fiscal_year_parsed: requestedFiscalYear,
+              scope_reason: lineItemScope.scopeReason,
+              barangay_id_used: lineItemScope.barangayIdUsed,
+              match_count_used: null,
+              top_candidate_ids: [],
+              top_candidate_distances: [],
+              answered: true,
+              vector_called: false,
+            });
+
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          if (refRows.length === 1) {
+            const selectedRow = refRows[0];
+            const rowBarangayNameMap = await fetchBarangayNameMap(
+              selectedRow.barangay_id ? [selectedRow.barangay_id] : []
+            );
+            const resolvedRowBarangayName =
+              selectedRow.barangay_id && rowBarangayNameMap.has(selectedRow.barangay_id)
+                ? rowBarangayNameMap.get(selectedRow.barangay_id) ?? scopeBarangayName
+                : scopeBarangayName;
+
+            const scopeDisclosure = buildLineItemScopeDisclosure({
+              scopeReason: lineItemScope.scopeReason,
+              barangayName: resolvedRowBarangayName,
+            });
+            const assistantContent = buildLineItemAnswer({
+              row: selectedRow,
+              fields: parsedLineItemQuestion.factFields,
+              scopeDisclosure,
+            });
+
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content: assistantContent,
+              citations: [
+                {
+                  sourceId: "L1",
+                  aipId: selectedRow.aip_id,
+                  fiscalYear: selectedRow.fiscal_year,
+                  scopeType: selectedRow.barangay_id ? "barangay" : "unknown",
+                  scopeId: selectedRow.barangay_id,
+                  scopeName: buildLineItemCitationScopeName({
+                    title: selectedRow.program_project_title,
+                    fiscalYear: selectedRow.fiscal_year,
+                    barangayName: resolvedRowBarangayName,
+                    scopeReason: lineItemScope.scopeReason,
+                  }),
+                  snippet: buildLineItemCitationSnippet(selectedRow),
+                  insufficient: false,
+                  metadata: {
+                    type: "aip_line_item",
+                    line_item_id: selectedRow.id,
+                    aip_ref_code: selectedRow.aip_ref_code,
+                    page_no: selectedRow.page_no,
+                    row_no: selectedRow.row_no,
+                    table_no: selectedRow.table_no,
+                    aip_id: selectedRow.aip_id,
+                    fiscal_year: selectedRow.fiscal_year,
+                    barangay_id: selectedRow.barangay_id,
+                    total: formatPhpAmount(selectedRow.total),
+                    scope_reason: lineItemScope.scopeReason,
+                    matched_by: "exact_ref_code",
+                  },
+                },
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+                contextCount: 1,
+              },
+            });
+            logNonTotalsRouting({
+              request_id: requestId,
+              intent: "line_item_fact",
+              route: "row_sql",
+              fiscal_year_parsed: requestedFiscalYear,
+              scope_reason: lineItemScope.scopeReason,
+              barangay_id_used: lineItemScope.barangayIdUsed,
+              match_count_used: null,
+              top_candidate_ids: [selectedRow.id],
+              top_candidate_distances: [],
+              answered: true,
+              vector_called: false,
+            });
+
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          const limitedRows = refRows.slice(0, 3);
+          const rowBarangayNameMap = await fetchBarangayNameMap(
+            limitedRows
+              .map((row) => row.barangay_id)
+              .filter((barangayId): barangayId is string => Boolean(barangayId))
+          );
+          const clarificationPayload: ChatClarificationPayload = {
+            id: randomUUID(),
+            kind: "line_item_disambiguation",
+            prompt: "I found multiple published line items with that Ref code. Which one did you mean?",
+            options: limitedRows.map((row, index) => ({
+              optionIndex: index + 1,
+              lineItemId: row.id,
+              title: row.program_project_title,
+              refCode: row.aip_ref_code,
+              fiscalYear: row.fiscal_year,
+              barangayName:
+                row.barangay_id && rowBarangayNameMap.has(row.barangay_id)
+                  ? normalizeBarangayLabel(rowBarangayNameMap.get(row.barangay_id) ?? "")
+                  : scopeBarangayName,
+              total: toClarificationTotal(row.total),
+            })),
+          };
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: buildClarificationPromptContent(clarificationPayload),
+            citations: [
+              makeSystemCitation("Multiple published line-item rows share the requested Ref code.", {
+                reason: "line_item_ref_ambiguous",
+                ref_code: refCode,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "clarification_needed",
+              status: "clarification",
+              kind: "clarification",
+              clarification: {
+                ...clarificationPayload,
+                context: {
+                  factFields: parsedLineItemQuestion.factFields,
+                  scopeReason: lineItemScope.scopeReason,
+                  barangayName: scopeBarangayName,
+                },
+              },
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              contextCount: refRows.length,
+            },
+          });
+          logClarificationLifecycle({
+            request_id: requestId,
+            event: "clarification_created",
+            session_id: session.id,
+            clarification_id: clarificationPayload.id,
+            option_count: clarificationPayload.options.length,
+            top_candidate_ids: limitedRows.map((row) => row.id),
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "clarification_needed",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: lineItemScope.scopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: null,
+            top_candidate_ids: limitedRows.map((row) => row.id),
+            top_candidate_distances: [],
+            answered: false,
+            vector_called: false,
+          });
+
+          return NextResponse.json(chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }), { status: 200 });
+        }
+
+        const embeddedQuery = await requestPipelineQueryEmbedding({ text: content });
 
         vectorRpcCalled = true;
         const { data: rpcData, error: rpcError } = await client.rpc("match_aip_line_items", {

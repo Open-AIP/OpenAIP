@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMatchMetric } from "@/lib/chat/match-metric";
 import { cn } from "@/ui/utils";
 import type { ChatMessageBubble as ChatMessageBubbleType } from "../types/chat.types";
 
@@ -37,24 +38,26 @@ export default function ChatMessageBubble({
 
         {!isUser && message.citations.length > 0 && (
           <div className="mt-3 space-y-2 border-t pt-2">
-            {message.citations.map((citation) => (
-              <div key={`${message.id}:${citation.sourceId}:${citation.chunkId ?? "chunk"}`} className="rounded-md border bg-background px-2 py-1.5">
+            {message.citations.map((citation) => {
+              const metric = formatMatchMetric({
+                distance: citation.distance,
+                matchScore: citation.matchScore,
+                similarity: citation.similarity,
+              });
+
+              return (
+                <div key={`${message.id}:${citation.sourceId}:${citation.chunkId ?? "chunk"}`} className="rounded-md border bg-background px-2 py-1.5">
                 <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   <span>{citation.sourceId}</span>
                   <span>{citation.scopeName ?? "Unknown scope"}</span>
                   <span>{citation.scopeType ?? "unknown"}</span>
                   {typeof citation.fiscalYear === "number" && <span>FY {citation.fiscalYear}</span>}
-                  {typeof citation.distance === "number" ? (
-                    <span>DIST {citation.distance.toFixed(3)}</span>
-                  ) : typeof citation.matchScore === "number" ? (
-                    <span>MATCH {(citation.matchScore * 100).toFixed(1)}%</span>
-                  ) : typeof citation.similarity === "number" ? (
-                    <span>MATCH {(citation.similarity * 100).toFixed(1)}%</span>
-                  ) : null}
+                  {metric.label && metric.value ? <span>{metric.label} {metric.value}</span> : null}
                 </div>
                 <div className="mt-1 text-[12px] leading-snug">{citation.snippet}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

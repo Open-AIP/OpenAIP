@@ -29,13 +29,22 @@ describe("ChatMessageBubble", () => {
               snippet: "Snippet B",
               matchScore: 0.75,
             },
+            {
+              sourceId: "L3",
+              scopeName: "Barangay Mamatid - FY 2026 - Legacy",
+              scopeType: "barangay",
+              fiscalYear: 2026,
+              snippet: "Snippet C",
+              similarity: 0.64,
+            },
           ],
         }}
       />
     );
 
     expect(screen.getByText("DIST 0.235")).toBeInTheDocument();
-    expect(screen.getByText("MATCH 75.0%")).toBeInTheDocument();
+    expect(screen.getByText("MATCH 75%")).toBeInTheDocument();
+    expect(screen.getByText("MATCH 64%")).toBeInTheDocument();
     expect(screen.queryByText(/sim/i)).not.toBeInTheDocument();
   });
 

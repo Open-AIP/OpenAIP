@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildLineItemAnswer,
   buildLineItemScopeDisclosure,
+  extractAipRefCode,
+  isLineItemSpecificQuery,
   parseLineItemQuestion,
   rerankLineItemCandidates,
   resolveLineItemScopeDecision,
@@ -10,6 +12,38 @@ import {
 } from "@/lib/chat/line-item-routing";
 
 describe("line-item routing helpers", () => {
+  it("extracts strict 4-part AIP ref code", () => {
+    expect(extractAipRefCode("What is the fund source for Ref 8000-003-002-006 (FY 2026)?")).toBe(
+      "8000-003-002-006"
+    );
+  });
+
+  it("extracts supported hyphenated ref variant", () => {
+    expect(extractAipRefCode("Tell me details for ref 1000-a-001 in FY 2026")).toBe(
+      "1000-A-001"
+    );
+  });
+
+  it("returns null when no recognizable ref code is present", () => {
+    expect(extractAipRefCode("What is the fund source for Road Concreting in FY 2026?")).toBe(
+      null
+    );
+  });
+
+  it("detects project-specific fund source question as line-item specific", () => {
+    expect(
+      isLineItemSpecificQuery(
+        "In FY 2026, what is the fund source for Road Concreting in Barangay Mamatid?"
+      )
+    ).toBe(true);
+  });
+
+  it("does not classify aggregate fund-source totals query as line-item specific", () => {
+    expect(
+      isLineItemSpecificQuery("Budget totals by fund source for FY 2026 in Barangay Mamatid")
+    ).toBe(false);
+  });
+
   it("defaults to user barangay scope and includes account-scope disclosure", () => {
     const parsed = parseLineItemQuestion(
       "How much is allocated for Honoraria - Administrative in FY 2026 and what's the schedule?"
@@ -94,6 +128,41 @@ describe("line-item routing helpers", () => {
     expect(answer).toContain("total allocation: PHP 1,200.00");
     expect(answer).toContain("schedule: 2026-01-01 to 2026-12-31");
     expect(answer).toContain("based on your account scope");
+  });
+
+  it("keeps project-specific fund source answers as a single fact response style", () => {
+    const parsed = parseLineItemQuestion(
+      "In FY 2026, what is the fund source for Road Concreting in Barangay Mamatid?"
+    );
+    const row: LineItemRowRecord = {
+      id: "line-road-1",
+      aip_id: "aip-1",
+      fiscal_year: 2026,
+      barangay_id: "brgy-1",
+      aip_ref_code: "1000-001-000-001",
+      program_project_title: "Road Concreting",
+      implementing_agency: "Barangay Engineering Office",
+      start_date: "2026-03-01",
+      end_date: "2026-10-31",
+      fund_source: "External Source (Loan)",
+      ps: null,
+      mooe: null,
+      co: 5000000,
+      fe: null,
+      total: 5000000,
+      expected_output: "Concreted barangay roads",
+      page_no: 4,
+      row_no: 10,
+      table_no: 1,
+    };
+
+    const answer = buildLineItemAnswer({
+      row,
+      fields: parsed.factFields,
+      scopeDisclosure: null,
+    });
+    expect(answer).toContain("fund source: External Source (Loan)");
+    expect(answer).not.toContain("Budget totals by fund source");
   });
 
   it("asks clarification when top candidates are close and titles differ", () => {

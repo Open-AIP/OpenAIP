@@ -7,7 +7,7 @@ describe("formatTotalsEvidence", () => {
       "Budget Summary | TOTAL INVESTMENT PROGRAM: 219,215,479.00 Prepared by: ABC Approved by: XYZ"
     );
 
-    expect(formatted).toBe("TOTAL INVESTMENT PROGRAM: 219,215,479.00");
+    expect(formatted).toBe("TOTAL INVESTMENT PROGRAM 219,215,479.00");
     expect(formatted).not.toContain("Prepared by");
     expect(formatted).not.toContain("Approved by");
   });
@@ -27,5 +27,15 @@ describe("formatTotalsEvidence", () => {
 
     expect(formatted.length).toBeLessThanOrEqual(180);
     expect(formatted).toContain("This text has no totals keyword");
+  });
+
+  it("extracts a concise grand total snippet from noisy investment program lines", () => {
+    const formatted = formatTotalsEvidence(
+      "INVESTMENT | PROGRAM Grand Total 11,111.11 22,222.22 33,333.33 65,824,308.28 Reviewed by: Unit Head"
+    );
+
+    expect(formatted).toContain("INVESTMENT PROGRAM Grand Total 65,824,308.28");
+    expect(formatted).not.toContain("11,111.11");
+    expect(formatted).not.toContain("Reviewed by");
   });
 });

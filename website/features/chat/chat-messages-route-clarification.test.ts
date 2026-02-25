@@ -505,4 +505,22 @@ describe("chat messages clarification state machine", () => {
     const assistant = payload.assistantMessage as { content: string };
     expect(assistant.content).toContain("Please reply with 1-3, or type the Ref code.");
   });
+
+  it("exits clarification loop on explicit cancel phrase", async () => {
+    await callMessagesRoute({
+      sessionId: "session-1",
+      content: "How much is the honoraria in FY 2026 and what's the schedule?",
+    });
+
+    const { payload } = await callMessagesRoute({
+      sessionId: "session-1",
+      content: "none of the above",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("Okay - please restate the project title or provide the Ref code.");
+    expect(mockRequestPipelineQueryEmbedding).toHaveBeenCalledTimes(1);
+    expect(mockMatchLineItemsRpc).toHaveBeenCalledTimes(1);
+  });
 });

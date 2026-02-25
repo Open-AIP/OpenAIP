@@ -37,6 +37,24 @@ function parseTopLimit(normalized: string): number {
   return Math.max(1, Math.min(parsed, 50));
 }
 
+function hasFundSourceExistListCue(normalized: string): boolean {
+  const hasFundTopic =
+    normalized.includes("fund source") ||
+    normalized.includes("fund sources") ||
+    normalized.includes("funding source") ||
+    normalized.includes("source of funds") ||
+    normalized.includes("sources of funds");
+  if (!hasFundTopic) return false;
+
+  return (
+    normalized.includes("exist") ||
+    normalized.includes("available") ||
+    normalized.includes("list") ||
+    normalized.includes("show") ||
+    normalized.includes("what are")
+  );
+}
+
 export function detectAggregationIntent(message: string): AggregationIntentResult {
   const normalized = normalizeAggregationText(message);
   if (!normalized) return { intent: "none" };
@@ -69,14 +87,44 @@ export function detectAggregationIntent(message: string): AggregationIntentResul
     return { intent: "totals_by_sector" };
   }
 
-  const hasFundCue =
-    normalized.includes("by fund") ||
+  if (hasFundSourceExistListCue(normalized)) {
+    return { intent: "totals_by_fund_source" };
+  }
+
+  const hasFundTopic =
     normalized.includes("fund source") ||
-    normalized.includes("loan vs") ||
-    normalized.includes("external source") ||
+    normalized.includes("fund sources") ||
+    normalized.includes("funding source") ||
+    normalized.includes("source of funds") ||
+    normalized.includes("sources of funds") ||
+    normalized.includes("funded by") ||
+    normalized.includes("by fund") ||
+    normalized.includes("loan") ||
+    normalized.includes("loans") ||
     normalized.includes("general fund") ||
-    normalized.includes("funding source totals");
-  if (hasFundCue) {
+    normalized.includes("external source");
+  const hasFundAggregationCue =
+    normalized.includes("totals") ||
+    normalized.includes("total") ||
+    normalized.includes("breakdown") ||
+    normalized.includes("distribution") ||
+    normalized.includes("summary") ||
+    normalized.includes("by fund source") ||
+    normalized.includes("fund source totals") ||
+    normalized.includes("fund source breakdown") ||
+    normalized.includes("breakdown by fund") ||
+    normalized.includes("distribution by fund") ||
+    normalized.includes("loan vs") ||
+    normalized.includes("loans vs") ||
+    normalized.includes("vs") ||
+    normalized.includes("versus") ||
+    normalized.includes("compare") ||
+    normalized.includes("comparison") ||
+    normalized.includes("difference") ||
+    /how much is funded by .* (vs|versus) .*/.test(normalized) ||
+    /(loan|loans)\s+(vs|versus)\s+general fund/.test(normalized) ||
+    /general fund\s+(vs|versus)\s+(loan|loans|external source)/.test(normalized);
+  if (hasFundTopic && hasFundAggregationCue) {
     return { intent: "totals_by_fund_source" };
   }
 

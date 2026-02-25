@@ -9,6 +9,25 @@ export type ChatCitationScopeType =
   | "unknown"
   | "system";
 
+export type ChatResponseStatus = "answer" | "clarification" | "refusal";
+
+export type ChatClarificationOption = {
+  optionIndex: number;
+  lineItemId: string;
+  title: string;
+  refCode: string | null;
+  fiscalYear: number | null;
+  barangayName: string | null;
+  total: string | null;
+};
+
+export type ChatClarificationPayload = {
+  id: string;
+  kind: "line_item_disambiguation";
+  prompt: string;
+  options: ChatClarificationOption[];
+};
+
 export type ChatCitation = {
   sourceId: string;
   chunkId?: string | null;
@@ -52,6 +71,7 @@ export type ChatRetrievalMeta = {
   reason:
     | "ok"
     | "insufficient_evidence"
+    | "clarification_needed"
     | "verifier_failed"
     | "ambiguous_scope"
     | "pipeline_error"
@@ -63,6 +83,19 @@ export type ChatRetrievalMeta = {
   verifierPassed?: boolean;
   scopeResolution?: ChatScopeResolution;
   latencyMs?: number;
+  status?: ChatResponseStatus;
+  kind?: "clarification" | "clarification_resolved";
+  clarification?: ChatClarificationPayload & {
+    context?: {
+      factFields: string[];
+      scopeReason: string;
+      barangayName: string | null;
+    };
+  };
+  clarificationResolution?: {
+    clarificationId: string;
+    selectedLineItemId: string;
+  };
 };
 
 export const ChatRepoErrors = {

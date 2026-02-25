@@ -9,6 +9,9 @@ export default function ChatMessageBubble({
   message: ChatMessageBubbleType;
 }) {
   const isUser = message.role === "user";
+  const resolvedStatus =
+    message.retrievalMeta?.status ??
+    (message.retrievalMeta?.refused ? "refusal" : "answer");
 
   return (
     <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
@@ -20,7 +23,13 @@ export default function ChatMessageBubble({
       >
         <div className="whitespace-pre-line">{message.content}</div>
 
-        {!isUser && message.retrievalMeta?.refused && (
+        {!isUser && resolvedStatus === "clarification" && (
+          <div className="mt-2 rounded-md border border-sky-300/60 bg-sky-50 px-2 py-1 text-[11px] text-sky-900">
+            Clarification needed.
+          </div>
+        )}
+
+        {!isUser && resolvedStatus === "refusal" && (
           <div className="mt-2 rounded-md border border-amber-300/60 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
             Grounded refusal: insufficient or unverified evidence.
           </div>

@@ -16,6 +16,7 @@ import {
   toPgVectorLiteral,
   type LineItemMatchCandidate,
   type LineItemRowRecord,
+  type LineItemFactField,
   type LineItemScopeReason,
 } from "@/lib/chat/line-item-routing";
 import { requestPipelineChatAnswer, requestPipelineQueryEmbedding } from "@/lib/chat/pipeline-client";
@@ -32,7 +33,15 @@ import type { PipelineChatCitation } from "@/lib/chat/types";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getChatRepo } from "@/lib/repos/chat/repo.server";
-import type { ChatCitation, ChatMessage, ChatRetrievalMeta, ChatScopeResolution } from "@/lib/repos/chat/types";
+import type {
+  ChatCitation,
+  ChatClarificationOption,
+  ChatClarificationPayload,
+  ChatMessage,
+  ChatResponseStatus,
+  ChatRetrievalMeta,
+  ChatScopeResolution,
+} from "@/lib/repos/chat/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -145,6 +154,44 @@ type NonTotalsRoutingLogPayload = {
   answered: boolean;
   // vector_called means the row-match RPC was called (not the query-embedding call).
   vector_called: boolean;
+};
+
+type ClarificationLifecycleLogPayload =
+  | {
+      request_id: string;
+      event: "clarification_created";
+      session_id: string;
+      clarification_id: string;
+      option_count: number;
+      top_candidate_ids: string[];
+    }
+  | {
+      request_id: string;
+      event: "clarification_resolved";
+      session_id: string;
+      clarification_id: string;
+      selected_line_item_id: string;
+    };
+
+type ClarificationSelection =
+  | { kind: "numeric"; optionIndex: number }
+  | { kind: "ref"; refCode: string }
+  | { kind: "title"; titleQuery: string };
+
+type PendingClarificationRecord = {
+  messageId: string;
+  payload: ChatClarificationPayload & {
+    context?: {
+      factFields: string[];
+      scopeReason: string;
+      barangayName: string | null;
+    };
+  };
+};
+
+type AssistantMetaRow = {
+  id: string;
+  retrieval_meta: unknown | null;
 };
 
 function toChatMessage(row: ChatMessageRow): ChatMessage {
@@ -264,6 +311,152 @@ function toNumberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeSelectionText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeRefCode(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = value.toLowerCase().replace(/[^a-z0-9-]/g, "").trim();
+  return normalized || null;
+}
+
+function parseClarificationSelection(message: string): ClarificationSelection | null {
+  const trimmed = message.trim();
+  if (!trimmed) return null;
+
+  if (/^\d+$/.test(trimmed)) {
+    return {
+      kind: "numeric",
+      optionIndex: Number.parseInt(trimmed, 10),
+    };
+  }
+
+  const refMatch = trimmed.match(/ref\s*([a-z0-9-]+)/i);
+  if (refMatch?.[1]) {
+    return {
+      kind: "ref",
+      refCode: refMatch[1],
+    };
+  }
+
+  return {
+    kind: "title",
+    titleQuery: trimmed,
+  };
+}
+
+function isShortClarificationInput(message: string): boolean {
+  return message.trim().length > 0 && message.trim().length <= 30;
+}
+
+function resolveClarificationOptionFromSelection(input: {
+  selection: ClarificationSelection;
+  options: ChatClarificationOption[];
+}): ChatClarificationOption | null {
+  if (input.selection.kind === "numeric") {
+    const option = input.options.find((item) => item.optionIndex === input.selection.optionIndex);
+    return option ?? null;
+  }
+
+  if (input.selection.kind === "ref") {
+    const normalizedSelectionRef = normalizeRefCode(input.selection.refCode);
+    if (!normalizedSelectionRef) return null;
+    const matches = input.options.filter((item) => normalizeRefCode(item.refCode) === normalizedSelectionRef);
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  const normalizedQuery = normalizeSelectionText(input.selection.titleQuery);
+  if (normalizedQuery.length < 3) return null;
+  const titleMatches = input.options.filter((item) =>
+    normalizeSelectionText(item.title).includes(normalizedQuery)
+  );
+  return titleMatches.length === 1 ? titleMatches[0] : null;
+}
+
+function parseFactFields(input: string[] | undefined): LineItemFactField[] {
+  const fields = new Set<LineItemFactField>();
+  for (const raw of input ?? []) {
+    if (
+      raw === "amount" ||
+      raw === "schedule" ||
+      raw === "fund_source" ||
+      raw === "implementing_agency" ||
+      raw === "expected_output"
+    ) {
+      fields.add(raw);
+    }
+  }
+  return Array.from(fields);
+}
+
+function buildClarificationPromptContent(payload: ChatClarificationPayload): string {
+  return `${payload.prompt}\n${payload.options
+    .map(
+      (option) =>
+        `${option.optionIndex}. ${option.title}` +
+        (option.refCode ? ` (Ref ${option.refCode})` : "") +
+        (option.total ? ` - Total: ${option.total}` : "") +
+        (option.fiscalYear ? ` - FY ${option.fiscalYear}` : "") +
+        (option.barangayName ? ` - ${option.barangayName}` : "")
+    )
+    .join("\n")}`;
+}
+
+function toClarificationTotal(value: number | null): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return formatPhpAmount(value);
+}
+
+function buildStructuredClarificationOptions(input: {
+  candidates: Array<{
+    line_item_id: string;
+    program_project_title: string;
+    aip_ref_code: string | null;
+    fiscal_year: number | null;
+  }>;
+  rowsById: Map<string, LineItemRowRecord>;
+  defaultBarangayName: string | null;
+}): ChatClarificationOption[] {
+  const options: ChatClarificationOption[] = [];
+  const seenLineItemIds = new Set<string>();
+
+  for (const candidate of input.candidates) {
+    if (seenLineItemIds.has(candidate.line_item_id)) continue;
+    seenLineItemIds.add(candidate.line_item_id);
+
+    const row = input.rowsById.get(candidate.line_item_id) ?? null;
+    const title = (row?.program_project_title || candidate.program_project_title || "").trim();
+    if (!title) continue;
+
+    const refCode = (row?.aip_ref_code ?? candidate.aip_ref_code ?? "").trim() || null;
+    const fiscalYear =
+      typeof row?.fiscal_year === "number"
+        ? row.fiscal_year
+        : typeof candidate.fiscal_year === "number"
+          ? candidate.fiscal_year
+          : null;
+
+    options.push({
+      optionIndex: options.length + 1,
+      lineItemId: candidate.line_item_id,
+      title,
+      refCode,
+      fiscalYear,
+      barangayName: input.defaultBarangayName,
+      total: toClarificationTotal(row?.total ?? null),
+    });
+
+    if (options.length >= 3) break;
+  }
+
+  return options;
+}
+
 function toLineItemRows(value: unknown): LineItemRowRecord[] {
   if (!Array.isArray(value)) return [];
   const rows: LineItemRowRecord[] = [];
@@ -358,6 +551,60 @@ function logNonTotalsRouting(payload: NonTotalsRoutingLogPayload): void {
   console.info(JSON.stringify(payload));
 }
 
+function logClarificationLifecycle(payload: ClarificationLifecycleLogPayload): void {
+  if (!isTotalsDebugEnabled()) return;
+  console.info(JSON.stringify(payload));
+}
+
+function toResponseStatus(
+  retrievalMeta: ChatRetrievalMeta | null | undefined
+): { status: ChatResponseStatus; clarification?: ChatClarificationPayload } {
+  if (!retrievalMeta) {
+    return { status: "answer" };
+  }
+
+  if (retrievalMeta.status === "clarification" || retrievalMeta.kind === "clarification") {
+    return {
+      status: "clarification",
+      clarification: retrievalMeta.clarification
+        ? {
+            id: retrievalMeta.clarification.id,
+            kind: retrievalMeta.clarification.kind,
+            prompt: retrievalMeta.clarification.prompt,
+            options: retrievalMeta.clarification.options,
+          }
+        : undefined,
+    };
+  }
+
+  if (retrievalMeta.status === "refusal" || retrievalMeta.refused) {
+    return { status: "refusal" };
+  }
+
+  return { status: "answer" };
+}
+
+function chatResponsePayload(input: {
+  sessionId: string;
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
+}): {
+  sessionId: string;
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
+  status: ChatResponseStatus;
+  clarification?: ChatClarificationPayload;
+} {
+  const mapped = toResponseStatus(input.assistantMessage.retrievalMeta ?? null);
+  return {
+    sessionId: input.sessionId,
+    userMessage: input.userMessage,
+    assistantMessage: input.assistantMessage,
+    status: mapped.status,
+    ...(mapped.clarification ? { clarification: mapped.clarification } : {}),
+  };
+}
+
 function isExplicitScopeDetected(scopeReason: TotalsScopeReason): boolean {
   return scopeReason === "explicit_barangay" || scopeReason === "explicit_our_barangay";
 }
@@ -395,6 +642,44 @@ async function appendAssistantMessage(params: {
   }
 
   return toChatMessage(data as ChatMessageRow);
+}
+
+async function getLatestPendingClarification(
+  sessionId: string
+): Promise<PendingClarificationRecord | null> {
+  const admin = supabaseAdmin();
+  const { data, error } = await admin
+    .from("chat_messages")
+    .select("id,retrieval_meta")
+    .eq("session_id", sessionId)
+    .eq("role", "assistant")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+
+  const row = data as AssistantMetaRow;
+  const retrievalMeta = row.retrieval_meta as ChatRetrievalMeta | null;
+  if (!retrievalMeta || typeof retrievalMeta !== "object") return null;
+  if (retrievalMeta.kind !== "clarification" && retrievalMeta.status !== "clarification") return null;
+  if (!retrievalMeta.clarification) return null;
+  if (
+    retrievalMeta.clarification.kind !== "line_item_disambiguation" ||
+    !retrievalMeta.clarification.id ||
+    !Array.isArray(retrievalMeta.clarification.options) ||
+    retrievalMeta.clarification.options.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    messageId: row.id,
+    payload: retrievalMeta.clarification,
+  };
 }
 
 async function consumeQuota(userId: string): Promise<{ allowed: boolean; reason: string }> {
@@ -1046,11 +1331,11 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(
-        {
+        chatResponsePayload({
           sessionId: session.id,
           userMessage,
           assistantMessage,
-        },
+        }),
         { status: 200 }
       );
     }
@@ -1107,11 +1392,11 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(
-        {
+        chatResponsePayload({
           sessionId: session.id,
           userMessage,
           assistantMessage,
-        },
+        }),
         { status: 200 }
       );
     }
@@ -1140,6 +1425,191 @@ export async function POST(request: Request) {
             lineItemScope.scopeReason === "default_user_barangay"
           ? userBarangay?.name ?? explicitBarangayTarget?.scopeName ?? null
           : null;
+
+    const pendingClarification = await getLatestPendingClarification(session.id);
+    if (pendingClarification) {
+      const selection = parseClarificationSelection(content);
+      const selectedOption =
+        selection !== null
+          ? resolveClarificationOptionFromSelection({
+              selection,
+              options: pendingClarification.payload.options,
+            })
+          : null;
+
+      if (selectedOption) {
+        const { data: selectedRowData, error: selectedRowError } = await client
+          .from("aip_line_items")
+          .select(
+            "id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title,implementing_agency,start_date,end_date,fund_source,ps,mooe,co,fe,total,expected_output,page_no,row_no,table_no"
+          )
+          .eq("id", selectedOption.lineItemId)
+          .maybeSingle();
+        if (selectedRowError) {
+          throw new Error(selectedRowError.message);
+        }
+
+        const selectedRows = toLineItemRows(selectedRowData ? [selectedRowData] : []);
+        if (selectedRows.length > 0) {
+          const resolvedRow = selectedRows[0];
+          const contextFactFields = parseFactFields(
+            pendingClarification.payload.context?.factFields
+          );
+          const factFields =
+            contextFactFields.length > 0
+              ? contextFactFields
+              : parsedLineItemQuestion.factFields;
+
+          const contextScopeReason = pendingClarification.payload.context?.scopeReason;
+          const resolvedScopeReason =
+            contextScopeReason === "explicit_barangay" ||
+            contextScopeReason === "explicit_our_barangay" ||
+            contextScopeReason === "default_user_barangay" ||
+            contextScopeReason === "global" ||
+            contextScopeReason === "unknown"
+              ? contextScopeReason
+              : lineItemScope.scopeReason;
+
+          const resolvedBarangayName =
+            pendingClarification.payload.context?.barangayName ?? scopeBarangayName;
+
+          const scopeDisclosure = buildLineItemScopeDisclosure({
+            scopeReason: resolvedScopeReason,
+            barangayName: resolvedBarangayName,
+          });
+
+          const assistantContent = buildLineItemAnswer({
+            row: resolvedRow,
+            fields: factFields,
+            scopeDisclosure,
+          });
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: assistantContent,
+            citations: [
+              {
+                sourceId: "L1",
+                aipId: resolvedRow.aip_id,
+                fiscalYear: resolvedRow.fiscal_year,
+                scopeType: resolvedRow.barangay_id ? "barangay" : "unknown",
+                scopeId: resolvedRow.barangay_id,
+                scopeName: buildLineItemCitationScopeName({
+                  title: resolvedRow.program_project_title,
+                  fiscalYear: resolvedRow.fiscal_year,
+                  barangayName: resolvedBarangayName,
+                  scopeReason: resolvedScopeReason,
+                }),
+                snippet: buildLineItemCitationSnippet(resolvedRow),
+                insufficient: false,
+                metadata: {
+                  type: "aip_line_item",
+                  line_item_id: resolvedRow.id,
+                  aip_ref_code: resolvedRow.aip_ref_code,
+                  page_no: resolvedRow.page_no,
+                  row_no: resolvedRow.row_no,
+                  table_no: resolvedRow.table_no,
+                  aip_id: resolvedRow.aip_id,
+                  fiscal_year: resolvedRow.fiscal_year,
+                  barangay_id: resolvedRow.barangay_id,
+                  total: formatPhpAmount(resolvedRow.total),
+                },
+              },
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              status: "answer",
+              kind: "clarification_resolved",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              clarificationResolution: {
+                clarificationId: pendingClarification.payload.id,
+                selectedLineItemId: resolvedRow.id,
+              },
+            },
+          });
+
+          logClarificationLifecycle({
+            request_id: requestId,
+            event: "clarification_resolved",
+            session_id: session.id,
+            clarification_id: pendingClarification.payload.id,
+            selected_line_item_id: resolvedRow.id,
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "line_item_fact",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: resolvedScopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: null,
+            top_candidate_ids: [resolvedRow.id],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+          });
+
+          return NextResponse.json(chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }), { status: 200 });
+        }
+      }
+
+      if (!selectedOption && isShortClarificationInput(content)) {
+        const reminderPayload: ChatClarificationPayload = {
+          id: pendingClarification.payload.id,
+          kind: pendingClarification.payload.kind,
+          prompt: "Please reply with 1-3, or type the Ref code.",
+          options: pendingClarification.payload.options,
+        };
+
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content: buildClarificationPromptContent(reminderPayload),
+          citations: [
+            makeSystemCitation("Clarification reminder: awaiting valid selection.", {
+              reason: "clarification_selection_required",
+              clarification_id: pendingClarification.payload.id,
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "clarification_needed",
+            status: "clarification",
+            kind: "clarification",
+            clarification: {
+              ...reminderPayload,
+              context: pendingClarification.payload.context,
+            },
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: "clarification_needed",
+          route: "row_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: lineItemScope.scopeReason,
+          barangay_id_used: lineItemScope.barangayIdUsed,
+          match_count_used: null,
+          top_candidate_ids: pendingClarification.payload.options.map((option) => option.lineItemId),
+          top_candidate_distances: [],
+          answered: true,
+          vector_called: false,
+        });
+
+        return NextResponse.json(chatResponsePayload({
+          sessionId: session.id,
+          userMessage,
+          assistantMessage,
+        }), { status: 200 });
+      }
+    }
 
     if (parsedLineItemQuestion.isUnanswerableFieldQuestion) {
       const assistantMessage = await appendAssistantMessage({
@@ -1173,11 +1643,11 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json(
-        {
+        chatResponsePayload({
           sessionId: session.id,
           userMessage,
           assistantMessage,
-        },
+        }),
         { status: 200 }
       );
     }
@@ -1242,11 +1712,11 @@ export async function POST(request: Request) {
           });
 
           return NextResponse.json(
-            {
+            chatResponsePayload({
               sessionId: session.id,
               userMessage,
               assistantMessage,
-            },
+            }),
             { status: 200 }
           );
         }
@@ -1281,7 +1751,18 @@ export async function POST(request: Request) {
             candidates: ranked,
           })
         ) {
-          const options = buildClarificationOptions({
+          const structuredOptions = buildStructuredClarificationOptions({
+            candidates: ranked,
+            rowsById,
+            defaultBarangayName: scopeBarangayName,
+          });
+          const clarificationPayload: ChatClarificationPayload = {
+            id: randomUUID(),
+            kind: "line_item_disambiguation",
+            prompt: "Which one did you mean?",
+            options: structuredOptions,
+          };
+          const optionsAsText = buildClarificationOptions({
             candidates: ranked,
             rowsById,
             defaultBarangayName: scopeBarangayName,
@@ -1289,23 +1770,44 @@ export async function POST(request: Request) {
           });
           const assistantMessage = await appendAssistantMessage({
             sessionId: session.id,
-            content: `I found multiple possible line items:\n${options
-              .map((option, index) => `${index + 1}. ${option}`)
-              .join("\n")}\nWhich one did you mean?`,
+            content:
+              structuredOptions.length > 0
+                ? buildClarificationPromptContent(clarificationPayload)
+                : `I found multiple possible line items:\n${optionsAsText
+                    .map((option, index) => `${index + 1}. ${option}`)
+                    .join("\n")}\nWhich one did you mean?`,
             citations: [
               makeSystemCitation("Multiple plausible line-item candidates require clarification.", {
                 reason: "line_item_ambiguous",
-                options,
+                options: structuredOptions.length > 0 ? structuredOptions : optionsAsText,
               }),
             ],
             retrievalMeta: {
-              refused: true,
-              reason: "insufficient_evidence",
+              refused: false,
+              reason: "clarification_needed",
+              status: "clarification",
+              kind: "clarification",
+              clarification: {
+                ...clarificationPayload,
+                context: {
+                  factFields: parsedLineItemQuestion.factFields,
+                  scopeReason: lineItemScope.scopeReason,
+                  barangayName: scopeBarangayName,
+                },
+              },
               scopeResolution,
               latencyMs: Date.now() - startedAt,
               topK: matchCount,
               contextCount: ranked.length,
             },
+          });
+          logClarificationLifecycle({
+            request_id: requestId,
+            event: "clarification_created",
+            session_id: session.id,
+            clarification_id: clarificationPayload.id,
+            option_count: clarificationPayload.options.length,
+            top_candidate_ids: topCandidateIds,
           });
           logNonTotalsRouting({
             request_id: requestId,
@@ -1321,14 +1823,11 @@ export async function POST(request: Request) {
             vector_called: vectorRpcCalled,
           });
 
-          return NextResponse.json(
-            {
-              sessionId: session.id,
-              userMessage,
-              assistantMessage,
-            },
-            { status: 200 }
-          );
+          return NextResponse.json(chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }), { status: 200 });
         }
 
         const selectedRows = candidateIds
@@ -1365,11 +1864,11 @@ export async function POST(request: Request) {
           });
 
           return NextResponse.json(
-            {
+            chatResponsePayload({
               sessionId: session.id,
               userMessage,
               assistantMessage,
-            },
+            }),
             { status: 200 }
           );
         }
@@ -1449,11 +1948,11 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json(
-          {
+          chatResponsePayload({
             sessionId: session.id,
             userMessage,
             assistantMessage,
-          },
+          }),
           { status: 200 }
         );
       } catch (error) {
@@ -1486,11 +1985,11 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json(
-          {
+          chatResponsePayload({
             sessionId: session.id,
             userMessage,
             assistantMessage,
-          },
+          }),
           { status: 200 }
         );
       }
@@ -1571,11 +2070,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      {
+      chatResponsePayload({
         sessionId: session.id,
         userMessage,
         assistantMessage,
-      },
+      }),
       { status: 200 }
     );
   } catch (error) {

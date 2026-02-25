@@ -38,4 +38,60 @@ describe("ChatMessageBubble", () => {
     expect(screen.getByText("MATCH 75.0%")).toBeInTheDocument();
     expect(screen.queryByText(/sim/i)).not.toBeInTheDocument();
   });
+
+  it("shows clarification badge without grounded refusal text", () => {
+    render(
+      <ChatMessageBubble
+        message={{
+          id: "msg-clarification",
+          role: "assistant",
+          content: "Which one did you mean?",
+          timeLabel: "10:01 AM",
+          retrievalMeta: {
+            refused: false,
+            reason: "clarification_needed",
+            status: "clarification",
+          },
+          citations: [
+            {
+              sourceId: "S0",
+              scopeName: "System",
+              scopeType: "system",
+              snippet: "Clarification required",
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByText("Clarification needed.")).toBeInTheDocument();
+    expect(screen.queryByText(/Grounded refusal/i)).not.toBeInTheDocument();
+  });
+
+  it("shows grounded refusal badge for refusal messages", () => {
+    render(
+      <ChatMessageBubble
+        message={{
+          id: "msg-refusal",
+          role: "assistant",
+          content: "I cannot answer right now.",
+          timeLabel: "10:02 AM",
+          retrievalMeta: {
+            refused: true,
+            reason: "insufficient_evidence",
+          },
+          citations: [
+            {
+              sourceId: "S0",
+              scopeName: "System",
+              scopeType: "system",
+              snippet: "Insufficient evidence",
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByText(/Grounded refusal/i)).toBeInTheDocument();
+  });
 });

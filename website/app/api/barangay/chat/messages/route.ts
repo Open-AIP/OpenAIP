@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { formatTotalsEvidence } from "@/lib/chat/evidence";
+import { detectAggregationIntent } from "@/lib/chat/aggregation-intent";
 import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
 import {
   buildClarificationOptions,
@@ -117,6 +118,41 @@ type DbLineItemRow = {
   table_no: number | null;
 };
 
+type RpcTopProjectRow = {
+  line_item_id: string;
+  aip_id: string;
+  fiscal_year: number | null;
+  barangay_id: string | null;
+  aip_ref_code: string | null;
+  program_project_title: string;
+  fund_source: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  total: number | string | null;
+  page_no: number | null;
+  row_no: number | null;
+  table_no: number | null;
+};
+
+type RpcTotalsBySectorRow = {
+  sector_code: string | null;
+  sector_name: string | null;
+  sector_total: number | string | null;
+  count_items: number | string | null;
+};
+
+type RpcTotalsByFundSourceRow = {
+  fund_source: string | null;
+  fund_total: number | string | null;
+  count_items: number | string | null;
+};
+
+type RpcCompareFiscalYearTotalsRow = {
+  year_a_total: number | string | null;
+  year_b_total: number | string | null;
+  delta: number | string | null;
+};
+
 type TotalsAssistantPayload = {
   content: string;
   citations: ChatCitation[];
@@ -143,12 +179,21 @@ type TotalsRoutingLogPayload = {
 
 type NonTotalsRoutingLogPayload = {
   request_id: string;
-  intent: "line_item_fact" | "unanswerable_field" | "clarification_needed" | "pipeline_fallback";
-  route: "row_sql" | "pipeline_fallback";
+  intent:
+    | "line_item_fact"
+    | "unanswerable_field"
+    | "clarification_needed"
+    | "pipeline_fallback"
+    | "aggregate_top_projects"
+    | "aggregate_totals_by_sector"
+    | "aggregate_totals_by_fund_source"
+    | "aggregate_compare_years";
+  route: "row_sql" | "pipeline_fallback" | "aggregate_sql";
   fiscal_year_parsed: number | null;
   scope_reason: LineItemScopeReason;
   barangay_id_used: string | null;
   match_count_used: number | null;
+  limit_used?: number | null;
   top_candidate_ids: string[];
   top_candidate_distances: number[];
   answered: boolean;
@@ -236,6 +281,17 @@ function makeSystemCitation(snippet: string, metadata?: unknown): ChatCitation {
     scopeType: "system",
     scopeName: "System",
     insufficient: true,
+    metadata: metadata ?? null,
+  };
+}
+
+function makeAggregateCitation(snippet: string, metadata?: unknown): ChatCitation {
+  return {
+    sourceId: "S0",
+    snippet,
+    scopeType: "system",
+    scopeName: "Aggregated published AIP line items",
+    insufficient: false,
     metadata: metadata ?? null,
   };
 }
@@ -491,6 +547,175 @@ function toLineItemRows(value: unknown): LineItemRowRecord[] {
   return rows;
 }
 
+function toTopProjectRows(value: unknown): RpcTopProjectRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: RpcTopProjectRow[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const typed = row as Partial<RpcTopProjectRow>;
+    if (!typed.line_item_id || !typed.aip_id || !typed.program_project_title) continue;
+    rows.push({
+      line_item_id: typed.line_item_id,
+      aip_id: typed.aip_id,
+      fiscal_year: toNumberOrNull(typed.fiscal_year),
+      barangay_id: typeof typed.barangay_id === "string" ? typed.barangay_id : null,
+      aip_ref_code: typeof typed.aip_ref_code === "string" ? typed.aip_ref_code : null,
+      program_project_title: typed.program_project_title,
+      fund_source: typeof typed.fund_source === "string" ? typed.fund_source : null,
+      start_date: typeof typed.start_date === "string" ? typed.start_date : null,
+      end_date: typeof typed.end_date === "string" ? typed.end_date : null,
+      total: typed.total ?? null,
+      page_no: toNumberOrNull(typed.page_no),
+      row_no: toNumberOrNull(typed.row_no),
+      table_no: toNumberOrNull(typed.table_no),
+    });
+  }
+  return rows;
+}
+
+function toTotalsBySectorRows(value: unknown): RpcTotalsBySectorRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: RpcTotalsBySectorRow[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const typed = row as Partial<RpcTotalsBySectorRow>;
+    rows.push({
+      sector_code: typeof typed.sector_code === "string" ? typed.sector_code : null,
+      sector_name: typeof typed.sector_name === "string" ? typed.sector_name : null,
+      sector_total: typed.sector_total ?? null,
+      count_items: typed.count_items ?? null,
+    });
+  }
+  return rows;
+}
+
+function toTotalsByFundSourceRows(value: unknown): RpcTotalsByFundSourceRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: RpcTotalsByFundSourceRow[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const typed = row as Partial<RpcTotalsByFundSourceRow>;
+    rows.push({
+      fund_source: typeof typed.fund_source === "string" ? typed.fund_source : null,
+      fund_total: typed.fund_total ?? null,
+      count_items: typed.count_items ?? null,
+    });
+  }
+  return rows;
+}
+
+function toCompareTotalsRow(value: unknown): RpcCompareFiscalYearTotalsRow | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const first = value[0];
+  if (!first || typeof first !== "object") return null;
+  const typed = first as Partial<RpcCompareFiscalYearTotalsRow>;
+  return {
+    year_a_total: typed.year_a_total ?? null,
+    year_b_total: typed.year_b_total ?? null,
+    delta: typed.delta ?? null,
+  };
+}
+
+function formatScheduleRange(startDate: string | null, endDate: string | null): string {
+  const start = startDate?.trim() ?? "";
+  const end = endDate?.trim() ?? "";
+  if (start && end) return `${start}..${end}`;
+  if (start) return `${start}..N/A`;
+  if (end) return `N/A..${end}`;
+  return "N/A";
+}
+
+function hasAggregationGlobalCue(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("all barangays") ||
+    normalized.includes("across all barangays") ||
+    normalized.includes("all published aips") ||
+    normalized.includes("city-wide") ||
+    normalized.includes("citywide")
+  );
+}
+
+function parseInteger(value: unknown): number | null {
+  const parsed = toNumberOrNull(value);
+  return parsed === null ? null : Math.trunc(parsed);
+}
+
+type AggregationScopeDecision = {
+  scopeReason: LineItemScopeReason;
+  barangayIdUsed: string | null;
+  barangayName: string | null;
+  unsupportedScopeType: ScopeType | null;
+};
+
+type AggregationLogIntent =
+  | "aggregate_top_projects"
+  | "aggregate_totals_by_sector"
+  | "aggregate_totals_by_fund_source"
+  | "aggregate_compare_years";
+
+function resolveAggregationScopeDecision(input: {
+  message: string;
+  scopeResolution: ChatScopeResolution;
+  userBarangay: BarangayRef | null;
+}): AggregationScopeDecision {
+  if (hasAggregationGlobalCue(input.message)) {
+    return {
+      scopeReason: "global",
+      barangayIdUsed: null,
+      barangayName: null,
+      unsupportedScopeType: null,
+    };
+  }
+
+  if (input.scopeResolution.mode === "own_barangay" && input.userBarangay) {
+    return {
+      scopeReason: "explicit_our_barangay",
+      barangayIdUsed: input.userBarangay.id,
+      barangayName: input.userBarangay.name,
+      unsupportedScopeType: null,
+    };
+  }
+
+  if (input.scopeResolution.mode === "named_scopes") {
+    const target =
+      input.scopeResolution.resolvedTargets.length === 1
+        ? input.scopeResolution.resolvedTargets[0]
+        : null;
+    if (target?.scopeType === "barangay") {
+      return {
+        scopeReason: "explicit_barangay",
+        barangayIdUsed: target.scopeId,
+        barangayName: target.scopeName,
+        unsupportedScopeType: null,
+      };
+    }
+
+    if (target?.scopeType === "city" || target?.scopeType === "municipality") {
+      return {
+        scopeReason: "unknown",
+        barangayIdUsed: null,
+        barangayName: null,
+        unsupportedScopeType: target.scopeType,
+      };
+    }
+  }
+
+  return {
+    scopeReason: "global",
+    barangayIdUsed: null,
+    barangayName: null,
+    unsupportedScopeType: null,
+  };
+}
+
+function toAggregationLogIntent(intent: "top_projects" | "totals_by_sector" | "totals_by_fund_source" | "compare_years"): AggregationLogIntent {
+  if (intent === "top_projects") return "aggregate_top_projects";
+  if (intent === "totals_by_sector") return "aggregate_totals_by_sector";
+  if (intent === "totals_by_fund_source") return "aggregate_totals_by_fund_source";
+  return "aggregate_compare_years";
+}
+
 function parseLooseScopeName(message: string): string | null {
   const match = message.match(
     /\b(?:in|sa)\s+([a-z0-9][a-z0-9 .,'-]{1,80}?)(?=\s+(?:for|fy|fiscal|year)\b|[.,;!?)]|$)/i
@@ -743,6 +968,29 @@ async function fetchActiveBarangaysForMatching(): Promise<BarangayRef[]> {
       };
     })
     .filter((row) => row.id && row.name);
+}
+
+async function fetchBarangayNameMap(barangayIds: string[]): Promise<Map<string, string>> {
+  const deduped = barangayIds.filter((id, index, all) => id && all.indexOf(id) === index);
+  if (deduped.length === 0) return new Map<string, string>();
+
+  const admin = supabaseAdmin();
+  const { data, error } = await admin
+    .from("barangays")
+    .select("id,name")
+    .in("id", deduped);
+
+  if (error) throw new Error(error.message);
+
+  const nameMap = new Map<string, string>();
+  for (const row of data ?? []) {
+    const typed = row as ScopeLookupRow;
+    const name = (typed.name ?? "").trim();
+    if (typed.id && name) {
+      nameMap.set(typed.id, name);
+    }
+  }
+  return nameMap;
 }
 
 function resolveExplicitBarangayByCandidate(
@@ -1407,6 +1655,7 @@ export async function POST(request: Request) {
 
     const parsedLineItemQuestion = parseLineItemQuestion(content);
     const requestedFiscalYear = extractFiscalYear(content);
+    const aggregationIntent = detectAggregationIntent(content);
     const userBarangay = await resolveUserBarangay(actor);
     const lineItemScope = resolveLineItemScopeDecision({
       question: parsedLineItemQuestion,
@@ -1611,7 +1860,470 @@ export async function POST(request: Request) {
       }
     }
 
-    if (parsedLineItemQuestion.isUnanswerableFieldQuestion) {
+    if (aggregationIntent.intent !== "none") {
+      const aggregationScope = resolveAggregationScopeDecision({
+        message: content,
+        scopeResolution,
+        userBarangay,
+      });
+      const aggregationLogIntent = toAggregationLogIntent(aggregationIntent.intent);
+      const fiscalYearForAggregation =
+        aggregationIntent.intent === "compare_years" ? null : requestedFiscalYear;
+      const aggregationLimit =
+        aggregationIntent.intent === "top_projects" ? aggregationIntent.limit ?? 10 : null;
+
+      if (aggregationScope.unsupportedScopeType === "city" || aggregationScope.unsupportedScopeType === "municipality") {
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content:
+            "I can aggregate by one barangay or across all barangays. Please specify a barangay or say 'across all barangays'.",
+          citations: [
+            makeSystemCitation("Aggregation scope clarification required for non-barangay place scope.", {
+              reason: "aggregation_scope_requires_barangay_or_global",
+              requested_scope_type: aggregationScope.unsupportedScopeType,
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "clarification_needed",
+            status: "clarification",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: aggregationLogIntent,
+          route: "aggregate_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: aggregationScope.scopeReason,
+          barangay_id_used: null,
+          match_count_used: null,
+          limit_used: aggregationLimit,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: true,
+          vector_called: false,
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
+
+      const scopeLabel = aggregationScope.barangayIdUsed
+        ? normalizeBarangayLabel(aggregationScope.barangayName ?? "your barangay")
+        : "All barangays";
+      const fiscalLabel = fiscalYearForAggregation === null ? "All fiscal years" : `FY ${fiscalYearForAggregation}`;
+
+      try {
+        if (aggregationIntent.intent === "top_projects") {
+          const { data, error } = await client.rpc("get_top_projects", {
+            p_limit: aggregationLimit,
+            p_fiscal_year: fiscalYearForAggregation,
+            p_barangay_id: aggregationScope.barangayIdUsed,
+          });
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          const rows = toTopProjectRows(data);
+          if (rows.length === 0) {
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content: "No published AIP line items matched the selected filters.",
+              citations: [
+                makeAggregateCitation("Aggregated from published AIP line items.", {
+                  aggregated: true,
+                  aggregate_type: "top_projects",
+                  source: "aip_line_items",
+                  fiscal_year_filter: fiscalYearForAggregation,
+                  barangay_id_filter: aggregationScope.barangayIdUsed,
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "ok",
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logNonTotalsRouting({
+              request_id: requestId,
+              intent: aggregationLogIntent,
+              route: "aggregate_sql",
+              fiscal_year_parsed: requestedFiscalYear,
+              scope_reason: aggregationScope.scopeReason,
+              barangay_id_used: aggregationScope.barangayIdUsed,
+              match_count_used: null,
+              limit_used: aggregationLimit,
+              top_candidate_ids: [],
+              top_candidate_distances: [],
+              answered: true,
+              vector_called: false,
+            });
+
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          const topBarangayMap =
+            aggregationScope.barangayIdUsed === null
+              ? await fetchBarangayNameMap(
+                  rows
+                    .map((row) => row.barangay_id)
+                    .filter((barangayId): barangayId is string => Boolean(barangayId))
+                )
+              : new Map<string, string>();
+          if (aggregationScope.barangayIdUsed && aggregationScope.barangayName) {
+            topBarangayMap.set(aggregationScope.barangayIdUsed, aggregationScope.barangayName);
+          }
+
+          const listLines = rows.map((row, index) => {
+            const total = formatPhpAmount(toNumberOrNull(row.total));
+            const fund = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+            const fyLabel = typeof row.fiscal_year === "number" ? `FY ${row.fiscal_year}` : "FY Any";
+            const refLabel = row.aip_ref_code ? `Ref ${row.aip_ref_code}` : "Ref N/A";
+            const rowBarangayName =
+              row.barangay_id && topBarangayMap.has(row.barangay_id)
+                ? normalizeBarangayLabel(topBarangayMap.get(row.barangay_id) ?? "")
+                : row.barangay_id
+                  ? `Barangay ID ${row.barangay_id}`
+                  : "All barangays";
+            return `${index + 1}. ${row.program_project_title} — ${total} — ${fund} — ${fyLabel} — ${rowBarangayName} — ${refLabel}`;
+          });
+
+          const assistantContent =
+            `Top ${rows.length} projects by total (${scopeLabel}; ${fiscalLabel}):\n` +
+            listLines.join("\n");
+
+          const citations: ChatCitation[] = rows.map((row, index) => {
+            const rowFiscalYear = typeof row.fiscal_year === "number" ? row.fiscal_year : null;
+            const rowBarangayName =
+              row.barangay_id && topBarangayMap.has(row.barangay_id)
+                ? normalizeBarangayLabel(topBarangayMap.get(row.barangay_id) ?? "")
+                : aggregationScope.barangayName
+                  ? normalizeBarangayLabel(aggregationScope.barangayName)
+                  : "All barangays";
+            const scopeName =
+              row.barangay_id || aggregationScope.barangayIdUsed
+                ? `${rowBarangayName} — FY ${rowFiscalYear ?? "Any"} — ${row.program_project_title}`
+                : `All barangays — FY ${rowFiscalYear ?? "Any"} — ${row.program_project_title}`;
+
+            return {
+              sourceId: `A${index + 1}`,
+              aipId: row.aip_id,
+              fiscalYear: rowFiscalYear,
+              scopeType: row.barangay_id ? "barangay" : "unknown",
+              scopeId: row.barangay_id,
+              scopeName,
+              snippet:
+                `Total: ${formatPhpAmount(toNumberOrNull(row.total))} - ` +
+                `Fund: ${(row.fund_source ?? "Unspecified").trim() || "Unspecified"} - ` +
+                `Schedule: ${formatScheduleRange(row.start_date, row.end_date)} - ` +
+                `Ref: ${row.aip_ref_code ?? "N/A"}`,
+              insufficient: false,
+              metadata: {
+                type: "aip_line_item",
+                aggregate_type: "top_projects",
+                line_item_id: row.line_item_id,
+                aip_id: row.aip_id,
+                fiscal_year: row.fiscal_year,
+                barangay_id: row.barangay_id,
+                aip_ref_code: row.aip_ref_code,
+                page_no: row.page_no,
+                row_no: row.row_no,
+                table_no: row.table_no,
+                fiscal_year_filter: fiscalYearForAggregation,
+                barangay_id_filter: aggregationScope.barangayIdUsed,
+              },
+            };
+          });
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: assistantContent,
+            citations,
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: aggregationScope.scopeReason,
+            barangay_id_used: aggregationScope.barangayIdUsed,
+            match_count_used: null,
+            limit_used: aggregationLimit,
+            top_candidate_ids: rows.slice(0, 3).map((row) => row.line_item_id),
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (aggregationIntent.intent === "totals_by_sector") {
+          const { data, error } = await client.rpc("get_totals_by_sector", {
+            p_fiscal_year: fiscalYearForAggregation,
+            p_barangay_id: aggregationScope.barangayIdUsed,
+          });
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          const rows = toTotalsBySectorRows(data);
+          const contentLines =
+            rows.length === 0
+              ? ["No published AIP line items matched the selected filters."]
+              : rows.map((row, index) => {
+                  const label = [row.sector_code, row.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
+                  return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.sector_total))} (${parseInteger(row.count_items) ?? 0} items)`;
+                });
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: `Budget totals by sector (${scopeLabel}; ${fiscalLabel}):\n${contentLines.join("\n")}`,
+            citations: [
+              makeAggregateCitation("Aggregated from published AIP line items.", {
+                aggregated: true,
+                source: "aip_line_items",
+                aggregate_type: "totals_by_sector",
+                fiscal_year_filter: fiscalYearForAggregation,
+                barangay_id_filter: aggregationScope.barangayIdUsed,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: aggregationScope.scopeReason,
+            barangay_id_used: aggregationScope.barangayIdUsed,
+            match_count_used: null,
+            limit_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (aggregationIntent.intent === "totals_by_fund_source") {
+          const { data, error } = await client.rpc("get_totals_by_fund_source", {
+            p_fiscal_year: fiscalYearForAggregation,
+            p_barangay_id: aggregationScope.barangayIdUsed,
+          });
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          const rows = toTotalsByFundSourceRows(data);
+          const contentLines =
+            rows.length === 0
+              ? ["No published AIP line items matched the selected filters."]
+              : rows.map((row, index) => {
+                  const label = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+                  return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.fund_total))} (${parseInteger(row.count_items) ?? 0} items)`;
+                });
+
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: `Budget totals by fund source (${scopeLabel}; ${fiscalLabel}):\n${contentLines.join("\n")}`,
+            citations: [
+              makeAggregateCitation("Aggregated from published AIP line items.", {
+                aggregated: true,
+                source: "aip_line_items",
+                aggregate_type: "totals_by_fund_source",
+                fiscal_year_filter: fiscalYearForAggregation,
+                barangay_id_filter: aggregationScope.barangayIdUsed,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: aggregationScope.scopeReason,
+            barangay_id_used: aggregationScope.barangayIdUsed,
+            match_count_used: null,
+            limit_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        const yearA = aggregationIntent.yearA ?? null;
+        const yearB = aggregationIntent.yearB ?? null;
+        if (yearA === null || yearB === null) {
+          throw new Error("Aggregation compare years intent requires two years.");
+        }
+
+        const { data, error } = await client.rpc("compare_fiscal_year_totals", {
+          p_year_a: yearA,
+          p_year_b: yearB,
+          p_barangay_id: aggregationScope.barangayIdUsed,
+        });
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const comparison = toCompareTotalsRow(data);
+        const yearATotal = toNumberOrNull(comparison?.year_a_total) ?? 0;
+        const yearBTotal = toNumberOrNull(comparison?.year_b_total) ?? 0;
+        const delta = toNumberOrNull(comparison?.delta) ?? yearBTotal - yearATotal;
+        const deltaPhrase =
+          delta > 0
+            ? `an increase of ${formatPhpAmount(delta)}`
+            : delta < 0
+              ? `a decrease of ${formatPhpAmount(Math.abs(delta))}`
+              : "no change";
+
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content:
+            `Fiscal year comparison (${scopeLabel}): FY ${yearA} = ${formatPhpAmount(yearATotal)}; ` +
+            `FY ${yearB} = ${formatPhpAmount(yearBTotal)}; difference = ${deltaPhrase}.`,
+          citations: [
+            makeAggregateCitation("Aggregated from published AIP line items.", {
+              aggregated: true,
+              source: "aip_line_items",
+              aggregate_type: "compare_fiscal_year_totals",
+              year_a: yearA,
+              year_b: yearB,
+              barangay_id_filter: aggregationScope.barangayIdUsed,
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "ok",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: aggregationLogIntent,
+          route: "aggregate_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: aggregationScope.scopeReason,
+          barangay_id_used: aggregationScope.barangayIdUsed,
+          match_count_used: null,
+          limit_used: null,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: true,
+          vector_called: false,
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Aggregation query failed.";
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content:
+            "I couldn't complete the aggregate SQL query due to a temporary system issue. Please try again shortly.",
+          citations: [makeSystemCitation("Aggregate SQL query failed.", { error: message })],
+          retrievalMeta: {
+            refused: true,
+            reason: "pipeline_error",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: aggregationLogIntent,
+          route: "aggregate_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: aggregationScope.scopeReason,
+          barangay_id_used: aggregationScope.barangayIdUsed,
+          match_count_used: null,
+          limit_used: aggregationLimit,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: false,
+          vector_called: false,
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
+    }
+
+    if (parsedLineItemQuestion.isUnanswerableFieldQuestion && !parsedLineItemQuestion.isFactQuestion) {
       const assistantMessage = await appendAssistantMessage({
         sessionId: session.id,
         content:

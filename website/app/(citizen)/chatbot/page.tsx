@@ -1,11 +1,7 @@
-import { LguChatbotView } from "@/features/chat";
+import { redirect } from "next/navigation";
 
-const CitizenChatbot = () => {
-  return (
-    <div className="h-full min-h-0">
-      <LguChatbotView />
-    </div>
-  );
+const CitizenChatbotPage = () => {
+  redirect("/ai-assistant");
 };
 
-export default CitizenChatbot;
+export default CitizenChatbotPage;

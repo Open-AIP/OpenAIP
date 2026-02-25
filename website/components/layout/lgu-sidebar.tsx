@@ -74,7 +74,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
             alt="OpenAIP Logo" 
             width={100} 
             height={100}
-            className="h-25 w-25"
+            className="h-20 w-20"
           />
           <div className="text-3xl font-semibold leading-none">OpenAIP</div>
         </div>
@@ -100,7 +100,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                     <button
                       onClick={() => toggleDropdown(item.href)}
                       className={cn(
-                        "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                        "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
                         "hover:bg-white/10",
                         active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                       )}
@@ -124,7 +124,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                               <Link
                                 href={child.href}
                                 className={cn(
-                                  "flex items-center gap-3 rounded-xl px-4 py-2 text-sm transition-colors",
+                                  "flex items-center gap-3 rounded-xl px-4 py-2 text-xs transition-colors",
                                   "hover:bg-white/10",
                                   childActive && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                                 )}
@@ -142,7 +142,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                      "flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
                       "hover:bg-white/10",
                       active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                     )}

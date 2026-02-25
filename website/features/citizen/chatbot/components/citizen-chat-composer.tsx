@@ -14,8 +14,8 @@ export default function CitizenChatComposer({
   onSend: () => void;
 }) {
   return (
-    <div className="sticky bottom-0 border-t border-slate-200 bg-[#E9EEF2]/95 px-6 py-4 backdrop-blur">
-      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="sticky bottom-0 bg-inherit px-6 py-4 backdrop-blur">
+      <div className="rounded-2xl bg-white p-3">
         <div className="flex items-end gap-3">
           <Textarea
             value={value}

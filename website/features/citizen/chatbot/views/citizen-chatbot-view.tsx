@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import CitizenChatShell from "../components/citizen-chat-shell";
 import { useCitizenChatbot } from "../hooks/use-citizen-chatbot";
-import { useCitizenChatScope } from "../hooks/use-citizen-chat-scope";
 
 export default function CitizenChatbotView() {
   const {
@@ -17,10 +16,8 @@ export default function CitizenChatbotView() {
     messages,
     query,
     sessionItems,
-    sourcesEnabled,
     setMessageInput,
     setQuery,
-    setSourcesEnabled,
     handleNewChat,
     handleSelectSession,
     handleSend,
@@ -28,7 +25,6 @@ export default function CitizenChatbotView() {
     handleUseFollowUp,
   } = useCitizenChatbot();
 
-  const scopeChips = useCitizenChatScope(activeSession?.context ?? {});
   const threadRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -49,16 +45,13 @@ export default function CitizenChatbotView() {
       messageInput={messageInput}
       messages={messages}
       query={query}
-      scopeChips={scopeChips}
       sessionItems={sessionItems}
-      sourcesEnabled={sourcesEnabled}
       threadRef={threadRef}
       onMessageInputChange={setMessageInput}
       onNewChat={handleNewChat}
       onQueryChange={setQuery}
       onSelectSession={handleSelectSession}
       onSend={handleSend}
-      onToggleSources={setSourcesEnabled}
       onUseExample={handleUseExample}
       onUseFollowUp={handleUseFollowUp}
     />

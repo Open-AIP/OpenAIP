@@ -33,7 +33,7 @@ export default function CitizenChatErrorState({
   const Icon = content.icon === "file" ? FileX2 : AlertTriangle;
 
   return (
-    <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-4">
+    <div className="rounded-xl bg-rose-50/70 p-4">
       <div className="flex items-start gap-3">
         <Icon className="mt-0.5 h-5 w-5 text-rose-600" />
         <div>

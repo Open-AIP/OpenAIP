@@ -1,6 +1,6 @@
 export const CITIZEN_CHAT_COLORS = {
   primary: "#022437",
-  pageBg: "#E9EEF2",
+  pageBg: "#D3DBE0",
   cardBg: "#FFFFFF",
   mutedText: "#64748B",
 } as const;

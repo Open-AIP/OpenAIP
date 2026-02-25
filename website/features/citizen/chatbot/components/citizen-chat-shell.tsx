@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 import type { Json } from "@/lib/contracts/databasev2";
-import type { CitizenChatErrorState as ChatErrorState, CitizenChatMessageVM, CitizenChatScopeChip, CitizenChatSessionVM } from "../types/citizen-chatbot.types";
+import type { CitizenChatErrorState as ChatErrorState, CitizenChatMessageVM, CitizenChatSessionVM } from "../types/citizen-chatbot.types";
 import CitizenChatComposer from "./citizen-chat-composer";
 import CitizenChatErrorState from "./citizen-chat-error-state";
 import CitizenChatHeader from "./citizen-chat-header";
@@ -17,16 +17,13 @@ export default function CitizenChatShell({
   messageInput,
   messages,
   query,
-  scopeChips,
   sessionItems,
-  sourcesEnabled,
   threadRef,
   onMessageInputChange,
   onNewChat,
   onQueryChange,
   onSelectSession,
   onSend,
-  onToggleSources,
   onUseExample,
   onUseFollowUp,
 }: {
@@ -39,16 +36,13 @@ export default function CitizenChatShell({
   messageInput: string;
   messages: CitizenChatMessageVM[];
   query: string;
-  scopeChips: CitizenChatScopeChip[];
   sessionItems: CitizenChatSessionVM[];
-  sourcesEnabled: boolean;
   threadRef: RefObject<HTMLDivElement | null>;
   onMessageInputChange: (value: string) => void;
   onNewChat: () => void;
   onQueryChange: (value: string) => void;
   onSelectSession: (id: string) => void;
   onSend: () => void;
-  onToggleSources: (value: boolean) => void;
   onUseExample: (value: string) => void;
   onUseFollowUp: (value: string) => void;
 }) {
@@ -64,12 +58,8 @@ export default function CitizenChatShell({
         onSelectSession={onSelectSession}
       />
 
-      <div className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-[#E9EEF2] shadow-sm">
-        <CitizenChatHeader
-          scopeChips={scopeChips}
-          sourcesEnabled={sourcesEnabled}
-          onToggleSources={onToggleSources}
-        />
+      <div className="flex min-h-0 flex-col rounded-2xl bg-transparent">
+        <CitizenChatHeader />
 
         {isBootstrapping ? (
           <div className="flex min-h-0 flex-1 items-center justify-center px-6">
@@ -78,7 +68,7 @@ export default function CitizenChatShell({
         ) : (
           <>
             {errorState !== "none" ? (
-              <div className="px-6 pt-4">
+              <div className="bg-inherit px-6 pt-4">
                 <CitizenChatErrorState state={errorState} message={errorMessage} onRetry={onSend} />
               </div>
             ) : null}

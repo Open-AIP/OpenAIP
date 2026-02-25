@@ -19,8 +19,8 @@ export default function CitizenChatSidebar({
   onSelectSession: (id: string) => void;
 }) {
   return (
-    <aside className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-5">
+    <aside className="flex min-h-0 flex-col rounded-2xl bg-white">
+      <div className="p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Conversations</h2>
           <Button className="h-10 gap-2 rounded-xl bg-[#022437] px-4 text-white hover:bg-[#011c2a]" onClick={onNewChat}>
@@ -51,7 +51,7 @@ export default function CitizenChatSidebar({
           ))
         ) : (
           <div className="p-4">
-            <CitizenChatEmptyConversations onNewChat={onNewChat} />
+            <CitizenChatEmptyConversations />
           </div>
         )}
       </div>

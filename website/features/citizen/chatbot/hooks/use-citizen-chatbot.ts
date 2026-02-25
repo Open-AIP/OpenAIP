@@ -101,7 +101,6 @@ export function useCitizenChatbot() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [errorState, setErrorState] = useState<CitizenChatErrorState>("none");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [sourcesEnabled, setSourcesEnabled] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -388,10 +387,8 @@ export function useCitizenChatbot() {
     messages,
     query,
     sessionItems,
-    sourcesEnabled,
     setMessageInput,
     setQuery,
-    setSourcesEnabled,
     handleNewChat,
     handleSelectSession,
     handleSend,

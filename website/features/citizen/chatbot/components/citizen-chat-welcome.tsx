@@ -9,7 +9,7 @@ export default function CitizenChatWelcome({
   onUseExample: (value: string) => void;
 }) {
   return (
-    <div className="mx-auto mt-8 w-full max-w-3xl rounded-2xl border border-slate-200 bg-white/80 p-8 text-center shadow-sm">
+    <div className="mx-auto mt-8 w-full max-w-3xl rounded-2xl bg-transparent p-8 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#022437]/10 text-[#022437]">
         <Bot className="h-6 w-6" />
       </div>

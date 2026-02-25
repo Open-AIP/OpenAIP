@@ -16,10 +16,10 @@ export default function CitizenChatMessageBubble({
     <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[72%] rounded-2xl px-4 py-3 text-sm shadow-sm",
+          "max-w-[72%] rounded-2xl px-4 py-3 text-sm",
           isUser
             ? "bg-[#022437] text-white"
-            : "border border-slate-200 bg-white text-slate-800"
+            : "bg-white text-slate-800"
         )}
       >
         <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>

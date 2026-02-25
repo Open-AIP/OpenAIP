@@ -20,7 +20,7 @@ export default function CitizenChatMessageList({
   threadRef: RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-inherit px-6 py-5">
       <div className="space-y-4">
         {!messages.length ? (
           <CitizenChatWelcome examples={exampleQueries} onUseExample={onUseExample} />

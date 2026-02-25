@@ -22,6 +22,11 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function getNavTriggerId(href: string) {
+  const clean = href.replace(/\//g, "-").replace(/^-+|-+$/g, "");
+  return `citizen-nav-trigger-${clean || "root"}`;
+}
+
 export default function CitizenTopNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -61,7 +66,7 @@ export default function CitizenTopNav() {
             if (item.children?.length) {
               return (
                 <DropdownMenu key={item.href}>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild id={getNavTriggerId(item.href)}>
                     <button
                       className={cn(
                         'inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',

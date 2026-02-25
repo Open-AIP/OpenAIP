@@ -19,72 +19,78 @@ type AipDetailsSectionProps = {
 
 export default function AipDetailsSection({ vm, onTabChange, onSearchChange, viewAllHref }: AipDetailsSectionProps) {
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardContent className="space-y-4 p-6">
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold text-slate-900">{vm.title}</h3>
-          <p className="text-xs text-slate-500">{vm.subtitle}</p>
-        </div>
-
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Tabs value={tabValue(vm.activeTab)} onValueChange={(value) => onTabChange(value as BudgetCategoryKey)}>
-            <TabsList className="bg-slate-100">
-              {vm.tabs.map((tab: AipDetailsTabVM) => (
-                <TabsTrigger key={tab.key} value={tabValue(tab.key)} className="text-xs">
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-
-          <div className="relative w-full md:w-70">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={vm.searchText}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Search projects"
-              className="h-9 pl-9"
-            />
+    <section className="mx-auto max-w-6xl px-6 py-12">
+      <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <CardContent className="space-y-5 p-6 md:p-7">
+          <div className="space-y-1">
+            <h3 className="text-2xl font-semibold text-[#022437]">{vm.title}</h3>
+            <p className="text-sm text-slate-500">{vm.subtitle}</p>
           </div>
-        </div>
 
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="text-xs font-semibold text-slate-600">AIP Reference Code</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Program Description</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 text-right">Total Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vm.rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-xs text-slate-500">
-                    No projects match the current filters.
-                  </TableCell>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <Tabs value={tabValue(vm.activeTab)} onValueChange={(value) => onTabChange(value as BudgetCategoryKey)}>
+              <TabsList className="h-auto rounded-full bg-slate-100 p-1">
+                {vm.tabs.map((tab: AipDetailsTabVM) => (
+                  <TabsTrigger
+                    key={tab.key}
+                    value={tabValue(tab.key)}
+                    className="rounded-full px-4 py-1.5 text-xs font-medium text-slate-600 data-[state=active]:bg-[#022437] data-[state=active]:text-white data-[state=active]:shadow-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={vm.searchText}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder="Search by project name or keyword"
+                className="h-10 rounded-xl border-slate-200 pl-9 focus-visible:ring-cyan-500/40"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-100 hover:bg-slate-100">
+                  <TableHead className="text-xs font-semibold text-slate-700">AIP Reference Code</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-700">Program Description</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-700 text-right">Total Amount</TableHead>
                 </TableRow>
-              ) : (
-                vm.rows.map((row: AipDetailsRowVM) => (
-                  <TableRow key={row.aipRefCode}>
-                    <TableCell className="text-xs text-slate-700">{row.aipRefCode}</TableCell>
-                    <TableCell className="text-xs text-slate-700">{row.programDescription}</TableCell>
-                    <TableCell className="text-xs text-slate-700 text-right tabular-nums">
-                      {formatPeso(row.totalAmount)}
+              </TableHeader>
+              <TableBody>
+                {vm.rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="py-8 text-center text-sm text-slate-500">
+                      No projects match the current filters.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ) : (
+                  vm.rows.map((row: AipDetailsRowVM) => (
+                    <TableRow key={row.aipRefCode} className="transition-colors hover:bg-slate-50/80">
+                      <TableCell className="text-sm text-slate-700">{row.aipRefCode}</TableCell>
+                      <TableCell className="text-sm text-slate-700">{row.programDescription}</TableCell>
+                      <TableCell className="text-sm text-slate-700 text-right tabular-nums">
+                        {formatPeso(row.totalAmount)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-        <div className="flex justify-end">
-          <Button asChild variant="link" className="text-xs text-[#0b5188]">
-            <Link href={viewAllHref}>View Full Details of AIP</Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex justify-end">
+            <Button asChild variant="link" className="text-sm font-semibold text-[#0b5188]">
+              <Link href={viewAllHref}>View Full Details of AIP -&gt;</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }

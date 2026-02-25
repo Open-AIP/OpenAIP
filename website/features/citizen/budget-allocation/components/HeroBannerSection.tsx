@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 
 type HeroBannerSectionProps = {
@@ -7,17 +8,28 @@ type HeroBannerSectionProps = {
 
 export default function HeroBannerSection({ title, subtitle }: HeroBannerSectionProps) {
   return (
-    <section className="relative overflow-hidden rounded-xl border border-slate-200 px-6 py-10 text-white shadow-xl md:px-10"
-      style={{ background: 'linear-gradient(180deg, #d3dbe0, #ffffff 99.15%)' }}>
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.15),transparent_40%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(to_top,rgba(255,255,255,0.9),transparent)]" />
-      </div>
+    <section className="mx-auto max-w-6xl px-6 pt-6">
+      <div className="relative overflow-hidden rounded-2xl border border-[#0d3d60]/30 text-white shadow-sm">
+        <div className="relative min-h-[220px] md:min-h-[260px]">
+          <Image
+            src="/citizen-dashboard/city.png"
+            alt="City skyline"
+            fill
+            className="object-cover object-center"
+            sizes="(max-width: 768px) 100vw, 1152px"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#022437]/85 via-[#0b3d63]/70 to-[#0e7490]/55" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(148,233,255,0.18),transparent_45%)]" />
+        </div>
 
-      <div className="relative z-10 text-center">
-        <Badge className="rounded-full bg-white/10 px-4 py-1 text-xs text-white">OpenAIP Citizen</Badge>
-        <h1 className="mt-4 text-5xl md:text-6xl font-baskervville-sc tracking-[1px] text-white">{title}</h1>
-        <p className="mt-3 max-w-3xl text-sm text-powderblue md:text-base">{subtitle}</p>
+        <div className="absolute inset-0 z-10 flex flex-col justify-end px-6 pb-8 md:px-10">
+          <Badge className="w-fit rounded-full border border-white/30 bg-white/15 px-4 py-1 text-xs text-white hover:bg-white/15">
+            OpenAIP Citizen
+          </Badge>
+          <h1 className="mt-4 text-4xl font-semibold tracking-[0.04em] text-white md:text-6xl">{title}</h1>
+          <p className="mt-3 max-w-3xl text-sm text-cyan-100 md:text-base">{subtitle}</p>
+        </div>
       </div>
     </section>
   );

@@ -1,54 +1,101 @@
 'use client';
 
-import { useState } from 'react';
-import type { BudgetCategoryKey, CategoryCardVM, CategoryChangeVM, AipDetailsRowVM } from "@/lib/domain/citizen-budget-allocation";
+import { useMemo, useState } from 'react';
+import { DBV2_SECTOR_CODES, getSectorLabel, type DashboardSectorCode } from "@/lib/constants/dashboard";
+import type { BudgetCategoryKey, AipDetailsRowVM } from "@/lib/domain/citizen-budget-allocation";
 import {
   AipDetailsSection,
-  AllocationAndContextSection,
-  CategoryOverviewSection,
-  ChangesFromLastYearSection,
+  ChartsGrid,
   ExplainerSection,
   FiltersSection,
   HeroBannerSection,
+  OverviewHeader,
 } from '../components';
 import { CITIZEN_BUDGET_ALLOCATION_MOCK } from '@/mocks/fixtures/budget-allocation';
+import { getRawBudgetAllocationData } from '../data';
 import { normalizeSearchText } from '../utils';
 
 const DEFAULT_TAB: BudgetCategoryKey = 'general';
-const DEFAULT_CONTEXT: 'all' | BudgetCategoryKey = 'all';
+const CATEGORY_ORDER: BudgetCategoryKey[] = ['general', 'social', 'economic', 'other'];
+const CATEGORY_TO_SECTOR_CODE: Record<BudgetCategoryKey, DashboardSectorCode> = {
+  general: '1000',
+  social: '3000',
+  economic: '8000',
+  other: '9000',
+};
+const CATEGORY_COLOR_BY_KEY: Record<BudgetCategoryKey, string> = {
+  general: '#3B82F6',
+  social: '#14B8A6',
+  economic: '#22C55E',
+  other: '#F59E0B',
+};
+
+const resolveCategoryKey = (label: string): BudgetCategoryKey | null => {
+  const normalizedLabel = label.trim().toLowerCase();
+  if (normalizedLabel.includes('general')) return 'general';
+  if (normalizedLabel.includes('social')) return 'social';
+  if (normalizedLabel.includes('economic')) return 'economic';
+  if (normalizedLabel.includes('other')) return 'other';
+  return null;
+};
 
 export default function CitizenBudgetAllocationView() {
   const vm = CITIZEN_BUDGET_ALLOCATION_MOCK;
 
   const [activeTab, setActiveTab] = useState<BudgetCategoryKey>(DEFAULT_TAB);
   const [detailsSearch, setDetailsSearch] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<'all' | BudgetCategoryKey>(DEFAULT_CONTEXT);
-
-  const categoryOptions = [
-    { key: 'all' as const, label: 'All Categories' },
-    ...vm.categoryOverview.cards.map((card: CategoryCardVM) => ({
-      key: card.categoryKey,
-      label: card.label,
-    })),
-  ];
-
-  const selectedContext = (() => {
-    if (selectedCategory === 'all') return vm.allocationContext.selectedContext;
-    const card = vm.categoryOverview.cards.find((item: CategoryCardVM) => item.categoryKey === selectedCategory);
-    const change = vm.changesFromLastYear.categories.find((item: CategoryChangeVM) => item.categoryKey === selectedCategory);
-    if (!card) return vm.allocationContext.selectedContext;
-
-    return {
-      ...vm.allocationContext.selectedContext,
-      totalAllocation: card.totalAmount,
-      totalProjects: card.projectCount,
-      yoyAbs: change?.deltaAbs ?? null,
-      yoyPct: change?.deltaPct ?? null,
-      hasPriorYear: change?.priorTotal !== null && change?.priorTotal !== undefined,
-    };
-  })();
 
   const viewAllHref = '/aips';
+  const selectedLgu = vm.filters.availableLGUs.find(
+    (option) => option.scopeType === vm.filters.selectedScopeType && option.id === vm.filters.selectedScopeId
+  );
+  const selectedLguLabel = selectedLgu?.label ?? vm.filters.availableLGUs[0]?.label ?? 'Selected LGU';
+
+  const donutSectors = useMemo(() => {
+    const cardMap = new Map(vm.categoryOverview.cards.map((card) => [card.categoryKey, card]));
+    return CATEGORY_ORDER.map((categoryKey) => {
+      const categoryCard = cardMap.get(categoryKey);
+      const sectorCode = CATEGORY_TO_SECTOR_CODE[categoryKey];
+      return {
+        key: categoryKey,
+        label: categoryCard?.label ?? getSectorLabel(sectorCode),
+        amount: categoryCard?.totalAmount ?? 0,
+        color: CATEGORY_COLOR_BY_KEY[categoryKey],
+      };
+    });
+  }, [vm.categoryOverview.cards]);
+
+  const donutTotal = donutSectors.reduce((total, sector) => total + sector.amount, 0);
+
+  const trendData = useMemo(() => {
+    const selectedLguRows = getRawBudgetAllocationData().filter((row) => row.lguName === selectedLguLabel);
+    const rowsByYear = new Map<number, Record<BudgetCategoryKey, number>>();
+
+    selectedLguRows.forEach((row) => {
+      const categoryKey = resolveCategoryKey(row.category);
+      if (!categoryKey || !DBV2_SECTOR_CODES.includes(CATEGORY_TO_SECTOR_CODE[categoryKey])) return;
+
+      const yearTotals = rowsByYear.get(row.year) ?? {
+        general: 0,
+        social: 0,
+        economic: 0,
+        other: 0,
+      };
+      yearTotals[categoryKey] += row.budget;
+      rowsByYear.set(row.year, yearTotals);
+    });
+
+    return Array.from(rowsByYear.entries())
+      .sort((first, second) => first[0] - second[0])
+      .map(([year, totals]) => ({
+        year,
+        ...totals,
+      }));
+  }, [selectedLguLabel]);
+
+  const trendSubtitle = trendData.length > 0
+    ? `Shows budget trends from ${trendData[0]?.year}-${trendData[trendData.length - 1]?.year}`
+    : 'No trend data available for the selected LGU.';
 
   const filteredRows = vm.aipDetails.rows.filter((row: AipDetailsRowVM) => row.categoryKey === activeTab);
   const detailQuery = normalizeSearchText(detailsSearch).toLowerCase();
@@ -68,9 +115,9 @@ export default function CitizenBudgetAllocationView() {
   };
 
   return (
-    <section className="space-y-6 pb-10" style={{ background: 'linear-gradient(180deg, #d3dbe0, #ffffff 99.15%)' }}>
+    <section className="pb-16">
       <HeroBannerSection title={vm.hero.title.toUpperCase()} subtitle={vm.hero.subtitle} />
-      <ExplainerSection title={vm.explainer.title} body={vm.explainer.body} />
+      <ExplainerSection title="What is Budget Allocation?" body={vm.explainer.body} />
       <FiltersSection
         filters={{
           ...vm.filters,
@@ -83,14 +130,16 @@ export default function CitizenBudgetAllocationView() {
         onLguChange={() => {}}
         onSearchChange={() => {}}
       />
-
-      <CategoryOverviewSection scopeLabel={vm.categoryOverview.scopeLabel} cards={vm.categoryOverview.cards} />
-      <AllocationAndContextSection
-        chart={vm.allocationContext.chart}
-        selectedContext={selectedContext}
-        categoryOptions={categoryOptions}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+      <OverviewHeader
+        title={`${selectedLguLabel} Budget Allocation Breakdown`}
+        subtitle={`Total budget and allocation by category for FY ${vm.filters.selectedYear}`}
+      />
+      <ChartsGrid
+        fiscalYear={vm.filters.selectedYear}
+        totalBudget={donutTotal}
+        sectors={donutSectors}
+        trendSubtitle={trendSubtitle}
+        trendData={trendData}
       />
       <AipDetailsSection
         vm={detailsVm}
@@ -98,7 +147,6 @@ export default function CitizenBudgetAllocationView() {
         onSearchChange={setDetailsSearch}
         viewAllHref={viewAllHref}
       />
-      <ChangesFromLastYearSection vm={vm.changesFromLastYear} currentYear={vm.filters.selectedYear} />
     </section>
   );
 }

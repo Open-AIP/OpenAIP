@@ -10,11 +10,13 @@ type ExplainerSectionProps = {
 
 export default function ExplainerSection({ title, body = DEFAULT_EXPLAINER }: ExplainerSectionProps) {
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardContent className="space-y-3 p-6">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <p className="text-sm leading-relaxed text-slate-600">{body}</p>
-      </CardContent>
-    </Card>
+    <section className="mx-auto max-w-6xl px-6 py-8">
+      <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <CardContent className="space-y-3 p-6 md:p-7">
+          <h2 className="text-lg font-semibold text-[#022437]">{title}</h2>
+          <p className="text-sm leading-relaxed text-slate-600 md:text-[15px]">{body}</p>
+        </CardContent>
+      </Card>
+    </section>
   );
 }

@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react';
 import { DBV2_SECTOR_CODES, getSectorLabel, type DashboardSectorCode } from "@/lib/constants/dashboard";
 import type { BudgetCategoryKey, AipDetailsRowVM } from "@/lib/domain/citizen-budget-allocation";
+import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
 import {
   AipDetailsSection,
   ChartsGrid,
   ExplainerSection,
   FiltersSection,
-  HeroBannerSection,
   OverviewHeader,
 } from '../components';
 import { CITIZEN_BUDGET_ALLOCATION_MOCK } from '@/mocks/fixtures/budget-allocation';
@@ -116,19 +116,24 @@ export default function CitizenBudgetAllocationView() {
 
   return (
     <section className="pb-16">
-      <HeroBannerSection title={vm.hero.title.toUpperCase()} subtitle={vm.hero.subtitle} />
+      <div className="mx-auto max-w-6xl px-6 pt-6">
+        <CitizenSectionBanner
+          title={vm.hero.title.toUpperCase()}
+          description={vm.hero.subtitle}
+          imageSrc="/citizen-dashboard/city.png"
+          className="!rounded-none !border-0"
+        />
+      </div>
       <ExplainerSection title="What is Budget Allocation?" body={vm.explainer.body} />
       <FiltersSection
         filters={{
           ...vm.filters,
-          searchText: vm.filters.searchText,
           selectedYear: vm.filters.selectedYear,
           selectedScopeType: vm.filters.selectedScopeType,
           selectedScopeId: vm.filters.selectedScopeId,
         }}
         onYearChange={() => {}}
         onLguChange={() => {}}
-        onSearchChange={() => {}}
       />
       <OverviewHeader
         title={`${selectedLguLabel} Budget Allocation Breakdown`}

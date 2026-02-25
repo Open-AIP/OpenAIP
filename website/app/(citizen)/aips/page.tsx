@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import AipBanner from '@/features/citizen/aips/components/AipBanner';
-import AipFiltersBar from '@/features/citizen/aips/components/AipFiltersBar';
-import AipIntroCard from '@/features/citizen/aips/components/AipIntroCard';
 import AipListCard from '@/features/citizen/aips/components/AipListCard';
+import CitizenExplainerCard from '@/features/citizen/components/CitizenExplainerCard';
+import CitizenFiltersBar from '@/features/citizen/components/CitizenFiltersBar';
+import CitizenPageHero from '@/features/citizen/components/CitizenPageHero';
 import { FISCAL_YEAR_OPTIONS, LGU_OPTIONS, getCitizenAipList } from '@/features/citizen/aips/data/aips.data';
 
 const CitizenAipsPage = () => {
@@ -32,18 +32,38 @@ const CitizenAipsPage = () => {
 
   return (
     <section className="space-y-6">
-      <AipBanner />
-      <AipIntroCard />
+      <CitizenPageHero
+        title="Annual Investment Plans"
+        subtitle="Explore how your city or barangay plans to use public funds for programs, projects, and community development throughout the year."
+      />
 
-      <AipFiltersBar
-        fiscalYear={selectedYear}
-        onFiscalYearChange={setSelectedYear}
-        lgu={selectedLgu}
-        onLguChange={setSelectedLgu}
-        search={searchQuery}
-        onSearchChange={setSearchQuery}
-        fiscalYearOptions={FISCAL_YEAR_OPTIONS}
+      <CitizenExplainerCard title="What is an Annual Investment Plan?">
+        <>
+          <p className="text-sm leading-relaxed text-slate-600 md:text-[15px]">
+            The AIP is your local government&apos;s official roadmap for the year. It lists planned programs,
+            projects, and activities, together with their approved budgets.
+          </p>
+          <p className="text-sm leading-relaxed text-slate-600 md:text-[15px]">
+            This page allows citizens to review the full document, understand budget priorities, and see how public
+            funds are intended to benefit the community.
+          </p>
+          <p className="text-sm text-[#6f5a1b]">
+            Click &quot;View Details&quot; on any AIP to see the complete breakdown of projects, budgets, timelines,
+            and implementation strategies.
+          </p>
+        </>
+      </CitizenExplainerCard>
+
+      <CitizenFiltersBar
+        yearOptions={FISCAL_YEAR_OPTIONS}
+        yearValue={selectedYear}
+        onYearChange={setSelectedYear}
         lguOptions={LGU_OPTIONS}
+        lguValue={selectedLgu}
+        onLguChange={setSelectedLgu}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search AIPs..."
       />
 
       <p className="text-sm text-slate-500">Showing {filteredAips.length} result{filteredAips.length !== 1 ? 's' : ''}</p>

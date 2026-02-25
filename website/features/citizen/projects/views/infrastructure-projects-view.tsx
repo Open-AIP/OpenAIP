@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
+import CitizenExplainerCard from "@/features/citizen/components/CitizenExplainerCard";
+import CitizenPageHero from "@/features/citizen/components/CitizenPageHero";
 import InfrastructureProjectCard from "@/features/projects/infrastructure/components/infrastructure-project-card";
 import type { InfrastructureProject } from "@/lib/repos/projects/types";
 import {
@@ -44,24 +44,18 @@ export default function InfrastructureProjectsView({
 
   return (
     <section className="space-y-6">
-      <CitizenSectionBanner
+      <CitizenPageHero
         title="Infrastructure Projects"
-        description="Explore infrastructure projects funded by AIPs, including roads, drainage, public facilities, and community upgrades."
-        align="center"
+        subtitle="Explore infrastructure projects funded by AIPs, including roads, drainage, public facilities, and community upgrades."
         eyebrow="OpenAIP"
       />
 
-      <Card className="border-slate-200">
-        <CardContent className="space-y-2 p-5">
-          <div className="text-sm font-semibold text-slate-900">
-            What are Infrastructure Projects?
-          </div>
-          <p className="text-sm text-slate-600">
-            Infrastructure projects cover public works and facilities that improve safety, mobility,
-            and access to essential services across communities.
-          </p>
-        </CardContent>
-      </Card>
+      <CitizenExplainerCard title="What are Infrastructure Projects?">
+        <p className="text-sm text-slate-600">
+          Infrastructure projects cover public works and facilities that improve safety, mobility,
+          and access to essential services across communities.
+        </p>
+      </CitizenExplainerCard>
 
       <ProjectFilters
         fiscalYears={years}
@@ -94,4 +88,3 @@ export default function InfrastructureProjectsView({
     </section>
   );
 }
-

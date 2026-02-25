@@ -10,11 +10,12 @@ import {
   FileText,
   Layers,
   ShieldCheck,
-  ChevronDown,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import CitizenExplainerCard from '@/features/citizen/components/CitizenExplainerCard';
+import CitizenPageHero from '@/features/citizen/components/CitizenPageHero';
 
 const featureCards = [
   {
@@ -143,33 +144,19 @@ export default function AboutUsPage() {
 
   return (
     <section className="space-y-12 pb-8 bg-[#F9FAFB]">
-      {/* Banner */}
-      <div
-        id="banner"
-        ref={(el) => { sectionRefs.current['banner'] = el }}
-        className={`relative overflow-hidden rounded-xl border px-6 py-10 text-white shadow-xl md:px-10 transition-all duration-500 ${
-          visible['banner'] ? 'bg-gradient-to-br from-[#022437] to-[#07396F] border-transparent' : 'bg-[#022437]/95 border-[#022437]'
-        }`}
-      >
-        <div className="max-w-6xl mx-auto flex flex-col items-center gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="z-10 text-center md:text-left">
-            <Badge className="rounded-full bg-white/10 px-4 py-1 text-xs text-white">Transparency Platform</Badge>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white md:text-5xl">About Us</h1>
-            <p className="mt-3 max-w-3xl text-sm text-white/90 md:text-base">
-              Explore how your city or barangay plans to use public funds for programs, projects, and community development throughout the year.
-            </p>
-          </div>
-          <div className="hidden md:block">
-            <Image src="/default/default-no-image.jpg" alt="About banner" width={320} height={200} className="rounded-md object-cover" />
-          </div>
-        </div>
+      <CitizenPageHero
+        title="About Us"
+        subtitle="Explore how your city or barangay plans to use public funds for programs, projects, and community development throughout the year."
+        eyebrow="Transparency Platform"
+        imageSrc="/default/default-no-image.jpg"
+      />
 
-        <div className="absolute left-1/2 bottom-6 -translate-x-1/2 text-white/80">
-          <div className="flex animate-bounce items-center justify-center opacity-90">
-            <ChevronDown className="h-6 w-6" />
-          </div>
-        </div>
-      </div>
+      <CitizenExplainerCard title="What is OpenAIP?">
+        <p className="text-sm leading-relaxed text-slate-600 md:text-[15px]">
+          OpenAIP transforms Local Government Unit Annual Investment Plans from static documents into searchable,
+          visual, and understandable public information so communities can better follow and engage with local planning.
+        </p>
+      </CitizenExplainerCard>
 
       {/* Section 1: What is OpenAIP */}
       <section

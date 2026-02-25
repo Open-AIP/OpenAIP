@@ -1,17 +1,24 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import CitizenExplainerCard from "@/features/citizen/components/CitizenExplainerCard";
+import CitizenPageHero from "@/features/citizen/components/CitizenPageHero";
 
 export default function CitizenProjectsPage() {
   return (
     <section className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Projects</h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
-          Browse ongoing and completed projects funded through AIPs, including project objectives,
-          implementing offices, and public-facing progress information.
+      <CitizenPageHero
+        title="Projects"
+        subtitle="Browse ongoing and completed projects funded through AIPs, including project objectives, implementing offices, and public-facing progress information."
+        eyebrow="OpenAIP"
+      />
+
+      <CitizenExplainerCard title="What are AIP-funded projects?">
+        <p className="text-sm leading-relaxed text-slate-600 md:text-[15px]">
+          These are programs and infrastructure initiatives approved in the Annual Investment Plan.
+          Explore them by sector to understand where public funds are directed and what outcomes are planned.
         </p>
-      </header>
+      </CitizenExplainerCard>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-slate-200">

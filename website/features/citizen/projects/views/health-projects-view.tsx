@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import CitizenSectionBanner from "@/features/citizen/components/CitizenSectionBanner";
+import CitizenExplainerCard from "@/features/citizen/components/CitizenExplainerCard";
+import CitizenPageHero from "@/features/citizen/components/CitizenPageHero";
 import HealthProjectCard from "@/features/projects/health/components/health-project-card";
 import type { HealthProject } from "@/lib/repos/projects/types";
 import {
@@ -44,23 +44,19 @@ export default function HealthProjectsView({
 
   return (
     <section className="space-y-6">
-      <CitizenSectionBanner
+      <CitizenPageHero
         title="Health Projects"
-        description="View projects focused on public health, including medical services, health facilities, and community wellness programs."
-        align="center"
+        subtitle="View projects focused on public health, including medical services, health facilities, and community wellness programs."
         imageSrc="/mock/health/health2.jpg"
         eyebrow="OpenAIP"
       />
 
-      <Card className="border-slate-200">
-        <CardContent className="space-y-2 p-5">
-          <div className="text-sm font-semibold text-slate-900">What are Health Projects?</div>
-          <p className="text-sm text-slate-600">
-            Health projects are initiatives funded by local government to improve healthcare
-            access, preventive programs, and public wellness services.
-          </p>
-        </CardContent>
-      </Card>
+      <CitizenExplainerCard title="What are Health Projects?">
+        <p className="text-sm text-slate-600">
+          Health projects are initiatives funded by local government to improve healthcare
+          access, preventive programs, and public wellness services.
+        </p>
+      </CitizenExplainerCard>
 
       <ProjectFilters
         fiscalYears={years}
@@ -93,4 +89,3 @@ export default function HealthProjectsView({
     </section>
   );
 }
-

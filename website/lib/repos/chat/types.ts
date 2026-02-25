@@ -18,6 +18,8 @@ export type ChatCitation = {
   scopeId?: string | null;
   scopeName?: string | null;
   similarity?: number | null;
+  distance?: number | null;
+  matchScore?: number | null;
   snippet: string;
   insufficient?: boolean;
   metadata?: unknown | null;

@@ -5,14 +5,18 @@ import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
 import {
   buildClarificationOptions,
   buildLineItemAnswer,
+  buildLineItemCitationScopeName,
   buildLineItemCitationSnippet,
+  buildLineItemScopeDisclosure,
   formatPhpAmount,
   parseLineItemQuestion,
   rerankLineItemCandidates,
+  resolveLineItemScopeDecision,
   shouldAskLineItemClarification,
   toPgVectorLiteral,
   type LineItemMatchCandidate,
   type LineItemRowRecord,
+  type LineItemScopeReason,
 } from "@/lib/chat/line-item-routing";
 import { requestPipelineChatAnswer, requestPipelineQueryEmbedding } from "@/lib/chat/pipeline-client";
 import {
@@ -77,7 +81,9 @@ type RpcLineItemMatchRow = {
   page_no: number | null;
   row_no: number | null;
   table_no: number | null;
-  similarity: number | null;
+  distance?: number | null;
+  score?: number | null;
+  similarity?: number | null;
 };
 
 type DbLineItemRow = {
@@ -124,6 +130,21 @@ type TotalsRoutingLogPayload = {
   aip_id_selected: string | null;
   totals_found: boolean;
   vector_called: false;
+};
+
+type NonTotalsRoutingLogPayload = {
+  request_id: string;
+  intent: "line_item_fact" | "unanswerable_field" | "clarification_needed" | "pipeline_fallback";
+  route: "row_sql" | "pipeline_fallback";
+  fiscal_year_parsed: number | null;
+  scope_reason: LineItemScopeReason;
+  barangay_id_used: string | null;
+  match_count_used: number | null;
+  top_candidate_ids: string[];
+  top_candidate_distances: number[];
+  answered: boolean;
+  // vector_called means the row-match RPC was called (not the query-embedding call).
+  vector_called: boolean;
 };
 
 function toChatMessage(row: ChatMessageRow): ChatMessage {
@@ -217,7 +238,20 @@ function toLineItemMatchCandidates(value: unknown): LineItemMatchCandidate[] {
       page_no: Number.isInteger(typed.page_no) ? (typed.page_no as number) : null,
       row_no: Number.isInteger(typed.row_no) ? (typed.row_no as number) : null,
       table_no: Number.isInteger(typed.table_no) ? (typed.table_no as number) : null,
-      similarity: toNumberOrNull(typed.similarity),
+      distance:
+        toNumberOrNull(typed.distance) ??
+        (() => {
+          const similarity = toNumberOrNull(typed.similarity);
+          if (similarity === null) return null;
+          return Math.max(0, 1 - similarity);
+        })(),
+      score:
+        toNumberOrNull(typed.score) ??
+        (() => {
+          const distance = toNumberOrNull(typed.distance);
+          if (distance !== null) return 1 / (1 + distance);
+          return toNumberOrNull(typed.similarity);
+        })(),
     });
   }
   return candidates;
@@ -262,38 +296,6 @@ function toLineItemRows(value: unknown): LineItemRowRecord[] {
     });
   }
   return rows;
-}
-
-function resolveLineItemBarangayFilter(scopeResolution: ChatScopeResolution): string | null {
-  const resolvedTargets = scopeResolution.resolvedTargets ?? [];
-  if (scopeResolution.mode === "own_barangay") {
-    const barangayTarget = resolvedTargets.find((target) => target.scopeType === "barangay");
-    return barangayTarget?.scopeId ?? null;
-  }
-
-  if (scopeResolution.mode === "named_scopes") {
-    if (resolvedTargets.length !== 1) return null;
-    const target = resolvedTargets[0];
-    if (target.scopeType !== "barangay") return null;
-    return target.scopeId;
-  }
-
-  return null;
-}
-
-function resolveLineItemScopeName(input: {
-  scopeResolution: ChatScopeResolution;
-  row: LineItemRowRecord;
-}): string {
-  const singleResolved =
-    input.scopeResolution.resolvedTargets.length === 1
-      ? input.scopeResolution.resolvedTargets[0]
-      : null;
-
-  if (singleResolved?.scopeType === "barangay") {
-    return `${normalizeBarangayLabel(singleResolved.scopeName)} - FY ${input.row.fiscal_year} - ${input.row.program_project_title}`;
-  }
-  return `FY ${input.row.fiscal_year} - ${input.row.program_project_title}`;
 }
 
 function parseLooseScopeName(message: string): string | null {
@@ -347,6 +349,11 @@ function isTotalsDebugEnabled(): boolean {
 }
 
 function logTotalsRouting(payload: TotalsRoutingLogPayload): void {
+  if (!isTotalsDebugEnabled()) return;
+  console.info(JSON.stringify(payload));
+}
+
+function logNonTotalsRouting(payload: NonTotalsRoutingLogPayload): void {
   if (!isTotalsDebugEnabled()) return;
   console.info(JSON.stringify(payload));
 }
@@ -1024,6 +1031,19 @@ export async function POST(request: Request) {
           scopeResolution,
         },
       });
+      logNonTotalsRouting({
+        request_id: requestId,
+        intent: "clarification_needed",
+        route: "row_sql",
+        fiscal_year_parsed: extractFiscalYear(content),
+        scope_reason: "unknown",
+        barangay_id_used: null,
+        match_count_used: null,
+        top_candidate_ids: [],
+        top_candidate_distances: [],
+        answered: true,
+        vector_called: false,
+      });
 
       return NextResponse.json(
         {
@@ -1102,6 +1122,24 @@ export async function POST(request: Request) {
 
     const parsedLineItemQuestion = parseLineItemQuestion(content);
     const requestedFiscalYear = extractFiscalYear(content);
+    const userBarangay = await resolveUserBarangay(actor);
+    const lineItemScope = resolveLineItemScopeDecision({
+      question: parsedLineItemQuestion,
+      scopeResolution: {
+        mode: scopeResolution.mode,
+        resolvedTargets: scopeResolution.resolvedTargets,
+      },
+      userBarangayId: userBarangay?.id ?? null,
+    });
+    const explicitBarangayTarget =
+      scopeResolution.resolvedTargets.find((target) => target.scopeType === "barangay") ?? null;
+    const scopeBarangayName =
+      lineItemScope.scopeReason === "explicit_barangay"
+        ? explicitBarangayTarget?.scopeName ?? userBarangay?.name ?? null
+        : lineItemScope.scopeReason === "explicit_our_barangay" ||
+            lineItemScope.scopeReason === "default_user_barangay"
+          ? userBarangay?.name ?? explicitBarangayTarget?.scopeName ?? null
+          : null;
 
     if (parsedLineItemQuestion.isUnanswerableFieldQuestion) {
       const assistantMessage = await appendAssistantMessage({
@@ -1120,6 +1158,19 @@ export async function POST(request: Request) {
           latencyMs: Date.now() - startedAt,
         },
       });
+      logNonTotalsRouting({
+        request_id: requestId,
+        intent: "unanswerable_field",
+        route: "row_sql",
+        fiscal_year_parsed: requestedFiscalYear,
+        scope_reason: lineItemScope.scopeReason,
+        barangay_id_used: lineItemScope.barangayIdUsed,
+        match_count_used: null,
+        top_candidate_ids: [],
+        top_candidate_distances: [],
+        answered: true,
+        vector_called: false,
+      });
 
       return NextResponse.json(
         {
@@ -1132,11 +1183,13 @@ export async function POST(request: Request) {
     }
 
     if (parsedLineItemQuestion.isFactQuestion) {
+      let vectorRpcCalled = false;
       try {
         const embeddedQuery = await requestPipelineQueryEmbedding({ text: content });
-        const barangayFilterId = resolveLineItemBarangayFilter(scopeResolution);
+        const barangayFilterId = lineItemScope.barangayIdUsed;
         const matchCount = barangayFilterId === null && requestedFiscalYear === null ? 40 : 20;
 
+        vectorRpcCalled = true;
         const { data: rpcData, error: rpcError } = await client.rpc("match_aip_line_items", {
           p_query_embedding: toPgVectorLiteral(embeddedQuery.embedding),
           p_match_count: matchCount,
@@ -1174,38 +1227,18 @@ export async function POST(request: Request) {
               contextCount: 0,
             },
           });
-
-          return NextResponse.json(
-            {
-              sessionId: session.id,
-              userMessage,
-              assistantMessage,
-            },
-            { status: 200 }
-          );
-        }
-
-        if (shouldAskLineItemClarification(ranked)) {
-          const options = buildClarificationOptions(ranked);
-          const assistantMessage = await appendAssistantMessage({
-            sessionId: session.id,
-            content: `I found multiple possible line items. Please clarify which one you mean: ${options
-              .map((option, index) => `${index + 1}. ${option}`)
-              .join(" ")}`,
-            citations: [
-              makeSystemCitation("Multiple plausible line-item candidates require clarification.", {
-                reason: "line_item_ambiguous",
-                options,
-              }),
-            ],
-            retrievalMeta: {
-              refused: true,
-              reason: "insufficient_evidence",
-              scopeResolution,
-              latencyMs: Date.now() - startedAt,
-              topK: matchCount,
-              contextCount: ranked.length,
-            },
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "line_item_fact",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: lineItemScope.scopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: matchCount,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: false,
+            vector_called: vectorRpcCalled,
           });
 
           return NextResponse.json(
@@ -1222,6 +1255,12 @@ export async function POST(request: Request) {
           .slice(0, 3)
           .map((candidate) => candidate.line_item_id)
           .filter((id, index, all) => all.indexOf(id) === index);
+        const topCandidateIds = ranked.slice(0, 3).map((candidate) => candidate.line_item_id);
+        const topCandidateDistances = ranked
+          .slice(0, 3)
+          .map((candidate) => candidate.distance)
+          .filter((distance): distance is number => typeof distance === "number");
+
         const { data: rowData, error: rowError } = await client
           .from("aip_line_items")
           .select(
@@ -1235,6 +1274,63 @@ export async function POST(request: Request) {
         const rowsById = new Map<string, LineItemRowRecord>(
           toLineItemRows(rowData).map((row) => [row.id, row])
         );
+
+        if (
+          shouldAskLineItemClarification({
+            question: parsedLineItemQuestion,
+            candidates: ranked,
+          })
+        ) {
+          const options = buildClarificationOptions({
+            candidates: ranked,
+            rowsById,
+            defaultBarangayName: scopeBarangayName,
+            scopeReason: lineItemScope.scopeReason,
+          });
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: `I found multiple possible line items:\n${options
+              .map((option, index) => `${index + 1}. ${option}`)
+              .join("\n")}\nWhich one did you mean?`,
+            citations: [
+              makeSystemCitation("Multiple plausible line-item candidates require clarification.", {
+                reason: "line_item_ambiguous",
+                options,
+              }),
+            ],
+            retrievalMeta: {
+              refused: true,
+              reason: "insufficient_evidence",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              topK: matchCount,
+              contextCount: ranked.length,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "clarification_needed",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: lineItemScope.scopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: matchCount,
+            top_candidate_ids: topCandidateIds,
+            top_candidate_distances: topCandidateDistances,
+            answered: false,
+            vector_called: vectorRpcCalled,
+          });
+
+          return NextResponse.json(
+            {
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            },
+            { status: 200 }
+          );
+        }
+
         const selectedRows = candidateIds
           .map((id) => rowsById.get(id))
           .filter((row): row is LineItemRowRecord => Boolean(row));
@@ -1254,6 +1350,19 @@ export async function POST(request: Request) {
               contextCount: ranked.length,
             },
           });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "line_item_fact",
+            route: "row_sql",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: lineItemScope.scopeReason,
+            barangay_id_used: lineItemScope.barangayIdUsed,
+            match_count_used: matchCount,
+            top_candidate_ids: topCandidateIds,
+            top_candidate_distances: topCandidateDistances,
+            answered: false,
+            vector_called: vectorRpcCalled,
+          });
 
           return NextResponse.json(
             {
@@ -1266,9 +1375,14 @@ export async function POST(request: Request) {
         }
 
         const primaryRow = selectedRows[0];
+        const scopeDisclosure = buildLineItemScopeDisclosure({
+          scopeReason: lineItemScope.scopeReason,
+          barangayName: scopeBarangayName,
+        });
         const assistantContent = buildLineItemAnswer({
           row: primaryRow,
           fields: parsedLineItemQuestion.factFields,
+          scopeDisclosure,
         });
 
         const citations: ChatCitation[] = selectedRows.map((row, index) => {
@@ -1279,8 +1393,14 @@ export async function POST(request: Request) {
             fiscalYear: row.fiscal_year,
             scopeType: row.barangay_id ? "barangay" : "unknown",
             scopeId: row.barangay_id,
-            scopeName: resolveLineItemScopeName({ scopeResolution, row }),
-            similarity: rankedCandidate?.similarity ?? null,
+            scopeName: buildLineItemCitationScopeName({
+              title: row.program_project_title,
+              fiscalYear: row.fiscal_year,
+              barangayName: scopeBarangayName,
+              scopeReason: lineItemScope.scopeReason,
+            }),
+            distance: rankedCandidate?.distance ?? null,
+            matchScore: rankedCandidate?.score ?? null,
             snippet: buildLineItemCitationSnippet(row),
             insufficient: false,
             metadata: {
@@ -1294,6 +1414,9 @@ export async function POST(request: Request) {
               fiscal_year: row.fiscal_year,
               barangay_id: row.barangay_id,
               total: formatPhpAmount(row.total),
+              distance: rankedCandidate?.distance ?? null,
+              score: rankedCandidate?.score ?? null,
+              scope_reason: lineItemScope.scopeReason,
             },
           };
         });
@@ -1310,6 +1433,19 @@ export async function POST(request: Request) {
             topK: matchCount,
             contextCount: ranked.length,
           },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: "line_item_fact",
+          route: "row_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: lineItemScope.scopeReason,
+          barangay_id_used: lineItemScope.barangayIdUsed,
+          match_count_used: matchCount,
+          top_candidate_ids: topCandidateIds,
+          top_candidate_distances: topCandidateDistances,
+          answered: true,
+          vector_called: vectorRpcCalled,
         });
 
         return NextResponse.json(
@@ -1334,6 +1470,19 @@ export async function POST(request: Request) {
             scopeResolution,
             latencyMs: Date.now() - startedAt,
           },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: "line_item_fact",
+          route: "row_sql",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: lineItemScope.scopeReason,
+          barangay_id_used: lineItemScope.barangayIdUsed,
+          match_count_used: null,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: false,
+          vector_called: vectorRpcCalled,
         });
 
         return NextResponse.json(
@@ -1406,6 +1555,19 @@ export async function POST(request: Request) {
       content: assistantContent,
       citations: assistantCitations,
       retrievalMeta: assistantMeta,
+    });
+    logNonTotalsRouting({
+      request_id: requestId,
+      intent: "pipeline_fallback",
+      route: "pipeline_fallback",
+      fiscal_year_parsed: requestedFiscalYear,
+      scope_reason: lineItemScope.scopeReason,
+      barangay_id_used: lineItemScope.barangayIdUsed,
+      match_count_used: null,
+      top_candidate_ids: [],
+      top_candidate_distances: [],
+      answered: !assistantMeta.refused,
+      vector_called: false,
     });
 
     return NextResponse.json(

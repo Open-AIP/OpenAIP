@@ -35,9 +35,13 @@ export default function ChatMessageBubble({
                   <span>{citation.scopeName ?? "Unknown scope"}</span>
                   <span>{citation.scopeType ?? "unknown"}</span>
                   {typeof citation.fiscalYear === "number" && <span>FY {citation.fiscalYear}</span>}
-                  {typeof citation.similarity === "number" && (
-                    <span>sim {(citation.similarity * 100).toFixed(1)}%</span>
-                  )}
+                  {typeof citation.distance === "number" ? (
+                    <span>DIST {citation.distance.toFixed(3)}</span>
+                  ) : typeof citation.matchScore === "number" ? (
+                    <span>MATCH {(citation.matchScore * 100).toFixed(1)}%</span>
+                  ) : typeof citation.similarity === "number" ? (
+                    <span>MATCH {(citation.similarity * 100).toFixed(1)}%</span>
+                  ) : null}
                 </div>
                 <div className="mt-1 text-[12px] leading-snug">{citation.snippet}</div>
               </div>

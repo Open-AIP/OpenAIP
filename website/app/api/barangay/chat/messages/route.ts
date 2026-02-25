@@ -2,7 +2,19 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { formatTotalsEvidence } from "@/lib/chat/evidence";
 import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
-import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
+import {
+  buildClarificationOptions,
+  buildLineItemAnswer,
+  buildLineItemCitationSnippet,
+  formatPhpAmount,
+  parseLineItemQuestion,
+  rerankLineItemCandidates,
+  shouldAskLineItemClarification,
+  toPgVectorLiteral,
+  type LineItemMatchCandidate,
+  type LineItemRowRecord,
+} from "@/lib/chat/line-item-routing";
+import { requestPipelineChatAnswer, requestPipelineQueryEmbedding } from "@/lib/chat/pipeline-client";
 import {
   detectExplicitBarangayMention,
   normalizeBarangayNameForMatch,
@@ -53,6 +65,41 @@ type AipTotalRow = {
   total_investment_program: number | string;
   page_no: number | null;
   evidence_text: string;
+};
+
+type RpcLineItemMatchRow = {
+  line_item_id: string;
+  aip_id: string;
+  fiscal_year: number | null;
+  barangay_id: string | null;
+  aip_ref_code: string | null;
+  program_project_title: string;
+  page_no: number | null;
+  row_no: number | null;
+  table_no: number | null;
+  similarity: number | null;
+};
+
+type DbLineItemRow = {
+  id: string;
+  aip_id: string;
+  fiscal_year: number;
+  barangay_id: string | null;
+  aip_ref_code: string | null;
+  program_project_title: string;
+  implementing_agency: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  fund_source: string | null;
+  ps: number | null;
+  mooe: number | null;
+  co: number | null;
+  fe: number | null;
+  total: number | null;
+  expected_output: string | null;
+  page_no: number | null;
+  row_no: number | null;
+  table_no: number | null;
 };
 
 type TotalsAssistantPayload = {
@@ -146,6 +193,107 @@ function normalizePipelineCitations(citations: PipelineChatCitation[]): ChatCita
     });
   }
   return normalized;
+}
+
+function toLineItemMatchCandidates(value: unknown): LineItemMatchCandidate[] {
+  if (!Array.isArray(value)) return [];
+  const candidates: LineItemMatchCandidate[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const typed = row as Partial<RpcLineItemMatchRow>;
+    if (!typed.line_item_id || !typed.aip_id || !typed.program_project_title) continue;
+    candidates.push({
+      line_item_id: typed.line_item_id,
+      aip_id: typed.aip_id,
+      fiscal_year: Number.isInteger(typed.fiscal_year)
+        ? (typed.fiscal_year as number)
+        : (() => {
+            const parsed = toNumberOrNull(typed.fiscal_year);
+            return Number.isInteger(parsed) ? parsed : null;
+          })(),
+      barangay_id: typeof typed.barangay_id === "string" ? typed.barangay_id : null,
+      aip_ref_code: typeof typed.aip_ref_code === "string" ? typed.aip_ref_code : null,
+      program_project_title: typed.program_project_title,
+      page_no: Number.isInteger(typed.page_no) ? (typed.page_no as number) : null,
+      row_no: Number.isInteger(typed.row_no) ? (typed.row_no as number) : null,
+      table_no: Number.isInteger(typed.table_no) ? (typed.table_no as number) : null,
+      similarity: toNumberOrNull(typed.similarity),
+    });
+  }
+  return candidates;
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const parsed = Number.parseFloat(value.trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toLineItemRows(value: unknown): LineItemRowRecord[] {
+  if (!Array.isArray(value)) return [];
+  const rows: LineItemRowRecord[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const typed = row as Partial<DbLineItemRow>;
+    if (!typed.id || !typed.aip_id || !typed.program_project_title || typeof typed.fiscal_year !== "number") {
+      continue;
+    }
+    rows.push({
+      id: typed.id,
+      aip_id: typed.aip_id,
+      fiscal_year: typed.fiscal_year,
+      barangay_id: typeof typed.barangay_id === "string" ? typed.barangay_id : null,
+      aip_ref_code: typeof typed.aip_ref_code === "string" ? typed.aip_ref_code : null,
+      program_project_title: typed.program_project_title,
+      implementing_agency: typeof typed.implementing_agency === "string" ? typed.implementing_agency : null,
+      start_date: typeof typed.start_date === "string" ? typed.start_date : null,
+      end_date: typeof typed.end_date === "string" ? typed.end_date : null,
+      fund_source: typeof typed.fund_source === "string" ? typed.fund_source : null,
+      ps: toNumberOrNull(typed.ps),
+      mooe: toNumberOrNull(typed.mooe),
+      co: toNumberOrNull(typed.co),
+      fe: toNumberOrNull(typed.fe),
+      total: toNumberOrNull(typed.total),
+      expected_output: typeof typed.expected_output === "string" ? typed.expected_output : null,
+      page_no: Number.isInteger(typed.page_no) ? (typed.page_no as number) : null,
+      row_no: Number.isInteger(typed.row_no) ? (typed.row_no as number) : null,
+      table_no: Number.isInteger(typed.table_no) ? (typed.table_no as number) : null,
+    });
+  }
+  return rows;
+}
+
+function resolveLineItemBarangayFilter(scopeResolution: ChatScopeResolution): string | null {
+  const resolvedTargets = scopeResolution.resolvedTargets ?? [];
+  if (scopeResolution.mode === "own_barangay") {
+    const barangayTarget = resolvedTargets.find((target) => target.scopeType === "barangay");
+    return barangayTarget?.scopeId ?? null;
+  }
+
+  if (scopeResolution.mode === "named_scopes") {
+    if (resolvedTargets.length !== 1) return null;
+    const target = resolvedTargets[0];
+    if (target.scopeType !== "barangay") return null;
+    return target.scopeId;
+  }
+
+  return null;
+}
+
+function resolveLineItemScopeName(input: {
+  scopeResolution: ChatScopeResolution;
+  row: LineItemRowRecord;
+}): string {
+  const singleResolved =
+    input.scopeResolution.resolvedTargets.length === 1
+      ? input.scopeResolution.resolvedTargets[0]
+      : null;
+
+  if (singleResolved?.scopeType === "barangay") {
+    return `${normalizeBarangayLabel(singleResolved.scopeName)} - FY ${input.row.fiscal_year} - ${input.row.program_project_title}`;
+  }
+  return `FY ${input.row.fiscal_year} - ${input.row.program_project_title}`;
 }
 
 function parseLooseScopeName(message: string): string | null {
@@ -950,6 +1098,253 @@ export async function POST(request: Request) {
 
     if (!scope.retrievalScope) {
       throw new Error("Retrieval scope missing for non-totals intent.");
+    }
+
+    const parsedLineItemQuestion = parseLineItemQuestion(content);
+    const requestedFiscalYear = extractFiscalYear(content);
+
+    if (parsedLineItemQuestion.isUnanswerableFieldQuestion) {
+      const assistantMessage = await appendAssistantMessage({
+        sessionId: session.id,
+        content:
+          "The published AIP does not contain that field. This is a document limitation, not a retrieval failure.",
+        citations: [
+          makeSystemCitation("Requested field is outside published AIP structured line-item coverage.", {
+            reason: "document_field_limit",
+          }),
+        ],
+        retrievalMeta: {
+          refused: true,
+          reason: "insufficient_evidence",
+          scopeResolution,
+          latencyMs: Date.now() - startedAt,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          sessionId: session.id,
+          userMessage,
+          assistantMessage,
+        },
+        { status: 200 }
+      );
+    }
+
+    if (parsedLineItemQuestion.isFactQuestion) {
+      try {
+        const embeddedQuery = await requestPipelineQueryEmbedding({ text: content });
+        const barangayFilterId = resolveLineItemBarangayFilter(scopeResolution);
+        const matchCount = barangayFilterId === null && requestedFiscalYear === null ? 40 : 20;
+
+        const { data: rpcData, error: rpcError } = await client.rpc("match_aip_line_items", {
+          p_query_embedding: toPgVectorLiteral(embeddedQuery.embedding),
+          p_match_count: matchCount,
+          p_fiscal_year: requestedFiscalYear,
+          p_barangay_id: barangayFilterId,
+        });
+        if (rpcError) {
+          throw new Error(rpcError.message);
+        }
+
+        const ranked = rerankLineItemCandidates({
+          question: parsedLineItemQuestion,
+          candidates: toLineItemMatchCandidates(rpcData).slice(0, matchCount),
+          requestedFiscalYear,
+        }).slice(0, 10);
+
+        if (ranked.length === 0) {
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content:
+              "I couldn't find a matching published AIP line item for that question. Try adding a specific project title or reference code.",
+            citations: [
+              makeSystemCitation("No line-item matches found in row-level index.", {
+                reason: "line_item_not_found",
+                fiscal_year: requestedFiscalYear,
+                barangay_id: barangayFilterId,
+              }),
+            ],
+            retrievalMeta: {
+              refused: true,
+              reason: "insufficient_evidence",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              topK: matchCount,
+              contextCount: 0,
+            },
+          });
+
+          return NextResponse.json(
+            {
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            },
+            { status: 200 }
+          );
+        }
+
+        if (shouldAskLineItemClarification(ranked)) {
+          const options = buildClarificationOptions(ranked);
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: `I found multiple possible line items. Please clarify which one you mean: ${options
+              .map((option, index) => `${index + 1}. ${option}`)
+              .join(" ")}`,
+            citations: [
+              makeSystemCitation("Multiple plausible line-item candidates require clarification.", {
+                reason: "line_item_ambiguous",
+                options,
+              }),
+            ],
+            retrievalMeta: {
+              refused: true,
+              reason: "insufficient_evidence",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              topK: matchCount,
+              contextCount: ranked.length,
+            },
+          });
+
+          return NextResponse.json(
+            {
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            },
+            { status: 200 }
+          );
+        }
+
+        const candidateIds = ranked
+          .slice(0, 3)
+          .map((candidate) => candidate.line_item_id)
+          .filter((id, index, all) => all.indexOf(id) === index);
+        const { data: rowData, error: rowError } = await client
+          .from("aip_line_items")
+          .select(
+            "id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title,implementing_agency,start_date,end_date,fund_source,ps,mooe,co,fe,total,expected_output,page_no,row_no,table_no"
+          )
+          .in("id", candidateIds);
+        if (rowError) {
+          throw new Error(rowError.message);
+        }
+
+        const rowsById = new Map<string, LineItemRowRecord>(
+          toLineItemRows(rowData).map((row) => [row.id, row])
+        );
+        const selectedRows = candidateIds
+          .map((id) => rowsById.get(id))
+          .filter((row): row is LineItemRowRecord => Boolean(row));
+
+        if (selectedRows.length === 0) {
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content:
+              "I found relevant line-item references, but I couldn't load the structured row details. Please try again.",
+            citations: [makeSystemCitation("Row-level retrieval returned empty result after candidate match.")],
+            retrievalMeta: {
+              refused: true,
+              reason: "insufficient_evidence",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              topK: matchCount,
+              contextCount: ranked.length,
+            },
+          });
+
+          return NextResponse.json(
+            {
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            },
+            { status: 200 }
+          );
+        }
+
+        const primaryRow = selectedRows[0];
+        const assistantContent = buildLineItemAnswer({
+          row: primaryRow,
+          fields: parsedLineItemQuestion.factFields,
+        });
+
+        const citations: ChatCitation[] = selectedRows.map((row, index) => {
+          const rankedCandidate = ranked.find((candidate) => candidate.line_item_id === row.id) ?? null;
+          return {
+            sourceId: `L${index + 1}`,
+            aipId: row.aip_id,
+            fiscalYear: row.fiscal_year,
+            scopeType: row.barangay_id ? "barangay" : "unknown",
+            scopeId: row.barangay_id,
+            scopeName: resolveLineItemScopeName({ scopeResolution, row }),
+            similarity: rankedCandidate?.similarity ?? null,
+            snippet: buildLineItemCitationSnippet(row),
+            insufficient: false,
+            metadata: {
+              type: "aip_line_item",
+              line_item_id: row.id,
+              aip_ref_code: row.aip_ref_code,
+              page_no: row.page_no,
+              row_no: row.row_no,
+              table_no: row.table_no,
+              aip_id: row.aip_id,
+              fiscal_year: row.fiscal_year,
+              barangay_id: row.barangay_id,
+              total: formatPhpAmount(row.total),
+            },
+          };
+        });
+
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content: assistantContent,
+          citations,
+          retrievalMeta: {
+            refused: false,
+            reason: "ok",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+            topK: matchCount,
+            contextCount: ranked.length,
+          },
+        });
+
+        return NextResponse.json(
+          {
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          },
+          { status: 200 }
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Structured line-item retrieval request failed.";
+        const assistantMessage = await appendAssistantMessage({
+          sessionId: session.id,
+          content:
+            "I couldn't complete the structured line-item retrieval due to a temporary system issue. Please try again shortly.",
+          citations: [makeSystemCitation("Structured line-item retrieval failed.", { error: message })],
+          retrievalMeta: {
+            refused: true,
+            reason: "pipeline_error",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+
+        return NextResponse.json(
+          {
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          },
+          { status: 200 }
+        );
+      }
     }
 
     let assistantContent = "";

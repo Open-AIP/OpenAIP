@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from openaip_pipeline.core.settings import Settings
+from openaip_pipeline.services.openai_utils import build_openai_client
 from openaip_pipeline.services.rag.rag import answer_with_rag
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
@@ -38,6 +39,17 @@ class ChatAnswerResponse(BaseModel):
     citations: list[dict[str, Any]]
     retrieval_meta: dict[str, Any]
     context_count: int
+
+
+class QueryEmbeddingRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=12000)
+    model_name: str | None = None
+
+
+class QueryEmbeddingResponse(BaseModel):
+    embedding: list[float]
+    model: str
+    dimensions: int
 
 
 def _require_internal_token(provided_token: str | None) -> None:
@@ -76,4 +88,33 @@ def chat_answer(
         citations=list(result.get("citations") or []),
         retrieval_meta=dict(result.get("retrieval_meta") or {}),
         context_count=int(result.get("context_count") or 0),
+    )
+
+
+@router.post("/embed-query", response_model=QueryEmbeddingResponse)
+def embed_query(
+    req: QueryEmbeddingRequest,
+    x_pipeline_token: str | None = Header(default=None),
+) -> QueryEmbeddingResponse:
+    _require_internal_token(x_pipeline_token)
+    settings = Settings.load(require_supabase=False, require_openai=True)
+    model_name = (req.model_name or settings.embedding_model).strip() or settings.embedding_model
+
+    client = build_openai_client(settings.openai_api_key)
+    response = client.embeddings.create(model=model_name, input=req.text)
+    data = list(getattr(response, "data", []) or [])
+    if not data:
+        raise HTTPException(status_code=500, detail="Embedding response is empty.")
+
+    embedding = getattr(data[0], "embedding", None)
+    if not isinstance(embedding, list) or not embedding:
+        raise HTTPException(status_code=500, detail="Embedding vector missing in response.")
+    if not all(isinstance(value, (int, float)) for value in embedding):
+        raise HTTPException(status_code=500, detail="Embedding vector contains invalid values.")
+
+    normalized = [float(value) for value in embedding]
+    return QueryEmbeddingResponse(
+        embedding=normalized,
+        model=model_name,
+        dimensions=len(normalized),
     )

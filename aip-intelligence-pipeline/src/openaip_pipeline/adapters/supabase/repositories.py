@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 
 from openaip_pipeline.adapters.supabase.client import SupabaseRestClient
 from openaip_pipeline.adapters.supabase.dto import ExtractionRunDTO, UploadedFileDTO
 from openaip_pipeline.core.clock import now_utc_iso
+from openaip_pipeline.services.line_items.embedding_text import build_line_item_embedding_text
 
 
 ACTIVE_STAGE_ORDER = ["extract", "validate", "summarize", "categorize"]
@@ -86,6 +88,61 @@ def _normalize_errors(value: Any) -> Any:
     if isinstance(value, str):
         return [value]
     return value
+
+
+def _normalize_text_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text if text else None
+
+
+def _to_iso_date_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value.isoformat()
+    text = str(value).strip()
+    if not text:
+        return None
+    for fmt in (
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+        "%m/%d/%Y",
+        "%m-%d-%Y",
+        "%b %d, %Y",
+        "%B %d, %Y",
+        "%d %b %Y",
+        "%d %B %Y",
+    ):
+        try:
+            return datetime.strptime(text, fmt).date().isoformat()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(text).date().isoformat()
+    except ValueError:
+        return None
+
+
+def _derive_sector_code(aip_ref_code: Any) -> str | None:
+    text = _normalize_text_or_none(aip_ref_code)
+    if not text:
+        return None
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if len(digits) >= 4:
+        return digits[:4]
+    return None
+
+
+def _first_source_ref(project: dict[str, Any]) -> dict[str, Any] | None:
+    refs = project.get("source_refs")
+    if not isinstance(refs, list):
+        return None
+    for ref in refs:
+        if isinstance(ref, dict):
+            return ref
+    return None
 
 
 class PipelineRepository:
@@ -417,3 +474,189 @@ class PipelineRepository:
             create_payload = dict(payload)
             create_payload["aip_id"] = aip_id
             self.client.insert("projects", create_payload)
+
+    def upsert_aip_line_items(self, *, aip_id: str, projects: Any) -> list[dict[str, Any]]:
+        if not isinstance(projects, list) or not projects:
+            return []
+
+        aip_context = self.get_aip_context(aip_id)
+        fiscal_year = _to_int_or_none(aip_context.get("fiscal_year"))
+        if fiscal_year is None:
+            return []
+
+        barangay_id = _normalize_text_or_none(aip_context.get("barangay_id"))
+        existing_rows = self.client.select(
+            "aip_line_items",
+            select="id,aip_ref_code,page_no,row_no,table_no",
+            filters={"aip_id": f"eq.{aip_id}"},
+        )
+
+        existing_by_ref: dict[str, dict[str, Any]] = {}
+        existing_by_provenance: dict[tuple[int, int, int], dict[str, Any]] = {}
+        for existing in existing_rows:
+            existing_id = _normalize_text_or_none(existing.get("id"))
+            if not existing_id:
+                continue
+            ref_code = _normalize_text_or_none(existing.get("aip_ref_code"))
+            if ref_code:
+                existing_by_ref[ref_code.lower()] = existing
+                continue
+            page_no = _to_int_or_none(existing.get("page_no"))
+            row_no = _to_int_or_none(existing.get("row_no"))
+            table_no = _to_int_or_none(existing.get("table_no"))
+            if page_no is not None and row_no is not None and table_no is not None:
+                existing_by_provenance[(page_no, row_no, table_no)] = existing
+
+        upserted_items: list[dict[str, Any]] = []
+        for raw_project in projects:
+            if not isinstance(raw_project, dict):
+                continue
+
+            amounts = raw_project.get("amounts") if isinstance(raw_project.get("amounts"), dict) else {}
+            classification = (
+                raw_project.get("classification") if isinstance(raw_project.get("classification"), dict) else {}
+            )
+
+            source_ref = _first_source_ref(raw_project) or {}
+            page_no = _to_int_or_none(source_ref.get("page"))
+            row_no = _to_int_or_none(source_ref.get("row_index"))
+            table_no = _to_int_or_none(source_ref.get("table_index"))
+
+            aip_ref_code = _normalize_text_or_none(raw_project.get("aip_ref_code"))
+            if not aip_ref_code and (page_no is None or row_no is None or table_no is None):
+                # Skip rows without a stable idempotent key.
+                continue
+            sector_code = (
+                _normalize_text_or_none(raw_project.get("sector_code"))
+                or _normalize_text_or_none(classification.get("sector_code"))
+                or _derive_sector_code(aip_ref_code)
+            )
+            sector_name = (
+                _normalize_text_or_none(raw_project.get("sector_name"))
+                or _normalize_text_or_none(classification.get("sector_name"))
+            )
+            payload = {
+                "aip_id": aip_id,
+                "fiscal_year": fiscal_year,
+                "barangay_id": barangay_id,
+                "aip_ref_code": aip_ref_code,
+                "sector_code": sector_code,
+                "sector_name": sector_name,
+                "program_project_title": _normalize_text_or_none(raw_project.get("program_project_description"))
+                or "Unspecified project",
+                "implementing_agency": _normalize_text_or_none(raw_project.get("implementing_agency")),
+                "start_date": _to_iso_date_or_none(raw_project.get("start_date")),
+                "end_date": _to_iso_date_or_none(raw_project.get("completion_date")),
+                "fund_source": _normalize_text_or_none(raw_project.get("source_of_funds")),
+                "ps": _to_float_or_none(amounts.get("personal_services", raw_project.get("personal_services"))),
+                "mooe": _to_float_or_none(
+                    amounts.get(
+                        "maintenance_and_other_operating_expenses",
+                        raw_project.get("maintenance_and_other_operating_expenses"),
+                    )
+                ),
+                "co": _to_float_or_none(amounts.get("capital_outlay", raw_project.get("capital_outlay"))),
+                "fe": _to_float_or_none(amounts.get("financial_expenses", raw_project.get("financial_expenses"))),
+                "total": _to_float_or_none(amounts.get("total", raw_project.get("total"))),
+                "expected_output": _normalize_text_or_none(raw_project.get("expected_output")),
+                "page_no": page_no,
+                "row_no": row_no,
+                "table_no": table_no,
+            }
+
+            existing: dict[str, Any] | None = None
+            if aip_ref_code:
+                existing = existing_by_ref.get(aip_ref_code.lower())
+            elif page_no is not None and row_no is not None and table_no is not None:
+                existing = existing_by_provenance.get((page_no, row_no, table_no))
+
+            if existing:
+                existing_id = _normalize_text_or_none(existing.get("id"))
+                if not existing_id:
+                    continue
+                updated = self.client.update(
+                    "aip_line_items",
+                    payload,
+                    filters={"id": f"eq.{existing_id}"},
+                    select="id",
+                )
+                row_id = _normalize_text_or_none(updated[0].get("id")) if updated else existing_id
+                payload_with_id = {
+                    **payload,
+                    "id": row_id,
+                    "barangay_name": None,
+                    "embedding_text": build_line_item_embedding_text(
+                        {
+                            **payload,
+                            "id": row_id,
+                            "barangay_id": barangay_id,
+                            "barangay_name": None,
+                        }
+                    ),
+                }
+                upserted_items.append(payload_with_id)
+                continue
+
+            inserted = self.client.insert("aip_line_items", payload, select="id")
+            if not inserted:
+                continue
+            row_id = _normalize_text_or_none(inserted[0].get("id"))
+            if not row_id:
+                continue
+
+            created_row = {
+                "id": row_id,
+                "aip_ref_code": aip_ref_code,
+                "page_no": page_no,
+                "row_no": row_no,
+                "table_no": table_no,
+            }
+            if aip_ref_code:
+                existing_by_ref[aip_ref_code.lower()] = created_row
+            elif page_no is not None and row_no is not None and table_no is not None:
+                existing_by_provenance[(page_no, row_no, table_no)] = created_row
+
+            payload_with_id = {
+                **payload,
+                "id": row_id,
+                "barangay_name": None,
+                "embedding_text": build_line_item_embedding_text(
+                    {
+                        **payload,
+                        "id": row_id,
+                        "barangay_id": barangay_id,
+                        "barangay_name": None,
+                    }
+                ),
+            }
+            upserted_items.append(payload_with_id)
+
+        return upserted_items
+
+    def upsert_aip_line_item_embeddings(
+        self,
+        *,
+        line_items: list[dict[str, Any]],
+        model: str,
+    ) -> None:
+        if not line_items:
+            return
+
+        for item in line_items:
+            line_item_id = _normalize_text_or_none(item.get("line_item_id"))
+            embedding = item.get("embedding")
+            if not line_item_id or not isinstance(embedding, list):
+                continue
+            if not all(isinstance(value, (int, float)) for value in embedding):
+                continue
+            payload = {
+                "line_item_id": line_item_id,
+                "embedding": embedding,
+                "model": model,
+            }
+            self.client.insert(
+                "aip_line_item_embeddings",
+                payload,
+                on_conflict="line_item_id",
+                upsert=True,
+            )

@@ -38,6 +38,34 @@ function parsePipelineResponse(payload: unknown): PipelineChatAnswer {
   };
 }
 
+function parseEmbeddingResponse(payload: unknown): {
+  embedding: number[];
+  model: string;
+  dimensions: number;
+} {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Embedding response is invalid.");
+  }
+
+  const data = payload as Record<string, unknown>;
+  const embedding = Array.isArray(data.embedding) ? data.embedding : [];
+  if (!embedding.length || !embedding.every((value) => typeof value === "number" && Number.isFinite(value))) {
+    throw new Error("Embedding response missing numeric vector.");
+  }
+
+  const model = typeof data.model === "string" && data.model.trim() ? data.model : "unknown";
+  const dimensions =
+    typeof data.dimensions === "number" && Number.isFinite(data.dimensions)
+      ? data.dimensions
+      : embedding.length;
+
+  return {
+    embedding: embedding as number[],
+    model,
+    dimensions,
+  };
+}
+
 export async function requestPipelineChatAnswer(input: {
   question: string;
   retrievalScope: RetrievalScopePayload;
@@ -81,6 +109,50 @@ export async function requestPipelineChatAnswer(input: {
     }
 
     return parsePipelineResponse(payload);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function requestPipelineQueryEmbedding(input: {
+  text: string;
+  modelName?: string;
+  timeoutMs?: number;
+}): Promise<{ embedding: number[]; model: string; dimensions: number }> {
+  const baseUrl = requireEnv("PIPELINE_API_BASE_URL").replace(/\/+$/, "");
+  const token = requireEnv("PIPELINE_INTERNAL_TOKEN");
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${baseUrl}/v1/chat/embed-query`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-pipeline-token": token,
+      },
+      body: JSON.stringify({
+        text: input.text,
+        model_name: input.modelName,
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    const payload = await response
+      .json()
+      .catch(() => ({ message: "Failed to parse embedding response." }));
+
+    if (!response.ok) {
+      const detail =
+        payload && typeof payload === "object" && "detail" in payload
+          ? String((payload as { detail: unknown }).detail)
+          : response.statusText;
+      throw new Error(`Pipeline embedding request failed (${response.status}): ${detail}`);
+    }
+
+    return parseEmbeddingResponse(payload);
   } finally {
     clearTimeout(timeout);
   }

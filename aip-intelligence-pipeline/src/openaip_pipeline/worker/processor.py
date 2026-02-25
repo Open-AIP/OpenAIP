@@ -10,6 +10,7 @@ from openaip_pipeline.core.settings import Settings
 from openaip_pipeline.services.categorization.categorize import categorize_from_summarized_json_str
 from openaip_pipeline.services.extraction.barangay import run_extraction as run_barangay_extraction
 from openaip_pipeline.services.extraction.city import run_extraction as run_city_extraction
+from openaip_pipeline.services.openai_utils import build_openai_client
 from openaip_pipeline.services.rag.rag import answer_with_rag
 from openaip_pipeline.services.summarization.summarize import summarize_aip_overall_json_str
 from openaip_pipeline.services.validation.barangay import validate_projects_json_str as validate_barangay
@@ -41,6 +42,40 @@ def _persist_stage_artifact(
         artifact_json=payload,
         artifact_text=text,
     )
+
+
+def _embed_line_items(*, settings: Settings, line_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not line_items:
+        return []
+
+    batch_size = max(1, min(128, int(os.getenv("PIPELINE_LINE_ITEM_EMBED_BATCH_SIZE", "64") or "64")))
+    client = build_openai_client(settings.openai_api_key)
+    embedded: list[dict[str, Any]] = []
+
+    for start in range(0, len(line_items), batch_size):
+        batch = line_items[start : start + batch_size]
+        texts = [str(item.get("embedding_text") or "").strip() for item in batch]
+        if not all(texts):
+            continue
+
+        response = client.embeddings.create(model=settings.embedding_model, input=texts)
+        data = list(getattr(response, "data", []) or [])
+        for index, row in enumerate(batch):
+            if index >= len(data):
+                continue
+            line_item_id = str(row.get("id") or "").strip()
+            embedding = getattr(data[index], "embedding", None)
+            if not line_item_id or not isinstance(embedding, list):
+                continue
+            if not all(isinstance(value, (int, float)) for value in embedding):
+                continue
+            embedded.append(
+                {
+                    "line_item_id": line_item_id,
+                    "embedding": [float(value) for value in embedding],
+                }
+            )
+    return embedded
 
 
 def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, Any]) -> None:
@@ -188,6 +223,16 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
             extraction_artifact_id=categorize_artifact_id,
             projects=categorized_res.categorized_obj.get("projects", []),
         )
+        line_items = repo.upsert_aip_line_items(
+            aip_id=aip_id,
+            projects=categorized_res.categorized_obj.get("projects", []),
+        )
+        if line_items:
+            embedded_rows = _embed_line_items(settings=settings, line_items=line_items)
+            repo.upsert_aip_line_item_embeddings(
+                line_items=embedded_rows,
+                model=settings.embedding_model,
+            )
 
         if settings.enable_rag:
             rag_query = os.getenv("PIPELINE_RAG_TRACE_QUERY", "").strip()

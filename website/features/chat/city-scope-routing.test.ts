@@ -773,6 +773,132 @@ describe("city scope routing", () => {
     expect(totalsFallbackLog?.aggregation_source).toBe("aip_totals_total_investment_program");
   });
 
+  it("returns city fallback clarification for city compare-years when a compared city AIP year is missing", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "Compare 2025 vs 2026 total budget in Cabuyao City",
+    });
+
+    expect(payload.status).toBe("clarification");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: {
+        clarification?: { context?: Record<string, unknown> };
+      };
+    };
+    expect(assistant.content).toContain("No published City AIP for");
+    expect(assistant.content).toContain("1. Use barangays in City of Cabuyao");
+
+    const context = assistant.retrievalMeta?.clarification?.context ?? {};
+    expect(context.originalIntent).toBe("aggregate_compare_years");
+    expect(context.yearA).toBe(2025);
+    expect(context.yearB).toBe(2026);
+  });
+
+  it("executes compare-years city fallback with aip_totals coverage disclosure after selecting option 1", async () => {
+    aipRows = [
+      {
+        id: "aip-brgy-1-2025",
+        status: "published",
+        fiscal_year: 2025,
+        barangay_id: "brgy-1",
+        city_id: null,
+        municipality_id: null,
+        created_at: "2025-01-01T00:00:00.000Z",
+      },
+      {
+        id: "aip-brgy-1-2026",
+        status: "published",
+        fiscal_year: 2026,
+        barangay_id: "brgy-1",
+        city_id: null,
+        municipality_id: null,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+      {
+        id: "aip-brgy-3-2026",
+        status: "published",
+        fiscal_year: 2026,
+        barangay_id: "brgy-3",
+        city_id: null,
+        municipality_id: null,
+        created_at: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    totalsRows = [
+      {
+        aip_id: "aip-brgy-1-2025",
+        source_label: "total_investment_program",
+        total_investment_program: 90000000,
+        page_no: 8,
+        evidence_text: "TOTAL INVESTMENT PROGRAM 90,000,000.00",
+      },
+      {
+        aip_id: "aip-brgy-1-2026",
+        source_label: "total_investment_program",
+        total_investment_program: 110000000,
+        page_no: 8,
+        evidence_text: "TOTAL INVESTMENT PROGRAM 110,000,000.00",
+      },
+      {
+        aip_id: "aip-brgy-3-2026",
+        source_label: "total_investment_program",
+        total_investment_program: 200000000.25,
+        page_no: 9,
+        evidence_text: "TOTAL INVESTMENT PROGRAM 200,000,000.25",
+      },
+    ];
+
+    await callMessagesRoute({
+      sessionId: session.id,
+      content: "Compare 2025 vs 2026 total budget in Cabuyao City",
+    });
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "1",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      citations?: Array<{ metadata?: Record<string, unknown> }>;
+    };
+    expect(assistant.content).toContain("Fiscal year comparison (All barangays in City of Cabuyao):");
+    expect(assistant.content).toContain("Coverage FY2025:");
+    expect(assistant.content).toContain("Coverage FY2026:");
+    expect(assistant.content).toContain("Pulo: FY2025=No published AIP");
+    expect(assistant.content).toContain("Overall totals (covered LGUs only):");
+
+    const metadata = assistant.citations?.[0]?.metadata ?? {};
+    expect(metadata.aggregate_type).toBe("compare_years_verbose");
+    expect(metadata.aggregation_source).toBe("aip_totals_total_investment_program");
+    expect(metadata.scope_mode).toBe("barangays_in_city");
+
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "compare_fiscal_year_totals_for_barangays")
+    ).toBe(false);
+
+    const logs = mockConsoleInfo.mock.calls
+      .map((call) => {
+        try {
+          return JSON.parse(String(call[0])) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is Record<string, unknown> => Boolean(entry));
+    const fallbackLog = logs.find(
+      (entry) =>
+        entry.route === "aggregate_sql" &&
+        entry.intent === "aggregate_compare_years" &&
+        entry.fallback_mode === "barangays_in_city"
+    );
+    expect(fallbackLog).toBeDefined();
+    expect(fallbackLog?.scope_reason).toBe("fallback_barangays_in_city");
+    expect(fallbackLog?.aggregation_source).toBe("aip_totals_total_investment_program");
+  });
+
   it("returns grounded no-data message when city and barangay AIPs are unavailable for FY", async () => {
     aipRows = [];
     totalsRows = totalsRows.filter((row) => row.aip_id === "city-aip-2026");

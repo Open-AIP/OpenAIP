@@ -359,11 +359,30 @@ function createAdminClient() {
                 },
               }),
               then: (
-                resolve: (value: { data: Array<{ id: string }>; error: null }) => void,
+                resolve: (
+                  value: {
+                    data: Array<{
+                      id: string;
+                      fiscal_year: number;
+                      barangay_id: string | null;
+                      city_id: string | null;
+                      municipality_id: string | null;
+                      created_at: string;
+                    }>;
+                    error: null;
+                  }
+                ) => void,
                 reject?: (reason?: unknown) => void
               ) =>
                 Promise.resolve({
-                  data: applyFilters().map((row) => ({ id: row.id })),
+                  data: applyFilters().map((row) => ({
+                    id: row.id,
+                    fiscal_year: row.fiscal_year,
+                    barangay_id: row.barangay_id,
+                    city_id: row.city_id,
+                    municipality_id: row.municipality_id,
+                    created_at: row.created_at,
+                  })),
                   error: null as null,
                 }).then(resolve, reject),
             };
@@ -376,28 +395,42 @@ function createAdminClient() {
         return {
           select: () => {
             const filters: Record<string, unknown> = {};
+            let inFilter: { field: string; values: string[] } | null = null;
+            const applyFilters = () =>
+              totalsRows.filter((row) => {
+                if (filters.aip_id !== undefined && row.aip_id !== filters.aip_id) {
+                  return false;
+                }
+                if (
+                  filters.source_label !== undefined &&
+                  row.source_label !== filters.source_label
+                ) {
+                  return false;
+                }
+                if (
+                  inFilter &&
+                  !inFilter.values.includes(String((row as Record<string, unknown>)[inFilter.field] ?? ""))
+                ) {
+                  return false;
+                }
+                return true;
+              });
             const builder = {
               eq: (field: string, value: unknown) => {
                 filters[field] = value;
                 return builder;
               },
+              in: (field: string, values: string[]) => {
+                inFilter = { field, values };
+                return builder;
+              },
               limit: () => ({
                 maybeSingle: async () => {
-                  const matched = totalsRows.find((row) => {
-                    if (filters.aip_id !== undefined && row.aip_id !== filters.aip_id) {
-                      return false;
-                    }
-                    if (
-                      filters.source_label !== undefined &&
-                      row.source_label !== filters.source_label
-                    ) {
-                      return false;
-                    }
-                    return true;
-                  });
+                  const matched = applyFilters()[0];
                   return {
                     data: matched
                       ? {
+                          aip_id: matched.aip_id,
                           total_investment_program: matched.total_investment_program,
                           page_no: matched.page_no,
                           evidence_text: matched.evidence_text,
@@ -407,6 +440,29 @@ function createAdminClient() {
                   };
                 },
               }),
+              then: (
+                resolve: (
+                  value: {
+                    data: Array<{
+                      aip_id: string;
+                      total_investment_program: number;
+                      page_no: number | null;
+                      evidence_text: string;
+                    }>;
+                    error: null;
+                  }
+                ) => void,
+                reject?: (reason?: unknown) => void
+              ) =>
+                Promise.resolve({
+                  data: applyFilters().map((row) => ({
+                    aip_id: row.aip_id,
+                    total_investment_program: row.total_investment_program,
+                    page_no: row.page_no,
+                    evidence_text: row.evidence_text,
+                  })),
+                  error: null as null,
+                }).then(resolve, reject),
             };
             return builder;
           },
@@ -712,20 +768,29 @@ describe("aggregation routing", () => {
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
-  it("routes compare query to compare_fiscal_year_totals with both years", async () => {
-    await callMessagesRoute({
+  it("builds verbose compare-years response from aip_totals with coverage and missing disclosure", async () => {
+    const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "Compare 2025 vs 2026 total budget",
     });
 
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      citations?: Array<{ metadata?: Record<string, unknown> }>;
+    };
+    expect(assistant.content).toContain("Coverage FY2025:");
+    expect(assistant.content).toContain("Coverage FY2026:");
+    expect(assistant.content).toContain("Pulo: FY2025=No published AIP");
+    expect(assistant.content).toContain("Overall totals (covered LGUs only):");
+
+    const aggregateMeta = assistant.citations?.[0]?.metadata ?? {};
+    expect(aggregateMeta.aggregate_type).toBe("compare_years_verbose");
+    expect(aggregateMeta.aggregation_source).toBe("aip_totals_total_investment_program");
+
     expect(
-      mockServerRpc.mock.calls.some(
-        ([fn, args]) =>
-          fn === "compare_fiscal_year_totals" &&
-          (args as Record<string, unknown>).p_year_a === 2025 &&
-          (args as Record<string, unknown>).p_year_b === 2026
-      )
-    ).toBe(true);
+      mockServerRpc.mock.calls.some(([fn]) => fn === "compare_fiscal_year_totals")
+    ).toBe(false);
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
     ).toBe(false);
@@ -766,6 +831,43 @@ describe("aggregation routing", () => {
           (args as Record<string, unknown>).p_barangay_id === "brgy-2"
       )
     ).toBe(true);
+  });
+
+  it("shows missing-year disclosure for single-barangay compare query", async () => {
+    mockResolveRetrievalScope.mockResolvedValueOnce({
+      mode: "named_scopes",
+      retrievalScope: {
+        mode: "named_scopes",
+        targets: [
+          {
+            scope_type: "barangay",
+            scope_id: "brgy-3",
+            scope_name: "Pulo",
+          },
+        ],
+      },
+      scopeResolution: {
+        mode: "named_scopes",
+        requestedScopes: [{ scopeType: "barangay", scopeName: "Pulo" }],
+        resolvedTargets: [{ scopeType: "barangay", scopeId: "brgy-3", scopeName: "Pulo" }],
+        unresolvedScopes: [],
+        ambiguousScopes: [],
+      },
+    });
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "Compare 2025 vs 2026 total budget in Barangay Pulo",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("Pulo: FY2025=No published AIP");
+    expect(assistant.content).toContain("Overall totals (covered LGUs only):");
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "compare_fiscal_year_totals")
+    ).toBe(false);
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
   it("returns city fallback clarification when city-scoped aggregate has no published city AIP", async () => {

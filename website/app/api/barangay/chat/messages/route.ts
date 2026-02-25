@@ -230,6 +230,10 @@ type NonTotalsRoutingLogPayload = {
   barangay_ids_count?: number | null;
   coverage_barangays?: string[];
   aggregation_source?: "aip_line_items" | "aip_totals_total_investment_program" | null;
+  coverage_year_a_count?: number | null;
+  coverage_year_b_count?: number | null;
+  missing_year_a_count?: number | null;
+  missing_year_b_count?: number | null;
 };
 
 type ClarificationLifecycleLogPayload =
@@ -842,10 +846,49 @@ type CoverageSummary = {
   missingCount: number;
 };
 
+type CompareScopeMode =
+  | "global_barangays"
+  | "barangays_in_city"
+  | "single_barangay"
+  | "city_aip";
+
+type CompareYearCoveredRow = {
+  lguId: string | null;
+  lguName: string;
+  aipId: string;
+  total: number;
+};
+
+type CompareYearTotalsResult = {
+  coveredRows: CompareYearCoveredRow[];
+  missingIds: string[];
+  missingNames: string[];
+  coverageNames: string[];
+  coverageLine: string;
+  missingLine: string;
+  contributingAipIds: string[];
+  denominatorCount: number;
+  coveredCount: number;
+};
+
+type CompareYearsVerboseAnswer = {
+  content: string;
+  overallYearATotal: number;
+  overallYearBTotal: number;
+  overallDelta: number;
+  coverageBarangays: string[];
+};
+
 function formatCoverageNames(names: string[]): string[] {
   const sorted = [...names].sort((a, b) => a.localeCompare(b));
   if (sorted.length <= 10) return sorted;
   return [...sorted.slice(0, 10), "..."];
+}
+
+function formatIdSample(values: string[]): string[] {
+  const unique = values.filter((value, index, all) => value && all.indexOf(value) === index);
+  if (unique.length <= 10) return unique;
+  return [...unique.slice(0, 10), "..."];
 }
 
 async function buildCoverageSummary(input: {
@@ -875,6 +918,337 @@ async function buildCoverageSummary(input: {
     coveredCount,
     totalCount,
     missingCount,
+  };
+}
+
+async function fetchTotalInvestmentProgramTotalsByYear(input: {
+  year: number;
+  scopeMode: CompareScopeMode;
+  cityId?: string | null;
+  cityName?: string | null;
+  barangayId?: string | null;
+  barangayName?: string | null;
+  cityBarangayIds?: string[];
+}): Promise<CompareYearTotalsResult> {
+  const fiscalLabel = `FY${input.year}`;
+  const cityLabel = normalizeCityLabel(input.cityName ?? "the city");
+  const admin = supabaseAdmin();
+
+  if (input.scopeMode === "city_aip") {
+    if (!input.cityId) {
+      return {
+        coveredRows: [],
+        missingIds: [],
+        missingNames: [cityLabel],
+        coverageNames: [],
+        coverageLine: `Coverage ${fiscalLabel}: 0/1 city AIPs available (${cityLabel}).`,
+        missingLine: `Missing ${fiscalLabel}: ${cityLabel}.`,
+        contributingAipIds: [],
+        denominatorCount: 1,
+        coveredCount: 0,
+      };
+    }
+
+    const cityAip = await selectPublishedCityAip(admin, input.cityId, input.year);
+    if (!cityAip.aipId) {
+      return {
+        coveredRows: [],
+        missingIds: [input.cityId],
+        missingNames: [cityLabel],
+        coverageNames: [],
+        coverageLine: `Coverage ${fiscalLabel}: 0/1 city AIPs available (${cityLabel}).`,
+        missingLine: `Missing ${fiscalLabel}: ${cityLabel}.`,
+        contributingAipIds: [],
+        denominatorCount: 1,
+        coveredCount: 0,
+      };
+    }
+
+    const { data: totalsRow, error: totalsError } = await admin
+      .from("aip_totals")
+      .select("aip_id,total_investment_program")
+      .eq("source_label", "total_investment_program")
+      .eq("aip_id", cityAip.aipId)
+      .limit(1)
+      .maybeSingle();
+    if (totalsError) throw new Error(totalsError.message);
+
+    const parsedTotal = parseAmount(
+      (totalsRow as { total_investment_program?: unknown } | null)?.total_investment_program ?? null
+    );
+
+    if (parsedTotal === null) {
+      return {
+        coveredRows: [],
+        missingIds: [input.cityId],
+        missingNames: [cityLabel],
+        coverageNames: [],
+        coverageLine: `Coverage ${fiscalLabel}: 0/1 city AIPs with Total Investment Program totals (${cityLabel}).`,
+        missingLine: `Missing ${fiscalLabel}: ${cityLabel}.`,
+        contributingAipIds: [],
+        denominatorCount: 1,
+        coveredCount: 0,
+      };
+    }
+
+    return {
+      coveredRows: [
+        {
+          lguId: input.cityId,
+          lguName: cityLabel,
+          aipId: cityAip.aipId,
+          total: parsedTotal,
+        },
+      ],
+      missingIds: [],
+      missingNames: [],
+      coverageNames: [cityLabel],
+      coverageLine: `Coverage ${fiscalLabel}: 1/1 city AIPs with Total Investment Program totals (${cityLabel}).`,
+      missingLine: `Missing ${fiscalLabel}: none.`,
+      contributingAipIds: [cityAip.aipId],
+      denominatorCount: 1,
+      coveredCount: 1,
+    };
+  }
+
+  let candidateBarangays: BarangayRef[] = [];
+
+  if (input.scopeMode === "global_barangays") {
+    candidateBarangays = await fetchActiveBarangaysForMatching();
+  } else if (input.scopeMode === "barangays_in_city") {
+    const ids = (input.cityBarangayIds ?? []).filter(
+      (id, index, all) => id && all.indexOf(id) === index
+    );
+    const nameMap = await fetchBarangayNameMap(ids);
+    candidateBarangays = ids.map((id) => ({
+      id,
+      name: (nameMap.get(id) ?? `Barangay ID ${id}`).trim(),
+    }));
+  } else if (input.scopeMode === "single_barangay") {
+    if (input.barangayId) {
+      const nameMap = await fetchBarangayNameMap([input.barangayId]);
+      candidateBarangays = [
+        {
+          id: input.barangayId,
+          name:
+            (nameMap.get(input.barangayId) ?? input.barangayName ?? `Barangay ID ${input.barangayId}`).trim(),
+        },
+      ];
+    }
+  }
+
+  const candidateBarangayIds = candidateBarangays.map((row) => row.id);
+  const candidateNameMap = new Map(candidateBarangays.map((row) => [row.id, row.name]));
+
+  if (candidateBarangayIds.length === 0) {
+    return {
+      coveredRows: [],
+      missingIds: [],
+      missingNames: [],
+      coverageNames: [],
+      coverageLine: `Coverage ${fiscalLabel}: 0/0 barangays have published AIPs.`,
+      missingLine: `Missing ${fiscalLabel}: none.`,
+      contributingAipIds: [],
+      denominatorCount: 0,
+      coveredCount: 0,
+    };
+  }
+
+  const publishedAips = await fetchPublishedBarangayAips({
+    barangayIds: candidateBarangayIds,
+    fiscalYear: input.year,
+  });
+
+  const publishedAipIds = publishedAips.map((row) => row.id);
+  const aipTotalsById = new Map<string, number>();
+  if (publishedAipIds.length > 0) {
+    const { data: totalsRows, error: totalsError } = await admin
+      .from("aip_totals")
+      .select("aip_id,total_investment_program")
+      .eq("source_label", "total_investment_program")
+      .in("aip_id", publishedAipIds);
+    if (totalsError) throw new Error(totalsError.message);
+
+    for (const row of totalsRows ?? []) {
+      const typed = row as { aip_id?: unknown; total_investment_program?: unknown };
+      const aipId = typeof typed.aip_id === "string" ? typed.aip_id : null;
+      const amount = parseAmount(typed.total_investment_program ?? null);
+      if (aipId && amount !== null) {
+        aipTotalsById.set(aipId, amount);
+      }
+    }
+  }
+
+  const groupedByBarangay = new Map<
+    string,
+    {
+      lguId: string;
+      lguName: string;
+      total: number;
+      aipIds: string[];
+    }
+  >();
+
+  for (const aip of publishedAips) {
+    const amount = aipTotalsById.get(aip.id);
+    if (amount === undefined) continue;
+    const current =
+      groupedByBarangay.get(aip.barangay_id) ??
+      {
+        lguId: aip.barangay_id,
+        lguName: (candidateNameMap.get(aip.barangay_id) ?? `Barangay ID ${aip.barangay_id}`).trim(),
+        total: 0,
+        aipIds: [],
+      };
+    current.total += amount;
+    current.aipIds.push(aip.id);
+    groupedByBarangay.set(aip.barangay_id, current);
+  }
+
+  const coveredRows: CompareYearCoveredRow[] = Array.from(groupedByBarangay.values())
+    .sort((a, b) => a.lguName.localeCompare(b.lguName))
+    .map((row) => ({
+      lguId: row.lguId,
+      lguName: row.lguName,
+      aipId: row.aipIds[0] ?? "",
+      total: row.total,
+    }))
+    .filter((row) => Boolean(row.aipId));
+
+  const coveredIds = new Set(coveredRows.map((row) => row.lguId).filter((value): value is string => Boolean(value)));
+  const missingIds = candidateBarangayIds.filter((id) => !coveredIds.has(id));
+
+  const coverageNames = formatCoverageNames(
+    coveredRows.map((row) => row.lguName.replace(/^Barangay\s+/i, ""))
+  );
+  const missingNames = formatCoverageNames(
+    missingIds.map((id) => (candidateNameMap.get(id) ?? `Barangay ID ${id}`).replace(/^Barangay\s+/i, ""))
+  );
+  const coverageListText = coverageNames.length > 0 ? coverageNames.join(", ") : "none";
+  const missingListText = missingNames.length > 0 ? missingNames.join(", ") : "none";
+
+  const contributingAipIds = formatIdSample(
+    Array.from(groupedByBarangay.values()).flatMap((row) => row.aipIds)
+  );
+
+  return {
+    coveredRows,
+    missingIds,
+    missingNames,
+    coverageNames,
+    coverageLine:
+      `Coverage ${fiscalLabel}: ${coveredRows.length}/${candidateBarangayIds.length} barangays have ` +
+      `published AIPs with Total Investment Program totals (${coverageListText}).`,
+    missingLine: `Missing ${fiscalLabel}: ${missingListText}.`,
+    contributingAipIds,
+    denominatorCount: candidateBarangayIds.length,
+    coveredCount: coveredRows.length,
+  };
+}
+
+function formatCompareDelta(value: number): string {
+  if (!Number.isFinite(value) || value === 0) return "PHP 0.00";
+  const amount = formatPhpAmount(Math.abs(value));
+  return value > 0 ? `+${amount}` : `-${amount}`;
+}
+
+function buildCompareYearsVerboseAnswer(input: {
+  yearA: number;
+  yearB: number;
+  scopeLabel: string;
+  sourceNote: string;
+  yearAResult: CompareYearTotalsResult;
+  yearBResult: CompareYearTotalsResult;
+}): CompareYearsVerboseAnswer {
+  const lguMap = new Map<
+    string,
+    {
+      lguName: string;
+      yearATotal: number | null;
+      yearBTotal: number | null;
+    }
+  >();
+
+  const toKey = (lguId: string | null, lguName: string) =>
+    lguId ? `id:${lguId}` : `name:${lguName.toLowerCase()}`;
+
+  for (const row of input.yearAResult.coveredRows) {
+    const key = toKey(row.lguId, row.lguName);
+    const current = lguMap.get(key) ?? {
+      lguName: row.lguName,
+      yearATotal: null,
+      yearBTotal: null,
+    };
+    current.yearATotal = row.total;
+    lguMap.set(key, current);
+  }
+
+  for (const row of input.yearBResult.coveredRows) {
+    const key = toKey(row.lguId, row.lguName);
+    const current = lguMap.get(key) ?? {
+      lguName: row.lguName,
+      yearATotal: null,
+      yearBTotal: null,
+    };
+    current.yearBTotal = row.total;
+    lguMap.set(key, current);
+  }
+
+  const perLguRows = Array.from(lguMap.values()).sort((a, b) => {
+    const bTotal = b.yearBTotal ?? Number.NEGATIVE_INFINITY;
+    const aTotal = a.yearBTotal ?? Number.NEGATIVE_INFINITY;
+    if (bTotal !== aTotal) return bTotal - aTotal;
+    return a.lguName.localeCompare(b.lguName);
+  });
+
+  const visibleRows = perLguRows.slice(0, 10);
+  const hiddenCount = Math.max(0, perLguRows.length - visibleRows.length);
+
+  const perLguLines =
+    visibleRows.length === 0
+      ? ["No covered LGUs found for the requested years."]
+      : visibleRows.map((row) => {
+          const yearAText =
+            row.yearATotal === null ? "No published AIP" : formatPhpAmount(row.yearATotal);
+          const yearBText =
+            row.yearBTotal === null ? "No published AIP" : formatPhpAmount(row.yearBTotal);
+          const deltaText =
+            row.yearATotal !== null && row.yearBTotal !== null
+              ? formatCompareDelta(row.yearBTotal - row.yearATotal)
+              : "N/A";
+          return `${row.lguName}: FY${input.yearA}=${yearAText} | FY${input.yearB}=${yearBText} | Δ=${deltaText}`;
+        });
+
+  if (hiddenCount > 0) {
+    perLguLines.push(`+${hiddenCount} more LGUs.`);
+  }
+
+  const overallYearATotal = input.yearAResult.coveredRows.reduce((sum, row) => sum + row.total, 0);
+  const overallYearBTotal = input.yearBResult.coveredRows.reduce((sum, row) => sum + row.total, 0);
+  const overallDelta = overallYearBTotal - overallYearATotal;
+  const deltaDirection =
+    overallDelta > 0 ? "increase" : overallDelta < 0 ? "decrease" : "no change";
+
+  const coverageBarangays = formatCoverageNames(
+    Array.from(new Set([...input.yearAResult.coverageNames, ...input.yearBResult.coverageNames]))
+  );
+
+  return {
+    content: [
+      `Fiscal year comparison (${input.scopeLabel}):`,
+      input.yearAResult.coverageLine,
+      input.yearBResult.coverageLine,
+      input.yearAResult.missingLine,
+      input.yearBResult.missingLine,
+      "Per-LGU totals:",
+      ...perLguLines,
+      `Overall totals (covered LGUs only): FY${input.yearA}=${formatPhpAmount(overallYearATotal)} | FY${input.yearB}=${formatPhpAmount(overallYearBTotal)} | Δ=${formatCompareDelta(overallDelta)} (${deltaDirection}).`,
+      `Notes: ${input.sourceNote}`,
+    ].join("\n"),
+    overallYearATotal,
+    overallYearBTotal,
+    overallDelta,
+    coverageBarangays,
   };
 }
 
@@ -2694,43 +3068,33 @@ export async function POST(request: Request) {
 
           const aggregateIntent = normalizedOriginalIntent;
 
-          const fallbackRpcName =
-            aggregateIntent === "aggregate_top_projects"
-              ? "get_top_projects_for_barangays"
-              : aggregateIntent === "aggregate_totals_by_sector"
-                ? "get_totals_by_sector_for_barangays"
-                : aggregateIntent === "aggregate_totals_by_fund_source"
-                  ? "get_totals_by_fund_source_for_barangays"
-                  : "compare_fiscal_year_totals_for_barangays";
+          const fallbackUsesCompareTotals = aggregateIntent === "aggregate_compare_years";
+          let fallbackData: unknown = null;
 
-          const fallbackRpcArgs =
-            aggregateIntent === "aggregate_top_projects"
-              ? {
-                  p_limit: cityContext.limit ?? 10,
-                  p_fiscal_year: fiscalYearParsed,
-                  p_barangay_ids: cityBarangayIds,
-                }
-              : aggregateIntent === "aggregate_totals_by_sector"
+          if (!fallbackUsesCompareTotals) {
+            const fallbackRpcName =
+              aggregateIntent === "aggregate_top_projects"
+                ? "get_top_projects_for_barangays"
+                : aggregateIntent === "aggregate_totals_by_sector"
+                  ? "get_totals_by_sector_for_barangays"
+                  : "get_totals_by_fund_source_for_barangays";
+
+            const fallbackRpcArgs =
+              aggregateIntent === "aggregate_top_projects"
                 ? {
+                    p_limit: cityContext.limit ?? 10,
                     p_fiscal_year: fiscalYearParsed,
                     p_barangay_ids: cityBarangayIds,
                   }
-                : aggregateIntent === "aggregate_totals_by_fund_source"
-                  ? {
-                      p_fiscal_year: fiscalYearParsed,
-                      p_barangay_ids: cityBarangayIds,
-                    }
-                  : {
-                      p_year_a: cityContext.yearA,
-                      p_year_b: cityContext.yearB,
-                      p_barangay_ids: cityBarangayIds,
-                    };
+                : {
+                    p_fiscal_year: fiscalYearParsed,
+                    p_barangay_ids: cityBarangayIds,
+                  };
 
-          const { data: fallbackData, error: fallbackError } = await client.rpc(
-            fallbackRpcName,
-            fallbackRpcArgs
-          );
-          if (fallbackError) throw new Error(fallbackError.message);
+            const { data, error } = await client.rpc(fallbackRpcName, fallbackRpcArgs);
+            if (error) throw new Error(error.message);
+            fallbackData = data;
+          }
 
           const fallbackLogBase = {
             request_id: requestId,
@@ -2973,66 +3337,59 @@ export async function POST(request: Request) {
             );
           }
 
-          const comparison = toCompareTotalsRow(fallbackData);
-          const yearA = cityContext.yearA ?? 0;
-          const yearB = cityContext.yearB ?? 0;
-          const coveredRowsByYear = await fetchPublishedBarangayAips({
-            barangayIds: cityBarangayIds,
-            fiscalYears: [yearA, yearB],
-          });
-          const yearACoverage = await buildCoverageSummary({
+          const yearA = cityContext.yearA ?? null;
+          const yearB = cityContext.yearB ?? null;
+          if (yearA === null || yearB === null) {
+            throw new Error("City fallback compare-years requires both fiscal years.");
+          }
+
+          const yearAResult = await fetchTotalInvestmentProgramTotalsByYear({
+            year: yearA,
+            scopeMode: "barangays_in_city",
+            cityId: cityContext.cityId,
+            cityName: cityContext.cityName,
             cityBarangayIds,
-            coveredBarangayIds: coveredRowsByYear
-              .filter((row) => row.fiscal_year === yearA)
-              .map((row) => row.barangay_id),
-            fiscalLabel: `FY ${yearA}`,
           });
-          const yearBCoverage = await buildCoverageSummary({
+          const yearBResult = await fetchTotalInvestmentProgramTotalsByYear({
+            year: yearB,
+            scopeMode: "barangays_in_city",
+            cityId: cityContext.cityId,
+            cityName: cityContext.cityName,
             cityBarangayIds,
-            coveredBarangayIds: coveredRowsByYear
-              .filter((row) => row.fiscal_year === yearB)
-              .map((row) => row.barangay_id),
-            fiscalLabel: `FY ${yearB}`,
           });
-          const combinedCoverage = formatCoverageNames(
-            Array.from(new Set([...yearACoverage.coverageBarangays, ...yearBCoverage.coverageBarangays]))
-          );
-          const yearATotal = toNumberOrNull(comparison?.year_a_total) ?? 0;
-          const yearBTotal = toNumberOrNull(comparison?.year_b_total) ?? 0;
-          const delta = toNumberOrNull(comparison?.delta) ?? yearBTotal - yearATotal;
-          const deltaPhrase =
-            delta > 0
-              ? `an increase of ${formatPhpAmount(delta)}`
-              : delta < 0
-                ? `a decrease of ${formatPhpAmount(Math.abs(delta))}`
-                : "no change";
+          const compareVerbose = buildCompareYearsVerboseAnswer({
+            yearA,
+            yearB,
+            scopeLabel: `All barangays in ${cityLabel}`,
+            sourceNote: `Using sum of barangay totals (aip_totals) within ${cityLabel}.`,
+            yearAResult,
+            yearBResult,
+          });
+          const contributingYearASample = formatIdSample(yearAResult.contributingAipIds);
+          const contributingYearBSample = formatIdSample(yearBResult.contributingAipIds);
           const assistantMessage = await appendAssistantMessage({
             sessionId: session.id,
-            content:
-              `Fiscal year comparison (All barangays in ${cityLabel}): FY ${yearA} = ${formatPhpAmount(yearATotal)}; ` +
-              `FY ${yearB} = ${formatPhpAmount(yearBTotal)}; difference = ${deltaPhrase}.\n` +
-              `${yearACoverage.line}\n${yearBCoverage.line}\n` +
-              "Aggregated from published AIP line items of covered barangays.",
+            content: compareVerbose.content,
             citations: [
-              makeAggregateCitation("Aggregated from published AIP line items of covered barangays.", {
+              makeAggregateCitation("Aggregated from aip_totals (Total Investment Program).", {
                 ...baseFallbackMetadata({
-                  aggregationSource: "aip_line_items",
-                  coverageBarangays: combinedCoverage,
+                  aggregationSource: "aip_totals_total_investment_program",
+                  coverageBarangays: compareVerbose.coverageBarangays,
                   barangayIdsCount: cityBarangayIds.length,
                 }),
-                aggregate_type: "compare_fiscal_year_totals",
+                aggregate_type: "compare_years_verbose",
+                scope_mode: "barangays_in_city",
+                aggregation_source: "aip_totals_total_investment_program",
                 year_a: yearA,
                 year_b: yearB,
-                year_a_coverage: {
-                  covered_count: yearACoverage.coveredCount,
-                  total_count: yearACoverage.totalCount,
-                  coverage_barangays: yearACoverage.coverageBarangays,
-                },
-                year_b_coverage: {
-                  covered_count: yearBCoverage.coveredCount,
-                  total_count: yearBCoverage.totalCount,
-                  coverage_barangays: yearBCoverage.coverageBarangays,
-                },
+                coverage_year_a_count: yearAResult.coveredCount,
+                coverage_year_b_count: yearBResult.coveredCount,
+                missing_year_a_count: yearAResult.missingIds.length,
+                missing_year_b_count: yearBResult.missingIds.length,
+                contributing_aip_ids_year_a_sample: contributingYearASample,
+                contributing_aip_ids_year_a_count: yearAResult.contributingAipIds.length,
+                contributing_aip_ids_year_b_sample: contributingYearBSample,
+                contributing_aip_ids_year_b_count: yearBResult.contributingAipIds.length,
               }),
             ],
             retrievalMeta: {
@@ -3046,8 +3403,8 @@ export async function POST(request: Request) {
                 cityId: cityContext.cityId,
                 cityName: cityContext.cityName,
                 barangayIdsCount: cityBarangayIds.length,
-                coverageBarangays: combinedCoverage,
-                aggregationSource: "aip_line_items",
+                coverageBarangays: compareVerbose.coverageBarangays,
+                aggregationSource: "aip_totals_total_investment_program",
               },
               scopeResolution,
               latencyMs: Date.now() - startedAt,
@@ -3057,7 +3414,12 @@ export async function POST(request: Request) {
             ...fallbackLogBase,
             fiscal_year_parsed: null,
             barangay_ids_count: cityBarangayIds.length,
-            coverage_barangays: combinedCoverage,
+            coverage_barangays: compareVerbose.coverageBarangays,
+            aggregation_source: "aip_totals_total_investment_program",
+            coverage_year_a_count: yearAResult.coveredCount,
+            coverage_year_b_count: yearBResult.coveredCount,
+            missing_year_a_count: yearAResult.missingIds.length,
+            missing_year_b_count: yearBResult.missingIds.length,
           });
           return NextResponse.json(
             chatResponsePayload({
@@ -3354,6 +3716,162 @@ export async function POST(request: Request) {
       if (explicitCityScope.kind === "explicit_city") {
         const admin = supabaseAdmin();
         const cityLabel = normalizeCityLabel(explicitCityScope.city.name);
+        const cityScopeLabel = cityLabel;
+        if (aggregationIntent.intent === "compare_years") {
+          const yearA = aggregationIntent.yearA ?? null;
+          const yearB = aggregationIntent.yearB ?? null;
+          if (yearA === null || yearB === null) {
+            throw new Error("Aggregation compare years intent requires two years.");
+          }
+
+          const yearAResult = await fetchTotalInvestmentProgramTotalsByYear({
+            year: yearA,
+            scopeMode: "city_aip",
+            cityId: explicitCityScope.city.id,
+            cityName: explicitCityScope.city.name,
+          });
+          const yearBResult = await fetchTotalInvestmentProgramTotalsByYear({
+            year: yearB,
+            scopeMode: "city_aip",
+            cityId: explicitCityScope.city.id,
+            cityName: explicitCityScope.city.name,
+          });
+
+          if (yearAResult.coveredCount === 0 || yearBResult.coveredCount === 0) {
+            const clarificationPayload = buildCityAipMissingClarificationPayload({
+              cityName: explicitCityScope.city.name,
+              fiscalYearParsed: null,
+            });
+            const assistantMessage = await appendAssistantMessage({
+              sessionId: session.id,
+              content: buildClarificationPromptContent(clarificationPayload),
+              citations: [
+                makeSystemCitation("City AIP missing for compare-years; offered barangays-in-city fallback.", {
+                  reason: "city_aip_missing_fallback_offered",
+                  city_id: explicitCityScope.city.id,
+                  city_name: explicitCityScope.city.name,
+                  year_a: yearA,
+                  year_b: yearB,
+                }),
+              ],
+              retrievalMeta: {
+                refused: false,
+                reason: "clarification_needed",
+                status: "clarification",
+                kind: "clarification",
+                clarification: {
+                  ...clarificationPayload,
+                  context: {
+                    cityId: explicitCityScope.city.id,
+                    cityName: explicitCityScope.city.name,
+                    fiscalYearParsed: null,
+                    originalIntent: "aggregate_compare_years",
+                    yearA,
+                    yearB,
+                  },
+                },
+                scopeReason: "explicit_city",
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+              },
+            });
+            logNonTotalsRouting({
+              request_id: requestId,
+              intent: aggregationLogIntent,
+              route: "aggregate_sql",
+              fiscal_year_parsed: null,
+              scope_reason: "explicit_city",
+              barangay_id_used: null,
+              match_count_used: null,
+              limit_used: null,
+              top_candidate_ids: [],
+              top_candidate_distances: [],
+              answered: true,
+              vector_called: false,
+              city_id: explicitCityScope.city.id,
+            });
+
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+
+          const compareVerbose = buildCompareYearsVerboseAnswer({
+            yearA,
+            yearB,
+            scopeLabel: cityScopeLabel,
+            sourceNote: "Using City AIP totals.",
+            yearAResult,
+            yearBResult,
+          });
+          const assistantMessage = await appendAssistantMessage({
+            sessionId: session.id,
+            content: compareVerbose.content,
+            citations: [
+              makeAggregateCitation("Aggregated from aip_totals (Total Investment Program).", {
+                aggregated: true,
+                aggregate_type: "compare_years_verbose",
+                aggregation_source: "aip_totals_total_investment_program",
+                scope_mode: "city_aip",
+                year_a: yearA,
+                year_b: yearB,
+                city_id: explicitCityScope.city.id,
+                city_name: explicitCityScope.city.name,
+                coverage_year_a_count: yearAResult.coveredCount,
+                coverage_year_b_count: yearBResult.coveredCount,
+                missing_year_a_count: yearAResult.missingIds.length,
+                missing_year_b_count: yearBResult.missingIds.length,
+                contributing_aip_ids_year_a_sample: formatIdSample(yearAResult.contributingAipIds),
+                contributing_aip_ids_year_a_count: yearAResult.contributingAipIds.length,
+                contributing_aip_ids_year_b_sample: formatIdSample(yearBResult.contributingAipIds),
+                contributing_aip_ids_year_b_count: yearBResult.contributingAipIds.length,
+              }),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "ok",
+              scopeReason: "explicit_city",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+            },
+          });
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: aggregationLogIntent,
+            route: "aggregate_sql",
+            fiscal_year_parsed: null,
+            scope_reason: "explicit_city",
+            barangay_id_used: null,
+            match_count_used: null,
+            limit_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: true,
+            vector_called: false,
+            city_id: explicitCityScope.city.id,
+            aggregation_source: "aip_totals_total_investment_program",
+            coverage_year_a_count: yearAResult.coveredCount,
+            coverage_year_b_count: yearBResult.coveredCount,
+            missing_year_a_count: yearAResult.missingIds.length,
+            missing_year_b_count: yearBResult.missingIds.length,
+            coverage_barangays: compareVerbose.coverageBarangays,
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
         const cityAip = await selectPublishedCityAip(
           admin,
           explicitCityScope.city.id,
@@ -3391,7 +3909,10 @@ export async function POST(request: Request) {
                   limit: aggregationLimit,
                   yearA: aggregationIntent.yearA ?? null,
                   yearB: aggregationIntent.yearB ?? null,
-                  listOnly: aggregationIntent.intent === "totals_by_fund_source" ? isFundSourceListQuery(content) : undefined,
+                  listOnly:
+                    aggregationIntent.intent === "totals_by_fund_source"
+                      ? isFundSourceListQuery(content)
+                      : undefined,
                 },
               },
               scopeReason: "explicit_city",
@@ -3425,7 +3946,6 @@ export async function POST(request: Request) {
           );
         }
 
-        const cityScopeLabel = cityLabel;
         const cityFiscalLabel =
           fiscalYearForAggregation === null ? "All fiscal years" : `FY ${fiscalYearForAggregation}`;
 
@@ -3690,93 +4210,6 @@ export async function POST(request: Request) {
           );
         }
 
-        const yearA = aggregationIntent.yearA ?? null;
-        const yearB = aggregationIntent.yearB ?? null;
-        if (yearA === null || yearB === null) {
-          throw new Error("Aggregation compare years intent requires two years.");
-        }
-
-        const { data: compareAips, error: compareAipsError } = await admin
-          .from("aips")
-          .select("id,fiscal_year")
-          .eq("status", "published")
-          .eq("city_id", explicitCityScope.city.id)
-          .in("fiscal_year", [yearA, yearB]);
-        if (compareAipsError) throw new Error(compareAipsError.message);
-        const compareAipRows = (compareAips ?? []) as Array<{ id: string; fiscal_year: number }>;
-        const compareAipIds = compareAipRows.map((row) => row.id);
-        const { data: compareRows, error: compareRowsError } = await admin
-          .from("aip_line_items")
-          .select("aip_id,total")
-          .in("aip_id", compareAipIds);
-        if (compareRowsError) throw new Error(compareRowsError.message);
-
-        let yearATotal = 0;
-        let yearBTotal = 0;
-        const yearByAipId = new Map(compareAipRows.map((row) => [row.id, row.fiscal_year]));
-        for (const row of compareRows ?? []) {
-          const typed = row as { aip_id?: string; total?: unknown };
-          const year = typed.aip_id ? yearByAipId.get(typed.aip_id) : null;
-          const amount = parseAmount(typed.total ?? null) ?? 0;
-          if (year === yearA) yearATotal += amount;
-          if (year === yearB) yearBTotal += amount;
-        }
-        const delta = yearBTotal - yearATotal;
-        const deltaPhrase =
-          delta > 0
-            ? `an increase of ${formatPhpAmount(delta)}`
-            : delta < 0
-              ? `a decrease of ${formatPhpAmount(Math.abs(delta))}`
-              : "no change";
-
-        const assistantMessage = await appendAssistantMessage({
-          sessionId: session.id,
-          content:
-            `Fiscal year comparison (${cityScopeLabel}): FY ${yearA} = ${formatPhpAmount(yearATotal)}; ` +
-            `FY ${yearB} = ${formatPhpAmount(yearBTotal)}; difference = ${deltaPhrase}.`,
-          citations: [
-            makeAggregateCitation("Aggregated from published AIP line items.", {
-              aggregated: true,
-              source: "aip_line_items",
-              aggregate_type: "compare_fiscal_year_totals",
-              city_id_filter: explicitCityScope.city.id,
-              year_a: yearA,
-              year_b: yearB,
-            }),
-          ],
-          retrievalMeta: {
-            refused: false,
-            reason: "ok",
-            scopeReason: "explicit_city",
-            scopeResolution,
-            latencyMs: Date.now() - startedAt,
-          },
-        });
-
-        logNonTotalsRouting({
-          request_id: requestId,
-          intent: aggregationLogIntent,
-          route: "aggregate_sql",
-          fiscal_year_parsed: null,
-          scope_reason: "explicit_city",
-          barangay_id_used: null,
-          match_count_used: null,
-          limit_used: null,
-          top_candidate_ids: [],
-          top_candidate_distances: [],
-          answered: true,
-          vector_called: false,
-          city_id: explicitCityScope.city.id,
-        });
-
-        return NextResponse.json(
-          chatResponsePayload({
-            sessionId: session.id,
-            userMessage,
-            assistantMessage,
-          }),
-          { status: 200 }
-        );
       }
 
       if (aggregationScope.clarificationMessage) {
@@ -4178,39 +4611,51 @@ export async function POST(request: Request) {
           throw new Error("Aggregation compare years intent requires two years.");
         }
 
-        const { data, error } = await client.rpc("compare_fiscal_year_totals", {
-          p_year_a: yearA,
-          p_year_b: yearB,
-          p_barangay_id: aggregationScope.barangayIdUsed,
+        const scopeMode: CompareScopeMode =
+          aggregationScope.barangayIdUsed === null ? "global_barangays" : "single_barangay";
+        const yearAResult = await fetchTotalInvestmentProgramTotalsByYear({
+          year: yearA,
+          scopeMode,
+          barangayId: aggregationScope.barangayIdUsed,
+          barangayName: aggregationScope.barangayName,
         });
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        const comparison = toCompareTotalsRow(data);
-        const yearATotal = toNumberOrNull(comparison?.year_a_total) ?? 0;
-        const yearBTotal = toNumberOrNull(comparison?.year_b_total) ?? 0;
-        const delta = toNumberOrNull(comparison?.delta) ?? yearBTotal - yearATotal;
-        const deltaPhrase =
-          delta > 0
-            ? `an increase of ${formatPhpAmount(delta)}`
-            : delta < 0
-              ? `a decrease of ${formatPhpAmount(Math.abs(delta))}`
-              : "no change";
-
+        const yearBResult = await fetchTotalInvestmentProgramTotalsByYear({
+          year: yearB,
+          scopeMode,
+          barangayId: aggregationScope.barangayIdUsed,
+          barangayName: aggregationScope.barangayName,
+        });
+        const compareVerbose = buildCompareYearsVerboseAnswer({
+          yearA,
+          yearB,
+          scopeLabel,
+          sourceNote:
+            scopeMode === "single_barangay"
+              ? `Using sum of barangay totals (aip_totals) for ${scopeLabel}.`
+              : "Using sum of barangay totals (aip_totals) across all barangays.",
+          yearAResult,
+          yearBResult,
+        });
         const assistantMessage = await appendAssistantMessage({
           sessionId: session.id,
-          content:
-            `Fiscal year comparison (${scopeLabel}): FY ${yearA} = ${formatPhpAmount(yearATotal)}; ` +
-            `FY ${yearB} = ${formatPhpAmount(yearBTotal)}; difference = ${deltaPhrase}.`,
+          content: compareVerbose.content,
           citations: [
-            makeAggregateCitation("Aggregated from published AIP line items.", {
+            makeAggregateCitation("Aggregated from aip_totals (Total Investment Program).", {
               aggregated: true,
-              source: "aip_line_items",
-              aggregate_type: "compare_fiscal_year_totals",
+              aggregate_type: "compare_years_verbose",
+              aggregation_source: "aip_totals_total_investment_program",
+              scope_mode: scopeMode,
               year_a: yearA,
               year_b: yearB,
               barangay_id_filter: aggregationScope.barangayIdUsed,
+              coverage_year_a_count: yearAResult.coveredCount,
+              coverage_year_b_count: yearBResult.coveredCount,
+              missing_year_a_count: yearAResult.missingIds.length,
+              missing_year_b_count: yearBResult.missingIds.length,
+              contributing_aip_ids_year_a_sample: formatIdSample(yearAResult.contributingAipIds),
+              contributing_aip_ids_year_a_count: yearAResult.contributingAipIds.length,
+              contributing_aip_ids_year_b_sample: formatIdSample(yearBResult.contributingAipIds),
+              contributing_aip_ids_year_b_count: yearBResult.contributingAipIds.length,
             }),
           ],
           retrievalMeta: {
@@ -4233,6 +4678,12 @@ export async function POST(request: Request) {
           top_candidate_distances: [],
           answered: true,
           vector_called: false,
+          aggregation_source: "aip_totals_total_investment_program",
+          coverage_year_a_count: yearAResult.coveredCount,
+          coverage_year_b_count: yearBResult.coveredCount,
+          missing_year_a_count: yearAResult.missingIds.length,
+          missing_year_b_count: yearBResult.missingIds.length,
+          coverage_barangays: compareVerbose.coverageBarangays,
         });
 
         return NextResponse.json(

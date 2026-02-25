@@ -1,6 +1,15 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { formatTotalsEvidence } from "@/lib/chat/evidence";
 import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
 import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
+import {
+  detectExplicitBarangayMention,
+  normalizeBarangayNameForMatch,
+  resolveTotalsScope,
+  type BarangayRef,
+  type TotalsScopeReason,
+} from "@/lib/chat/scope";
 import { resolveRetrievalScope } from "@/lib/chat/scope-resolver.server";
 import { routeSqlFirstTotals, buildTotalsMissingMessage } from "@/lib/chat/totals-sql-routing";
 import type { PipelineChatCitation } from "@/lib/chat/types";
@@ -55,6 +64,19 @@ type TotalsAssistantPayload = {
 type ScopeLookupRow = {
   id: string;
   name: string | null;
+};
+
+type TotalsRoutingLogPayload = {
+  request_id: string;
+  intent: "total_investment_program";
+  route: "sql_totals";
+  fiscal_year_parsed: number | null;
+  scope_reason: TotalsScopeReason;
+  explicit_scope_detected: boolean;
+  barangay_id_used: string | null;
+  aip_id_selected: string | null;
+  totals_found: boolean;
+  vector_called: false;
 };
 
 function toChatMessage(row: ChatMessageRow): ChatMessage {
@@ -166,6 +188,34 @@ function formatScopeLabel(target: TotalsScopeTarget): string {
   return /\bmunicipality\b/i.test(scopedName) ? scopedName : `Municipality ${scopedName}`;
 }
 
+function normalizeBarangayLabel(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "your barangay";
+  return /^barangay\s+/i.test(trimmed) ? trimmed : `Barangay ${trimmed}`;
+}
+
+function isTotalsDebugEnabled(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.CHATBOT_DEBUG_LOGS === "true";
+}
+
+function logTotalsRouting(payload: TotalsRoutingLogPayload): void {
+  if (!isTotalsDebugEnabled()) return;
+  console.info(JSON.stringify(payload));
+}
+
+function isExplicitScopeDetected(scopeReason: TotalsScopeReason): boolean {
+  return scopeReason === "explicit_barangay" || scopeReason === "explicit_our_barangay";
+}
+
+function makeTotalsLogPayload(
+  payload: Omit<TotalsRoutingLogPayload, "explicit_scope_detected">
+): TotalsRoutingLogPayload {
+  return {
+    ...payload,
+    explicit_scope_detected: isExplicitScopeDetected(payload.scope_reason),
+  };
+}
+
 async function appendAssistantMessage(params: {
   sessionId: string;
   content: string;
@@ -235,6 +285,47 @@ async function queryScopeByName(
   });
 }
 
+async function fetchActiveBarangaysForMatching(): Promise<BarangayRef[]> {
+  const admin = supabaseAdmin();
+  const { data, error } = await admin
+    .from("barangays")
+    .select("id,name")
+    .eq("is_active", true)
+    .limit(5000);
+
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map((row) => {
+      const typed = row as ScopeLookupRow;
+      return {
+        id: typed.id,
+        name: (typed.name ?? "").trim(),
+      };
+    })
+    .filter((row) => row.id && row.name);
+}
+
+function resolveExplicitBarangayByCandidate(
+  candidateName: string,
+  barangays: BarangayRef[]
+): { status: "none" | "single" | "ambiguous"; barangay?: BarangayRef } {
+  const normalizedCandidate = normalizeBarangayNameForMatch(candidateName);
+  if (!normalizedCandidate) {
+    return { status: "none" };
+  }
+
+  const matches = barangays.filter(
+    (barangay) => normalizeBarangayNameForMatch(barangay.name) === normalizedCandidate
+  );
+  if (matches.length === 0) {
+    return { status: "none" };
+  }
+  if (matches.length === 1) {
+    return { status: "single", barangay: matches[0] };
+  }
+  return { status: "ambiguous" };
+}
+
 async function findScopeTargetByLooseName(name: string): Promise<{
   status: "none" | "single" | "ambiguous";
   target?: TotalsScopeTarget;
@@ -276,11 +367,16 @@ async function resolveTotalsScopeTarget(input: {
   actor: ActorContext;
   message: string;
   scopeResolution: ChatScopeResolution;
-}): Promise<{ target: TotalsScopeTarget | null; errorMessage?: string }> {
+}): Promise<{
+  target: TotalsScopeTarget | null;
+  explicitBarangay: BarangayRef | null;
+  errorMessage?: string;
+}> {
   const resolved = input.scopeResolution.resolvedTargets;
   if (resolved.length > 1) {
     return {
       target: null,
+      explicitBarangay: null,
       errorMessage:
         "Please ask about one place at a time for total investment queries (one barangay/city/municipality).",
     };
@@ -288,24 +384,60 @@ async function resolveTotalsScopeTarget(input: {
 
   if (resolved.length === 1) {
     const target = resolved[0];
-    return {
-      target: {
-        scopeType: target.scopeType,
-        scopeId: target.scopeId,
-        scopeName: target.scopeName,
-      },
+    const mappedTarget: TotalsScopeTarget = {
+      scopeType: target.scopeType,
+      scopeId: target.scopeId,
+      scopeName: target.scopeName,
     };
+    return {
+      target: mappedTarget,
+      explicitBarangay:
+        target.scopeType === "barangay" && target.scopeName
+          ? { id: target.scopeId, name: target.scopeName }
+          : null,
+    };
+  }
+
+  const explicitMentionCandidate = detectExplicitBarangayMention(input.message);
+  if (explicitMentionCandidate) {
+    const barangays = await fetchActiveBarangaysForMatching();
+    const match = resolveExplicitBarangayByCandidate(explicitMentionCandidate, barangays);
+    if (match.status === "single" && match.barangay) {
+      return {
+        target: {
+          scopeType: "barangay",
+          scopeId: match.barangay.id,
+          scopeName: match.barangay.name,
+        },
+        explicitBarangay: match.barangay,
+      };
+    }
+    if (match.status === "ambiguous") {
+      return {
+        target: null,
+        explicitBarangay: null,
+        errorMessage:
+          "I found multiple barangays with that name. Please specify the exact barangay name.",
+      };
+    }
   }
 
   const looseScopeName = parseLooseScopeName(input.message);
   if (looseScopeName) {
     const loose = await findScopeTargetByLooseName(looseScopeName);
     if (loose.status === "single" && loose.target) {
-      return { target: loose.target };
+      return {
+        target: loose.target,
+        explicitBarangay:
+          loose.target.scopeType === "barangay" && loose.target.scopeName
+            ? { id: loose.target.scopeId, name: loose.target.scopeName }
+            : null,
+      };
     }
     if (loose.status === "ambiguous") {
       return {
         target: null,
+        explicitBarangay: null,
         errorMessage:
           "I found multiple places with that name. Please specify the exact barangay/city/municipality.",
       };
@@ -328,12 +460,34 @@ async function resolveTotalsScopeTarget(input: {
         ...target,
         scopeName: await lookupScopeNameById(target),
       },
+      explicitBarangay: null,
     };
   }
 
   return {
     target: null,
+    explicitBarangay: null,
     errorMessage: "I couldn't determine the place scope for this total investment query.",
+  };
+}
+
+async function resolveUserBarangay(actor: ActorContext): Promise<BarangayRef | null> {
+  if (actor.scope.kind !== "barangay" || !actor.scope.id) {
+    return null;
+  }
+
+  const scopeName = await lookupScopeNameById({
+    scopeType: "barangay",
+    scopeId: actor.scope.id,
+    scopeName: null,
+  });
+  if (!scopeName) {
+    return null;
+  }
+
+  return {
+    id: actor.scope.id,
+    name: scopeName,
   };
 }
 
@@ -390,6 +544,7 @@ async function resolveTotalsAssistantPayload(input: {
   actor: ActorContext;
   message: string;
   scopeResolution: ChatScopeResolution;
+  requestId: string;
 }): Promise<TotalsAssistantPayload> {
   const requestedFiscalYear = extractFiscalYear(input.message);
   const scopeResult = await resolveTotalsScopeTarget({
@@ -397,10 +552,26 @@ async function resolveTotalsAssistantPayload(input: {
     message: input.message,
     scopeResolution: input.scopeResolution,
   });
+  const userBarangay = await resolveUserBarangay(input.actor);
+  const totalsScope = resolveTotalsScope(input.message, userBarangay, scopeResult.explicitBarangay);
+
   if (!scopeResult.target) {
     const fallbackMessage =
       scopeResult.errorMessage ??
       "I couldn't determine the requested place. Please specify the exact barangay/city/municipality.";
+    logTotalsRouting(
+      makeTotalsLogPayload({
+      request_id: input.requestId,
+      intent: "total_investment_program",
+      route: "sql_totals",
+      fiscal_year_parsed: requestedFiscalYear,
+      scope_reason: totalsScope.scopeReason,
+      barangay_id_used: totalsScope.barangayId,
+      aip_id_selected: null,
+      totals_found: false,
+      vector_called: false,
+      })
+    );
     return {
       content: fallbackMessage,
       citations: [
@@ -418,7 +589,45 @@ async function resolveTotalsAssistantPayload(input: {
   }
 
   const target = scopeResult.target;
-  const scopeLabel = formatScopeLabel(target);
+  if (target.scopeType === "barangay" && totalsScope.scopeReason === "unknown") {
+    const clarificationMessage = "Please specify which barangay you mean for this total investment query.";
+    logTotalsRouting(
+      makeTotalsLogPayload({
+      request_id: input.requestId,
+      intent: "total_investment_program",
+      route: "sql_totals",
+      fiscal_year_parsed: requestedFiscalYear,
+      scope_reason: totalsScope.scopeReason,
+      barangay_id_used: totalsScope.barangayId,
+      aip_id_selected: null,
+      totals_found: false,
+      vector_called: false,
+      })
+    );
+    return {
+      content: clarificationMessage,
+      citations: [
+        makeSystemCitation("Barangay clarification required for totals SQL lookup.", {
+          reason: "scope_clarification_required",
+          scope_reason: totalsScope.scopeReason,
+          scope_resolution: input.scopeResolution,
+        }),
+      ],
+      retrievalMeta: {
+        refused: true,
+        reason: "ambiguous_scope",
+        scopeResolution: input.scopeResolution,
+      },
+    };
+  }
+
+  const baseScopeLabel = formatScopeLabel(target);
+  const answerScopeLabel =
+    target.scopeType === "barangay" &&
+    totalsScope.scopeReason === "default_user_barangay" &&
+    totalsScope.barangayName
+      ? `${normalizeBarangayLabel(totalsScope.barangayName)} - based on your account scope`
+      : baseScopeLabel;
   const aip = await findPublishedAipForScope({
     target,
     fiscalYear: requestedFiscalYear,
@@ -427,8 +636,21 @@ async function resolveTotalsAssistantPayload(input: {
   if (!aip) {
     const noAipMessage =
       requestedFiscalYear !== null
-        ? `I couldn't find a published AIP for FY ${requestedFiscalYear} (${scopeLabel}).`
-        : `I couldn't find a published AIP for ${scopeLabel}.`;
+        ? `I couldn't find a published AIP for FY ${requestedFiscalYear} (${answerScopeLabel}).`
+        : `I couldn't find a published AIP for ${answerScopeLabel}.`;
+    logTotalsRouting(
+      makeTotalsLogPayload({
+      request_id: input.requestId,
+      intent: "total_investment_program",
+      route: "sql_totals",
+      fiscal_year_parsed: requestedFiscalYear,
+      scope_reason: totalsScope.scopeReason,
+      barangay_id_used: totalsScope.barangayId,
+      aip_id_selected: null,
+      totals_found: false,
+      vector_called: false,
+      })
+    );
     return {
       content: noAipMessage,
       citations: [
@@ -451,8 +673,21 @@ async function resolveTotalsAssistantPayload(input: {
   if (!totalsRow) {
     const missingMessage = buildTotalsMissingMessage({
       fiscalYear: requestedFiscalYear ?? aip.fiscal_year ?? null,
-      scopeLabel,
+      scopeLabel: answerScopeLabel,
     });
+    logTotalsRouting(
+      makeTotalsLogPayload({
+      request_id: input.requestId,
+      intent: "total_investment_program",
+      route: "sql_totals",
+      fiscal_year_parsed: requestedFiscalYear,
+      scope_reason: totalsScope.scopeReason,
+      barangay_id_used: totalsScope.barangayId,
+      aip_id_selected: aip.id,
+      totals_found: false,
+      vector_called: false,
+      })
+    );
     return {
       content: missingMessage,
       citations: [
@@ -476,8 +711,21 @@ async function resolveTotalsAssistantPayload(input: {
   if (parsedAmount === null) {
     const missingMessage = buildTotalsMissingMessage({
       fiscalYear: requestedFiscalYear ?? aip.fiscal_year ?? null,
-      scopeLabel,
+      scopeLabel: answerScopeLabel,
     });
+    logTotalsRouting(
+      makeTotalsLogPayload({
+      request_id: input.requestId,
+      intent: "total_investment_program",
+      route: "sql_totals",
+      fiscal_year_parsed: requestedFiscalYear,
+      scope_reason: totalsScope.scopeReason,
+      barangay_id_used: totalsScope.barangayId,
+      aip_id_selected: aip.id,
+      totals_found: false,
+      vector_called: false,
+      })
+    );
     return {
       content: missingMessage,
       citations: [
@@ -495,11 +743,31 @@ async function resolveTotalsAssistantPayload(input: {
     };
   }
 
-  const evidenceText = totalsRow.evidence_text.trim();
+  const rawEvidence = totalsRow.evidence_text.trim();
+  const formattedEvidence = formatTotalsEvidence(rawEvidence);
+  const evidenceText = formattedEvidence || rawEvidence;
+  const citationScopeLabel =
+    target.scopeType === "barangay" && totalsScope.barangayName
+      ? normalizeBarangayLabel(totalsScope.barangayName)
+      : baseScopeLabel;
+  const citationTitle = `${citationScopeLabel} — FY ${aip.fiscal_year} — Total Investment Program`;
   const pageLabel = totalsRow.page_no !== null ? `page ${totalsRow.page_no}` : "page not specified";
   const answer =
-    `The Total Investment Program for FY ${aip.fiscal_year} (${scopeLabel}) is ${formatPhp(parsedAmount)}. ` +
+    `The Total Investment Program for FY ${aip.fiscal_year} (${answerScopeLabel}) is ${formatPhp(parsedAmount)}. ` +
     `Evidence: ${pageLabel}, "${evidenceText}".`;
+  logTotalsRouting(
+    makeTotalsLogPayload({
+    request_id: input.requestId,
+    intent: "total_investment_program",
+    route: "sql_totals",
+    fiscal_year_parsed: requestedFiscalYear,
+    scope_reason: totalsScope.scopeReason,
+    barangay_id_used: totalsScope.barangayId,
+    aip_id_selected: aip.id,
+    totals_found: true,
+    vector_called: false,
+    })
+  );
 
   return {
     content: answer,
@@ -510,13 +778,14 @@ async function resolveTotalsAssistantPayload(input: {
         fiscalYear: aip.fiscal_year,
         scopeType: target.scopeType,
         scopeId: target.scopeId,
-        scopeName: scopeLabel,
+        scopeName: citationTitle,
         snippet: evidenceText,
         insufficient: false,
         metadata: {
           type: "aip_total",
           page_no: totalsRow.page_no,
           evidence_text: evidenceText,
+          evidence_text_raw: rawEvidence,
           aip_id: aip.id,
           fiscal_year: aip.fiscal_year,
         },
@@ -542,6 +811,7 @@ export async function POST(request: Request) {
       content?: string;
     };
     const content = normalizeUserMessage(body.content);
+    const requestId = randomUUID();
     if (!content) {
       return NextResponse.json({ message: "Message cannot be empty." }, { status: 400 });
     }
@@ -590,8 +860,9 @@ export async function POST(request: Request) {
       unresolvedScopes: scope.scopeResolution.unresolvedScopes,
       ambiguousScopes: scope.scopeResolution.ambiguousScopes,
     });
+    const intent = detectIntent(content).intent;
 
-    if (!scope.retrievalScope) {
+    if (!scope.retrievalScope && intent !== "total_investment_program") {
       const assistantContent =
         scope.clarificationMessage ??
         "I couldn't confidently identify the requested place. Please provide the exact barangay/city/municipality name.";
@@ -616,7 +887,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const intent = detectIntent(content).intent;
     const startedAt = Date.now();
     const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
       intent,
@@ -625,6 +895,7 @@ export async function POST(request: Request) {
           actor,
           message: content,
           scopeResolution,
+          requestId,
         }),
       resolveNormal: async () => null,
     });
@@ -641,6 +912,21 @@ export async function POST(request: Request) {
             scopeResolution,
           },
         } satisfies TotalsAssistantPayload);
+      if (!intentRoute.value) {
+        logTotalsRouting(
+          makeTotalsLogPayload({
+          request_id: requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: extractFiscalYear(content),
+          scope_reason: "unknown",
+          barangay_id_used: null,
+          aip_id_selected: null,
+          totals_found: false,
+          vector_called: false,
+          })
+        );
+      }
 
       const assistantMessage = await appendAssistantMessage({
         sessionId: session.id,
@@ -660,6 +946,10 @@ export async function POST(request: Request) {
         },
         { status: 200 }
       );
+    }
+
+    if (!scope.retrievalScope) {
+      throw new Error("Retrieval scope missing for non-totals intent.");
     }
 
     let assistantContent = "";

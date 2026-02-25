@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { CitizenAuthModalHost } from "@/features/citizen/auth";
 import CitizenFooter from "@/features/citizen/components/CitizenFooter";
 import FloatingChatButton from "@/features/citizen/components/FloatingChatButton";
 import CitizenTopNav from "@/features/citizen/components/CitizenTopNav";
@@ -25,6 +26,7 @@ const CitizenLayout = ({ children }: { children: ReactNode }) => {
       >
         {children}
       </main>
+      <CitizenAuthModalHost />
       <CitizenFooter />
       <FloatingChatButton />
     </div>

@@ -1,19 +1,16 @@
-import { SignUpForm } from '@/components/sign-up-form'
+import { redirect } from "next/navigation";
 
-export default function Page() {
+type SignUpPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
 
-  const role = 'citizen' as const;
-  const baseURL = process.env.BASE_URL;
+export default async function SignUpPage({ searchParams }: SignUpPageProps) {
+  const { next } = await searchParams;
+  const params = new URLSearchParams({ auth: "signup" });
 
-  if (!baseURL) {
-    throw new Error('BASE_URL environment variable is not configured');
+  if (typeof next === "string" && next.startsWith("/") && !next.startsWith("//")) {
+    params.set("next", next);
   }
 
-  return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <SignUpForm role={role} baseURL={baseURL}/>
-      </div>
-    </div>
-  )
+  redirect(`/?${params.toString()}`);
 }

@@ -1,18 +1,16 @@
-import { LoginForm } from '@/components/login-form'
+import { redirect } from "next/navigation";
 
-export default function Page() {
+type SignInPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
 
-  const role:string = 'citizen';
-  const baseURL = process.env.BASE_URL;
-  if (!baseURL) {
-    throw new Error('BASE_URL environment variable is not configured');
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const { next } = await searchParams;
+  const params = new URLSearchParams({ auth: "login" });
+
+  if (typeof next === "string" && next.startsWith("/") && !next.startsWith("//")) {
+    params.set("next", next);
   }
 
-  return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <LoginForm role={role} baseURL={baseURL}/>
-      </div>
-    </div>
-  )
+  redirect(`/?${params.toString()}`);
 }

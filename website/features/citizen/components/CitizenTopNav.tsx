@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Menu, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { buildCitizenAuthHref } from '@/features/citizen/auth/utils/auth-query';
 import { CITIZEN_NAV } from '@/features/citizen/constants/nav';
 import { cn } from '@/ui/utils';
 
@@ -23,8 +24,24 @@ function isActivePath(pathname: string, href: string) {
 
 export default function CitizenTopNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const mobileSheetId = "citizen-mobile-nav-sheet";
   const [mobileProjectsOpen, setMobileProjectsOpen] = useState<boolean>(false);
+
+  const sanitizedNext = (() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("auth");
+    params.delete("next");
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  })();
+
+  const signInHref = buildCitizenAuthHref({
+    pathname,
+    searchParams,
+    mode: "login",
+    next: sanitizedNext,
+  });
 
   useEffect(() => {
     setMobileProjectsOpen(pathname === '/projects' || pathname.startsWith('/projects/'));
@@ -101,7 +118,7 @@ export default function CitizenTopNav() {
 
         <div className="hidden md:block">
           <Button asChild className="bg-[#0E7490] text-white hover:bg-[#0C6078]">
-            <Link href="/sign-in">Sign In</Link>
+            <Link href={signInHref}>Sign In</Link>
           </Button>
         </div>
 
@@ -175,7 +192,7 @@ export default function CitizenTopNav() {
             </div>
             <div className="mt-6 border-t border-slate-200 pt-6">
               <Button asChild className="w-full bg-[#0E7490] text-white hover:bg-[#0C6078]">
-                <Link href="/sign-in">Sign In</Link>
+                <Link href={signInHref}>Sign In</Link>
               </Button>
             </div>
           </SheetContent>

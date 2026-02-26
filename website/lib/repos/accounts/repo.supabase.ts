@@ -292,6 +292,12 @@ async function getCurrentActorId() {
   return data.user.id;
 }
 
+function toNonEmptyString(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 async function getAuthUsersByIds(ids: string[]): Promise<Map<string, AuthUserSnapshot>> {
   const map = new Map<string, AuthUserSnapshot>();
   if (ids.length === 0) return map;
@@ -407,6 +413,23 @@ async function logAccountActivity(
 ) {
   try {
     const client = await supabaseServer();
+    const actorId = await getCurrentActorId();
+    let actorName: string | null = null;
+
+    if (actorId) {
+      const { data: actorProfile, error: actorProfileError } = await client
+        .from("profiles")
+        .select("full_name,email")
+        .eq("id", actorId)
+        .maybeSingle();
+
+      if (!actorProfileError) {
+        actorName =
+          toNonEmptyString(actorProfile?.full_name ?? null) ??
+          toNonEmptyString(actorProfile?.email ?? null);
+      }
+    }
+
     await client.rpc("log_activity", {
       p_action: action,
       p_entity_table: "profiles",
@@ -414,7 +437,7 @@ async function logAccountActivity(
       p_city_id: row.city_id,
       p_municipality_id: row.municipality_id,
       p_barangay_id: row.barangay_id,
-      p_metadata: metadata,
+      p_metadata: actorName ? { ...metadata, actor_name: actorName } : metadata,
     });
   } catch {
     // Best-effort audit logging. Do not block account actions when RPC is unavailable.

@@ -278,40 +278,13 @@ async function saveRevisionReply(params: {
   reply: string;
   actorUserId: string | null;
 }): Promise<void> {
-  if (isMockEnabled()) {
-    const repo = getFeedbackRepo();
-    await repo.createForAip(params.aipId, {
-      kind: "lgu_note",
-      body: params.reply,
-      authorId: params.actorUserId ?? "official_001",
-      isPublic: true,
-    });
-    return;
-  }
-
-  if (!params.actorUserId) {
-    throw new Error("Unable to identify the barangay official for this reply.");
-  }
-
-  const client = await supabaseServer();
-  const { error } = await client.from("feedback").insert({
-    target_type: "aip",
-    aip_id: params.aipId,
-    project_id: null,
-    parent_feedback_id: null,
-    source: "human",
+  const repo = getFeedbackRepo();
+  await repo.createForAip(params.aipId, {
     kind: "lgu_note",
-    extraction_run_id: null,
-    extraction_artifact_id: null,
-    field_key: null,
-    severity: null,
     body: params.reply,
-    is_public: true,
-    author_id: params.actorUserId,
+    authorId: params.actorUserId ?? (isMockEnabled() ? "official_001" : null),
+    isPublic: true,
   });
-  if (error) {
-    throw new Error(error.message);
-  }
 }
 
 function normalizeStorageValue(value: unknown): string | null {

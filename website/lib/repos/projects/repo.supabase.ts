@@ -1,16 +1,224 @@
 import "server-only";
 
-import { NotImplementedError } from "@/lib/core/errors";
+import { supabaseServer } from "@/lib/supabase/server";
+import type {
+  HealthProjectDetailsRow,
+  InfrastructureProjectDetailsRow,
+  ProjectRow,
+} from "./db.types";
+import { mapProjectRowToUiModel } from "./mappers";
 import type { ProjectsRepo } from "./repo";
+import type {
+  HealthProject,
+  InfrastructureProject,
+  ProjectBundle,
+  ProjectStatus,
+  UiProject,
+} from "./types";
 
-// [SUPABASE-SWAP] Future Supabase adapter for `ProjectsRepo`.
-// [DBV2] Tables (canonical):
-// - `public.projects` (id, aip_id, aip_ref_code, program_project_description, category, totals, timestamps, etc.)
-// - `public.health_project_details` (project_id, program_name, description, target_participants, total_target_participants, audit fields)
-// - `public.infrastructure_project_details` (project_id, project_name, contractor_name, contract_cost, start_date, target_completion_date, audit fields)
-// [SECURITY] Reads must respect `public.can_read_project(project_id)` / `public.can_read_aip(aip_id)` via RLS.
-export function createSupabaseProjectsRepo(): ProjectsRepo {
-  throw new NotImplementedError(
-    "lib/repos/projects/repo.supabase.ts not implemented (Supabase swap deferred)."
+type ProjectRowWithMeta = ProjectRow & {
+  status?: ProjectStatus | null;
+  image_url?: string | null;
+};
+
+const PROJECT_SELECT_COLUMNS = [
+  "id",
+  "aip_id",
+  "extraction_artifact_id",
+  "aip_ref_code",
+  "program_project_description",
+  "implementing_agency",
+  "start_date",
+  "completion_date",
+  "expected_output",
+  "source_of_funds",
+  "personal_services",
+  "maintenance_and_other_operating_expenses",
+  "financial_expenses",
+  "capital_outlay",
+  "total",
+  "climate_change_adaptation",
+  "climate_change_mitigation",
+  "cc_topology_code",
+  "prm_ncr_lgu_rm_objective_results_indicator",
+  "errors",
+  "category",
+  "sector_code",
+  "is_human_edited",
+  "edited_by",
+  "edited_at",
+  "created_at",
+  "updated_at",
+].join(",");
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
   );
+}
+
+function attachUpdates<T extends UiProject>(project: T): T {
+  return {
+    ...project,
+    updates: [],
+  };
+}
+
+async function loadDetailsByProjectIds(projectIds: string[]) {
+  const healthByProjectId = new Map<string, HealthProjectDetailsRow>();
+  const infraByProjectId = new Map<string, InfrastructureProjectDetailsRow>();
+
+  if (projectIds.length === 0) {
+    return { healthByProjectId, infraByProjectId };
+  }
+
+  const client = await supabaseServer();
+  const [healthResult, infraResult] = await Promise.all([
+    client
+      .from("health_project_details")
+      .select(
+        "project_id,program_name,description,target_participants,total_target_participants,updated_by,updated_at,created_at"
+      )
+      .in("project_id", projectIds),
+    client
+      .from("infrastructure_project_details")
+      .select(
+        "project_id,project_name,contractor_name,contract_cost,start_date,target_completion_date,updated_by,updated_at,created_at"
+      )
+      .in("project_id", projectIds),
+  ]);
+
+  if (healthResult.error) {
+    throw new Error(healthResult.error.message);
+  }
+
+  if (infraResult.error) {
+    throw new Error(infraResult.error.message);
+  }
+
+  for (const row of (healthResult.data ?? []) as HealthProjectDetailsRow[]) {
+    healthByProjectId.set(row.project_id, row);
+  }
+
+  for (const row of (infraResult.data ?? []) as InfrastructureProjectDetailsRow[]) {
+    infraByProjectId.set(row.project_id, row);
+  }
+
+  return { healthByProjectId, infraByProjectId };
+}
+
+function mapProjectToUiModel(
+  row: ProjectRowWithMeta,
+  details: {
+    healthByProjectId: Map<string, HealthProjectDetailsRow>;
+    infraByProjectId: Map<string, InfrastructureProjectDetailsRow>;
+  }
+): UiProject {
+  const health = details.healthByProjectId.get(row.id) ?? null;
+  const infra = details.infraByProjectId.get(row.id) ?? null;
+
+  const mapped = mapProjectRowToUiModel(row, health, infra, {
+    status: row.status ?? null,
+    imageUrl: row.image_url ?? null,
+  });
+
+  return attachUpdates(mapped);
+}
+
+async function listProjectsInternal(input?: {
+  aipId?: string;
+  category?: "health" | "infrastructure";
+}): Promise<UiProject[]> {
+  const client = await supabaseServer();
+  let query = client.from("projects").select(PROJECT_SELECT_COLUMNS);
+
+  if (input?.aipId) {
+    query = query.eq("aip_id", input.aipId);
+  }
+
+  if (input?.category) {
+    query = query.eq("category", input.category);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as unknown as ProjectRowWithMeta[];
+  const details = await loadDetailsByProjectIds(rows.map((row) => row.id));
+
+  return rows.map((row) => mapProjectToUiModel(row, details));
+}
+
+async function getProjectByRefOrId(projectIdOrRefCode: string): Promise<UiProject | null> {
+  const client = await supabaseServer();
+
+  let row: ProjectRowWithMeta | null = null;
+
+  if (isUuid(projectIdOrRefCode)) {
+    const byId = await client
+      .from("projects")
+      .select(PROJECT_SELECT_COLUMNS)
+      .eq("id", projectIdOrRefCode)
+      .maybeSingle();
+
+    if (byId.error) {
+      throw new Error(byId.error.message);
+    }
+
+    row = (byId.data as ProjectRowWithMeta | null) ?? null;
+  }
+
+  if (!row) {
+    const byRefCode = await client
+      .from("projects")
+      .select(PROJECT_SELECT_COLUMNS)
+      .eq("aip_ref_code", projectIdOrRefCode)
+      .maybeSingle();
+
+    if (byRefCode.error) {
+      throw new Error(byRefCode.error.message);
+    }
+
+    row = (byRefCode.data as ProjectRowWithMeta | null) ?? null;
+  }
+
+  if (!row) {
+    return null;
+  }
+
+  const details = await loadDetailsByProjectIds([row.id]);
+  return mapProjectToUiModel(row, details);
+}
+
+export function createSupabaseProjectsRepo(): ProjectsRepo {
+  return {
+    async listByAip(aipId: string): Promise<UiProject[]> {
+      return listProjectsInternal({ aipId });
+    },
+
+    async getById(projectId: string): Promise<UiProject | null> {
+      return getProjectByRefOrId(projectId);
+    },
+
+    async listHealth(): Promise<HealthProject[]> {
+      const projects = await listProjectsInternal({ category: "health" });
+      return projects.filter((project) => project.kind === "health") as HealthProject[];
+    },
+
+    async listInfrastructure(): Promise<InfrastructureProject[]> {
+      const projects = await listProjectsInternal({ category: "infrastructure" });
+      return projects.filter((project) => project.kind === "infrastructure") as InfrastructureProject[];
+    },
+
+    async getByRefCode(projectRefCode: string): Promise<ProjectBundle | null> {
+      const project = await getProjectByRefOrId(projectRefCode);
+      if (!project) return null;
+      if (project.kind !== "health" && project.kind !== "infrastructure") {
+        return null;
+      }
+      return project as ProjectBundle;
+    },
+  };
 }

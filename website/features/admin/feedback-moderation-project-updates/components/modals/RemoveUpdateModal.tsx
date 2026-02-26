@@ -23,6 +23,7 @@ export default function RemoveUpdateModal({
   onViolationCategoryChange,
   violationOptions,
   onConfirm,
+  isSubmitting = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,6 +33,7 @@ export default function RemoveUpdateModal({
   onViolationCategoryChange: (value: string) => void;
   violationOptions: string[];
   onConfirm: () => void;
+  isSubmitting?: boolean;
 }) {
   const isValid = reason.trim().length >= 10;
 
@@ -89,12 +91,13 @@ export default function RemoveUpdateModal({
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button className="w-56" disabled={!isValid} onClick={onConfirm}>
-              Confirm Remove Update
+            <Button className="w-56" disabled={!isValid || isSubmitting} onClick={onConfirm}>
+              {isSubmitting ? "Removing..." : "Confirm Remove Update"}
             </Button>
             <Button
               variant="outline"
               className="w-56"
+              disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
               Cancel

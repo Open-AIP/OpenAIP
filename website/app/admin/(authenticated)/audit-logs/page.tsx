@@ -1,8 +1,7 @@
 import { AuditView } from "@/features/audit";
-import { mapAuditRecordToActivityLogRow } from "@/lib/mappers/audit";
-import { AUDIT_LOGS_FIXTURE } from "@/mocks/fixtures/audit/audit-logs.fixture";
+import { getAuditFeed } from "@/lib/repos/audit/queries";
 
-export default function AuditLogsPage() {
-  const logs = AUDIT_LOGS_FIXTURE.map(mapAuditRecordToActivityLogRow);
+export default async function AuditLogsPage() {
+  const logs = await getAuditFeed();
   return <AuditView logs={logs} />;
 }

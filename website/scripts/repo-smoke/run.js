@@ -88,6 +88,22 @@ const {
 const {
   runRepoSelectorOverrideTests,
 } = require("@/tests/repo-smoke/shared/selector.override.test");
+const { getCommentRepo } = require("@/lib/repos/feedback/repo.server");
+const { getFeedbackRepo } = require("@/lib/repos/feedback/repo.server");
+const { getFeedbackThreadsRepo } = require("@/lib/repos/feedback/repo.server");
+const { getCommentTargetLookup } = require("@/lib/repos/feedback/repo.server");
+const { getAuditRepo } = require("@/lib/repos/audit/repo.server");
+const { getChatRepo } = require("@/lib/repos/chat/repo.server");
+const { getAdminDashboardRepo } = require("@/lib/repos/admin-dashboard/repo");
+const { getAipMonitoringRepo } = require("@/lib/repos/aip-monitoring/repo");
+const { getFeedbackModerationRepo } = require("@/lib/repos/feedback-moderation/repo");
+const {
+  getFeedbackModerationProjectUpdatesRepo,
+} = require("@/lib/repos/feedback-moderation-project-updates/repo");
+const { getUsageControlsRepo } = require("@/lib/repos/usage-controls/repo");
+const {
+  getSystemAdministrationRepo,
+} = require("@/lib/repos/system-administration/repo");
 
 function assert(condition, message) {
   if (!condition) {
@@ -203,22 +219,25 @@ const tests = [
     },
   },
   {
-    name: "getProjectsRepo staging throws not implemented",
+    name: "getProjectsRepo staging returns concrete adapter",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      const oldUseMocks = process.env.NEXT_PUBLIC_USE_MOCKS;
       process.env.NEXT_PUBLIC_APP_ENV = "staging";
+      process.env.NEXT_PUBLIC_USE_MOCKS = "false";
       try {
-        let threw = false;
-        try {
-          getProjectsRepo();
-        } catch (error) {
-          threw = /not implemented/i.test(
-            error instanceof Error ? error.message : String(error)
-          );
-        }
-        assert(threw, "Expected Not implemented error in staging");
+        const repo = getProjectsRepo();
+        assert(
+          typeof repo.listByAip === "function" &&
+            typeof repo.getById === "function" &&
+            typeof repo.listHealth === "function" &&
+            typeof repo.listInfrastructure === "function" &&
+            typeof repo.getByRefCode === "function",
+          "Expected staging/no-mock selector to return a concrete projects repo adapter"
+        );
       } finally {
         process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+        process.env.NEXT_PUBLIC_USE_MOCKS = oldUseMocks;
       }
     },
   },
@@ -320,7 +339,7 @@ const tests = [
     },
   },
   {
-    name: "getCommentRepo throws outside mock mode",
+    name: "getCommentRepo selector supports non-mock mode",
     async run() {
       await runCommentRepoSelectorTests();
     },
@@ -329,6 +348,125 @@ const tests = [
     name: "shared selector override forces mocks",
     async run() {
       await runRepoSelectorOverrideTests();
+    },
+  },
+  {
+    name: "no-mock gate: in-scope repo selectors instantiate in staging",
+    async run() {
+      const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      const oldUseMocks = process.env.NEXT_PUBLIC_USE_MOCKS;
+
+      process.env.NEXT_PUBLIC_APP_ENV = "staging";
+      process.env.NEXT_PUBLIC_USE_MOCKS = "false";
+
+      try {
+        const checks = [
+          {
+            label: "ProjectsRepo",
+            repo: getProjectsRepo(),
+            methods: ["listByAip", "getById", "listHealth", "listInfrastructure", "getByRefCode"],
+          },
+          {
+            label: "CommentRepo(server)",
+            repo: getCommentRepo(),
+            methods: ["listThreadsForInbox", "getThread", "listMessages", "addReply"],
+          },
+          {
+            label: "CommentTargetLookup(server)",
+            repo: getCommentTargetLookup(),
+            methods: ["getProject", "getAip", "getAipItem"],
+          },
+          {
+            label: "FeedbackRepo(server)",
+            repo: getFeedbackRepo(),
+            methods: ["listForAip", "listForProject", "createForAip", "createForProject", "reply"],
+          },
+          {
+            label: "FeedbackThreadsRepo(server)",
+            repo: getFeedbackThreadsRepo(),
+            methods: ["listThreadRootsByTarget", "listThreadMessages", "createRoot", "createReply"],
+          },
+          {
+            label: "AuditRepo(server)",
+            repo: getAuditRepo(),
+            methods: ["listMyActivity", "listAllActivity"],
+          },
+          {
+            label: "ChatRepo(server)",
+            repo: getChatRepo(),
+            methods: ["listSessions", "getSession", "createSession", "renameSession", "listMessages", "appendUserMessage"],
+          },
+          {
+            label: "AdminDashboardRepo",
+            repo: getAdminDashboardRepo(),
+            methods: [
+              "getSummary",
+              "getAipStatusDistribution",
+              "getReviewBacklog",
+              "getUsageMetrics",
+              "getRecentActivity",
+              "listLguOptions",
+            ],
+          },
+          {
+            label: "AipMonitoringRepo",
+            repo: getAipMonitoringRepo(),
+            methods: ["getSeedData"],
+          },
+          {
+            label: "FeedbackModerationRepo",
+            repo: getFeedbackModerationRepo(),
+            methods: ["listDataset", "hideFeedback", "unhideFeedback"],
+          },
+          {
+            label: "FeedbackModerationProjectUpdatesRepo",
+            repo: getFeedbackModerationProjectUpdatesRepo(),
+            methods: ["getSeedData", "flagUpdate", "removeUpdate"],
+          },
+          {
+            label: "UsageControlsRepo",
+            repo: getUsageControlsRepo(),
+            methods: [
+              "getRateLimitSettings",
+              "updateRateLimitSettings",
+              "getChatbotMetrics",
+              "getChatbotRateLimitPolicy",
+              "updateChatbotRateLimitPolicy",
+              "getChatbotSystemPolicy",
+              "updateChatbotSystemPolicy",
+              "listFlaggedUsers",
+              "getUserAuditHistory",
+              "temporarilyBlockUser",
+              "unblockUser",
+            ],
+          },
+          {
+            label: "SystemAdministrationRepo",
+            repo: getSystemAdministrationRepo(),
+            methods: [
+              "getSecuritySettings",
+              "updateSecuritySettings",
+              "getNotificationSettings",
+              "updateNotificationSettings",
+              "getSystemBannerDraft",
+              "publishSystemBanner",
+              "listAuditLogs",
+            ],
+          },
+        ];
+
+        checks.forEach(({ label, repo, methods }) => {
+          methods.forEach((methodName) => {
+            assert(
+              typeof repo[methodName] === "function",
+              `${label} missing method: ${methodName}`
+            );
+          });
+        });
+      } finally {
+        process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+        process.env.NEXT_PUBLIC_USE_MOCKS = oldUseMocks;
+      }
     },
   },
   {

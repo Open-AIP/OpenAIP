@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ProjectUpdatesFiltersRow from "./ProjectUpdatesFiltersRow";
 import ProjectUpdatesTable from "./ProjectUpdatesTable";
 import SensitiveGuidelinesPanel from "./SensitiveGuidelinesPanel";
@@ -12,7 +12,10 @@ import {
   mapProjectUpdateToDetails,
   mapProjectUpdatesToRows,
 } from "@/lib/mappers/feedback-moderation-project-updates";
-import type { ModerationActionRecord } from "@/lib/repos/feedback-moderation-project-updates/types";
+import type {
+  ModerationActionRecord,
+  ProjectUpdateRecord,
+} from "@/lib/repos/feedback-moderation-project-updates/types";
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All Type" },
@@ -34,25 +37,30 @@ const VIOLATION_OPTIONS = [
   "Inappropriate Images",
 ];
 
-const ADMIN_ACTOR = {
-  id: "admin_001",
-  role: "admin",
-};
-
-const createId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+const toScope = (update: ProjectUpdateRecord) => ({
+  region_id: update.region_id,
+  province_id: update.province_id,
+  city_id: update.city_id,
+  municipality_id: update.municipality_id,
+  barangay_id: update.barangay_id,
+});
 
 export default function ProjectUpdatesPage() {
-  const seedData = useMemo(
-    () => getFeedbackModerationProjectUpdatesRepo().getSeedData(),
-    []
-  );
+  const repo = useMemo(() => getFeedbackModerationProjectUpdatesRepo(), []);
 
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [lguFilter, setLguFilter] = useState("all");
 
-  const [actions, setActions] = useState<ModerationActionRecord[]>(seedData.actions);
+  const [seedData, setSeedData] = useState<Awaited<ReturnType<typeof repo.getSeedData>> | null>(
+    null
+  );
+  const [actions, setActions] = useState<ModerationActionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [flagId, setFlagId] = useState<string | null>(null);
@@ -61,18 +69,53 @@ export default function ProjectUpdatesPage() {
   const [removeReason, setRemoveReason] = useState("");
   const [removeViolation, setRemoveViolation] = useState("");
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const nextSeed = await repo.getSeedData();
+        if (!isActive) return;
+        setSeedData(nextSeed);
+        setActions(nextSeed.actions);
+      } catch (loadError) {
+        if (!isActive) return;
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load project update moderation data."
+        );
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isActive = false;
+    };
+  }, [repo]);
+
   const rows = useMemo(
     () =>
-      mapProjectUpdatesToRows({
-        updates: seedData.updates,
-        actions,
-        projects: seedData.lguMap.projects,
-        aips: seedData.lguMap.aips,
-        profiles: seedData.lguMap.profiles,
-        cities: seedData.lguMap.cities,
-        barangays: seedData.lguMap.barangays,
-        municipalities: seedData.lguMap.municipalities,
-      }),
+      seedData
+        ? mapProjectUpdatesToRows({
+            updates: seedData.updates,
+            actions,
+            projects: seedData.lguMap.projects,
+            aips: seedData.lguMap.aips,
+            profiles: seedData.lguMap.profiles,
+            cities: seedData.lguMap.cities,
+            barangays: seedData.lguMap.barangays,
+            municipalities: seedData.lguMap.municipalities,
+          })
+        : [],
     [actions, seedData]
   );
 
@@ -100,17 +143,19 @@ export default function ProjectUpdatesPage() {
     });
   }, [rows, query, typeFilter, statusFilter, lguFilter]);
 
-  const selectedUpdate = seedData.updates.find((row) => row.id === detailsId) ?? null;
+  const selectedUpdate = seedData
+    ? seedData.updates.find((row) => row.id === detailsId) ?? null
+    : null;
   const selectedActions = actions.filter((row) => row.entity_id === detailsId);
-  const selectedProject = seedData.lguMap.projects.find(
+  const selectedProject = seedData?.lguMap.projects.find(
     (row) => row.id === selectedUpdate?.entity_id
   );
-  const selectedAip = seedData.lguMap.aips.find((row) => row.id === selectedProject?.aip_id);
-  const selectedProfile = seedData.lguMap.profiles.find(
+  const selectedAip = seedData?.lguMap.aips.find((row) => row.id === selectedProject?.aip_id);
+  const selectedProfile = seedData?.lguMap.profiles.find(
     (row) => row.id === selectedUpdate?.actor_id
   );
 
-  const detailsModel = selectedUpdate
+  const detailsModel = selectedUpdate && seedData
     ? mapProjectUpdateToDetails({
         update: selectedUpdate,
         actions: selectedActions,
@@ -135,51 +180,67 @@ export default function ProjectUpdatesPage() {
   };
 
   const handleFlagConfirm = () => {
-    if (!flagId) return;
-    const next: ModerationActionRecord = {
-      id: createId("update_action"),
-      actor_id: ADMIN_ACTOR.id,
-      actor_role: ADMIN_ACTOR.role,
-      action: "project_update_flagged",
-      entity_table: "activity_log",
-      entity_id: flagId,
-      region_id: null,
-      province_id: null,
-      city_id: null,
-      municipality_id: null,
-      barangay_id: null,
-      metadata: {
+    if (!flagId || !seedData) return;
+    const targetUpdate = seedData.updates.find((row) => row.id === flagId);
+    if (!targetUpdate) return;
+
+    setActionPending(true);
+    setActionError(null);
+
+    repo
+      .flagUpdate({
+        updateId: flagId,
         reason: flagReason.trim(),
-        violation_category: null,
-      },
-      created_at: new Date().toISOString(),
-    };
-    setActions((prev) => [...prev, next]);
-    resetFlagState();
+        violationCategory: null,
+        scope: toScope(targetUpdate),
+      })
+      .then((nextSeed) => {
+        setSeedData(nextSeed);
+        setActions(nextSeed.actions);
+        resetFlagState();
+      })
+      .catch((actionErr) => {
+        setActionError(
+          actionErr instanceof Error
+            ? actionErr.message
+            : "Failed to flag this project update."
+        );
+      })
+      .finally(() => {
+        setActionPending(false);
+      });
   };
 
   const handleRemoveConfirm = () => {
-    if (!removeId) return;
-    const next: ModerationActionRecord = {
-      id: createId("update_action"),
-      actor_id: ADMIN_ACTOR.id,
-      actor_role: ADMIN_ACTOR.role,
-      action: "project_update_removed",
-      entity_table: "activity_log",
-      entity_id: removeId,
-      region_id: null,
-      province_id: null,
-      city_id: null,
-      municipality_id: null,
-      barangay_id: null,
-      metadata: {
+    if (!removeId || !seedData) return;
+    const targetUpdate = seedData.updates.find((row) => row.id === removeId);
+    if (!targetUpdate) return;
+
+    setActionPending(true);
+    setActionError(null);
+
+    repo
+      .removeUpdate({
+        updateId: removeId,
         reason: removeReason.trim(),
-        violation_category: removeViolation || null,
-      },
-      created_at: new Date().toISOString(),
-    };
-    setActions((prev) => [...prev, next]);
-    resetRemoveState();
+        violationCategory: removeViolation || null,
+        scope: toScope(targetUpdate),
+      })
+      .then((nextSeed) => {
+        setSeedData(nextSeed);
+        setActions(nextSeed.actions);
+        resetRemoveState();
+      })
+      .catch((actionErr) => {
+        setActionError(
+          actionErr instanceof Error
+            ? actionErr.message
+            : "Failed to remove this project update."
+        );
+      })
+      .finally(() => {
+        setActionPending(false);
+      });
   };
 
   return (
@@ -207,23 +268,37 @@ export default function ProjectUpdatesPage() {
         lguOptions={lguOptions}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <ProjectUpdatesTable
-          rows={filteredRows}
-          onViewPreview={(id) => setDetailsId(id)}
-          onRemove={(id) => {
-            setRemoveId(id);
-            setRemoveReason("");
-            setRemoveViolation("");
-          }}
-          onFlag={(id) => {
-            setFlagId(id);
-            setFlagReason("");
-          }}
-        />
+      {loading ? (
+        <div className="text-sm text-slate-500">Loading project updates...</div>
+      ) : error ? (
+        <div className="text-sm text-rose-600">{error}</div>
+      ) : (
+        <>
+          {actionError ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {actionError}
+            </div>
+          ) : null}
 
-        <SensitiveGuidelinesPanel />
-      </div>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <ProjectUpdatesTable
+              rows={filteredRows}
+              onViewPreview={(id) => setDetailsId(id)}
+              onRemove={(id) => {
+                setRemoveId(id);
+                setRemoveReason("");
+                setRemoveViolation("");
+              }}
+              onFlag={(id) => {
+                setFlagId(id);
+                setFlagReason("");
+              }}
+            />
+
+            <SensitiveGuidelinesPanel />
+          </div>
+        </>
+      )}
 
       <ProjectUpdateDetailsModal
         open={detailsId !== null}
@@ -241,6 +316,7 @@ export default function ProjectUpdatesPage() {
         reason={flagReason}
         onReasonChange={setFlagReason}
         onConfirm={handleFlagConfirm}
+        isSubmitting={actionPending}
       />
 
       <RemoveUpdateModal
@@ -254,6 +330,7 @@ export default function ProjectUpdatesPage() {
         onViolationCategoryChange={setRemoveViolation}
         violationOptions={VIOLATION_OPTIONS}
         onConfirm={handleRemoveConfirm}
+        isSubmitting={actionPending}
       />
     </div>
   );

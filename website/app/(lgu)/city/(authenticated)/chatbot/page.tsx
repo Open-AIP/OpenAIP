@@ -1,10 +1,7 @@
-import Placeholder from "@/components/layout/placeholder";
+import { LguChatbotView } from "@/features/chat";
+import { getUser } from "@/lib/actions/auth.actions";
 
-export default function CityChatbot() {
-  return (
-    <Placeholder
-      title="Chatbot (Coming Soon)"
-      description="The production chatbot rollout is currently limited to barangay officials."
-    />
-  );
+export default async function CityChatbot() {
+  await getUser();
+  return <LguChatbotView routePrefix="/api/city/chat" />;
 }

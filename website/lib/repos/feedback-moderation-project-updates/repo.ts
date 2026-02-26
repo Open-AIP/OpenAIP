@@ -1,5 +1,6 @@
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockFeedbackModerationProjectUpdatesRepo } from "./repo.mock";
+import { createSupabaseFeedbackModerationProjectUpdatesRepo } from "./repo.supabase";
 import type {
   ModerationActionRecord,
   ProjectRecord,
@@ -24,16 +25,31 @@ export type FeedbackModerationProjectUpdatesSeed = {
   };
 };
 
+export type ProjectUpdateModerationScope = {
+  region_id?: string | null;
+  province_id?: string | null;
+  city_id?: string | null;
+  municipality_id?: string | null;
+  barangay_id?: string | null;
+};
+
+export type ProjectUpdateModerationInput = {
+  updateId: string;
+  reason: string;
+  violationCategory?: string | null;
+  scope?: ProjectUpdateModerationScope | null;
+};
+
 export interface FeedbackModerationProjectUpdatesRepo {
-  getSeedData(): FeedbackModerationProjectUpdatesSeed;
+  getSeedData(): Promise<FeedbackModerationProjectUpdatesSeed>;
+  flagUpdate(input: ProjectUpdateModerationInput): Promise<FeedbackModerationProjectUpdatesSeed>;
+  removeUpdate(input: ProjectUpdateModerationInput): Promise<FeedbackModerationProjectUpdatesSeed>;
 }
 
 export function getFeedbackModerationProjectUpdatesRepo(): FeedbackModerationProjectUpdatesRepo {
   return selectRepo({
     label: "FeedbackModerationProjectUpdatesRepo",
     mock: () => createMockFeedbackModerationProjectUpdatesRepo(),
-    supabase: () => {
-      throw new Error("FeedbackModerationProjectUpdatesRepo is not implemented for Supabase yet.");
-    },
+    supabase: () => createSupabaseFeedbackModerationProjectUpdatesRepo(),
   });
 }

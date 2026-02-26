@@ -1,6 +1,6 @@
-import Placeholder from "@/components/layout/placeholder";
+import { redirect } from "next/navigation";
 
 export default function WorkflowOversightPage() {
-  return <Placeholder title="Workflow Oversight" description="This module is under development." />;
+  redirect("/admin/aip-monitoring?tab=cases");
 }
 

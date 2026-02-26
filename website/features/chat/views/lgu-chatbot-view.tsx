@@ -6,7 +6,11 @@ import ChatSessionsPanel from "../components/ChatSessionsPanel";
 import ChatThreadPanel from "../components/ChatThreadPanel";
 import { useLguChatbot } from "../hooks/use-lgu-chatbot";
 
-export default function LguChatbotView() {
+export default function LguChatbotView({
+  routePrefix = "/api/barangay/chat",
+}: {
+  routePrefix?: string;
+} = {}) {
   const {
     activeSessionId,
     query,
@@ -21,7 +25,7 @@ export default function LguChatbotView() {
     handleSelect,
     handleNewChat,
     handleSend,
-  } = useLguChatbot();
+  } = useLguChatbot(routePrefix);
 
   const threadRef = useRef<HTMLDivElement | null>(null);
 

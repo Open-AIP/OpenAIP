@@ -72,7 +72,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return payload as T;
 }
 
-export function useLguChatbot() {
+export function useLguChatbot(routePrefix = "/api/barangay/chat") {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [messagesBySession, setMessagesBySession] = useState<Record<string, ChatMessage[]>>({});
   const [loadedSessionIds, setLoadedSessionIds] = useState<Record<string, true>>({});
@@ -83,10 +83,10 @@ export function useLguChatbot() {
   const [error, setError] = useState<string | null>(null);
 
   const loadSessions = useCallback(async () => {
-    const payload = await getJson<{ sessions: ChatSession[] }>("/api/barangay/chat/sessions");
+    const payload = await getJson<{ sessions: ChatSession[] }>(`${routePrefix}/sessions`);
     setSessions(payload.sessions ?? []);
     setActiveSessionId((prev) => prev ?? payload.sessions?.[0]?.id ?? null);
-  }, []);
+  }, [routePrefix]);
 
   useEffect(() => {
     let isMounted = true;
@@ -108,7 +108,7 @@ export function useLguChatbot() {
       if (!activeSessionId || loadedSessionIds[activeSessionId]) return;
 
       const payload = await getJson<{ messages: ChatMessage[] }>(
-        `/api/barangay/chat/sessions/${activeSessionId}/messages`
+        `${routePrefix}/sessions/${activeSessionId}/messages`
       );
       if (!isMounted) return;
 
@@ -130,7 +130,7 @@ export function useLguChatbot() {
     return () => {
       isMounted = false;
     };
-  }, [activeSessionId, loadedSessionIds]);
+  }, [activeSessionId, loadedSessionIds, routePrefix]);
 
   const sessionListItems = useMemo<ChatSessionListItem[]>(() => {
     const lowered = query.trim().toLowerCase();
@@ -164,7 +164,7 @@ export function useLguChatbot() {
   const handleNewChat = useCallback(async () => {
     setError(null);
     try {
-      const payload = await postJson<{ session: ChatSession }>("/api/barangay/chat/sessions", {});
+      const payload = await postJson<{ session: ChatSession }>(`${routePrefix}/sessions`, {});
       const session = payload.session;
       if (!session) return;
       setSessions((prev) => [session, ...prev.filter((item) => item.id !== session.id)]);
@@ -174,7 +174,7 @@ export function useLguChatbot() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create chat.");
     }
-  }, []);
+  }, [routePrefix]);
 
   const handleSend = useCallback(async () => {
     if (!messageInput.trim() || isSending) return;
@@ -189,7 +189,7 @@ export function useLguChatbot() {
         sessionId: string;
         userMessage: ChatMessage;
         assistantMessage: ChatMessage;
-      }>("/api/barangay/chat/messages", {
+      }>(`${routePrefix}/messages`, {
         sessionId: activeSessionId,
         content,
       });
@@ -215,7 +215,7 @@ export function useLguChatbot() {
     } finally {
       setIsSending(false);
     }
-  }, [activeSessionId, isSending, loadSessions, messageInput]);
+  }, [activeSessionId, isSending, loadSessions, messageInput, routePrefix]);
 
   return {
     activeSessionId,

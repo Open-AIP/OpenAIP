@@ -120,7 +120,6 @@ export default function CitizenBudgetAllocationView() {
           title={vm.hero.title.toUpperCase()}
           subtitle={vm.hero.subtitle}
           imageSrc="/citizen-dashboard/city.png"
-          className="!rounded-none !border-0"
         />
       </div>
       <section className="mx-auto max-w-6xl px-6 py-8">

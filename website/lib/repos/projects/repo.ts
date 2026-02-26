@@ -1,9 +1,16 @@
 import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockProjectsRepoImpl } from "./repo.mock";
-import type { HealthProject, InfrastructureProject, ProjectBundle, UiProject } from "./types";
+import type {
+  HealthProject,
+  InfrastructureProject,
+  ProjectReadOptions,
+  ProjectBundle,
+  UiProject,
+} from "./types";
 
 export type {
+  BarangayProjectScope,
   HealthProject,
   HealthProjectDetails,
   InfrastructureProject,
@@ -12,6 +19,7 @@ export type {
   ProjectBundle,
   ProjectKind,
   ProjectMaster,
+  ProjectReadOptions,
   ProjectStatus,
   ProjectUpdate,
   ProjectUpdateUi,
@@ -25,11 +33,14 @@ export { PROJECT_STATUS_VALUES } from "./types";
 // [SECURITY] Reads must respect AIP visibility (`can_read_aip`); writes must respect edit window (`can_edit_aip` => draft/for_revision + owner/admin).
 // [SUPABASE-SWAP] Implement a Supabase adapter that maps list/get operations to `public.projects` and relies on RLS for visibility.
 export interface ProjectsRepo {
-  listByAip(aipId: string): Promise<UiProject[]>;
-  getById(projectId: string): Promise<UiProject | null>;
-  listHealth(): Promise<HealthProject[]>;
-  listInfrastructure(): Promise<InfrastructureProject[]>;
-  getByRefCode(projectRefCode: string): Promise<ProjectBundle | null>;
+  listByAip(aipId: string, options?: ProjectReadOptions): Promise<UiProject[]>;
+  getById(projectId: string, options?: ProjectReadOptions): Promise<UiProject | null>;
+  listHealth(options?: ProjectReadOptions): Promise<HealthProject[]>;
+  listInfrastructure(options?: ProjectReadOptions): Promise<InfrastructureProject[]>;
+  getByRefCode(
+    projectRefCode: string,
+    options?: ProjectReadOptions
+  ): Promise<ProjectBundle | null>;
 }
 
 export function getProjectsRepo(): ProjectsRepo {

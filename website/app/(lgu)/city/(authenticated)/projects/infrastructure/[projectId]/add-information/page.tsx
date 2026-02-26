@@ -1,6 +1,7 @@
 import { AddInformationPage } from "@/features/projects";
 import { getUser } from "@/lib/actions/auth.actions";
 import { projectService } from "@/lib/repos/projects/queries";
+import { notFound } from "next/navigation";
 
 export default async function InfrastructureAddInformationRoute({
   params,
@@ -9,11 +10,12 @@ export default async function InfrastructureAddInformationRoute({
 }) {
   const { fullName, role, officeLabel } = await getUser();
   const { projectId } = await params;
-  const project = await projectService.getInfrastructureProjectById(projectId);
+  const project = await projectService.getInfrastructureProjectById(projectId, {
+    publishedOnly: true,
+  });
 
   if (!project) {
-    // Handle project not found
-    return <div>Project not found</div>;
+    return notFound();
   }
 
   return (

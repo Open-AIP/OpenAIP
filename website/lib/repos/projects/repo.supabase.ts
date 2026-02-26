@@ -11,6 +11,7 @@ import type { ProjectsRepo } from "./repo";
 import type {
   HealthProject,
   InfrastructureProject,
+  ProjectReadOptions,
   ProjectBundle,
   ProjectStatus,
   UiProject,
@@ -19,6 +20,10 @@ import type {
 type ProjectRowWithMeta = ProjectRow & {
   status?: ProjectStatus | null;
   image_url?: string | null;
+};
+
+type AipScopeRow = {
+  id: string;
 };
 
 const PROJECT_SELECT_COLUMNS = [
@@ -62,6 +67,40 @@ function attachUpdates<T extends UiProject>(project: T): T {
     ...project,
     updates: [],
   };
+}
+
+function hasBarangayScopeHint(options?: ProjectReadOptions): boolean {
+  if (!options) return false;
+  return options.barangayId !== undefined || options.barangayScopeName !== undefined;
+}
+
+async function resolveReadableAipIds(
+  client: Awaited<ReturnType<typeof supabaseServer>>,
+  options?: ProjectReadOptions
+): Promise<Set<string> | null> {
+  const enforcePublishedOnly = options?.publishedOnly === true;
+  const scoped = hasBarangayScopeHint(options);
+
+  if (!enforcePublishedOnly && !scoped) return null;
+  if (scoped && !options?.barangayId) return new Set<string>();
+
+  let query = client.from("aips").select("id");
+
+  if (enforcePublishedOnly) {
+    query = query.eq("status", "published");
+  }
+
+  if (options?.barangayId) {
+    query = query.eq("barangay_id", options.barangayId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Set(((data ?? []) as AipScopeRow[]).map((row) => row.id));
 }
 
 async function loadDetailsByProjectIds(projectIds: string[]) {
@@ -128,8 +167,14 @@ function mapProjectToUiModel(
 async function listProjectsInternal(input?: {
   aipId?: string;
   category?: "health" | "infrastructure";
+  options?: ProjectReadOptions;
 }): Promise<UiProject[]> {
   const client = await supabaseServer();
+  const scopedAipIds = await resolveReadableAipIds(client, input?.options);
+  if (scopedAipIds && scopedAipIds.size === 0) {
+    return [];
+  }
+
   let query = client.from("projects").select(PROJECT_SELECT_COLUMNS);
 
   if (input?.aipId) {
@@ -138,6 +183,10 @@ async function listProjectsInternal(input?: {
 
   if (input?.category) {
     query = query.eq("category", input.category);
+  }
+
+  if (scopedAipIds) {
+    query = query.in("aip_id", Array.from(scopedAipIds));
   }
 
   const { data, error } = await query.order("created_at", { ascending: false });
@@ -151,8 +200,15 @@ async function listProjectsInternal(input?: {
   return rows.map((row) => mapProjectToUiModel(row, details));
 }
 
-async function getProjectByRefOrId(projectIdOrRefCode: string): Promise<UiProject | null> {
+async function getProjectByRefOrId(
+  projectIdOrRefCode: string,
+  options?: ProjectReadOptions
+): Promise<UiProject | null> {
   const client = await supabaseServer();
+  const scopedAipIds = await resolveReadableAipIds(client, options);
+  if (scopedAipIds && scopedAipIds.size === 0) {
+    return null;
+  }
 
   let row: ProjectRowWithMeta | null = null;
 
@@ -188,32 +244,39 @@ async function getProjectByRefOrId(projectIdOrRefCode: string): Promise<UiProjec
     return null;
   }
 
+  if (scopedAipIds && !scopedAipIds.has(row.aip_id)) {
+    return null;
+  }
+
   const details = await loadDetailsByProjectIds([row.id]);
   return mapProjectToUiModel(row, details);
 }
 
 export function createSupabaseProjectsRepo(): ProjectsRepo {
   return {
-    async listByAip(aipId: string): Promise<UiProject[]> {
-      return listProjectsInternal({ aipId });
+    async listByAip(aipId: string, options?: ProjectReadOptions): Promise<UiProject[]> {
+      return listProjectsInternal({ aipId, options });
     },
 
-    async getById(projectId: string): Promise<UiProject | null> {
-      return getProjectByRefOrId(projectId);
+    async getById(projectId: string, options?: ProjectReadOptions): Promise<UiProject | null> {
+      return getProjectByRefOrId(projectId, options);
     },
 
-    async listHealth(): Promise<HealthProject[]> {
-      const projects = await listProjectsInternal({ category: "health" });
+    async listHealth(options?: ProjectReadOptions): Promise<HealthProject[]> {
+      const projects = await listProjectsInternal({ category: "health", options });
       return projects.filter((project) => project.kind === "health") as HealthProject[];
     },
 
-    async listInfrastructure(): Promise<InfrastructureProject[]> {
-      const projects = await listProjectsInternal({ category: "infrastructure" });
+    async listInfrastructure(options?: ProjectReadOptions): Promise<InfrastructureProject[]> {
+      const projects = await listProjectsInternal({ category: "infrastructure", options });
       return projects.filter((project) => project.kind === "infrastructure") as InfrastructureProject[];
     },
 
-    async getByRefCode(projectRefCode: string): Promise<ProjectBundle | null> {
-      const project = await getProjectByRefOrId(projectRefCode);
+    async getByRefCode(
+      projectRefCode: string,
+      options?: ProjectReadOptions
+    ): Promise<ProjectBundle | null> {
+      const project = await getProjectByRefOrId(projectRefCode, options);
       if (!project) return null;
       if (project.kind !== "health" && project.kind !== "infrastructure") {
         return null;

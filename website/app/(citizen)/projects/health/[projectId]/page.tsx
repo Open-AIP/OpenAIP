@@ -8,7 +8,9 @@ export default async function CitizenHealthProject({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const project = await projectService.getHealthProjectById(projectId);
+  const project = await projectService.getHealthProjectById(projectId, {
+    publishedOnly: true,
+  });
 
   if (!project) return notFound();
 

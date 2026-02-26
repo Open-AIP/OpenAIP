@@ -9,13 +9,17 @@
  */
 
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { HealthProject } from "@/features/projects/types";
 import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
+import {
+  PROJECT_LOGO_FALLBACK_SRC,
+  resolveProjectImageSource,
+} from "@/features/projects/shared/project-image";
 
 /**
  * HealthProjectCard Component
@@ -34,24 +38,42 @@ import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-bad
  */
 export default function HealthProjectCard({ 
   project,
-  actionSlot
+  actionSlot,
+  useLogoFallback = false,
 }: { 
   project: HealthProject;
   actionSlot?: ReactNode;
+  useLogoFallback?: boolean;
 }) {
+  const [imageSrc, setImageSrc] = useState<string | undefined>(() =>
+    resolveProjectImageSource(project.imageUrl, { useLogoFallback })
+  );
+
+  useEffect(() => {
+    setImageSrc(resolveProjectImageSource(project.imageUrl, { useLogoFallback }));
+  }, [project.imageUrl, useLogoFallback]);
+
   return (
     <Card className="border-slate-200 overflow-hidden">
       <CardContent className="px-6">
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
           {/* Left image */}
           <div className="relative w-full max-w-[420px] aspect-[3/2] overflow-hidden rounded-xl bg-slate-100">
-            {project.imageUrl ? (
+            {imageSrc ? (
               <Image
-                src={project.imageUrl}
+                src={imageSrc}
                 alt={project.title}
                 fill
                 className="object-cover object-center"
                 sizes="(max-width: 1024px) 100vw, 420px"
+                onError={() => {
+                  if (!useLogoFallback) return;
+                  setImageSrc((current) =>
+                    current === PROJECT_LOGO_FALLBACK_SRC
+                      ? current
+                      : PROJECT_LOGO_FALLBACK_SRC
+                  );
+                }}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-slate-400">

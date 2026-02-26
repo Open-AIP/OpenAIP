@@ -90,7 +90,12 @@ export default function InfrastructureProjectDetailPageView({
         </div>
       </div>
 
-      <InfrastructureProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
+      <InfrastructureProjectInformationCard
+        aipYear={aipYear}
+        project={project}
+        scope={scope}
+        useLogoFallback={scope === "barangay"}
+      />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <div className="flex items-center gap-3">

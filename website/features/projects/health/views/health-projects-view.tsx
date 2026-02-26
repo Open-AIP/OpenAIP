@@ -118,6 +118,7 @@ export default function HealthProjectsView({
           <HealthProjectCard
             key={p.id}
             project={p}
+            useLogoFallback={scope === "barangay"}
             actionSlot={
               <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
                 <Link href={`/${scope}/projects/health/${p.id}`}>View Project</Link>

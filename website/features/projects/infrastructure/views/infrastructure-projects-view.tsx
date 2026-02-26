@@ -118,6 +118,7 @@ export default function InfrastructureProjectsView({
           <InfrastructureProjectCard
             key={p.id}
             project={p}
+            useLogoFallback={scope === "barangay"}
             actionSlot={
               <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
                 <Link href={`/${scope}/projects/infrastructure/${p.id}`}>View Project</Link>

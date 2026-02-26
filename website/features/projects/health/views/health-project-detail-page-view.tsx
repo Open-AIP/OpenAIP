@@ -88,7 +88,12 @@ export default function HealthProjectDetailPageView({
         </div>
       </div>
 
-      <ProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
+      <ProjectInformationCard
+        aipYear={aipYear}
+        project={project}
+        scope={scope}
+        useLogoFallback={scope === "barangay"}
+      />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <div className="flex items-center gap-3">

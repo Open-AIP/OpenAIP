@@ -9,7 +9,9 @@ export default async function CityHealthProject({
 }) {
   const { projectId } = await params;
 
-  const project = await projectService.getHealthProjectById(projectId);
+  const project = await projectService.getHealthProjectById(projectId, {
+    publishedOnly: true,
+  });
   
   if (!project) return notFound();
 

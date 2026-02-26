@@ -68,8 +68,21 @@ const infraByRef = new Map(
   INFRA_DETAILS_TABLE.map((detail) => [detail.projectRefCode, detail])
 );
 
+const BARANGAY_AIP_IDS_2026 = [
+  AIP_IDS.barangay_mamadid_2026,
+  AIP_IDS.barangay_poblacion_2026,
+  AIP_IDS.barangay_santamaria_2026,
+  AIP_IDS.barangay_sanisidro_2026,
+];
+
+function resolveMockProjectAipId(projectYear: number, projectIndex: number): string {
+  if (projectYear === 2025) return AIP_IDS.barangay_mamadid_2025;
+  if (projectYear === 2024) return AIP_IDS.barangay_poblacion_2026;
+  return BARANGAY_AIP_IDS_2026[projectIndex % BARANGAY_AIP_IDS_2026.length] ?? AIP_IDS.barangay_mamadid_2026;
+}
+
 export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
-  ...PROJECTS_TABLE.map((project) => {
+  ...PROJECTS_TABLE.map((project, index) => {
     const health = healthByRef.get(project.projectRefCode) ?? null;
     const infra = infraByRef.get(project.projectRefCode) ?? null;
     const startDate =
@@ -101,7 +114,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
 
     return {
       id: project.projectRefCode,
-      aip_id: AIP_IDS.city_2026,
+      aip_id: resolveMockProjectAipId(project.year, index),
       extraction_artifact_id: null,
       aip_ref_code: project.projectRefCode,
       program_project_description: project.title,
@@ -132,7 +145,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
   }),
   {
     id: "PROJ-O-2026-001",
-    aip_id: AIP_IDS.city_2026,
+    aip_id: AIP_IDS.barangay_santamaria_2026,
     extraction_artifact_id: null,
     aip_ref_code: "PROJ-O-2026-001",
     program_project_description: "Other Community Initiative",

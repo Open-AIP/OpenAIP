@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { InfrastructureProject } from "@/features/projects/types";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -24,6 +25,11 @@ import {
 } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
+import {
+  DEFAULT_PROJECT_IMAGE_SRC,
+  PROJECT_LOGO_FALLBACK_SRC,
+  resolveProjectImageSource,
+} from "@/features/projects/shared/project-image";
 
 /**
  * InfrastructureProjectInformationCard Component
@@ -45,12 +51,31 @@ import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
 export default function InfrastructureProjectInformationCard({
   aipYear,
   project,
-  scope = "barangay"
+  scope = "barangay",
+  useLogoFallback = false,
 }: {
   aipYear: number;
   project: InfrastructureProject;
   scope?: "city" | "barangay" | "citizen";
+  useLogoFallback?: boolean;
 }) {
+  const [imageSrc, setImageSrc] = useState<string>(
+    () =>
+      resolveProjectImageSource(project.imageUrl, {
+        useLogoFallback,
+        defaultSource: DEFAULT_PROJECT_IMAGE_SRC,
+      }) ?? DEFAULT_PROJECT_IMAGE_SRC
+  );
+
+  useEffect(() => {
+    setImageSrc(
+      resolveProjectImageSource(project.imageUrl, {
+        useLogoFallback,
+        defaultSource: DEFAULT_PROJECT_IMAGE_SRC,
+      }) ?? DEFAULT_PROJECT_IMAGE_SRC
+    );
+  }, [project.imageUrl, useLogoFallback]);
+
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">
@@ -72,11 +97,19 @@ export default function InfrastructureProjectInformationCard({
           <div className="lg:w-96 shrink-0">
             <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden bg-slate-100">
               <Image
-                src={project.imageUrl || "/default/default-no-image.jpg"}
+                src={imageSrc}
                 alt={project.title}
                 fill
                 className="object-cover object-center"
                 sizes="(min-width: 1024px) 384px, 100vw"
+                onError={() => {
+                  if (!useLogoFallback) return;
+                  setImageSrc((current) =>
+                    current === PROJECT_LOGO_FALLBACK_SRC
+                      ? current
+                      : PROJECT_LOGO_FALLBACK_SRC
+                  );
+                }}
               />
             </div>
           </div>

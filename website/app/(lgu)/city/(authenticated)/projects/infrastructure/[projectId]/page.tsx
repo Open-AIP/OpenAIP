@@ -9,7 +9,9 @@ export default async function CityInfrastructureProjectDetailPage({
 }) {
   const { projectId } = await params;
 
-  const project = await projectService.getInfrastructureProjectById(projectId);
+  const project = await projectService.getInfrastructureProjectById(projectId, {
+    publishedOnly: true,
+  });
 
   if (!project) return notFound();
 

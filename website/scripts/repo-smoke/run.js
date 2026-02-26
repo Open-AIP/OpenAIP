@@ -206,6 +206,31 @@ const tests = [
     },
   },
   {
+    name: "projectService publishedOnly filters health/infrastructure counts",
+    async run() {
+      const healthResults = await projectService.getHealthProjects({ publishedOnly: true });
+      const infraResults = await projectService.getInfrastructureProjects({ publishedOnly: true });
+      assert(healthResults.length === 4, "Expected 4 published health projects from mock data");
+      assert(
+        infraResults.length === 5,
+        "Expected 5 published infrastructure projects from mock data"
+      );
+    },
+  },
+  {
+    name: "projectService publishedOnly hides non-published direct project access",
+    async run() {
+      const hidden = await projectService.getHealthProjectById("PROJ-H-2026-001", {
+        publishedOnly: true,
+      });
+      const visible = await projectService.getHealthProjectById("PROJ-H-2026-002", {
+        publishedOnly: true,
+      });
+      assert(hidden === null, "Expected non-published project to be hidden");
+      assert(visible?.id === "PROJ-H-2026-002", "Expected published project to remain visible");
+    },
+  },
+  {
     name: "getProjectsRepo dev defaults to mock",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;

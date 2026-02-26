@@ -9,6 +9,15 @@ export const PROJECT_STATUS_VALUES = [
 
 export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
 
+export type BarangayProjectScope = {
+  barangayId?: string | null;
+  barangayScopeName?: string | null;
+};
+
+export type ProjectReadOptions = BarangayProjectScope & {
+  publishedOnly?: boolean;
+};
+
 export type ProjectMaster = {
   projectRefCode: string; // ✅ single join key
   year: number;

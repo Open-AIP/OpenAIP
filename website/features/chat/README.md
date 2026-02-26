@@ -1,74 +1,63 @@
 # Chat Feature Guide
 
 ## A. Purpose
-Persist user chat sessions and messages for an in-app assistant (RAG chatbot storage).
+Provide the LGU chatbot experience with persisted chat sessions/messages and server-side answer generation.
 
 ## B. UI Surfaces
-Currently:
-- No `app/` routes import `features/chat` yet (feature is present but not wired to a page).
+Route wiring:
+- Active UI: `app/(lgu)/barangay/(authenticated)/chatbot/page.tsx`
+- Placeholders (not fully rolled out):  
+  - `app/(lgu)/city/(authenticated)/chatbot/page.tsx`  
+  - `app/(citizen)/chatbot/page.tsx`
 
-Code surfaces:
-- Repo contract: `lib/repos/chat/repo.ts`
-- Repo entrypoints:
-  - client-safe: `lib/repos/chat/repo.ts`
-  - server-only: `lib/repos/chat/repo.server.ts`
-- Mock adapter: `lib/repos/chat/repo.mock.ts`
-- Supabase stub: `lib/repos/chat/repo.supabase.ts`
+Feature files:
+- `features/chat/views/lgu-chatbot-view.tsx`
+- `features/chat/hooks/use-lgu-chatbot.ts`
+- `features/chat/components/*`
 
-## C. Data Flow (diagram in text)
-Future UI (page/component)
-→ `getChatRepo()` (`lib/repos/chat/repo.ts` or `lib/repos/chat/repo.server.ts`)
-→ `ChatRepo` interface (`lib/repos/chat/repo.ts`)
-→ adapter:
-  - today: `createMockChatRepo()` (`lib/repos/chat/repo.mock.ts`)
-  - future: `createSupabaseChatRepo()` (`lib/repos/chat/repo.supabase.ts`)
+API routes:
+- `app/api/barangay/chat/sessions/route.ts`
+- `app/api/barangay/chat/sessions/[sessionId]/messages/route.ts`
+- `app/api/barangay/chat/messages/route.ts`
+
+## C. Data Flow
+UI hook (`use-lgu-chatbot`)
+-> barangay chat API routes
+-> `getChatRepo()` from `lib/repos/chat/repo.server.ts`
+-> selector-based adapter:
+  - mock: `lib/repos/chat/repo.mock.ts`
+  - supabase: `lib/repos/chat/repo.supabase.ts`
+
+Notes:
+- `lib/repos/chat/repo.ts` is client-safe and throws outside mock mode.
+- server route handlers are the source of truth for assistant/system message writes.
 
 ## D. databasev2 Alignment
-Relevant DBV2 tables:
+Primary tables:
 - `public.chat_sessions`
 - `public.chat_messages`
 
-Key constraints & visibility rules:
-- Sessions:
-  - only authenticated users can access
-  - user can access only their own sessions (admin can access all)
-- Messages:
-  - append-only (no update/delete policies; only insert/select)
-  - client-side inserts are restricted to `role = 'user'` (assistant/system should be server-side)
+Key rules:
+- sessions are user-scoped (RLS ownership checks),
+- messages are append-only,
+- client-side writes are restricted to `role='user'`.
 
-How those rules should be enforced:
-- Repository should only expose “append user message” for client usage.
-- Any assistant/system message persistence must be implemented server-side using a service role route.
+## E. Current Implementation Status
+- Barangay chatbot route is active.
+- Session and user-message persistence support mock and Supabase modes.
+- Assistant responses are produced in `app/api/barangay/chat/messages/route.ts` and persisted server-side.
+- City and citizen chatbot pages are intentionally placeholder-only at this time.
 
-## E. Current Implementation (Mock)
-- In-memory stores in `lib/repos/chat/repo.mock.ts` (seeded from `mocks/fixtures/chat/chat.fixture.ts`).
-- `getChatRepo()` returns the mock repo only in dev (`NEXT_PUBLIC_APP_ENV=dev`).
-
-## F. Supabase Swap Plan (Future-only)
-1) Update repo selector to pick by environment:
-- `lib/repos/chat/repo.server.ts` should return:
-  - mock in `dev`
-  - `createSupabaseChatRepo()` in non-dev
-
-2) Method → table mapping:
-- `listSessions(userId)` → `public.chat_sessions` where `user_id = userId` (RLS already enforces ownership)
-- `getSession(sessionId)` → `public.chat_sessions` by id (RLS-gated)
-- `createSession(userId, payload)` → insert into `public.chat_sessions`
-- `renameSession(sessionId, title)` → update `public.chat_sessions.title`
-- `listMessages(sessionId)` → select from `public.chat_messages` where `session_id = sessionId` ordered by `created_at`
-- `appendUserMessage(sessionId, content)` → insert into `public.chat_messages` with `role='user'`
-
-Server-side assistant messages:
-- Create a server route that inserts into `public.chat_messages` with `role='assistant'|'system'` using service role.
-
-## G. Testing Checklist
+## F. Testing Checklist
 Manual:
-- Create session, rename session, append user messages, list messages in order.
+- Create session, send message, reload, and confirm history persists.
+- Confirm unauthorized roles receive `401` from barangay chat APIs.
+- Confirm placeholder routes render for city/citizen chatbot paths.
 
 Automated:
-- Existing tests: `tests/repo-smoke/chat/chat.repo.mock.test.ts`
-- Add integration tests for Supabase adapter once implemented (ownership + append-only behavior).
+- `features/chat/*.test.ts`
+- `features/chat/components/*.test.tsx`
 
-## H. Gotchas / Pitfalls
-- Do not allow the client to insert non-`user` roles; DBV2 RLS blocks it.
-- “Append-only” means edit/delete UIs must be avoided or explicitly server-admin-only.
+## G. Pitfalls
+- Do not expose assistant/system writes to client-side direct inserts.
+- Keep role/scope authorization checks aligned with route-level guards.

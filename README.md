@@ -74,7 +74,7 @@ Core data flow:
 | Path | Responsibility |
 |---|---|
 | `website/app` | Next.js routes (citizen/LGU/admin) and API route handlers |
-| `website/features` | Feature modules (AIP, projects, submissions, audit, feedback, admin) |
+| `website/features` | Feature modules (AIP, projects, submissions, audit, feedback, chat, account, admin) |
 | `website/lib` | Repo layer, Supabase clients, domain logic, typed DB contracts |
 | `website/docs/sql` | Database schema baseline + incremental SQL patches |
 | `website/docs/SUPABASE_MIGRATION.md` | Supabase migration guidance and adapter strategy |
@@ -289,6 +289,12 @@ pyright
 ## Database & Migrations
 This repo stores SQL migrations in `website/docs/sql` (no Supabase CLI migration directory is committed).
 
+Canonical schema source:
+- `website/docs/sql/database-v2.sql`
+
+Mirrored compatibility copy:
+- `website/docs/databasev2.txt` (kept synchronized with `database-v2.sql`)
+
 Recommended workflow:
 1. Fresh project: run `website/docs/sql/database-v2.sql` in Supabase SQL Editor.
 2. Existing project: apply dated patches in ascending order only if your DB predates them:
@@ -298,8 +304,16 @@ Recommended workflow:
    - `website/docs/sql/2026-02-20_submissions_claim_review.sql`
    - `website/docs/sql/2026-02-21_city_aip_project_column_and_publish.sql`
    - `website/docs/sql/2026-02-21_extraction_runs_realtime.sql`
-   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
    - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status_v2.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger_v2.sql`
+   - `website/docs/sql/2026-02-22_aip_storage_cascade_cleanup.sql`
+   - `website/docs/sql/2026-02-22_aip_storage_cascade_cleanup_hosted_supabase_fix.sql`
+   - `website/docs/sql/2026-02-22_set_config_app_embed.sql`
+   - `website/docs/sql/2026-02-22_set_config_app_embed_call.sql`
+   - `website/docs/sql/2026-02-24_chatbot_rag_global_scope.sql`
+   - `website/docs/sql/2026-02-24_create_aip_totals.sql`
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)
    - `aip-artifacts` (pipeline artifacts when payload exceeds inline threshold)
@@ -309,7 +323,9 @@ When an AIP transitions to `published`, DB trigger `trg_aip_published_embed_cate
 
 Files added for this flow:
 - SQL patch: `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
+- SQL patch: `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger_v2.sql`
 - SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
+- SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status_v2.sql`
 - Edge Function: `supabase/functions/embed_categorize_artifact/index.ts`
 
 Required configuration:

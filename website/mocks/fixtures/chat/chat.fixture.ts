@@ -1,3 +1,5 @@
+import type { ChatCitation, ChatRetrievalMeta } from "@/lib/repos/chat/types";
+
 type ChatSession = {
   id: string;
   userId: string;
@@ -14,8 +16,8 @@ type ChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
-  citations?: unknown | null;
-  retrievalMeta?: unknown | null;
+  citations?: ChatCitation[] | null;
+  retrievalMeta?: ChatRetrievalMeta | null;
 };
 
 export const CHAT_SESSIONS_FIXTURE: ChatSession[] = [];

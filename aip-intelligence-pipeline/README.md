@@ -20,6 +20,7 @@ Required keys in `.env`:
 - `OPENAI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_KEY`
+- `PIPELINE_INTERNAL_TOKEN` (for `/v1/chat/answer` internal auth)
 
 ## Run
 
@@ -89,6 +90,7 @@ Common optional runtime vars:
 - `SUPABASE_STORAGE_ARTIFACT_BUCKET` (default `aip-artifacts`)
 - `PIPELINE_DEV_ROUTES` (default `false`)
 - `PIPELINE_ENABLE_RAG` (default `false`)
+- `PIPELINE_INTERNAL_TOKEN` (required by chat route)
 
 ## Validation resources
 

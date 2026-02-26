@@ -1,7 +1,12 @@
-import { LguChatbotView } from "@/features/chat";
+import Placeholder from "@/components/layout/placeholder";
 
 const CitizenChatbot = () => {
-  return <LguChatbotView />;
+  return (
+    <Placeholder
+      title="Chatbot (Coming Soon)"
+      description="The production chatbot rollout is currently limited to barangay officials."
+    />
+  );
 };
 
 export default CitizenChatbot;

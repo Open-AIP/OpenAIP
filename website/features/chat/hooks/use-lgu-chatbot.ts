@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CHAT_DEFAULT_USER_ID } from "@/lib/constants/chat";
-import { getChatRepo } from "@/lib/repos/chat/repo";
 import type { ChatMessage, ChatSession } from "@/lib/repos/chat/repo";
+import type { ChatCitation, ChatRetrievalMeta } from "@/lib/repos/chat/types";
 import type { ChatMessageBubble, ChatSessionListItem } from "../types/chat.types";
 
 function formatTimeLabel(value: string | null | undefined) {
@@ -38,28 +37,42 @@ function toBubble(message: ChatMessage): ChatMessageBubble {
     role: message.role,
     content: message.content,
     timeLabel: formatTimeLabel(message.createdAt),
+    citations: (message.citations as ChatCitation[] | null) ?? [],
+    retrievalMeta: (message.retrievalMeta as ChatRetrievalMeta | null) ?? null,
   };
 }
 
-function buildAssistantReply(content: string): string {
-  if (content.toLowerCase().includes("budget")) {
-    return (
-      "For AIP budgeting, prioritize by outcomes and urgency.\n\n" +
-      "1. Essential services first\n" +
-      "2. Compliance and legal requirements\n" +
-      "3. High-impact community projects\n" +
-      "4. Contingency and sustainability\n\n" +
-      "Share your project category and I can suggest a draft allocation structure."
-    );
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "message" in payload
+        ? String((payload as { message: unknown }).message)
+        : "Request failed.";
+    throw new Error(message);
   }
-
-  return "Thanks. I can help with AIP drafting, project scope, and compliance checks. What would you like to work on next?";
+  return payload as T;
 }
 
-export function useLguChatbot(userId?: string) {
-  const repo = useMemo(() => getChatRepo(), []);
-  const actorUserId = userId ?? CHAT_DEFAULT_USER_ID;
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "message" in payload
+        ? String((payload as { message: unknown }).message)
+        : "Request failed.";
+    throw new Error(message);
+  }
+  return payload as T;
+}
 
+export function useLguChatbot() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [messagesBySession, setMessagesBySession] = useState<Record<string, ChatMessage[]>>({});
   const [loadedSessionIds, setLoadedSessionIds] = useState<Record<string, true>>({});
@@ -67,38 +80,41 @@ export function useLguChatbot(userId?: string) {
   const [query, setQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSessions = useCallback(async () => {
+    const payload = await getJson<{ sessions: ChatSession[] }>("/api/barangay/chat/sessions");
+    setSessions(payload.sessions ?? []);
+    setActiveSessionId((prev) => prev ?? payload.sessions?.[0]?.id ?? null);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadSessions() {
-      const data = await repo.listSessions(actorUserId);
+    loadSessions().catch((err) => {
       if (!isMounted) return;
-      setSessions(data);
-      setActiveSessionId((prev) => prev ?? data[0]?.id ?? null);
-    }
-
-    loadSessions();
+      setError(err instanceof Error ? err.message : "Failed to load chat sessions.");
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [actorUserId, repo]);
+  }, [loadSessions]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadMessages() {
-      if (!activeSessionId || loadedSessionIds[activeSessionId]) {
-        return;
-      }
+      if (!activeSessionId || loadedSessionIds[activeSessionId]) return;
 
-      const data = await repo.listMessages(activeSessionId);
+      const payload = await getJson<{ messages: ChatMessage[] }>(
+        `/api/barangay/chat/sessions/${activeSessionId}/messages`
+      );
       if (!isMounted) return;
 
       setMessagesBySession((prev) => ({
         ...prev,
-        [activeSessionId]: data,
+        [activeSessionId]: payload.messages ?? [],
       }));
       setLoadedSessionIds((prev) => ({
         ...prev,
@@ -106,12 +122,15 @@ export function useLguChatbot(userId?: string) {
       }));
     }
 
-    loadMessages();
+    loadMessages().catch((err) => {
+      if (!isMounted) return;
+      setError(err instanceof Error ? err.message : "Failed to load messages.");
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [activeSessionId, loadedSessionIds, repo]);
+  }, [activeSessionId, loadedSessionIds]);
 
   const sessionListItems = useMemo<ChatSessionListItem[]>(() => {
     const lowered = query.trim().toLowerCase();
@@ -139,74 +158,71 @@ export function useLguChatbot(userId?: string) {
 
   const handleSelect = useCallback((id: string) => {
     setActiveSessionId(id);
+    setError(null);
   }, []);
 
   const handleNewChat = useCallback(async () => {
-    const session = await repo.createSession(actorUserId);
-    setSessions((prev) => [session, ...prev]);
-    setActiveSessionId(session.id);
-    setMessagesBySession((prev) => ({ ...prev, [session.id]: [] }));
-    setLoadedSessionIds((prev) => ({ ...prev, [session.id]: true }));
-  }, [actorUserId, repo]);
+    setError(null);
+    try {
+      const payload = await postJson<{ session: ChatSession }>("/api/barangay/chat/sessions", {});
+      const session = payload.session;
+      if (!session) return;
+      setSessions((prev) => [session, ...prev.filter((item) => item.id !== session.id)]);
+      setActiveSessionId(session.id);
+      setMessagesBySession((prev) => ({ ...prev, [session.id]: [] }));
+      setLoadedSessionIds((prev) => ({ ...prev, [session.id]: true }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create chat.");
+    }
+  }, []);
 
   const handleSend = useCallback(async () => {
-    if (!messageInput.trim()) return;
-
+    if (!messageInput.trim() || isSending) return;
+    setError(null);
     setIsSending(true);
-    let currentSessionId = activeSessionId;
 
-    if (!currentSessionId) {
-      const newSession = await repo.createSession(actorUserId);
-      setSessions((prev) => [newSession, ...prev]);
-      setActiveSessionId(newSession.id);
-      setLoadedSessionIds((prev) => ({ ...prev, [newSession.id]: true }));
-      currentSessionId = newSession.id;
-    }
+    try {
+      const content = messageInput.trim();
+      setMessageInput("");
 
-    const content = messageInput.trim();
-    setMessageInput("");
+      const payload = await postJson<{
+        sessionId: string;
+        userMessage: ChatMessage;
+        assistantMessage: ChatMessage;
+      }>("/api/barangay/chat/messages", {
+        sessionId: activeSessionId,
+        content,
+      });
 
-    const userMessage = await repo.appendUserMessage(currentSessionId, content);
+      const resolvedSessionId = payload.sessionId;
+      const userMessage = payload.userMessage;
+      const assistantMessage = payload.assistantMessage;
 
-    setMessagesBySession((prev) => ({
-      ...prev,
-      [currentSessionId]: [...(prev[currentSessionId] ?? []), userMessage],
-    }));
+      if (!resolvedSessionId || !userMessage || !assistantMessage) {
+        throw new Error("Invalid chatbot response payload.");
+      }
 
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === currentSessionId
-          ? {
-              ...session,
-              lastMessageAt: userMessage.createdAt,
-              updatedAt: userMessage.createdAt,
-            }
-          : session
-      )
-    );
-
-    setTimeout(() => {
-      const assistantMessage: ChatMessage = {
-        id: `assistant_${Date.now()}`,
-        sessionId: currentSessionId,
-        role: "assistant",
-        content: buildAssistantReply(content),
-        createdAt: new Date().toISOString(),
-      };
-
+      setActiveSessionId(resolvedSessionId);
+      setLoadedSessionIds((prev) => ({ ...prev, [resolvedSessionId]: true }));
       setMessagesBySession((prev) => ({
         ...prev,
-        [currentSessionId]: [...(prev[currentSessionId] ?? []), assistantMessage],
+        [resolvedSessionId]: [...(prev[resolvedSessionId] ?? []), userMessage, assistantMessage],
       }));
+
+      await loadSessions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send message.");
+    } finally {
       setIsSending(false);
-    }, 500);
-  }, [activeSessionId, actorUserId, messageInput, repo]);
+    }
+  }, [activeSessionId, isSending, loadSessions, messageInput]);
 
   return {
     activeSessionId,
     query,
     messageInput,
     isSending,
+    error,
     sessionListItems,
     activeSession,
     bubbles,

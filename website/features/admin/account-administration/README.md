@@ -24,6 +24,6 @@ Set these in `.env.local`:
 
 Apply:
 
-- `docs/sql/2026-02-13_account_admin_hardening.sql`
+- `website/docs/sql/2026-02-13_account_admin_hardening.sql`
 
 This adds DB-level guardrails preventing deletion/deactivation/demotion of the last active admin.

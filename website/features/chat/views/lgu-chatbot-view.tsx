@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import ChatSessionsPanel from "../components/ChatSessionsPanel";
 import ChatThreadPanel from "../components/ChatThreadPanel";
 import { useLguChatbot } from "../hooks/use-lgu-chatbot";
 
-export default function LguChatbotView({ userId }: { userId?: string }) {
+export default function LguChatbotView() {
   const {
     activeSessionId,
     query,
     messageInput,
     isSending,
+    error,
     sessionListItems,
     activeSession,
     bubbles,
@@ -19,7 +21,7 @@ export default function LguChatbotView({ userId }: { userId?: string }) {
     handleSelect,
     handleNewChat,
     handleSend,
-  } = useLguChatbot(userId);
+  } = useLguChatbot();
 
   const threadRef = useRef<HTMLDivElement | null>(null);
 
@@ -57,6 +59,12 @@ export default function LguChatbotView({ userId }: { userId?: string }) {
           isSending={isSending}
         />
       </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }

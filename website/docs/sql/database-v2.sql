@@ -3646,3 +3646,567 @@ $$;
 grant execute on function public.purge_activity_log_older_than(int) to authenticated;
 
 commit;
+
+begin;
+
+-- =============================================================================
+-- Phase 11 - Embed Dispatch + Config Fallback (2026-02-22, latest effective)
+-- =============================================================================
+
+create schema if not exists extensions;
+create extension if not exists pg_net with schema extensions;
+
+-- Move pg_net out of public schema when needed (hosted-safe; no destructive fallback).
+do $$
+begin
+  if exists (
+    select 1
+    from pg_extension e
+    join pg_namespace n on n.oid = e.extnamespace
+    where e.extname = 'pg_net'
+      and n.nspname = 'public'
+  ) then
+    begin
+      execute 'alter extension pg_net set schema extensions';
+    exception
+      when others then
+        raise warning 'could not move extension pg_net to extensions schema: %', sqlerrm;
+    end;
+  end if;
+end
+$$;
+
+create schema if not exists app;
+
+create table if not exists app.settings (
+  key text primary key,
+  value text not null
+);
+
+create or replace function app.embed_categorize_url()
+returns text
+language sql
+stable
+as $$
+  select value from app.settings where key = 'embed_categorize_url'
+$$;
+
+create or replace function public.dispatch_embed_categorize_for_aip(p_aip_id uuid)
+returns bigint
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+declare
+  v_aip public.aips%rowtype;
+  v_url text := nullif(current_setting('app.embed_categorize_url', true), '');
+  v_secret text := null;
+  v_scope_type text := 'unknown';
+  v_scope_id uuid := null;
+  v_payload jsonb;
+  v_request_id bigint := null;
+begin
+  -- Hosted-safe fallback: app.settings + app.embed_categorize_url()
+  if v_url is null then
+    begin
+      select nullif(app.embed_categorize_url(), '') into v_url;
+    exception
+      when undefined_function or invalid_schema_name then
+        v_url := null;
+      when others then
+        v_url := null;
+    end;
+  end if;
+
+  select *
+  into v_aip
+  from public.aips
+  where id = p_aip_id;
+
+  if not found then
+    raise warning 'dispatch_embed_categorize_for_aip aip % not found', p_aip_id;
+    return null;
+  end if;
+
+  begin
+    select ds.decrypted_secret
+    into v_secret
+    from vault.decrypted_secrets ds
+    where ds.name = 'embed_categorize_job_secret'
+    order by ds.created_at desc nulls last
+    limit 1;
+  exception
+    when others then
+      v_secret := null;
+  end;
+
+  if v_secret is null or btrim(v_secret) = '' then
+    v_secret := current_setting('app.embed_categorize_secret', true);
+  end if;
+
+  if v_aip.barangay_id is not null then
+    v_scope_type := 'barangay';
+    v_scope_id := v_aip.barangay_id;
+  elsif v_aip.city_id is not null then
+    v_scope_type := 'city';
+    v_scope_id := v_aip.city_id;
+  elsif v_aip.municipality_id is not null then
+    v_scope_type := 'municipality';
+    v_scope_id := v_aip.municipality_id;
+  end if;
+
+  if v_url is null or btrim(v_url) = '' then
+    raise warning 'dispatch_embed_categorize_for_aip missing app.embed_categorize_url/app.embed_categorize_url() for aip %', p_aip_id;
+    return null;
+  end if;
+
+  if v_secret is null or btrim(v_secret) = '' then
+    raise warning 'dispatch_embed_categorize_for_aip missing secret for aip %', p_aip_id;
+    return null;
+  end if;
+
+  v_payload := jsonb_build_object(
+    'aip_id', v_aip.id,
+    'published_at', v_aip.published_at,
+    'fiscal_year', v_aip.fiscal_year,
+    'scope_type', v_scope_type,
+    'scope_id', v_scope_id,
+    'barangay_id', v_aip.barangay_id,
+    'city_id', v_aip.city_id,
+    'municipality_id', v_aip.municipality_id
+  );
+
+  v_request_id := net.http_post(
+    url := v_url,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'X-Job-Secret', v_secret
+    ),
+    body := v_payload
+  );
+
+  raise log 'dispatch_embed_categorize_for_aip queued aip %, request_id %', p_aip_id, v_request_id;
+  return v_request_id;
+exception
+  when others then
+    raise warning 'dispatch_embed_categorize_for_aip failed for aip %: %', p_aip_id, sqlerrm;
+    return null;
+end;
+$$;
+
+revoke all on function public.dispatch_embed_categorize_for_aip(uuid) from public;
+revoke all on function public.dispatch_embed_categorize_for_aip(uuid) from anon;
+revoke all on function public.dispatch_embed_categorize_for_aip(uuid) from authenticated;
+grant execute on function public.dispatch_embed_categorize_for_aip(uuid) to service_role;
+
+create or replace function public.on_aip_published_embed_categorize()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+begin
+  if tg_op = 'UPDATE'
+     and old.status is distinct from new.status
+     and new.status = 'published' then
+    begin
+      perform public.dispatch_embed_categorize_for_aip(new.id);
+    exception
+      when others then
+        raise warning 'on_aip_published_embed_categorize dispatch failed for aip %: %', new.id, sqlerrm;
+    end;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_aip_published_embed_categorize on public.aips;
+create trigger trg_aip_published_embed_categorize
+after update of status
+on public.aips
+for each row
+execute function public.on_aip_published_embed_categorize();
+
+commit;
+
+begin;
+
+-- =============================================================================
+-- Phase 12 - Chatbot Hardening + Global Retrieval + Quota/Retention (2026-02-24)
+-- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- 12.1) Enforce citations for assistant messages (including refusals)
+-- ---------------------------------------------------------------------------
+alter table public.chat_messages
+  drop constraint if exists chk_chat_messages_assistant_citations_required;
+
+alter table public.chat_messages
+  add constraint chk_chat_messages_assistant_citations_required check (
+    role <> 'assistant'
+    or (
+      citations is not null
+      and jsonb_typeof(citations) = 'array'
+      and jsonb_array_length(citations) > 0
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- 12.2) Retrieval RPC over published AIP chunks
+-- ---------------------------------------------------------------------------
+drop function if exists public.match_published_aip_chunks(
+  extensions.vector,
+  int,
+  double precision,
+  text,
+  uuid,
+  jsonb
+);
+
+create or replace function public.match_published_aip_chunks(
+  query_embedding extensions.vector(3072),
+  match_count int default 8,
+  min_similarity double precision default 0.0,
+  scope_mode text default 'global',
+  own_barangay_id uuid default null,
+  scope_targets jsonb default '[]'::jsonb
+)
+returns table (
+  source_id text,
+  chunk_id uuid,
+  content text,
+  similarity double precision,
+  aip_id uuid,
+  fiscal_year int,
+  published_at timestamptz,
+  scope_type text,
+  scope_id uuid,
+  scope_name text,
+  metadata jsonb
+)
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, extensions
+as $$
+with params as (
+  select
+    greatest(1, least(coalesce(match_count, 8), 30)) as k,
+    coalesce(min_similarity, 0.0) as sim_floor,
+    lower(coalesce(scope_mode, 'global')) as mode
+),
+targets as (
+  select
+    lower(nullif(item ->> 'scope_type', '')) as scope_type,
+    nullif(item ->> 'scope_id', '')::uuid as scope_id
+  from jsonb_array_elements(coalesce(scope_targets, '[]'::jsonb)) item
+  where nullif(item ->> 'scope_id', '') is not null
+),
+rows_scoped as (
+  select
+    c.id as chunk_id,
+    c.chunk_text as content,
+    c.metadata,
+    a.id as aip_id,
+    a.fiscal_year,
+    a.published_at,
+    case
+      when a.barangay_id is not null then 'barangay'
+      when a.city_id is not null then 'city'
+      when a.municipality_id is not null then 'municipality'
+      else 'unknown'
+    end as scope_type,
+    case
+      when a.barangay_id is not null then a.barangay_id
+      when a.city_id is not null then a.city_id
+      when a.municipality_id is not null then a.municipality_id
+      else null
+    end as scope_id,
+    coalesce(b.name, ci.name, m.name, 'Unknown Scope') as scope_name,
+    1 - (e.embedding operator(extensions.<=>) query_embedding) as similarity
+  from public.aip_chunks c
+  join public.aip_chunk_embeddings e on e.chunk_id = c.id
+  join public.aips a on a.id = c.aip_id
+  left join public.barangays b on b.id = a.barangay_id
+  left join public.cities ci on ci.id = a.city_id
+  left join public.municipalities m on m.id = a.municipality_id
+  cross join params p
+  where a.status = 'published'
+    and (
+      p.mode = 'global'
+      or (
+        p.mode = 'own_barangay'
+        and own_barangay_id is not null
+        and a.barangay_id = own_barangay_id
+      )
+      or (
+        p.mode = 'named_scopes'
+        and exists (
+          select 1
+          from targets t
+          where
+            (t.scope_type = 'barangay' and a.barangay_id = t.scope_id)
+            or (t.scope_type = 'city' and a.city_id = t.scope_id)
+            or (t.scope_type = 'municipality' and a.municipality_id = t.scope_id)
+        )
+      )
+    )
+),
+ranked as (
+  select *
+  from rows_scoped
+  where similarity >= (select sim_floor from params)
+  order by similarity desc, chunk_id
+  limit (select k from params)
+)
+select
+  'S' || row_number() over (order by similarity desc, chunk_id) as source_id,
+  chunk_id,
+  content,
+  similarity,
+  aip_id,
+  fiscal_year,
+  published_at,
+  scope_type,
+  scope_id,
+  scope_name,
+  metadata
+from ranked;
+$$;
+
+revoke all on function public.match_published_aip_chunks(
+  extensions.vector,
+  int,
+  double precision,
+  text,
+  uuid,
+  jsonb
+) from public;
+revoke all on function public.match_published_aip_chunks(
+  extensions.vector,
+  int,
+  double precision,
+  text,
+  uuid,
+  jsonb
+) from anon;
+revoke all on function public.match_published_aip_chunks(
+  extensions.vector,
+  int,
+  double precision,
+  text,
+  uuid,
+  jsonb
+) from authenticated;
+grant execute on function public.match_published_aip_chunks(
+  extensions.vector,
+  int,
+  double precision,
+  text,
+  uuid,
+  jsonb
+) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 12.3) DB-backed rate-limit event log
+-- ---------------------------------------------------------------------------
+create table if not exists public.chat_rate_events (
+  id uuid primary key default extensions.gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  route text not null default 'barangay_chat_message',
+  event_status text not null check (event_status in ('accepted', 'rejected_minute', 'rejected_day')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_chat_rate_events_user_created_at
+  on public.chat_rate_events(user_id, created_at desc);
+
+create index if not exists idx_chat_rate_events_created_at
+  on public.chat_rate_events(created_at desc);
+
+alter table public.chat_rate_events enable row level security;
+
+drop policy if exists chat_rate_events_select_admin_only on public.chat_rate_events;
+create policy chat_rate_events_select_admin_only
+on public.chat_rate_events
+for select
+to authenticated
+using (
+  public.is_active_auth()
+  and public.is_admin()
+);
+
+grant select on public.chat_rate_events to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 12.4) Atomic chat quota function (service role)
+-- ---------------------------------------------------------------------------
+drop function if exists public.consume_chat_quota(uuid, int, int, text);
+
+create or replace function public.consume_chat_quota(
+  p_user_id uuid,
+  p_per_minute int default 8,
+  p_per_day int default 200,
+  p_route text default 'barangay_chat_message'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_now timestamptz := now();
+  v_minute_count int := 0;
+  v_day_count int := 0;
+  v_remaining_minute int := 0;
+  v_remaining_day int := 0;
+begin
+  if p_user_id is null then
+    raise exception 'p_user_id is required';
+  end if;
+
+  if p_per_minute < 1 or p_per_minute > 120 then
+    raise exception 'p_per_minute must be between 1 and 120';
+  end if;
+
+  if p_per_day < 1 or p_per_day > 10000 then
+    raise exception 'p_per_day must be between 1 and 10000';
+  end if;
+
+  select count(*)::int
+    into v_minute_count
+  from public.chat_rate_events
+  where user_id = p_user_id
+    and event_status = 'accepted'
+    and created_at >= v_now - interval '1 minute';
+
+  select count(*)::int
+    into v_day_count
+  from public.chat_rate_events
+  where user_id = p_user_id
+    and event_status = 'accepted'
+    and created_at >= date_trunc('day', v_now);
+
+  if v_minute_count >= p_per_minute then
+    insert into public.chat_rate_events (user_id, route, event_status)
+    values (p_user_id, coalesce(nullif(trim(p_route), ''), 'barangay_chat_message'), 'rejected_minute');
+
+    return jsonb_build_object(
+      'allowed', false,
+      'reason', 'minute_limit',
+      'remaining_minute', 0,
+      'remaining_day', greatest(0, p_per_day - v_day_count)
+    );
+  end if;
+
+  if v_day_count >= p_per_day then
+    insert into public.chat_rate_events (user_id, route, event_status)
+    values (p_user_id, coalesce(nullif(trim(p_route), ''), 'barangay_chat_message'), 'rejected_day');
+
+    return jsonb_build_object(
+      'allowed', false,
+      'reason', 'day_limit',
+      'remaining_minute', greatest(0, p_per_minute - v_minute_count),
+      'remaining_day', 0
+    );
+  end if;
+
+  insert into public.chat_rate_events (user_id, route, event_status)
+  values (p_user_id, coalesce(nullif(trim(p_route), ''), 'barangay_chat_message'), 'accepted');
+
+  v_remaining_minute := greatest(0, p_per_minute - (v_minute_count + 1));
+  v_remaining_day := greatest(0, p_per_day - (v_day_count + 1));
+
+  return jsonb_build_object(
+    'allowed', true,
+    'reason', 'ok',
+    'remaining_minute', v_remaining_minute,
+    'remaining_day', v_remaining_day
+  );
+end;
+$$;
+
+revoke all on function public.consume_chat_quota(uuid, int, int, text) from public;
+revoke all on function public.consume_chat_quota(uuid, int, int, text) from anon;
+revoke all on function public.consume_chat_quota(uuid, int, int, text) from authenticated;
+grant execute on function public.consume_chat_quota(uuid, int, int, text) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 12.5) Retention helper (default 90 days)
+-- ---------------------------------------------------------------------------
+drop function if exists public.purge_chat_data_older_than(int);
+
+create or replace function public.purge_chat_data_older_than(p_days int default 90)
+returns bigint
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_deleted bigint;
+begin
+  if p_days < 1 or p_days > 3650 then
+    raise exception 'p_days must be between 1 and 3650';
+  end if;
+
+  delete from public.chat_sessions
+  where updated_at < now() - make_interval(days => p_days);
+
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
+end;
+$$;
+
+revoke all on function public.purge_chat_data_older_than(int) from public;
+revoke all on function public.purge_chat_data_older_than(int) from anon;
+revoke all on function public.purge_chat_data_older_than(int) from authenticated;
+grant execute on function public.purge_chat_data_older_than(int) to service_role;
+
+commit;
+
+begin;
+
+-- =============================================================================
+-- Phase 13 - AIP Totals Table + Policy (2026-02-24)
+-- =============================================================================
+
+create table if not exists public.aip_totals (
+  id uuid primary key default extensions.gen_random_uuid(),
+  aip_id uuid not null references public.aips(id) on delete cascade,
+  fiscal_year int not null,
+  barangay_id uuid null references public.barangays(id) on delete set null,
+  city_id uuid null references public.cities(id) on delete set null,
+  municipality_id uuid null references public.municipalities(id) on delete set null,
+  total_investment_program numeric not null,
+  currency text not null default 'PHP',
+  page_no int null,
+  evidence_text text not null,
+  source_label text not null default 'pdf_total_line',
+  created_at timestamptz not null default now(),
+  constraint uq_aip_totals_aip_source unique (aip_id, source_label),
+  constraint chk_aip_totals_exactly_one_scope check (
+    ((barangay_id is not null)::int + (city_id is not null)::int + (municipality_id is not null)::int) = 1
+  )
+);
+
+create index if not exists idx_aip_totals_aip_id
+  on public.aip_totals(aip_id);
+
+create index if not exists idx_aip_totals_scope_fiscal
+  on public.aip_totals(barangay_id, city_id, municipality_id, fiscal_year);
+
+alter table public.aip_totals enable row level security;
+
+drop policy if exists aip_totals_select_policy on public.aip_totals;
+create policy aip_totals_select_policy
+on public.aip_totals
+for select
+to authenticated
+using (
+  public.is_active_auth()
+);
+
+grant select on public.aip_totals to authenticated;
+
+commit;

@@ -9,7 +9,6 @@ import {
   AipDetailsSection,
   ChartsGrid,
   FiltersSection,
-  OverviewHeader,
 } from '../components';
 import { CITIZEN_BUDGET_ALLOCATION_MOCK } from '@/mocks/fixtures/budget-allocation';
 import { getRawBudgetAllocationData } from '../data';
@@ -137,10 +136,14 @@ export default function CitizenBudgetAllocationView() {
         onYearChange={() => {}}
         onLguChange={() => {}}
       />
-      <OverviewHeader
-        title={`${selectedLguLabel} Budget Allocation Breakdown`}
-        subtitle={`Total budget and allocation by category for FY ${vm.filters.selectedYear}`}
-      />
+      <section className="mx-auto max-w-6xl px-6 pt-12 text-center">
+        <h2 className="text-3xl font-semibold text-[#022437] md:text-4xl">
+          {selectedLguLabel} Budget Allocation Breakdown
+        </h2>
+        <p className="mt-2 text-sm text-slate-600">
+          {`Total budget and allocation by category for FY ${vm.filters.selectedYear}`}
+        </p>
+      </section>
       <ChartsGrid
         fiscalYear={vm.filters.selectedYear}
         totalBudget={donutTotal}

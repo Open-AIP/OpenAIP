@@ -22,6 +22,7 @@ import {
   PROJECT_LOGO_FALLBACK_SRC,
   resolveProjectImageSource,
 } from "@/features/projects/shared/project-image";
+import { toDateRangeLabel } from "@/features/projects/shared/project-date";
 
 /**
  * ProjectInformationCard Component (Health)
@@ -40,7 +41,6 @@ import {
  * @param scope - Administrative scope (city or barangay) for routing
  */
 export default function ProjectInformationCard({
-  aipYear,
   project,
   scope = "barangay",
   useLogoFallback = false,
@@ -66,6 +66,9 @@ export default function ProjectInformationCard({
       }) ?? DEFAULT_PROJECT_IMAGE_SRC
     );
   }, [project.imageUrl, useLogoFallback]);
+
+  const healthDate =
+    toDateRangeLabel(project.startDate, project.targetCompletionDate) ?? "N/A";
 
   return (
     <Card className="border-slate-200">
@@ -138,7 +141,7 @@ export default function ProjectInformationCard({
                 <Calendar className="w-4 h-4 text-slate-400" />
                 <span className="text-slate-500">Date:</span>
                 <span className="font-medium text-slate-900">
-                  {project.month || `January ${aipYear}`}
+                  {healthDate}
                 </span>
               </div>
 

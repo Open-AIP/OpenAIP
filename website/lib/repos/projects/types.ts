@@ -31,6 +31,8 @@ export type ProjectMaster = {
 export type HealthProjectDetails = {
   projectRefCode: string;
   month: string;
+  startDate: string;
+  targetCompletionDate: string;
 
   totalTargetParticipants: number;
   targetParticipants: string;
@@ -87,6 +89,8 @@ export type HealthProject =
 
     // health-specific display fields
     month: HealthProjectDetails["month"];
+    startDate: HealthProjectDetails["startDate"];
+    targetCompletionDate: HealthProjectDetails["targetCompletionDate"];
     description: string;
     totalTargetParticipants: HealthProjectDetails["totalTargetParticipants"];
     targetParticipants: HealthProjectDetails["targetParticipants"];

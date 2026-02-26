@@ -86,3 +86,60 @@ describe("Infrastructure ProjectInformationCard image fallback", () => {
     });
   });
 });
+
+describe("Infrastructure ProjectInformationCard date rendering", () => {
+  it("renders full date range when both dates are valid", () => {
+    render(
+      <InfrastructureProjectInformationCard
+        aipYear={2026}
+        project={buildProject()}
+        scope="citizen"
+      />
+    );
+
+    expect(screen.getByText("January 1, 2026 - October 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders one-sided label when only start date is valid", () => {
+    render(
+      <InfrastructureProjectInformationCard
+        aipYear={2026}
+        project={buildProject({
+          targetCompletionDate: "unknown date",
+        })}
+        scope="citizen"
+      />
+    );
+
+    expect(screen.getByText("Starts January 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders one-sided label when only end date is valid", () => {
+    render(
+      <InfrastructureProjectInformationCard
+        aipYear={2026}
+        project={buildProject({
+          startDate: "unknown date",
+        })}
+        scope="citizen"
+      />
+    );
+
+    expect(screen.getByText("Ends October 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders N/A when both dates are invalid", () => {
+    render(
+      <InfrastructureProjectInformationCard
+        aipYear={2026}
+        project={buildProject({
+          startDate: "Unknown",
+          targetCompletionDate: "invalid date",
+        })}
+        scope="citizen"
+      />
+    );
+
+    expect(screen.getByText("N/A")).toBeInTheDocument();
+  });
+});

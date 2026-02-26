@@ -21,6 +21,7 @@ import {
   PROJECT_LOGO_FALLBACK_SRC,
   resolveProjectImageSource,
 } from "@/features/projects/shared/project-image";
+import { toDateRangeLabel } from "@/features/projects/shared/project-date";
 
 /**
  * InfrastructureProjectCard Component
@@ -63,6 +64,8 @@ export default function InfrastructureProjectCard({
     );
   }, [project.imageUrl, useLogoFallback]);
 
+  const dateRange = toDateRangeLabel(project.startDate, project.targetCompletionDate) ?? "N/A";
+
   return (
     <Card className="border-slate-200 overflow-hidden">
       <CardContent className="p-0">
@@ -100,16 +103,10 @@ export default function InfrastructureProjectCard({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-10 text-sm text-slate-700">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:col-span-2">
                 <CalendarDays className="h-4 w-4 text-slate-400" />
-                <span className="text-slate-500">Start Date:</span>
-                <span className="font-medium">{project.startDate}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-slate-400" />
-                <span className="text-slate-500">Target Completion:</span>
-                <span className="font-medium">{project.targetCompletionDate}</span>
+                <span className="text-slate-500">Date:</span>
+                <span className="font-medium">{dateRange}</span>
               </div>
 
               <div className="flex items-center gap-2">

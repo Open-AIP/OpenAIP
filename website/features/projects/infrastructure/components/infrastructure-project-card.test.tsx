@@ -92,3 +92,48 @@ describe("InfrastructureProjectCard image fallback", () => {
     });
   });
 });
+
+describe("InfrastructureProjectCard date rendering", () => {
+  it("renders full date range when both dates are valid", () => {
+    render(<InfrastructureProjectCard project={buildProject()} />);
+
+    expect(screen.getByText("January 1, 2026 - June 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders one-sided label when only start date is valid", () => {
+    render(
+      <InfrastructureProjectCard
+        project={buildProject({
+          targetCompletionDate: "unknown date",
+        })}
+      />
+    );
+
+    expect(screen.getByText("Starts January 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders one-sided label when only end date is valid", () => {
+    render(
+      <InfrastructureProjectCard
+        project={buildProject({
+          startDate: "unknown date",
+        })}
+      />
+    );
+
+    expect(screen.getByText("Ends June 1, 2026")).toBeInTheDocument();
+  });
+
+  it("renders N/A when both dates are invalid", () => {
+    render(
+      <InfrastructureProjectCard
+        project={buildProject({
+          startDate: "Unknown date",
+          targetCompletionDate: "invalid date",
+        })}
+      />
+    );
+
+    expect(screen.getByText("N/A")).toBeInTheDocument();
+  });
+});

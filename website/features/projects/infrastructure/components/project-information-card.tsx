@@ -21,7 +21,6 @@ import {
   PhilippinePeso,
   Landmark,
   Plus,
-  Flag,
 } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
@@ -30,6 +29,7 @@ import {
   PROJECT_LOGO_FALLBACK_SRC,
   resolveProjectImageSource,
 } from "@/features/projects/shared/project-image";
+import { toDateRangeLabel } from "@/features/projects/shared/project-date";
 
 /**
  * InfrastructureProjectInformationCard Component
@@ -49,7 +49,6 @@ import {
  * @param scope - Administrative scope (city or barangay) for routing
  */
 export default function InfrastructureProjectInformationCard({
-  aipYear,
   project,
   scope = "barangay",
   useLogoFallback = false,
@@ -75,6 +74,8 @@ export default function InfrastructureProjectInformationCard({
       }) ?? DEFAULT_PROJECT_IMAGE_SRC
     );
   }, [project.imageUrl, useLogoFallback]);
+
+  const dateRange = toDateRangeLabel(project.startDate, project.targetCompletionDate) ?? "N/A";
 
   return (
     <Card className="border-slate-200">
@@ -140,17 +141,9 @@ export default function InfrastructureProjectInformationCard({
 
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-500">Start Date:</span>
+                <span className="text-slate-500">Date:</span>
                 <span className="font-medium text-slate-900">
-                  {project.startDate || `January ${aipYear}`}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-sm">
-                <Flag className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-500">Target Completion:</span>
-                <span className="font-medium text-slate-900">
-                  {project.targetCompletionDate || "N/A"}
+                  {dateRange}
                 </span>
               </div>
 

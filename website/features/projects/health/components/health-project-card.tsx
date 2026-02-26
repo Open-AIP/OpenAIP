@@ -20,6 +20,7 @@ import {
   PROJECT_LOGO_FALLBACK_SRC,
   resolveProjectImageSource,
 } from "@/features/projects/shared/project-image";
+import { toDateRangeLabel } from "@/features/projects/shared/project-date";
 
 /**
  * HealthProjectCard Component
@@ -52,6 +53,9 @@ export default function HealthProjectCard({
   useEffect(() => {
     setImageSrc(resolveProjectImageSource(project.imageUrl, { useLogoFallback }));
   }, [project.imageUrl, useLogoFallback]);
+
+  const healthDate =
+    toDateRangeLabel(project.startDate, project.targetCompletionDate) ?? "N/A";
 
   return (
     <Card className="border-slate-200 overflow-hidden">
@@ -116,7 +120,7 @@ export default function HealthProjectCard({
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Date:</span>
-                <span className="font-medium">{project.month && project.year ? `${project.month} ${project.year}` : 'N/A'}</span>
+                <span className="font-medium">{healthDate}</span>
               </div>
 
               <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import type { ActorContext } from "@/lib/domain/actor-context";
+import { normalizeDateForStorage } from "@/features/projects/shared/add-information/date-normalization";
 import {
   getProjectMediaBucketName,
   toProjectUpdateMediaProxyUrl,
@@ -138,11 +139,11 @@ function parseNonNegativeInteger(value: string, label: string): number {
 }
 
 function normalizeDateInput(value: string, label: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
+  try {
+    return normalizeDateForStorage(value, label);
+  } catch {
     throw new ApiError(400, `${label} must be a valid date.`);
   }
-  return parsed.toISOString().slice(0, 10);
 }
 
 function toFileExtension(file: File): string {

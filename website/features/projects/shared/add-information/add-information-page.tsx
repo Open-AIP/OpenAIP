@@ -20,6 +20,7 @@ import { Upload } from "lucide-react";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { FormField } from "./FormField";
 import { healthFieldConfig, infraFieldConfig } from "./field-config";
+import { toDateInputValue } from "./date-normalization";
 import {
   healthAddInfoSchema,
   infraAddInfoSchema,
@@ -53,13 +54,25 @@ type UploaderInfo = {
  * Pre-filled project information (for disabled fields)
  */
 type ProjectInfo = {
-  month?: string;
-  year?: string;
   name?: string;
   description?: string;
+  startDate?: string;
+  targetCompletionDate?: string;
+  budgetAllocated?: string;
   implementingOffice?: string;
   fundingSource?: string;
 };
+
+function normalizeStringValue(value: string | null | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function hasNonEmptyFormValue(formData: FormData, key: string): boolean {
+  const current = formData.get(key);
+  return typeof current === "string" && current.trim().length > 0;
+}
 
 /**
  * AddInformationPage Component
@@ -96,6 +109,18 @@ export default function AddInformationPage({
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const normalizedProjectInfo = React.useMemo(
+    () => ({
+      name: normalizeStringValue(projectInfo?.name),
+      description: normalizeStringValue(projectInfo?.description),
+      startDate: toDateInputValue(projectInfo?.startDate),
+      targetCompletionDate: toDateInputValue(projectInfo?.targetCompletionDate),
+      budgetAllocated: normalizeStringValue(projectInfo?.budgetAllocated),
+      implementingOffice: normalizeStringValue(projectInfo?.implementingOffice),
+      fundingSource: normalizeStringValue(projectInfo?.fundingSource),
+    }),
+    [projectInfo]
+  );
 
   // Select schema and config based on project type
   const schema = kind === "health" ? healthAddInfoSchema : infraAddInfoSchema;
@@ -106,6 +131,16 @@ export default function AddInformationPage({
     zodResolver(schemaForResolver) as unknown as Resolver<
       HealthAddInfoFormData | InfraAddInfoFormData
     >;
+  const defaultValues: Record<string, string | File | null | undefined> = {
+    photoFile: null,
+    projectName: normalizedProjectInfo.name,
+    description: normalizedProjectInfo.description,
+    startDate: normalizedProjectInfo.startDate,
+    targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+    budgetAllocated: normalizedProjectInfo.budgetAllocated,
+    implementingOffice: normalizedProjectInfo.implementingOffice,
+    fundingSource: normalizedProjectInfo.fundingSource,
+  };
 
   // Single form controller - replaces all individual useState calls
   const {
@@ -116,16 +151,7 @@ export default function AddInformationPage({
   } = useForm<HealthAddInfoFormData | InfraAddInfoFormData>({
     resolver,
     mode: "onChange",
-    defaultValues: {
-      // Pre-fill disabled fields from projectInfo
-      ...(projectInfo?.month && { month: projectInfo.month }),
-      ...(projectInfo?.year && { year: projectInfo.year }),
-      ...(projectInfo?.name && { projectName: projectInfo.name }),
-      ...(projectInfo?.description && { description: projectInfo.description }),
-      ...(projectInfo?.implementingOffice && { implementingOffice: projectInfo.implementingOffice }),
-      ...(projectInfo?.fundingSource && { fundingSource: projectInfo.fundingSource }),
-      photoFile: null,
-    },
+    defaultValues: defaultValues as unknown as HealthAddInfoFormData | InfraAddInfoFormData,
   });
 
   /**
@@ -153,6 +179,32 @@ export default function AddInformationPage({
         }
 
         if (typeof value === "string") {
+          formData.set(key, value);
+        }
+      }
+
+      const requiredPrefilledFields =
+        kind === "health"
+          ? {
+              projectName: normalizedProjectInfo.name,
+              description: normalizedProjectInfo.description,
+              implementingOffice: normalizedProjectInfo.implementingOffice,
+              startDate: normalizedProjectInfo.startDate,
+              targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+              budgetAllocated: normalizedProjectInfo.budgetAllocated,
+            }
+          : {
+              projectName: normalizedProjectInfo.name,
+              description: normalizedProjectInfo.description,
+              implementingOffice: normalizedProjectInfo.implementingOffice,
+              fundingSource: normalizedProjectInfo.fundingSource,
+              startDate: normalizedProjectInfo.startDate,
+              targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+            };
+
+      for (const [key, value] of Object.entries(requiredPrefilledFields)) {
+        if (!value) continue;
+        if (!hasNonEmptyFormValue(formData, key)) {
           formData.set(key, value);
         }
       }

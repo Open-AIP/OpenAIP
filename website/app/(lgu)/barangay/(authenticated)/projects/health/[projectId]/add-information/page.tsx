@@ -36,10 +36,11 @@ export default async function HealthAddInformationRoute({
         office: officeLabel,
       }}
       projectInfo={{
-        month: project.month,
-        year: String(project.year),
         name: project.title,
         description: project.description,
+        startDate: project.startDate,
+        targetCompletionDate: project.targetCompletionDate,
+        budgetAllocated: String(project.budgetAllocated ?? ""),
         implementingOffice: project.implementingOffice,
       }}
     />

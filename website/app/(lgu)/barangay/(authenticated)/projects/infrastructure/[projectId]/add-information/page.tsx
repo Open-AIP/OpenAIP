@@ -38,6 +38,8 @@ export default async function InfrastructureAddInformationRoute({
       projectInfo={{
         name: project.title,
         description: project.description,
+        startDate: project.startDate,
+        targetCompletionDate: project.targetCompletionDate,
         implementingOffice: project.implementingOffice,
         fundingSource: project.fundingSource,
       }}

@@ -1,0 +1,110 @@
+You are generating a thesis evaluation “golden question set” for the OpenAIP chatbot. The chatbot can ONLY answer using published AIP data. It supports: (a) line-item facts (amounts PS/MOOE/CO/FE/Total, fund source, schedule dates, implementing agency, expected output, ref-code lookup), (b) totals (Total Investment Program), (c) SQL-first aggregations (top projects, totals by sector, totals by fund source, compare years), and (d) city-level questions using City AIP when available, otherwise it may ask to fallback to barangays-in-city.
+
+TASK
+Output EXACTLY 200 questions as JSONL (one JSON object per line). No extra commentary. No markdown. No code fences. Just JSONL.
+
+REQUIRED COUNTS (must be exact)
+- 60 city-level questions (scope_mode="city")
+- 110 barangay-level questions (scope_mode="barangay")
+- 30 cross-scope/global questions (scope_mode="global")
+- Inside the 200 total, include 30–40 UNSUPPORTED questions (answerable=false), clearly labeled. The remaining must be supported (answerable=true).
+
+SCOPE ENTITIES (use these names consistently)
+City:
+- "City of Cabuyao"
+
+Barangays (use these exactly; do NOT invent new barangays):
+- "Mamatid"
+- "Pulo"
+- "San Isidro"
+- "Banay-Banay"
+
+Fiscal years:
+- Use FY 2022 for city-level questions (City AIP is FY 2022).
+- Use FY 2025 and FY 2026 for barangay/global questions.
+- For compare-years, use 2025 vs 2026. For city compare-years, use 2022 vs 2023 ONLY if you explicitly mark it as unsupported unless you can ground it (assume only FY 2022 city AIP exists).
+
+SUPPORTED QUESTION TYPES (answerable=true)
+1) Line-item fact questions (must include at least one of: amount, fund source, schedule, implementing agency, expected output, ref code)
+2) Totals: "Total Investment Program" for a specific FY + scope
+3) Aggregations:
+   - "Top N projects ..." (N in {3,5,10})
+   - "Budget totals by sector ..." (FY optional)
+   - "Budget totals by fund source ..." (FY optional)
+   - "Compare 2025 vs 2026 total budget ..." (barangay/global only)
+4) “Fund sources exist/list/available” queries (list-only) (FY optional)
+
+UNSUPPORTED QUESTION TYPES (answerable=false) — include 30–40 of these
+- Contractors/suppliers/winning bidders
+- Procurement mode (SVP/bidding), BAC/procurement details
+- Exact site address/street/geocoordinates (unless explicitly stated; assume NOT present)
+- Beneficiary counts (how many people), KPI/outcome targets, malnutrition reduction targets, etc.
+- Monthly/quarterly disbursement schedules, liquidation/actual spending
+- Predictions/opinions/accusations/corruption claims
+- Any city-level FY other than 2022 (unless phrased as “if available”; still mark unsupported since only FY 2022 exists)
+
+OUTPUT FORMAT (JSONL)
+Each line must be a valid JSON object with this exact schema:
+
+{
+  "id": "Q0001",
+  "audience": "citizen" | "lgu_official",
+  "scope_mode": "city" | "barangay" | "global",
+  "lgu_hint": { "city": "City of Cabuyao" | null, "barangay": "Mamatid"|"Pulo"|"San Isidro"|"Banay-Banay"|null },
+  "fiscal_year_hint": 2022 | 2025 | 2026 | null,
+  "question": "string",
+  "expected": {
+    "answerable": true|false,
+    "supported_type": "line_item_fact" | "totals" | "aggregate_top_projects" | "aggregate_totals_by_sector" | "aggregate_totals_by_fund_source" | "aggregate_compare_years" | "fund_sources_exist" | "unsupported",
+    "target_field": "amount"|"fund_source"|"schedule"|"implementing_agency"|"expected_output"|"total_investment_program"|"sector_totals"|"fund_source_totals"|"compare_years"|"fund_sources_list"|null,
+    "expected_status": "answer"|"refusal"|"clarification",
+    "expected_refusal_reason": "document_limitation"|"retrieval_failure"|"missing_required_parameter"|"ambiguous_scope"|"unsupported_request"|null
+  }
+}
+
+RULES FOR expected.*
+- If answerable=true: expected_status must be "answer" OR "clarification" (use clarification only when fiscal year is intentionally omitted or scope is intentionally ambiguous).
+- If answerable=false: expected_status must be "refusal" and expected_refusal_reason must be one of:
+  - "document_limitation" for contractors/procurement/address/beneficiaries/KPIs/disbursement
+  - "unsupported_request" for opinions/predictions/accusations
+  - "retrieval_failure" ONLY when you ask for a clearly non-existent project title (use sparingly).
+- Do NOT use "ambiguous_scope" unless the question explicitly mentions a barangay/city name that is NOT in the allowed list.
+
+DISTRIBUTION REQUIREMENTS (must satisfy exactly)
+A) Total questions: 200
+B) City-level: 60
+   - At least 10 totals questions for city (Total Investment Program FY 2022 City of Cabuyao)
+   - At least 20 line-item fact questions (amount/fund/schedule/etc.)
+   - At least 15 aggregation/list questions (top projects by amount, totals by fund source, totals by sector, fund sources exist)
+   - Up to 15 unsupported questions (city contractors/procurement/address/etc.)
+C) Barangay-level: 110
+   - Must cover all 4 barangays with roughly balanced representation (each barangay 20–35 questions)
+   - Include at least 20 totals questions across FY 2025/2026 (Total Investment Program per barangay/year)
+   - Include at least 60 line-item fact questions across FY 2025/2026
+   - Include at least 15 aggregation questions scoped to a barangay
+   - Include 15–25 unsupported questions (contractors/procurement/beneficiaries/etc.)
+D) Global: 30
+   - Include at least 10 compare-years questions (2025 vs 2026 across all barangays)
+   - Include at least 8 aggregation questions (top projects, sector totals, fund totals, fund sources exist)
+   - Include 5–8 unsupported global questions (e.g., corruption, procurement across all, beneficiary counts)
+
+STYLE REQUIREMENTS FOR QUESTIONS
+- Questions must sound natural and realistic for either a citizen or an LGU official.
+- Vary phrasing: “How much…”, “What is…”, “Show me…”, “List…”, “Compare…”
+- For line-item facts, include either:
+  - a project title-like phrase (e.g., “Road Concreting”, “Construction of Barangay Hall”, “Honoraria”),
+  - OR an explicit Ref-code placeholder format like “Ref 8000-003-002-006”.
+  If you use a Ref code, it must match pattern ####-###-###-###.
+  You may reuse a small set of realistic ref codes across multiple questions; uniqueness not required.
+- Do NOT invent ultra-specific fields not in AIP (street names, contractor company names) unless the question is UNSUPPORTED.
+
+ID REQUIREMENTS
+- IDs must be sequential from Q0001 to Q0200 with zero padding.
+
+FINAL OUTPUT REQUIREMENTS
+- Output exactly 200 JSON lines.
+- No blank lines.
+- No trailing commas.
+- All strings must be valid JSON strings.
+
+Begin now.

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GoldenQuestion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "audience",
+    "scope_mode",
+    "lgu_hint",
+    "fiscal_year_hint",
+    "question",
+    "expected"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^Q\\d{4}$"
+    },
+    "audience": {
+      "type": "string",
+      "enum": [
+        "citizen",
+        "lgu_official"
+      ]
+    },
+    "scope_mode": {
+      "type": "string",
+      "enum": [
+        "city",
+        "barangay",
+        "global"
+      ]
+    },
+    "lgu_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "city",
+        "barangay"
+      ],
+      "properties": {
+        "city": {
+          "enum": [
+            "City of Cabuyao",
+            null
+          ]
+        },
+        "barangay": {
+          "enum": [
+            "Mamatid",
+            "Pulo",
+            null
+          ]
+        }
+      }
+    },
+    "fiscal_year_hint": {
+      "enum": [
+        2022,
+        2025,
+        2026,
+        null
+      ]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "answerable",
+        "supported_type",
+        "target_field",
+        "expected_status",
+        "expected_refusal_reason"
+      ],
+      "properties": {
+        "answerable": {
+          "type": "boolean"
+        },
+        "supported_type": {
+          "type": "string",
+          "enum": [
+            "line_item_fact",
+            "totals",
+            "aggregate_top_projects",
+            "aggregate_totals_by_sector",
+            "aggregate_totals_by_fund_source",
+            "aggregate_compare_years",
+            "fund_sources_exist",
+            "unsupported"
+          ]
+        },
+        "target_field": {
+          "enum": [
+            "amount",
+            "fund_source",
+            "schedule",
+            "implementing_agency",
+            "expected_output",
+            "total_investment_program",
+            "sector_totals",
+            "fund_source_totals",
+            "compare_years",
+            "fund_sources_list",
+            null
+          ]
+        },
+        "expected_status": {
+          "type": "string",
+          "enum": [
+            "answer",
+            "refusal",
+            "clarification"
+          ]
+        },
+        "expected_refusal_reason": {
+          "enum": [
+            "document_limitation",
+            "retrieval_failure",
+            "missing_required_parameter",
+            "ambiguous_scope",
+            "unsupported_request",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

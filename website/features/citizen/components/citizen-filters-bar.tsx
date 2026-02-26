@@ -42,7 +42,7 @@ export default function CitizenFiltersBar({
 }: CitizenFiltersBarProps) {
   return (
     <Card className="w-full border-slate-200">
-      <CardContent className="space-y-4 px-4 py-3 md:px-6 md:py-4">
+      <CardContent className="space-y-4 px-4 py-2 md:px-6 md:py-3">
         <h3 className="text-sm font-medium text-slate-700">Filters</h3>
 
         <div className="grid gap-3 md:grid-cols-3">

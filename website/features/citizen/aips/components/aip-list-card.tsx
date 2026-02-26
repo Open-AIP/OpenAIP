@@ -14,8 +14,8 @@ export default function AipListCard({ item }: { item: AipListItem }) {
             <div className="flex items-start gap-3">
               <FileText className="mt-1 h-5 w-5 text-[#0E7490]" />
               <div className="min-w-0">
-                <h3 className="text-3xl font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-1 text-lg leading-relaxed text-slate-600">{item.description}</p>
+                <h3 className="text-xl font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-1 text-md leading-relaxed text-slate-600">{item.description}</p>
               </div>
             </div>
 

@@ -47,7 +47,7 @@ const CitizenAipsPage = () => {
             This page allows citizens to review the full document, understand budget priorities, and see how public
             funds are intended to benefit the community.
           </p>
-          <p className="text-sm text-[#6f5a1b]">
+          <p className="text-sm bg-orange-100 rounded-2xl p-2 text-slate">
             Click &quot;View Details&quot; on any AIP to see the complete breakdown of projects, budgets, timelines,
             and implementation strategies.
           </p>

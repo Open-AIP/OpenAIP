@@ -30,6 +30,9 @@ export type ProjectRow = {
 
   category: ProjectCategory;
 
+  status?: "proposed" | "ongoing" | "completed" | "on_hold" | null;
+  image_url?: string | null;
+
   sector_code: string;
 
   is_human_edited: boolean;

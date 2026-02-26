@@ -22,6 +22,8 @@ export default async function HealthAddInformationRoute({
 
   return (
     <AddInformationPage
+      projectId={project.id}
+      scope="barangay"
       kind="health"
       breadcrumb={[
         { label: "Health Projects", href: "/barangay/projects/health" },

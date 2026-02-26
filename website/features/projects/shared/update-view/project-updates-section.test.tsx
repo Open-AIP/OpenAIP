@@ -10,6 +10,12 @@ vi.mock("next/image", () => ({
   ),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+  }),
+}));
+
 const INITIAL_UPDATES = [
   {
     id: "u1",
@@ -22,7 +28,14 @@ const INITIAL_UPDATES = [
 
 describe("ProjectUpdatesSection", () => {
   it("shows timeline and post form when posting is allowed", () => {
-    render(<ProjectUpdatesSection initialUpdates={INITIAL_UPDATES} allowPosting />);
+    render(
+      <ProjectUpdatesSection
+        initialUpdates={INITIAL_UPDATES}
+        allowPosting
+        projectId="PROJ-2026-001"
+        scope="barangay"
+      />
+    );
 
     expect(screen.getByText("Updates Timeline")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post Update" })).toBeInTheDocument();

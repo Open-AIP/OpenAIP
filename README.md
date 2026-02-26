@@ -37,7 +37,7 @@ OpenAIP is a monorepo for a role-based LGU web platform and an AI pipeline that 
 | Pipeline Backend | FastAPI + Python 3.11 worker/service package (`openaip-pipeline`) |
 | Database | Supabase Postgres |
 | Auth | Supabase Auth + role-based route gating |
-| Storage | Supabase Storage (`aip-pdfs`, `aip-artifacts`) |
+| Storage | Supabase Storage (`aip-pdfs`, `aip-artifacts`, `project-media`) |
 | Realtime | Supabase Realtime on `public.extraction_runs` |
 | AI/ML | OpenAI (`gpt-5.2`, `text-embedding-3-large`), LangChain OpenAI |
 | Tooling | npm, Vitest, ESLint, pytest, Ruff, Pyright, Docker Compose |
@@ -140,6 +140,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<supabase-publishable-or-anon-key>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<optional-fallback-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
 SUPABASE_STORAGE_ARTIFACT_BUCKET=aip-artifacts
+SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET=project-media
 
 BASE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_ENV=dev
@@ -189,6 +190,7 @@ Website env reference:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Client-exposed | Fallback if publishable key not set |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only | Elevated server actions (uploads/admin ops) |
 | `SUPABASE_STORAGE_ARTIFACT_BUCKET` | No | Server-only | Artifact bucket used for strict draft delete cleanup (default `aip-artifacts`) |
+| `SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET` | No | Server-only | Private bucket used for project cover images and update photos (default `project-media`) |
 | `BASE_URL` | Yes | Server-only | Absolute app origin for auth page helpers |
 | `NEXT_PUBLIC_APP_ENV` | No | Client-exposed | `dev`/`staging`/`prod`; controls mock selection |
 | `NEXT_PUBLIC_USE_MOCKS` | No | Client-exposed | Force mock repos when `true` |
@@ -315,9 +317,13 @@ Recommended workflow:
    - `website/docs/sql/2026-02-24_chatbot_rag_global_scope.sql`
    - `website/docs/sql/2026-02-24_create_aip_totals.sql`
    - `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql`
+   - `website/docs/sql/2026-02-26_projects_updates_and_media.sql`
+   - `website/docs/sql/2026-02-26_projects_status_proposed_rename.sql`
+   - Note: `2026-02-26_projects_status_proposed_rename.sql` renames existing `projects.status` values from `planning` to `proposed`.
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)
    - `aip-artifacts` (pipeline artifacts when payload exceeds inline threshold)
+   - `project-media` (private project cover/update images served via API proxy)
 
 ### Publish-Time Categorize Embedding
 When an AIP transitions to `published`, DB trigger `trg_aip_published_embed_categorize` asynchronously calls the Edge Function `embed_categorize_artifact` via `pg_net`.
@@ -465,7 +471,7 @@ docker build -f Dockerfile.worker -t openaip-pipeline-worker .
 ```
 
 Production runtime requirements:
-- Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`)
+- Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`, `SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET`)
 - Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
 - Supabase project with DB schema and storage buckets in place
 - Outbound network access from pipeline runtime to Supabase + OpenAI

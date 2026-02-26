@@ -26,6 +26,11 @@ export type { ProfileRow } from "./rows/profiles";
 export type { AipRow } from "./rows/aips";
 export type { AipReviewRow } from "./rows/aip_reviews";
 export type { ProjectRow, HealthProjectDetailsRow, InfrastructureProjectDetailsRow } from "./rows/projects";
+export type {
+  ProjectUpdateMediaRow,
+  ProjectUpdateRow,
+  ProjectUpdateStatus,
+} from "./rows/project_updates";
 export type { ActivityLogRow } from "./rows/activity_log";
 export type { UploadedFileRow } from "./rows/uploaded_files";
 export type { ExtractionRunRow } from "./rows/extraction_runs";

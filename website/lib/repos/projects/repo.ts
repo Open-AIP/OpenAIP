@@ -11,6 +11,7 @@ import type {
 
 export type {
   BarangayProjectScope,
+  CityProjectScope,
   HealthProject,
   HealthProjectDetails,
   InfrastructureProject,

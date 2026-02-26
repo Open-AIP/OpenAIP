@@ -79,17 +79,23 @@ type ProjectInfo = {
  * @param projectInfo - Pre-filled project data (optional)
  */
 export default function AddInformationPage({
+  projectId,
+  scope,
   kind,
   breadcrumb,
   uploader,
   projectInfo,
 }: {
+  projectId: string;
+  scope: "barangay" | "city";
   kind: ProjectKind;
   breadcrumb: BreadcrumbItem[];
   uploader: UploaderInfo;
   projectInfo?: ProjectInfo;
 }) {
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   // Select schema and config based on project type
   const schema = kind === "health" ? healthAddInfoSchema : infraAddInfoSchema;
@@ -106,7 +112,6 @@ export default function AddInformationPage({
     register,
     handleSubmit,
     control,
-    watch,
     formState: { errors, isValid },
   } = useForm<HealthAddInfoFormData | InfraAddInfoFormData>({
     resolver,
@@ -123,28 +128,59 @@ export default function AddInformationPage({
     },
   });
 
-  const photoFile = watch("photoFile");
-
   /**
    * Submission handler - separated from UI logic
-   * This is the boundary where form data becomes business logic
-   * 
-   * Future: Replace console.log with Supabase insert/update
+   * This is the boundary where form data becomes backend persistence input.
    */
-  const onSubmit: SubmitHandler<HealthAddInfoFormData | InfraAddInfoFormData> = (data) => {
-    // Clean payload for submission
-    const payload = {
-      kind,
-      photoFileName: photoFile?.name ?? null,
-      ...data,
-    };
+  const onSubmit: SubmitHandler<HealthAddInfoFormData | InfraAddInfoFormData> = async (
+    data
+  ) => {
+    if (isSubmitting) return;
 
-    console.log("ADD INFO SUBMIT:", payload);
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
 
-    // TODO: Replace with Supabase mutation
-    // await createProjectInfo(payload);
-    
-    router.back();
+      const formData = new FormData();
+      formData.set("kind", kind);
+
+      for (const [key, value] of Object.entries(data)) {
+        if (key === "photoFile") {
+          if (value instanceof File) {
+            formData.set(key, value);
+          }
+          continue;
+        }
+
+        if (typeof value === "string") {
+          formData.set(key, value);
+        }
+      }
+
+      const response = await fetch(
+        `/api/${scope}/projects/${encodeURIComponent(projectId)}/add-information`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Failed to save project information.");
+      }
+
+      router.refresh();
+      router.back();
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to save project information."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -251,11 +287,14 @@ export default function AddInformationPage({
           <Button
             type="submit"
             className="bg-[#022437] hover:bg-[#022437]/90"
-            disabled={!isValid}
+            disabled={!isValid || isSubmitting}
           >
-            Done
+            {isSubmitting ? "Saving..." : "Done"}
           </Button>
         </div>
+        {submitError ? (
+          <p className="mt-3 text-sm text-red-600 text-right">{submitError}</p>
+        ) : null}
       </form>
     </div>
   );

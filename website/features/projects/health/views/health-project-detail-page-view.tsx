@@ -142,10 +142,16 @@ export default function HealthProjectDetailPageView({
       </div>
 
       {activeTab === "updates" ? (
-        <ProjectUpdatesSection
-          initialUpdates={initialUpdates}
-          allowPosting={scope !== "citizen"}
-        />
+        scope === "citizen" ? (
+          <ProjectUpdatesSection initialUpdates={initialUpdates} allowPosting={false} />
+        ) : (
+          <ProjectUpdatesSection
+            initialUpdates={initialUpdates}
+            allowPosting
+            projectId={project.id}
+            scope={scope}
+          />
+        )
       ) : (
         <CommentThreadsSplitView
           scope={scope}

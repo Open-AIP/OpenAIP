@@ -1,7 +1,7 @@
 import { PROJECT_IDS } from "@/mocks/fixtures/shared/id-contract.fixture";
 
 type ProjectKind = "health" | "infrastructure";
-type ProjectStatus = "planning" | "ongoing" | "completed" | "on_hold";
+type ProjectStatus = "proposed" | "ongoing" | "completed" | "on_hold";
 
 type ProjectMaster = {
   projectRefCode: string;
@@ -35,7 +35,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     year: 2026,
     kind: "health",
     title: "Nutrition Education and Feeding Program",
-    status: "planning",
+    status: "proposed",
     imageUrl: "/default/default-no-image.jpg",
   },
   {
@@ -76,7 +76,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     year: 2026,
     kind: "health",
     title: "COVID-19 Booster Vaccination Drive",
-    status: "planning",
+    status: "proposed",
     imageUrl: "/default/default-no-image.jpg",
   },
 
@@ -102,7 +102,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     year: 2026,
     kind: "infrastructure",
     title: "Drainage System Improvement Project",
-    status: "planning",
+    status: "proposed",
     imageUrl: "/default/default-no-image.jpg",
   },
   {
@@ -142,7 +142,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     year: 2026,
     kind: "infrastructure",
     title: "Water Supply System Upgrade",
-    status: "planning",
+    status: "proposed",
     imageUrl: "/default/default-no-image.jpg",
   },
   {
@@ -166,7 +166,7 @@ export const PROJECTS_TABLE: ProjectMaster[] = [
     year: 2026,
     kind: "infrastructure",
     title: "Solar Street Lights Installation Phase 2",
-    status: "planning",
+    status: "proposed",
     imageUrl: "/default/default-no-image.jpg",
   },
   {

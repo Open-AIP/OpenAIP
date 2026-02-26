@@ -32,7 +32,7 @@ export type ProjectRowDTO = {
   created_at: string;
   updated_at: string;
   // Mock-only UI fields (not persisted in DBV2).
-  status?: "planning" | "ongoing" | "completed" | "on_hold" | null;
+  status?: "proposed" | "ongoing" | "completed" | "on_hold" | null;
   image_url?: string | null;
 };
 
@@ -170,7 +170,7 @@ export const MOCK_PROJECTS_ROWS: ProjectRowDTO[] = [
     edited_at: null,
     created_at: now,
     updated_at: now,
-    status: "planning",
+    status: "proposed",
     image_url: null,
   },
 ];

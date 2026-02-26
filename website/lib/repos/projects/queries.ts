@@ -67,7 +67,7 @@ export const projectService = {
   },
 
   async getProjectsByStatus(
-    status: "planning" | "ongoing" | "completed" | "on_hold",
+    status: "proposed" | "ongoing" | "completed" | "on_hold",
     options?: ProjectReadOptions
   ) {
     const repo = getProjectsRepo();

@@ -85,6 +85,58 @@ export async function runProjectMapperTests() {
   assert(mappedHealth.description === "Output", "health description should map");
   assert(mappedHealth.budgetAllocated === 5000, "health budget should map");
 
+  const explicitFiscalYearRow = {
+    ...projectRow,
+    id: "PROJ-H-FISCAL",
+    aip_ref_code: "PROJ-H-FISCAL",
+    start_date: "2026-01-01",
+  } satisfies ProjectRow;
+  const explicitFiscalYearDetails = {
+    ...healthDetails,
+    project_id: "PROJ-H-FISCAL",
+  } satisfies HealthProjectDetailsRow;
+  const mappedWithExplicitFiscalYear = mapProjectRowToUiModel(
+    explicitFiscalYearRow,
+    explicitFiscalYearDetails,
+    null,
+    { year: 2025 }
+  );
+  assert(
+    mappedWithExplicitFiscalYear.year === 2025,
+    "meta.year should override date-derived year"
+  );
+
+  const timezoneBoundaryRow = {
+    ...projectRow,
+    id: "PROJ-H-TIMEZONE",
+    aip_ref_code: "PROJ-H-TIMEZONE",
+    start_date: "2026-01-01T00:30:00+14:00",
+    completion_date: null,
+  } satisfies ProjectRow;
+  const timezoneBoundaryDetails = {
+    ...healthDetails,
+    project_id: "PROJ-H-TIMEZONE",
+  } satisfies HealthProjectDetailsRow;
+  const mappedTimezoneWithoutOverride = mapProjectRowToUiModel(
+    timezoneBoundaryRow,
+    timezoneBoundaryDetails,
+    null
+  );
+  assert(
+    mappedTimezoneWithoutOverride.year === 2025,
+    "date-derived year should reflect parsed timestamp when no override exists"
+  );
+  const mappedTimezoneWithOverride = mapProjectRowToUiModel(
+    timezoneBoundaryRow,
+    timezoneBoundaryDetails,
+    null,
+    { year: 2026 }
+  );
+  assert(
+    mappedTimezoneWithOverride.year === 2026,
+    "meta.year should keep fiscal year across timezone-boundary timestamps"
+  );
+
   const nonMonthHealthRow = {
     ...projectRow,
     id: "PROJ-H-FALLBACK",

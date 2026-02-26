@@ -8,9 +8,11 @@ export default async function HealthAddInformationRoute({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { fullName, role, officeLabel } = await getUser();
+  const { fullName, role, officeLabel, cityId, scopeName } = await getUser();
   const { projectId } = await params;
   const project = await projectService.getHealthProjectById(projectId, {
+    cityId,
+    cityScopeName: scopeName,
     publishedOnly: true,
   });
 
@@ -20,6 +22,8 @@ export default async function HealthAddInformationRoute({
 
   return (
     <AddInformationPage
+      projectId={project.id}
+      scope="city"
       kind="health"
       breadcrumb={[
         { label: "Health Projects", href: "/city/projects/health" },

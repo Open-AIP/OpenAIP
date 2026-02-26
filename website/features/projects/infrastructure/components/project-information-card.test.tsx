@@ -23,7 +23,7 @@ function buildProject(
     kind: "infrastructure",
     year: 2026,
     title: "Infrastructure Project Detail Test",
-    status: "planning",
+    status: "proposed",
     imageUrl: "/mock/infra/infra1.jpg",
     description: "Project detail description",
     startDate: "2026-01-01",

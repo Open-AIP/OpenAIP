@@ -1,7 +1,7 @@
 export type ProjectKind = "health" | "infrastructure";
 
 export const PROJECT_STATUS_VALUES = [
-  "planning",
+  "proposed",
   "ongoing",
   "completed",
   "on_hold",
@@ -14,7 +14,13 @@ export type BarangayProjectScope = {
   barangayScopeName?: string | null;
 };
 
-export type ProjectReadOptions = BarangayProjectScope & {
+export type CityProjectScope = {
+  cityId?: string | null;
+  cityScopeName?: string | null;
+};
+
+export type ProjectReadOptions = BarangayProjectScope &
+  CityProjectScope & {
   publishedOnly?: boolean;
 };
 

@@ -115,7 +115,19 @@ function getYearFromDates(projectRow: ProjectRow): number {
 export type ProjectUiMeta = {
   status?: ProjectStatus | null;
   imageUrl?: string | null;
+  year?: number | null;
 };
+
+function resolveProjectYear(
+  projectRow: ProjectRow,
+  meta?: ProjectUiMeta
+): number {
+  const explicitYear = meta?.year;
+  if (typeof explicitYear === "number" && Number.isFinite(explicitYear)) {
+    return Math.trunc(explicitYear);
+  }
+  return getYearFromDates(projectRow);
+}
 
 export function mapProjectRowToUiModel(
   projectRow: ProjectRow,
@@ -129,8 +141,8 @@ export function mapProjectRowToUiModel(
     projectRow.program_project_description || projectRow.expected_output || "Untitled Project";
   const description =
     healthDetails?.description || projectRow.expected_output || projectRow.program_project_description || "";
-  const year = getYearFromDates(projectRow);
-  const status = (meta?.status ?? "planning") as HealthProject["status"];
+  const year = resolveProjectYear(projectRow, meta);
+  const status = (meta?.status ?? "proposed") as HealthProject["status"];
   const imageUrl = meta?.imageUrl ?? undefined;
 
   if (kind === "health") {

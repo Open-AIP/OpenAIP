@@ -37,9 +37,16 @@ function hasBarangayScopeHint(options?: ProjectReadOptions): boolean {
   return options.barangayId !== undefined || options.barangayScopeName !== undefined;
 }
 
+function hasCityScopeHint(options?: ProjectReadOptions): boolean {
+  if (!options) return false;
+  return options.cityId !== undefined || options.cityScopeName !== undefined;
+}
+
 function resolveMockVisibleAipIds(options?: ProjectReadOptions): Set<string> | null {
   const enforcePublishedOnly = options?.publishedOnly === true;
-  const scoped = hasBarangayScopeHint(options);
+  const hasBarangayScope = hasBarangayScopeHint(options);
+  const hasCityScope = hasCityScopeHint(options);
+  const scoped = hasBarangayScope || hasCityScope;
 
   if (!enforcePublishedOnly && !scoped) return null;
 
@@ -52,21 +59,47 @@ function resolveMockVisibleAipIds(options?: ProjectReadOptions): Set<string> | n
     return new Set(candidates.map((aip) => aip.id));
   }
 
-  const rawName =
-    typeof options?.barangayScopeName === "string"
-      ? options.barangayScopeName.trim()
-      : "";
-  if (!rawName) return new Set<string>();
+  if (hasBarangayScope) {
+    const rawName =
+      typeof options?.barangayScopeName === "string"
+        ? options.barangayScopeName.trim()
+        : "";
+    if (!rawName) return new Set<string>();
 
-  const normalizedScopeName = normalizeBarangayScopeName(rawName);
-  const matchedAipIds = candidates
-    .filter((aip) => {
-      if (aip.scope !== "barangay" || !aip.barangayName) return false;
-      return normalizeBarangayScopeName(aip.barangayName) === normalizedScopeName;
-    })
-    .map((aip) => aip.id);
+    const normalizedScopeName = normalizeBarangayScopeName(rawName);
+    const matchedAipIds = candidates
+      .filter((aip) => {
+        if (aip.scope !== "barangay" || !aip.barangayName) return false;
+        return normalizeBarangayScopeName(aip.barangayName) === normalizedScopeName;
+      })
+      .map((aip) => aip.id);
 
-  return new Set(matchedAipIds);
+    return new Set(matchedAipIds);
+  }
+
+  if (hasCityScope) {
+    const rawCityScopeName =
+      typeof options?.cityScopeName === "string"
+        ? options.cityScopeName.trim().toLowerCase()
+        : "";
+    const hasExplicitCityId = Boolean(options?.cityId);
+
+    if (!hasExplicitCityId && !rawCityScopeName) {
+      return new Set<string>();
+    }
+
+    const matchedAipIds = candidates
+      .filter((aip) => {
+        if (aip.scope !== "city") return false;
+        if (!rawCityScopeName) return true;
+        return aip.title.toLowerCase().includes(rawCityScopeName);
+      })
+      .map((aip) => aip.id);
+
+    return new Set(matchedAipIds);
+  }
+
+  return new Set<string>();
 }
 
 function applyMockReadOptions<T extends { aip_id: string }>(

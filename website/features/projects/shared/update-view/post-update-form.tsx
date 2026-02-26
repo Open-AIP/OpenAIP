@@ -11,6 +11,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,64 +51,85 @@ function clamp01to100(n: number) {
  * @param onCreate - Callback when a new update is created
  */
 export default function PostUpdateForm({
+  projectId,
+  scope,
   onCreate,
 }: {
+  projectId: string;
+  scope: "barangay" | "city";
   onCreate: (update: ProjectUpdateUi) => void;
 }) {
+  const router = useRouter();
   const [title, setTitle] = React.useState("");
   const [desc, setDesc] = React.useState("");
   const [progress, setProgress] = React.useState<number>(0);
   const [attendance, setAttendance] = React.useState<string>("");
   const [photos, setPhotos] = React.useState<File[]>([]);
-  const previewUrlsRef = React.useRef<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   function onPickPhotos(files: FileList | null) {
-    // Revoke previous preview URLs when new photos are selected
-    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    previewUrlsRef.current = [];
-
     if (!files) return;
-    const picked = Array.from(files).slice(0, 5);
+    const picked = Array.from(files).filter((file) => file.size > 0).slice(0, 5);
     setPhotos(picked);
   }
 
-  function submit() {
+  async function submit() {
+    if (isSubmitting) return;
     if (title.trim().length < 3) return;
     if (desc.trim().length < 10) return;
     if (!attendance) return;
 
-    // Create object URLs for the parent to use
-    // Parent owns these URLs and is responsible for cleanup if needed
-    const photoUrls = photos.length ? photos.map((f) => URL.createObjectURL(f)) : undefined;
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
 
-    const next: ProjectUpdateUi = {
-      id: `u-${Date.now()}`,
-      title: title.trim(),
-      date: new Date().toLocaleDateString("en-PH", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-      description: desc.trim(),
-      attendanceCount: Number(attendance || 0),
-      progressPercent: clamp01to100(progress),
-      photoUrls,
-    };
+      const formData = new FormData();
+      formData.set("title", title.trim());
+      formData.set("description", desc.trim());
+      formData.set("progressPercent", String(clamp01to100(progress)));
+      formData.set("attendanceCount", attendance.trim());
+      for (const photo of photos) {
+        formData.append("photos", photo);
+      }
 
-    onCreate(next);
+      const response = await fetch(
+        `/api/${scope}/projects/${encodeURIComponent(projectId)}/updates`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+        update?: ProjectUpdateUi;
+      };
 
-    // Clear preview URLs since photos are now owned by parent
-    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    previewUrlsRef.current = [];
+      if (!response.ok || !payload.update) {
+        if (response.ok && !payload.update) {
+          router.refresh();
+        }
+        throw new Error(payload.message ?? "Failed to post project update.");
+      }
 
-    setTitle("");
-    setDesc("");
-    setProgress(0);
-    setAttendance("");
-    setPhotos([]);
+      onCreate(payload.update);
+
+      setTitle("");
+      setDesc("");
+      setProgress(0);
+      setAttendance("");
+      setPhotos([]);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to post project update."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
-  const disabled = title.trim().length < 3 || desc.trim().length < 10 || !attendance;
+  const disabled =
+    isSubmitting || title.trim().length < 3 || desc.trim().length < 10 || !attendance;
 
   return (
     <Card className="border-slate-200 h-fit">
@@ -203,8 +225,11 @@ export default function PostUpdateForm({
           onClick={submit}
           disabled={disabled}
         >
-          Post Update
+          {isSubmitting ? "Posting..." : "Post Update"}
         </Button>
+        {submitError ? (
+          <p className="text-sm text-red-600">{submitError}</p>
+        ) : null}
       </CardContent>
     </Card>
   );

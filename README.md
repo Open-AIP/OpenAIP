@@ -74,7 +74,7 @@ Core data flow:
 | Path | Responsibility |
 |---|---|
 | `website/app` | Next.js routes (citizen/LGU/admin) and API route handlers |
-| `website/features` | Feature modules (AIP, projects, submissions, audit, feedback, admin) |
+| `website/features` | Feature modules (AIP, projects, submissions, audit, feedback, chat, account, admin) |
 | `website/lib` | Repo layer, Supabase clients, domain logic, typed DB contracts |
 | `website/docs/sql` | Database schema baseline + incremental SQL patches |
 | `website/docs/SUPABASE_MIGRATION.md` | Supabase migration guidance and adapter strategy |
@@ -147,6 +147,8 @@ NEXT_PUBLIC_USE_MOCKS=true
 NEXT_PUBLIC_FEEDBACK_DEBUG=0
 NEXT_PUBLIC_TEMP_ADMIN_BYPASS=false
 NEXT_PUBLIC_API_BASE_URL=
+PIPELINE_API_BASE_URL=http://localhost:8000
+PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 ```
 
 `aip-intelligence-pipeline/.env` (safe example):
@@ -167,6 +169,7 @@ PIPELINE_ARTIFACT_INLINE_MAX_BYTES=32768
 PIPELINE_ENABLE_RAG=false
 PIPELINE_RAG_TRACE_QUERY=
 PIPELINE_DEV_ROUTES=false
+PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 
 PIPELINE_VERSION=
 PIPELINE_PROMPT_SET_VERSION=v1.0.0
@@ -192,6 +195,8 @@ Website env reference:
 | `NEXT_PUBLIC_FEEDBACK_DEBUG` | No | Client-exposed | Feedback debug toggle (`1` enables) |
 | `NEXT_PUBLIC_TEMP_ADMIN_BYPASS` | No | Client-exposed | Dev-only bypass toggle |
 | `NEXT_PUBLIC_API_BASE_URL` | No | Client-exposed | Optional API base override |
+| `PIPELINE_API_BASE_URL` | Yes (chatbot) | Server-only | Internal base URL for pipeline chat endpoint |
+| `PIPELINE_INTERNAL_TOKEN` | Yes (chatbot) | Server-only | Shared internal token sent to `/v1/chat/answer` |
 
 \* Set at least one of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
@@ -213,6 +218,7 @@ Pipeline env reference:
 | `PIPELINE_ENABLE_RAG` | No | Server-only | Enable optional RAG trace stage |
 | `PIPELINE_RAG_TRACE_QUERY` | No | Server-only | Query text used when RAG trace is enabled |
 | `PIPELINE_DEV_ROUTES` | No | Server-only | Enables `/v1/runs/dev/local` |
+| `PIPELINE_INTERNAL_TOKEN` | Yes (chat route) | Server-only | Required header auth token for `/v1/chat/answer` |
 | `PIPELINE_VERSION` | No | Server-only | Overrides pipeline version hash |
 | `PIPELINE_PROMPT_SET_VERSION` | No | Server-only | Prompt set version override |
 | `PIPELINE_SCHEMA_VERSION` | No | Server-only | Schema version override |
@@ -283,6 +289,12 @@ pyright
 ## Database & Migrations
 This repo stores SQL migrations in `website/docs/sql` (no Supabase CLI migration directory is committed).
 
+Canonical schema source:
+- `website/docs/sql/database-v2.sql`
+
+Mirrored compatibility copy:
+- `website/docs/databasev2.txt` (kept synchronized with `database-v2.sql`)
+
 Recommended workflow:
 1. Fresh project: run `website/docs/sql/database-v2.sql` in Supabase SQL Editor.
 2. Existing project: apply dated patches in ascending order only if your DB predates them:
@@ -292,8 +304,16 @@ Recommended workflow:
    - `website/docs/sql/2026-02-20_submissions_claim_review.sql`
    - `website/docs/sql/2026-02-21_city_aip_project_column_and_publish.sql`
    - `website/docs/sql/2026-02-21_extraction_runs_realtime.sql`
-   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
    - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status_v2.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
+   - `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger_v2.sql`
+   - `website/docs/sql/2026-02-22_aip_storage_cascade_cleanup.sql`
+   - `website/docs/sql/2026-02-22_aip_storage_cascade_cleanup_hosted_supabase_fix.sql`
+   - `website/docs/sql/2026-02-22_set_config_app_embed.sql`
+   - `website/docs/sql/2026-02-22_set_config_app_embed_call.sql`
+   - `website/docs/sql/2026-02-24_chatbot_rag_global_scope.sql`
+   - `website/docs/sql/2026-02-24_create_aip_totals.sql`
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)
    - `aip-artifacts` (pipeline artifacts when payload exceeds inline threshold)
@@ -303,7 +323,9 @@ When an AIP transitions to `published`, DB trigger `trg_aip_published_embed_cate
 
 Files added for this flow:
 - SQL patch: `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger.sql`
+- SQL patch: `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger_v2.sql`
 - SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
+- SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status_v2.sql`
 - Edge Function: `supabase/functions/embed_categorize_artifact/index.ts`
 
 Required configuration:
@@ -462,6 +484,7 @@ Common hosting options for this codebase:
 - `.env.local` and `.env` are ignored by git; do not commit generated env files.
 - Pipeline error sanitization redacts secrets before persisting failure artifacts (`_sanitize_error` in `worker/processor.py`).
 - Vulnerability reporting: use private security reporting channels (GitHub Security Advisories if enabled) and notify maintainers directly.
+- Chatbot rollout checklist: `website/docs/CHATBOT_PRODUCTION_CHECKLIST.md`.
 
 ## Observability
 - Worker lifecycle logs are emitted to stdout (`[WORKER] started`, claimed/succeeded/failed run logs).

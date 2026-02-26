@@ -1,0 +1,11 @@
+id,expected_status,observed_status,expected_refusal_reason,observed_refusal_reason,pass,supported_type,scope_mode,audience,timing_ms,http_status
+Q0001,answer,clarification,,,false,totals,city,citizen,2129.58,200
+Q0002,answer,clarification,,,false,totals,city,lgu_official,2206.15,200
+Q0003,answer,clarification,,,false,totals,city,citizen,1841.86,200
+Q0004,answer,clarification,,,false,totals,city,lgu_official,842.66,200
+Q0005,answer,clarification,,,false,totals,city,citizen,811.98,200
+Q0006,answer,clarification,,,false,totals,city,lgu_official,1044.28,200
+Q0007,answer,refusal,,retrieval_failure,false,totals,city,citizen,1087.87,200
+Q0008,answer,clarification,,,false,totals,city,lgu_official,897.12,200
+Q0009,answer,,,,false,totals,city,citizen,28931.20,429
+Q0010,answer,,,,false,totals,city,lgu_official,29810.71,429

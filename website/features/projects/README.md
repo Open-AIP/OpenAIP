@@ -1,117 +1,51 @@
 # Projects Feature
 
 ## Overview
+The Projects feature renders health and infrastructure project lists/details and project update timelines.
 
-The **Projects feature** manages health and infrastructure projects with complete data independence from other features (especially AIP).
+## Data Boundaries
+Projects are modeled in the Projects repo layer (`lib/repos/projects/*`) and are not sourced from AIP feature-local fixtures.
 
-## Data Isolation Rules
-
-**CRITICAL**: Projects data is self-contained and NOT sourced from AIP feature.
-
-- ✅ **DO**: Use Projects fixtures from `mocks/fixtures/projects/*`
-- ✅ **DO**: Use Projects repo/service from `lib/repos/projects/*`
-- ❌ **DON'T**: Import anything from AIP feature
-- ❌ **DON'T**: Share Projects mock data with other features
-
-Field names may overlap (e.g., `status`, `year`), but values are independent.
+Use:
+- `lib/repos/projects/repo.server.ts`
+- `lib/repos/projects/queries.ts`
+- `mocks/fixtures/projects/*` for mock data mode
 
 ## Architecture
-
+```text
+Page/View
+  -> projectService (lib/repos/projects/queries.ts)
+  -> getProjectsRepo() (lib/repos/projects/repo.server.ts)
+  -> selector (mock or supabase)
+  -> adapter implementation
 ```
-features/projects/
-├── types/                # TypeScript types
-├── health/               # Health project components
-├── infrastructure/       # Infrastructure project components
-└── shared/               # Shared components
 
-mocks/
-└── fixtures/projects/     # Mock data tables (single source)
+## Current Adapter Status
+- Mock adapter: implemented (`lib/repos/projects/repo.mock.ts`).
+- Supabase adapter: deferred (`lib/repos/projects/repo.supabase.ts` currently throws `NotImplementedError`).
 
-lib/
-└── repos/projects/        # Repo contract + adapters + queries
-```
+In practice:
+- `NEXT_PUBLIC_APP_ENV=dev` (or `NEXT_PUBLIC_USE_MOCKS=true`) keeps this feature on mock data.
 
 ## Usage
-
-### In Pages
-
-```typescript
+Example:
+```ts
 import { projectService } from "@/lib/repos/projects/queries";
 
-// List all health projects
 const healthProjects = await projectService.getHealthProjects();
-
-// Get specific project
 const project = await projectService.getHealthProjectById("PROJ-H-2026-001");
 ```
 
-### Service Methods
-
-- `getHealthProjects(year?)` - List health projects
-- `getInfrastructureProjects(year?)` - List infrastructure projects
-- `getProjectById(id)` - Get any project by ID
-- `getHealthProjectById(id)` - Get health project (type-safe)
-- `getInfrastructureProjectById(id)` - Get infrastructure project (type-safe)
-- `searchProjects(query, kind?)` - Search projects
-- `getProjectStatistics()` - Get counts by status/kind
-
-### Mock Data
-
-All fixtures in `mocks/fixtures/projects/*`:
-- `projects-table.fixture.ts` - 20 projects (8 health, 12 infrastructure)
-- `health-details-table.fixture.ts` - Health-specific information
-- `infrastructure-details-table.fixture.ts` - Infrastructure-specific information
-- `project-updates-table.fixture.ts` - Progress updates and milestones
-
-### Edge Cases Included
-
-- Long titles (PROJ-H-2026-004)
-- 0% progress (PROJ-I-2026-004)
-- 100% completion (PROJ-I-2025-001, PROJ-H-2025-001)
-- Zero budget (PROJ-H-2026-004)
-- High-value contract (PROJ-I-2026-004: ₱8.5M)
-
-## Page Integration
-
-All project pages use the service layer:
-
-**Barangay Pages:**
+## Pages
+Barangay:
 - `app/(lgu)/barangay/(authenticated)/projects/health/page.tsx`
 - `app/(lgu)/barangay/(authenticated)/projects/infrastructure/page.tsx`
-- Detail and add-information pages
 
-**City Pages:**
+City:
 - `app/(lgu)/city/(authenticated)/projects/health/page.tsx`
 - `app/(lgu)/city/(authenticated)/projects/infrastructure/page.tsx`
-- Detail and add-information pages
 
-## Data Flow
-
-```
-Page Component
-    ↓
-projectService (business logic)
-    ↓
-getProjectsRepo() (repo selector)
-    ↓
-repo.mock.ts (mock adapter)
-    ↓
-mocks/fixtures/projects/* (mock data tables)
-```
-
-## Adding New Projects
-
-Edit files in `mocks/fixtures/projects/`:
-
-1. Add to `projects-table.fixture.ts` with unique `projectRefCode`
-2. Add details to `health-details-table.fixture.ts` or `infrastructure-details-table.fixture.ts`
-3. Optionally add updates to `project-updates-table.fixture.ts`
-4. Use naming: `PROJ-{H|I}-{YEAR}-{###}`
-
-## Important Notes
-
-- Mock data is deterministic (no random generators)
-- Dates are ISO strings
-- Money fields are numbers (formatting in UI)
-- Canonical repo/types in `lib/repos/projects/repo.ts` (feature re-exports remain under `features/projects/types/*`)
-- NO Supabase calls or external APIs
+## Notes
+- Mock fixtures are deterministic and live in `mocks/fixtures/projects/*`.
+- Monetary values are stored as numbers and formatted in UI.
+- Canonical project repository types are in `lib/repos/projects/repo.ts`.

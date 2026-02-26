@@ -394,7 +394,15 @@ const tests = [
           {
             label: "ChatRepo(server)",
             repo: getChatRepo(),
-            methods: ["listSessions", "getSession", "createSession", "renameSession", "listMessages", "appendUserMessage"],
+            methods: [
+              "listSessions",
+              "getSession",
+              "createSession",
+              "renameSession",
+              "deleteSession",
+              "listMessages",
+              "appendUserMessage",
+            ],
           },
           {
             label: "AdminDashboardRepo",

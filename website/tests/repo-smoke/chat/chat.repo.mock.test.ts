@@ -35,8 +35,22 @@ export async function runChatRepoTests() {
   const repo2 = createMockChatRepo();
   const s1 = await repo2.createSession("u1");
   await repo2.createSession("u2");
+  await repo2.renameSession(s1.id, "Road Works FY 2026");
+  await repo2.appendUserMessage(s1.id, "Show me line items for drainage");
+
   const sessions = await repo2.listSessions("u1");
   assert(sessions.every((s) => s.userId === "u1"), "Expected only u1 sessions");
   assert(sessions.some((s) => s.id === s1.id), "Expected u1 session returned");
+
+  const titleSearch = await repo2.listSessions("u1", { query: "road works" });
+  assert(titleSearch.length === 1 && titleSearch[0]?.id === s1.id, "Expected title query to match");
+
+  const contentSearch = await repo2.listSessions("u1", { query: "drainage" });
+  assert(contentSearch.length === 1 && contentSearch[0]?.id === s1.id, "Expected content query to match");
+
+  const deleted = await repo2.deleteSession(s1.id);
+  assert(deleted, "Expected deleteSession to return true for existing session");
+  const afterDelete = await repo2.listSessions("u1", { query: "road works" });
+  assert(afterDelete.length === 0, "Expected deleted session not to be returned");
 }
 

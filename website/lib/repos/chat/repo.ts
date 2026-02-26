@@ -19,13 +19,14 @@ import type { ChatMessage, ChatSession } from "./types";
 // [SECURITY] DBV2 is append-only for messages; client inserts are restricted to `role='user'` (assistant/system messages must be server-side).
 // [SUPABASE-SWAP] Implement a Supabase adapter using those tables and RLS (`can_access_chat_session`).
 export interface ChatRepo {
-  listSessions(userId: string): Promise<ChatSession[]>;
+  listSessions(userId: string, options?: { query?: string }): Promise<ChatSession[]>;
   getSession(sessionId: string): Promise<ChatSession | null>;
   createSession(
     userId: string,
     payload?: { title?: string; context?: unknown }
   ): Promise<ChatSession>;
   renameSession(sessionId: string, title: string): Promise<ChatSession | null>;
+  deleteSession(sessionId: string): Promise<boolean>;
   listMessages(sessionId: string): Promise<ChatMessage[]>;
   appendUserMessage(sessionId: string, content: string): Promise<ChatMessage>;
 }

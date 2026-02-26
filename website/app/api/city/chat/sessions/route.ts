@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getChatRepo } from "@/lib/repos/chat/repo.server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const actor = await getActorContext();
     if (!actor || actor.role !== "city_official") {
       return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get("q") ?? undefined;
+
     const repo = getChatRepo();
-    const sessions = await repo.listSessions(actor.userId);
+    const sessions = await repo.listSessions(actor.userId, { query });
     return NextResponse.json({ sessions }, { status: 200 });
   } catch (error) {
     const message =
@@ -48,4 +51,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ message }, { status: 500 });
   }
 }
-

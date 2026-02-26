@@ -1,0 +1,11 @@
+import { CitizenChatbotView } from "@/features/citizen/chatbot";
+
+const CitizenAiAssistantPage = () => {
+  return (
+    <div className="h-full min-h-0">
+      <CitizenChatbotView />
+    </div>
+  );
+};
+
+export default CitizenAiAssistantPage;

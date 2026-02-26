@@ -22,7 +22,9 @@ export default function ChatMessageBubble({
           isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
         )}
       >
-        <div className="whitespace-pre-line">{message.content}</div>
+        <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+          {message.content}
+        </div>
 
         {!isUser && resolvedStatus === "clarification" && (
           <div className="mt-2 rounded-md border border-sky-300/60 bg-sky-50 px-2 py-1 text-[11px] text-sky-900">

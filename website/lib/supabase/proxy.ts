@@ -103,22 +103,20 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.endsWith('/update-password') ||
     request.nextUrl.pathname.endsWith('/confirm')
 
-  // Skip auth check for citizen pages in mock mode
-  // ORIGINAL CODE (to revert, remove the `&& !isMockBypassForCitizen` condition below):
-  // if (
-  //   !userId && 
-  //   !isPublicAuthRoute
-  // ) {
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = `${pathRole === 'citizen' ? '' : '/' + pathRole}/sign-in`
-  //   return NextResponse.redirect(url)
-  // }
-  
+  const isCitizenProtectedRoute =
+    pathRole === 'citizen' &&
+    (pathname === '/account' || pathname.startsWith('/account/'))
+
+  const requiresAuth = pathRole !== 'citizen' || isCitizenProtectedRoute
+  const isCitizenPublicRoute =
+    pathRole === 'citizen' && !isCitizenProtectedRoute && !isPublicAuthRoute
+
   const isMockBypassForCitizen = isMockModeEnabled() && pathRole === 'citizen'
-  
+
   if (
-    !userId && 
+    !userId &&
     !isPublicAuthRoute &&
+    requiresAuth &&
     !isMockBypassForCitizen
   ) {
     const url = request.nextUrl.clone()
@@ -136,7 +134,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // signed in user accessing different role
-  if(userId && userRole && pathRole !== userRole) {
+  if(userId && userRole && pathRole !== userRole && !isCitizenPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = `${userRole === 'citizen' ? '' : '/' + userRole}/unauthorized`
     return NextResponse.redirect(url)

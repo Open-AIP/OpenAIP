@@ -1,2 +1,1 @@
-export { default as LandingContentView } from "./views/LandingContentView";
-
+export { default as LandingContentView } from "./views/landing-content-view";

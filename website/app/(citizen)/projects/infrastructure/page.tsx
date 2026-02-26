@@ -1,9 +1,17 @@
-import React from 'react'
+import { CitizenInfrastructureProjectsView } from "@/features/citizen/projects";
+import { getCitizenAipRepo } from "@/lib/repos/citizen-aips";
+import { projectService } from "@/lib/repos/projects/queries";
 
-const CitizenInfrastructureProjects = () => {
+export default async function CitizenInfrastructureProjectsPage() {
+  const projects = await projectService.getInfrastructureProjects();
+  const lguLabel = await getCitizenAipRepo().getDefaultLguLabel();
+  const lguOptions = ["All LGUs", lguLabel];
+
   return (
-    <div>CitizenInfrastructureProjects</div>
-  )
+    <CitizenInfrastructureProjectsView
+      projects={projects}
+      lguLabel={lguLabel}
+      lguOptions={lguOptions}
+    />
+  );
 }
-
-export default CitizenInfrastructureProjects

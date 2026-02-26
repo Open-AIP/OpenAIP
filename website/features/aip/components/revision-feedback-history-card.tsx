@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { AipRevisionFeedbackCycle } from "@/lib/repos/aip/repo";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,10 @@ export function RevisionFeedbackHistoryCard({
   emptyStateLabel,
   emptyRepliesLabel,
 }: RevisionFeedbackHistoryCardProps) {
-  const [page, setPage] = useState(1);
+  const [paginationState, setPaginationState] = useState<{ page: number; signature: string }>(() => ({
+    page: 1,
+    signature: "",
+  }));
   const cycleSignature = useMemo(
     () =>
       cycles
@@ -58,15 +61,8 @@ export function RevisionFeedbackHistoryCard({
     [cycles]
   );
   const totalPages = Math.max(1, Math.ceil(cycles.length / CYCLES_PER_PAGE));
-
-  useEffect(() => {
-    setPage(1);
-  }, [cycleSignature]);
-
-  useEffect(() => {
-    setPage((current) => Math.max(1, Math.min(current, totalPages)));
-  }, [totalPages]);
-
+  const page =
+    paginationState.signature === cycleSignature ? paginationState.page : 1;
   const currentPage = Math.max(1, Math.min(page, totalPages));
   const pageStart = (currentPage - 1) * CYCLES_PER_PAGE;
   const visibleCycles = cycles.slice(pageStart, pageStart + CYCLES_PER_PAGE);
@@ -144,7 +140,12 @@ export function RevisionFeedbackHistoryCard({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              onClick={() =>
+                setPaginationState({
+                  page: Math.max(1, currentPage - 1),
+                  signature: cycleSignature,
+                })
+              }
               disabled={currentPage <= 1}
             >
               Previous
@@ -153,7 +154,12 @@ export function RevisionFeedbackHistoryCard({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              onClick={() =>
+                setPaginationState({
+                  page: Math.min(totalPages, currentPage + 1),
+                  signature: cycleSignature,
+                })
+              }
               disabled={currentPage >= totalPages}
             >
               Next

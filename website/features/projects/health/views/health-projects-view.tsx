@@ -11,6 +11,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,8 +23,11 @@ import {
 } from "@/components/ui/select";
 import HealthProjectCard from "../components/health-project-card";
 import type { HealthProject } from "@/features/projects/types";
-import { getProjectYears } from "@/features/projects/utils";
 import { Search } from "lucide-react";
+import {
+  filterProjectsByYearAndQuery,
+  getProjectYearsDescending,
+} from "@/lib/selectors/projects/project-list";
 
 /**
  * HealthProjectsView Component
@@ -45,24 +50,15 @@ export default function HealthProjectsView({
   projects: HealthProject[];
   scope?: "city" | "barangay";
 }) {
-  const years = useMemo(() => getProjectYears(projects), [projects]);
+  const years = useMemo(() => getProjectYearsDescending(projects), [projects]);
 
   const [year, setYear] = useState<string>(String(years[0] ?? "all"));
   const [query, setQuery] = useState<string>("");
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-
-    return projects.filter((p) => {
-      const yearOk = year === "all" ? true : p.year === Number(year);
-      const qOk =
-        !q ||
-        p.title.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.implementingOffice?.toLowerCase().includes(q);
-      return yearOk && qOk;
-    });
-  }, [projects, year, query]);
+  const filtered = useMemo(
+    () => filterProjectsByYearAndQuery(projects, { yearFilter: year, query }),
+    [projects, year, query]
+  );
 
   return (
     <div className="space-y-6">
@@ -119,7 +115,15 @@ export default function HealthProjectsView({
       {/* List */}
       <div className="space-y-5">
         {filtered.map((p) => (
-          <HealthProjectCard key={p.id} project={p} scope={scope} />
+          <HealthProjectCard
+            key={p.id}
+            project={p}
+            actionSlot={
+              <Button className="bg-[#022437] hover:bg-[#022437]/90" asChild>
+                <Link href={`/${scope}/projects/health/${p.id}`}>View Project</Link>
+              </Button>
+            }
+          />
         ))}
       </div>
     </div>

@@ -51,8 +51,9 @@ export type SectorDistributionItemVM = {
 };
 
 export type SectorDistributionVM = {
+  total: number;
+  unitLabel?: string;
   sectors: SectorDistributionItemVM[];
-  totalAmount: number;
 };
 
 export type ProjectCardVM = {
@@ -61,43 +62,57 @@ export type ProjectCardVM = {
   subtitle: string;
   tagLabel: string;
   budget: number;
-  meta: string[];
+  budgetLabel?: string;
+  imageSrc: string;
+  meta?: string[];
 };
 
 export type ProjectHighlightVM = {
-  categoryKey: string;
   heading: string;
   description: string;
-  totalBudget: number;
+  primaryKpiLabel: string;
+  primaryKpiValue: number;
   secondaryKpiLabel: string;
   secondaryKpiValue: number;
   projects: ProjectCardVM[];
+  categoryKey?: string;
+  totalBudget?: number;
 };
 
-export type FeedbackTrendPointVM = {
+export type FeedbackSeriesVM = {
+  key: "2020" | "2021" | string;
   label: string;
-  valueA: number;
-  valueB?: number;
+  points: number[];
 };
 
 export type FeedbackSnapshotVM = {
-  trendSeries: FeedbackTrendPointVM[];
+  title?: string;
+  subtitle?: string;
+  months: string[];
+  series: FeedbackSeriesVM[];
   responseRate: number;
   avgResponseTimeDays: number;
 };
 
 export type ChatPreviewVM = {
+  pillLabel: string;
+  title: string;
+  subtitle: string;
   assistantName: string;
-  sampleQuestion: string;
-  sampleAnswerLines: string[];
+  assistantStatus: string;
+  userPrompt: string;
+  assistantIntro: string;
+  assistantBullets: string[];
   suggestedPrompts: string[];
+  ctaLabel: string;
+  ctaHref?: string;
 };
 
-export type LandingFinalCtaVM = {
+export type FinalCtaVM = {
   title: string;
   subtitle: string;
   ctaLabel: string;
-  ctaHrefOrAction: LandingCtaTarget;
+  ctaHref?: string;
 };
 
 export type LandingContentVM = {
@@ -109,5 +124,5 @@ export type LandingContentVM = {
   infraHighlights: ProjectHighlightVM;
   feedback: FeedbackSnapshotVM;
   chatPreview: ChatPreviewVM;
-  finalCta: LandingFinalCtaVM;
+  finalCta: FinalCtaVM;
 };

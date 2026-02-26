@@ -1,12 +1,7 @@
-import Placeholder from "@/components/layout/placeholder";
+import { redirect } from "next/navigation";
 
-const CitizenChatbot = () => {
-  return (
-    <Placeholder
-      title="Chatbot (Coming Soon)"
-      description="The production chatbot rollout is currently limited to barangay officials."
-    />
-  );
+const CitizenChatbotPage = () => {
+  redirect("/ai-assistant");
 };
 
-export default CitizenChatbot;
+export default CitizenChatbotPage;

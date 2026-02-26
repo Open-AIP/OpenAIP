@@ -1,6 +1,6 @@
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import LandingContentView from "@/features/citizen/landing-content/views/LandingContentView";
+import LandingContentView from "@/features/citizen/landing-content/views/landing-content-view";
 import { createMockLandingContentRepo } from "@/lib/repos/landing-content/repo.mock";
 
 function assert(condition: boolean, message: string) {
@@ -34,10 +34,14 @@ export async function runLandingContentViewSmokeTests() {
     "LGU Budget Overview",
     "How Funds Are Distributed",
     "Health Projects",
+    "Total Healthcare Budget",
+    "Total Beneficiaries",
+    "View Project",
     "Infrastructure Development",
+    "Total Infrastructure Budget",
+    "Total Projects",
     "Your Voice Matters.",
     "Ask Questions, Get Answers",
     "Governance Made Visible.",
   ]);
 }
-

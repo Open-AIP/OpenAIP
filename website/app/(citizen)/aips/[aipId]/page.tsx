@@ -1,5 +1,5 @@
-import AipDetailsHeader from '@/features/citizen/aips/components/AipDetailsHeader';
-import AipDetailsTabs from '@/features/citizen/aips/components/AipDetailsTabs';
+import AipDetailsHeader from '@/features/citizen/aips/components/aip-details-header';
+import AipDetailsTabs from '@/features/citizen/aips/components/aip-details-tabs';
 import { DEFAULT_AIP_ID, getCitizenAipDetails } from '@/features/citizen/aips/data/aips.data';
 
 const CitizenAipDetailsPage = async ({ params }: { params: Promise<{ aipId: string }> }) => {

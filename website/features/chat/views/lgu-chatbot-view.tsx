@@ -31,8 +31,8 @@ export default function LguChatbotView() {
   }, [activeSessionId, bubbles.length]);
 
   return (
-    <div className="space-y-6 text-[13.5px]">
-      <div className="space-y-2">
+    <div className="flex h-full min-h-0 flex-col gap-6 text-[13.5px]">
+      <div className="space-y-2 shrink-0">
         <h1 className="text-[28px] font-semibold">Chatbot</h1>
         <p className="text-muted-foreground text-[14px]">
           Ask questions and get guided assistance related to the Annual Investment Program,
@@ -40,7 +40,7 @@ export default function LguChatbotView() {
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <ChatSessionsPanel
           sessions={sessionListItems}
           query={query}

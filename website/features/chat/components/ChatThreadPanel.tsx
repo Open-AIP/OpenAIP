@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import ChatAssistantLoadingState from "./ChatAssistantLoadingState";
 import ChatMessageBubble from "./ChatMessageBubble";
 import type { ChatMessageBubble as ChatMessageBubbleType } from "../types/chat.types";
 
@@ -26,15 +27,17 @@ export default function ChatThreadPanel({
 }) {
   return (
     <div className="flex h-full flex-col rounded-2xl border bg-card shadow-sm">
-      <div className="border-b px-6 py-4 text-base font-semibold">{title}</div>
+      <div className="shrink-0 border-b px-6 py-4 text-base font-semibold">{title}</div>
 
-      <div className="max-h-140 flex-1 overflow-y-auto px-6 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="space-y-4">
           {messages.map((message) => (
             <ChatMessageBubble key={message.id} message={message} />
           ))}
 
-          {!messages.length && (
+          {isSending ? <ChatAssistantLoadingState /> : null}
+
+          {!messages.length && !isSending && (
             <div className="text-muted-foreground text-sm">Start a conversation.</div>
           )}
 
@@ -42,7 +45,7 @@ export default function ChatThreadPanel({
         </div>
       </div>
 
-      <div className="border-t px-6 py-4">
+      <div className="shrink-0 border-t px-6 py-4">
         <div className="flex items-end gap-3">
           <Textarea
             value={messageInput}
@@ -54,7 +57,7 @@ export default function ChatThreadPanel({
               }
             }}
             placeholder="Type a message..."
-            className="min-h-11 max-h-32 resize-none overflow-y-auto text-[13.5px]"
+            className="min-h-11 max-h-32 resize-none overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[13.5px]"
           />
           <Button
             className="h-10 gap-2 rounded-lg px-4 text-xs"

@@ -1,0 +1,9 @@
+export { default as HeroSection } from "./hero-section";
+export { default as ManifestoSection } from "./manifesto-section";
+export { default as LguBudgetOverviewSection } from "./lgu-budget-overview-section";
+export { default as FundsDistributionSection } from "./funds-distribution-section";
+export { default as HealthProjectsSection } from "./health-projects-section";
+export { default as InfrastructureProjectsSection } from "./infrastructure-projects-section";
+export { default as VoiceMattersSection } from "./voice-matters-section";
+export { default as AiAssistantPreviewSection } from "./ai-assistant-preview-section";
+export { default as FinalCtaSection } from "./final-cta-section";

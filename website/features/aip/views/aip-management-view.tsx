@@ -61,8 +61,35 @@ export default function AipManagementView({
   scope = "barangay"
 }: Props) {
   const router = useRouter();
-  const [recordsState, setRecordsState] = useState<AipHeader[]>(records);
-  const activeRecords = recordsState;
+  const recordsSignature = useMemo(
+    () => records.map((record) => record.id).join("|"),
+    [records]
+  );
+  const [processingState, setProcessingState] = useState<{
+    signature: string;
+    byAipId: Record<string, AipHeader["processing"] | undefined>;
+  }>({
+    signature: "",
+    byAipId: {},
+  });
+  const processingByAipId = useMemo(
+    () =>
+      processingState.signature === recordsSignature ? processingState.byAipId : {},
+    [processingState, recordsSignature]
+  );
+  const activeRecords = useMemo(
+    () =>
+      records.map((record) => {
+        if (Object.prototype.hasOwnProperty.call(processingByAipId, record.id)) {
+          return {
+            ...record,
+            processing: processingByAipId[record.id],
+          };
+        }
+        return record;
+      }),
+    [processingByAipId, records]
+  );
 
   const years = useMemo(() => getAipYears(activeRecords), [activeRecords]);
 
@@ -70,31 +97,29 @@ export default function AipManagementView({
   const [openUpload, setOpenUpload] = useState(false);
   const mockEnabled = isMockEnabled();
   const refreshedTerminalRunIdsRef = useRef<Set<string>>(new Set());
-  const trackedAipIds = useMemo(
-    () => new Set(activeRecords.map((record) => record.id)),
-    [activeRecords]
-  );
-
   useEffect(() => {
-    setRecordsState(records);
     refreshedTerminalRunIdsRef.current.clear();
-  }, [records]);
+  }, [recordsSignature]);
+  const trackedAipIds = useMemo(
+    () => new Set(records.map((record) => record.id)),
+    [records]
+  );
 
   const handleRunEvent = useCallback(
     ({ run }: ExtractionRunRealtimeEvent) => {
       if (!trackedAipIds.has(run.aip_id)) return;
 
-      setRecordsState((previous) => {
-        let changed = false;
-        const next = previous.map((record) => {
-          if (record.id !== run.aip_id) return record;
-          changed = true;
-          return {
-            ...record,
-            processing: mapRunToAipCardProcessing(run),
-          };
-        });
-        return changed ? next : previous;
+      setProcessingState((current) => {
+        const baseMap =
+          current.signature === recordsSignature ? current.byAipId : {};
+
+        return {
+          signature: recordsSignature,
+          byAipId: {
+            ...baseMap,
+            [run.aip_id]: mapRunToAipCardProcessing(run),
+          },
+        };
       });
 
       if (
@@ -105,7 +130,7 @@ export default function AipManagementView({
         router.refresh();
       }
     },
-    [router, trackedAipIds]
+    [recordsSignature, router, trackedAipIds]
   );
 
   useExtractionRunsRealtime({

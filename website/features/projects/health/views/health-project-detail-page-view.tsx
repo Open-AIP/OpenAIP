@@ -53,9 +53,11 @@ export default function HealthProjectDetailPageView({
   const tab = searchParams.get("tab");
   const threadId = searchParams.get("thread");
   const activeTab = tab === "comments" ? "comments" : "updates";
+  const projectsListHref =
+    scope === "citizen" ? "/projects/health" : `/${scope}/projects/health`;
 
   const breadcrumb = [
-    { label: "Health Project", href: `/${scope}/projects/health` },
+    { label: "Health Project", href: projectsListHref },
     { label: "Detail & Updates", href: "#" },
   ];
 
@@ -135,7 +137,10 @@ export default function HealthProjectDetailPageView({
       </div>
 
       {activeTab === "updates" ? (
-        <ProjectUpdatesSection initialUpdates={initialUpdates} />
+        <ProjectUpdatesSection
+          initialUpdates={initialUpdates}
+          allowPosting={scope !== "citizen"}
+        />
       ) : (
         <CommentThreadsSplitView
           scope={scope}

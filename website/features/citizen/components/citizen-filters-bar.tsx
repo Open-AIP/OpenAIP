@@ -1,0 +1,97 @@
+'use client';
+
+import { Search } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type CitizenFiltersBarProps = {
+  yearOptions: string[];
+  yearValue: string;
+  onYearChange: (value: string) => void;
+  lguOptions: string[];
+  lguValue: string;
+  onLguChange: (value: string) => void;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  yearLabel?: string;
+  lguLabel?: string;
+  searchLabel?: string;
+  searchPlaceholder?: string;
+};
+
+export default function CitizenFiltersBar({
+  yearOptions,
+  yearValue,
+  onYearChange,
+  lguOptions,
+  lguValue,
+  onLguChange,
+  searchValue,
+  onSearchChange,
+  yearLabel = "Fiscal Year",
+  lguLabel = "LGU",
+  searchLabel = "Search",
+  searchPlaceholder = "Search...",
+}: CitizenFiltersBarProps) {
+  return (
+    <Card className="border-slate-200">
+      <CardContent className="space-y-4 p-4 md:p-6">
+        <h3 className="text-sm font-medium text-slate-700">Filters</h3>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">{yearLabel}</label>
+            <Select value={yearValue} onValueChange={onYearChange}>
+              <SelectTrigger className="h-10 bg-white">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option === "all" ? "All Years" : option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">{lguLabel}</label>
+            <Select value={lguValue} onValueChange={onLguChange}>
+              <SelectTrigger className="h-10 bg-white">
+                <SelectValue placeholder="Select LGU" />
+              </SelectTrigger>
+              <SelectContent>
+                {lguOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">{searchLabel}</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={searchValue}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="h-10 bg-white pl-9"
+              />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

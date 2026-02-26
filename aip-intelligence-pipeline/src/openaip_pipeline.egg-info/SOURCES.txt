@@ -21,6 +21,7 @@ src/openaip_pipeline/api/routes/runs.py
 src/openaip_pipeline/cli/__init__.py
 src/openaip_pipeline/cli/main.py
 src/openaip_pipeline/core/__init__.py
+src/openaip_pipeline/core/artifact_contract.py
 src/openaip_pipeline/core/clock.py
 src/openaip_pipeline/core/errors.py
 src/openaip_pipeline/core/logging.py
@@ -53,6 +54,8 @@ src/openaip_pipeline/services/categorization/categorize.py
 src/openaip_pipeline/services/extraction/__init__.py
 src/openaip_pipeline/services/extraction/barangay.py
 src/openaip_pipeline/services/extraction/city.py
+src/openaip_pipeline/services/extraction/document_metadata.py
+src/openaip_pipeline/services/extraction/signatory_parser.py
 src/openaip_pipeline/services/rag/__init__.py
 src/openaip_pipeline/services/rag/rag.py
 src/openaip_pipeline/services/rag/retriever.py
@@ -66,7 +69,11 @@ src/openaip_pipeline/worker/__init__.py
 src/openaip_pipeline/worker/processor.py
 src/openaip_pipeline/worker/progress.py
 src/openaip_pipeline/worker/runner.py
+tests/test_artifact_contract_v11.py
+tests/test_categorization_prompt_wiring.py
+tests/test_document_metadata_resolver.py
 tests/test_resource_loading.py
 tests/test_rules_engine.py
+tests/test_signatory_parser.py
 tests/test_smoke_imports.py
 tests/test_worker_processor_with_mocks.py

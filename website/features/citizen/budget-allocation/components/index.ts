@@ -1,7 +1,7 @@
-export { default as HeroBannerSection } from './HeroBannerSection';
-export { default as ExplainerSection } from './ExplainerSection';
-export { default as FiltersSection } from './FiltersSection';
-export { default as CategoryOverviewSection } from './CategoryOverviewSection';
-export { default as AllocationAndContextSection } from './AllocationAndContextSection';
-export { default as AipDetailsSection } from './AipDetailsSection';
-export { default as ChangesFromLastYearSection } from './ChangesFromLastYearSection';
+export { default as ExplainerSection } from './explainer-section';
+export { default as FiltersSection } from './filters-section';
+export { default as AipDetailsSection } from './aip-details-section';
+export { default as OverviewHeader } from './overview-header';
+export { default as DonutCard } from './donut-card';
+export { default as LineTrendsCard } from './line-trends-card';
+export { default as ChartsGrid } from './charts-grid';

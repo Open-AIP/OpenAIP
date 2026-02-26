@@ -1,4 +1,5 @@
 aip-intelligence-pipeline/.venv/
+aip-intelligence-pipeline/.venv*/
 aip-intelligence-pipeline/__pycache__/
 aip-intelligence-pipeline/outputs/
 aip-intelligence-pipeline/.env
@@ -13,3 +14,5 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+aip-intelligence-pipeline/.env.local
+

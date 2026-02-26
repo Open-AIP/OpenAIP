@@ -41,15 +41,15 @@ export default function CitizenFiltersBar({
   searchPlaceholder = "Search...",
 }: CitizenFiltersBarProps) {
   return (
-    <Card className="border-slate-200">
-      <CardContent className="space-y-4 p-4 md:p-6">
+    <Card className="w-full border-slate-200">
+      <CardContent className="space-y-4 px-4 py-3 md:px-6 md:py-4">
         <h3 className="text-sm font-medium text-slate-700">Filters</h3>
 
         <div className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">{yearLabel}</label>
             <Select value={yearValue} onValueChange={onYearChange}>
-              <SelectTrigger className="h-10 bg-white">
+              <SelectTrigger className="h-10 w-full bg-white">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
@@ -65,7 +65,7 @@ export default function CitizenFiltersBar({
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">{lguLabel}</label>
             <Select value={lguValue} onValueChange={onLguChange}>
-              <SelectTrigger className="h-10 bg-white">
+              <SelectTrigger className="h-10 w-full bg-white">
                 <SelectValue placeholder="Select LGU" />
               </SelectTrigger>
               <SelectContent>
@@ -86,7 +86,7 @@ export default function CitizenFiltersBar({
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="h-10 bg-white pl-9"
+                className="h-10 w-full bg-white pl-9"
               />
             </div>
           </div>

@@ -19,11 +19,11 @@ export default function CitizenExplainerCard({
 }: CitizenExplainerCardProps) {
   return (
     <Card className={cn("border border-slate-200 bg-white shadow-sm", className)}>
-      <CardContent className="space-y-3 p-6 md:p-7">
+      <CardContent className="space-y-2 p-6">
         <div className="flex items-start gap-3">
           {icon ? <div className="mt-0.5">{icon}</div> : null}
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-[#022437]">{title}</h2>
+            <h2 className="text-lg font-bold text-[#022437]">{title}</h2>
             {children ?? (
               <p className="text-sm leading-relaxed text-slate-600 md:text-[15px]">
                 {body}

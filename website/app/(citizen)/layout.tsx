@@ -21,7 +21,7 @@ const CitizenLayout = ({ children }: { children: ReactNode }) => {
           "mx-auto w-full flex-1 min-h-0",
           isLandingDashboard
             ? "m-0 max-w-none p-0"
-            : "flex flex-col max-w-screen-2xl px-4 py-6 md:px-8 md:py-8"
+            : "flex flex-col max-w-6xl px-4 py-6 md:px-8 md:py-8"
         )}
       >
         {children}

@@ -40,6 +40,12 @@ const SELECT_COLUMNS = [
   "created_at",
 ].join(",");
 
+type ActivityLogFilters = {
+  actorId?: string;
+  actorRole?: string;
+  barangayId?: string;
+};
+
 function toScope(row: ActivityLogSelectRow): ActivityScopeSnapshot {
   if (row.barangay_id) {
     return {
@@ -121,15 +127,25 @@ function mapActivityRow(
   };
 }
 
-async function listActivityRows(actorId?: string): Promise<ActivityLogRow[]> {
+async function listActivityRows(
+  filters: ActivityLogFilters = {}
+): Promise<ActivityLogRow[]> {
   const admin = supabaseAdmin();
   let query = admin
     .from("activity_log")
     .select(SELECT_COLUMNS)
     .order("created_at", { ascending: false });
 
-  if (actorId) {
-    query = query.eq("actor_id", actorId);
+  if (filters.actorId) {
+    query = query.eq("actor_id", filters.actorId);
+  }
+
+  if (filters.actorRole) {
+    query = query.eq("actor_role", filters.actorRole);
+  }
+
+  if (filters.barangayId) {
+    query = query.eq("barangay_id", filters.barangayId);
   }
 
   const { data, error } = await query;
@@ -171,7 +187,15 @@ async function listActivityRows(actorId?: string): Promise<ActivityLogRow[]> {
 export function createSupabaseAuditRepo(): AuditRepo {
   return {
     async listMyActivity(actorId: string): Promise<ActivityLogRow[]> {
-      return listActivityRows(actorId);
+      return listActivityRows({ actorId });
+    },
+    async listBarangayOfficialActivity(
+      barangayId: string
+    ): Promise<ActivityLogRow[]> {
+      return listActivityRows({
+        actorRole: "barangay_official",
+        barangayId,
+      });
     },
     async listAllActivity(): Promise<ActivityLogRow[]> {
       return listActivityRows();

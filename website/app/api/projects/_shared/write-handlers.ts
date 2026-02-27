@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { withWorkflowActivityMetadata } from "@/lib/audit/activity-log";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { normalizeDateForStorage } from "@/features/projects/shared/add-information/date-normalization";
@@ -562,6 +563,47 @@ export async function handleAddInformationRequest(input: {
       throw error;
     }
 
+    try {
+      const uploader = await loadUploaderSnapshot(client, actor.userId);
+      const detailsLabel =
+        kind === "health" ? "health project information" : "infrastructure project information";
+
+      const { error: logError } = await client.rpc("log_activity", {
+        p_action: "project_info_updated",
+        p_entity_table: "projects",
+        p_entity_id: project.id,
+        p_region_id: null,
+        p_province_id: null,
+        p_city_id: project.cityId,
+        p_municipality_id: null,
+        p_barangay_id: project.barangayId,
+        p_metadata: withWorkflowActivityMetadata(
+          {
+            details: `Updated ${detailsLabel} for ${project.aipRefCode}.`,
+            project_kind: kind,
+            project_status: status,
+            implementing_office: implementingOffice,
+            uploader_name: uploader.name,
+            uploader_email: uploader.email,
+            uploader_position: uploader.role,
+          },
+          { hideCrudAction: "project_record_updated" }
+        ),
+      });
+
+      if (logError) {
+        console.error("[PROJECT_ADD_INFO] activity log failed", {
+          projectId: project.id,
+          error: logError.message,
+        });
+      }
+    } catch (error) {
+      console.error("[PROJECT_ADD_INFO] activity log write threw", {
+        projectId: project.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     return NextResponse.json(
       { message: "Project information saved successfully." },
       { status: 200 }
@@ -729,7 +771,7 @@ export async function handlePostUpdateRequest(input: {
 
     const uploader = await loadUploaderSnapshot(client, actor.userId);
     const updateType = photoUrls.length > 0 ? "photo" : "update";
-    const logMetadata = {
+    const logMetadata = withWorkflowActivityMetadata({
       update_title: title,
       update_caption: project.aipRefCode,
       update_body: description,
@@ -740,7 +782,7 @@ export async function handlePostUpdateRequest(input: {
       uploader_name: uploader.name,
       uploader_email: uploader.email,
       uploader_position: uploader.role,
-    };
+    });
 
     const { error: logError } = await client.rpc("log_activity", {
       p_action: "project_updated",

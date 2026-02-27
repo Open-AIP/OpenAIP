@@ -65,6 +65,9 @@ const {
   runFeedbackRouteTargetTests,
 } = require("@/tests/repo-smoke/feedback/feedback-route-targets.test");
 const {
+  runFeedbackCommentReplyAuditLogTests,
+} = require("@/tests/repo-smoke/feedback/comment-reply-activity-log.test");
+const {
   runProjectMapperTests,
 } = require("@/tests/repo-smoke/projects/projects.mappers.test");
 const {
@@ -76,6 +79,9 @@ const {
 const {
   runAuditServiceTests,
 } = require("@/tests/repo-smoke/audit/audit.queries.test");
+const {
+  runAuditCrudDedupeTests,
+} = require("@/tests/repo-smoke/audit/audit.dedupe.test");
 const {
   getAuditFeedForActor,
 } = require("@/lib/repos/audit/queries");
@@ -420,7 +426,7 @@ const tests = [
           {
             label: "AuditRepo(server)",
             repo: getAuditRepo(),
-            methods: ["listMyActivity", "listAllActivity"],
+            methods: ["listMyActivity", "listBarangayOfficialActivity", "listAllActivity"],
           },
           {
             label: "ChatRepo(server)",
@@ -539,6 +545,12 @@ const tests = [
     },
   },
   {
+    name: "feedback repo logs comment_replied for barangay official replies",
+    async run() {
+      await runFeedbackCommentReplyAuditLogTests();
+    },
+  },
+  {
     name: "project.mapper tests",
     async run() {
       await runProjectMapperTests();
@@ -560,6 +572,12 @@ const tests = [
     name: "auditService role gating",
     async run() {
       await runAuditServiceTests();
+    },
+  },
+  {
+    name: "auditService suppresses CRUD duplicates for barangay feed",
+    async run() {
+      await runAuditCrudDedupeTests();
     },
   },
   {

@@ -19,6 +19,10 @@ export type ActivityLogWriteInput = {
   metadata?: Json;
 };
 
+export type WorkflowActivityLogWriteInput = ActivityLogWriteInput & {
+  hideCrudAction?: string | null;
+};
+
 function asJsonObject(
   metadata: ActivityLogWriteInput["metadata"]
 ): Record<string, unknown> {
@@ -26,6 +30,27 @@ function asJsonObject(
     return {};
   }
   return metadata as Record<string, unknown>;
+}
+
+function normalizeNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function withWorkflowActivityMetadata(
+  metadata?: Json | null,
+  options?: { hideCrudAction?: string | null }
+): Json {
+  const merged = asJsonObject(metadata);
+  merged.source = "workflow";
+
+  const hideCrudAction = normalizeNonEmptyString(options?.hideCrudAction);
+  if (hideCrudAction) {
+    merged.hide_crud_action = hideCrudAction;
+  }
+
+  return merged as Json;
 }
 
 export async function writeActivityLog(
@@ -55,3 +80,13 @@ export async function writeActivityLog(
   return data;
 }
 
+export async function writeWorkflowActivityLog(
+  input: WorkflowActivityLogWriteInput
+): Promise<string> {
+  return writeActivityLog({
+    ...input,
+    metadata: withWorkflowActivityMetadata(input.metadata, {
+      hideCrudAction: input.hideCrudAction ?? null,
+    }),
+  });
+}

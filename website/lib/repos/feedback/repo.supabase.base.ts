@@ -1,4 +1,5 @@
 import type { FeedbackKind, RoleType } from "@/lib/contracts/databasev2";
+import { withWorkflowActivityMetadata } from "@/lib/audit/activity-log";
 import {
   CITIZEN_INITIATED_FEEDBACK_KINDS,
   isCitizenInitiatedFeedbackKind,
@@ -17,6 +18,7 @@ import type { CommentMessage, CommentThread } from "./types";
 
 type SupabaseClientLike = {
   from: (table: string) => any;
+  rpc?: (...args: any[]) => any;
   auth?: {
     getUser: () => Promise<{
       data: { user: { id: string } | null };
@@ -221,6 +223,69 @@ async function listProfilesByIds(
   return map;
 }
 
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function maybeLogBarangayOfficialReplyActivity(
+  client: SupabaseClientLike,
+  inserted: FeedbackSelectRow
+): Promise<void> {
+  if (!inserted.parent_feedback_id || !inserted.author_id) return;
+  if (typeof client.rpc !== "function") return;
+
+  try {
+    const profileById = await listProfilesByIds(client, [inserted.author_id]);
+    const profile = profileById.get(inserted.author_id);
+    if (!profile || profile.role !== "barangay_official") return;
+
+    const actorName = toNonEmptyString(profile.full_name);
+    const feedbackTargetLabel =
+      inserted.target_type === "project" ? "project feedback thread" : "AIP feedback thread";
+    const bodyPreview =
+      inserted.body.length > 140 ? `${inserted.body.slice(0, 140)}...` : inserted.body;
+
+    const { error } = await client.rpc("log_activity", {
+      p_action: "comment_replied",
+      p_entity_table: "feedback",
+      p_entity_id: inserted.id,
+      p_region_id: null,
+      p_province_id: null,
+      p_city_id: profile.city_id,
+      p_municipality_id: profile.municipality_id,
+      p_barangay_id: profile.barangay_id,
+      p_metadata: withWorkflowActivityMetadata(
+        {
+          actor_name: actorName,
+          actor_position: "Barangay Official",
+          details: `Replied to a ${feedbackTargetLabel}.`,
+          parent_feedback_id: inserted.parent_feedback_id,
+          feedback_kind: inserted.kind,
+          target_type: inserted.target_type,
+          target_aip_id: inserted.aip_id,
+          target_project_id: inserted.project_id,
+          reply_preview: bodyPreview,
+        },
+        { hideCrudAction: "feedback_created" }
+      ),
+    });
+
+    if (error) {
+      console.error("[FEEDBACK] failed to log barangay official reply activity", {
+        feedbackId: inserted.id,
+        error: error.message,
+      });
+    }
+  } catch (error) {
+    console.error("[FEEDBACK] unexpected comment_replied logging failure", {
+      feedbackId: inserted.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function getCurrentUserId(
   client: SupabaseClientLike
 ): Promise<string | null> {
@@ -349,7 +414,9 @@ async function insertFeedbackRow(
     throw new Error(error?.message ?? "Failed to create feedback.");
   }
 
-  return data as FeedbackSelectRow;
+  const inserted = data as FeedbackSelectRow;
+  await maybeLogBarangayOfficialReplyActivity(client, inserted);
+  return inserted;
 }
 
 async function resolveCommentRateLimit(client: SupabaseClientLike): Promise<{

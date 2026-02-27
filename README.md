@@ -316,9 +316,11 @@ Recommended workflow:
    - `website/docs/sql/2026-02-22_set_config_app_embed_call.sql`
    - `website/docs/sql/2026-02-24_chatbot_rag_global_scope.sql`
    - `website/docs/sql/2026-02-24_create_aip_totals.sql`
+   - `website/docs/sql/2026-02-26_add_information_published_rls_fix.sql`
    - `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql`
    - `website/docs/sql/2026-02-26_projects_updates_and_media.sql`
    - `website/docs/sql/2026-02-26_projects_status_proposed_rename.sql`
+   - `website/docs/sql/2026-02-27_barangay_audit_crud_workflow.sql`
    - Note: `2026-02-26_projects_status_proposed_rename.sql` renames existing `projects.status` values from `planning` to `proposed`.
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)

@@ -1,7 +1,9 @@
 "use server";
 
 import { getAppEnv, isMockEnabled } from "@/lib/config/appEnv";
+import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
+import { writeActivityLog, writeWorkflowActivityLog } from "@/lib/audit/activity-log";
 import { getAipProjectRepo, getAipRepo } from "@/lib/repos/aip/repo.server";
 import { getFeedbackRepo } from "@/lib/repos/feedback/repo.server";
 import {
@@ -73,6 +75,117 @@ const STORAGE_DELETE_FAILURE_MESSAGE =
   "Failed to delete one or more AIP files from storage. Draft was not deleted.";
 const DB_DELETE_AFTER_STORAGE_FAILURE_MESSAGE =
   "Storage files were deleted but draft row deletion failed. Please contact admin.";
+const AIP_ACTIVITY_ENTITY_TABLE = "aips";
+
+function toRoleLabel(role: ActorContext["role"] | null | undefined): string | null {
+  if (!role) return null;
+  if (role === "barangay_official") return "Barangay Official";
+  if (role === "city_official") return "City Official";
+  if (role === "municipal_official") return "Municipal Official";
+  if (role === "admin") return "Admin";
+  if (role === "citizen") return "Citizen";
+  return null;
+}
+
+function toScopeFromActor(
+  actor: ActorContext | null
+): { barangayId?: string | null; cityId?: string | null; municipalityId?: string | null } {
+  if (!actor?.scope.id) return {};
+  if (actor.scope.kind === "barangay") return { barangayId: actor.scope.id };
+  if (actor.scope.kind === "city") return { cityId: actor.scope.id };
+  if (actor.scope.kind === "municipality") return { municipalityId: actor.scope.id };
+  return {};
+}
+
+async function resolveActorName(actor: ActorContext | null): Promise<string | null> {
+  if (!actor?.userId || isMockEnabled()) return null;
+  try {
+    const client = await supabaseServer();
+    const { data, error } = await client
+      .from("profiles")
+      .select("full_name")
+      .eq("id", actor.userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    const fullName = data.full_name;
+    if (typeof fullName !== "string") return null;
+    const trimmed = fullName.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function logBarangayAipWorkflowEvent(input: {
+  actor: ActorContext | null;
+  aipId: string;
+  action: "submission_created" | "cancelled" | "draft_deleted";
+  details: string;
+  hideCrudAction?: "aip_updated" | "aip_deleted";
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  if (!input.actor || input.actor.role !== "barangay_official") return;
+
+  const actorName = await resolveActorName(input.actor);
+  const actorPosition = toRoleLabel(input.actor.role);
+
+  try {
+    await writeWorkflowActivityLog({
+      action: input.action,
+      entityTable: AIP_ACTIVITY_ENTITY_TABLE,
+      entityId: input.aipId,
+      scope: toScopeFromActor(input.actor),
+      hideCrudAction: input.hideCrudAction ?? null,
+      metadata: {
+        details: input.details,
+        actor_name: actorName,
+        actor_position: actorPosition,
+        ...(input.metadata ?? {}),
+      },
+    });
+  } catch (error) {
+    console.error("[AIP_WORKFLOW] failed to write workflow activity log", {
+      aipId: input.aipId,
+      action: input.action,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function logBarangayAipDeleteCrudEvent(input: {
+  actor: ActorContext | null;
+  aipId: string;
+  details: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  if (!input.actor || input.actor.role !== "barangay_official") return;
+
+  const actorName = await resolveActorName(input.actor);
+  const actorPosition = toRoleLabel(input.actor.role);
+
+  try {
+    await writeActivityLog({
+      action: "aip_deleted",
+      entityTable: AIP_ACTIVITY_ENTITY_TABLE,
+      entityId: input.aipId,
+      scope: toScopeFromActor(input.actor),
+      metadata: {
+        source: "crud",
+        details: input.details,
+        actor_name: actorName,
+        actor_position: actorPosition,
+        ...(input.metadata ?? {}),
+      },
+    });
+  } catch (error) {
+    console.error("[AIP_WORKFLOW] failed to write manual CRUD activity log", {
+      aipId: input.aipId,
+      action: "aip_deleted",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 async function assertBarangayActor(): Promise<ActorValidationResult> {
   const actor = await getActorContext();
@@ -578,6 +691,17 @@ export async function submitAipForReviewAction(input: {
 
     const aipRepo = getAipRepo({ defaultScope: "barangay" });
     await aipRepo.updateAipStatus(aip.id, "pending_review");
+    await logBarangayAipWorkflowEvent({
+      actor,
+      aipId: aip.id,
+      action: "submission_created",
+      hideCrudAction: "aip_updated",
+      details: "Submitted AIP draft for review.",
+      metadata: {
+        from_status: aip.status,
+        to_status: "pending_review",
+      },
+    });
 
     return success("AIP submitted for review.");
   } catch (error) {
@@ -675,7 +799,7 @@ export async function saveAipRevisionReplyAction(input: {
 export async function cancelAipSubmissionAction(input: {
   aipId: string;
 }): Promise<AipWorkflowActionResult> {
-  const { error: actorError } = await assertBarangayActor();
+  const { actor, error: actorError } = await assertBarangayActor();
   if (actorError) return actorError;
 
   try {
@@ -692,6 +816,17 @@ export async function cancelAipSubmissionAction(input: {
     const nextStatus = hasRevisionHistory ? "for_revision" : "draft";
     const aipRepo = getAipRepo({ defaultScope: "barangay" });
     await aipRepo.updateAipStatus(aip.id, nextStatus);
+    await logBarangayAipWorkflowEvent({
+      actor,
+      aipId: aip.id,
+      action: "cancelled",
+      hideCrudAction: "aip_updated",
+      details: "Cancelled AIP submission and returned it to editable status.",
+      metadata: {
+        from_status: "pending_review",
+        to_status: nextStatus,
+      },
+    });
     return success(
       hasRevisionHistory
         ? "AIP submission was canceled and moved back to For Revision."
@@ -740,6 +875,24 @@ export async function deleteAipDraftAction(input: {
     }
 
     await deleteAipRow(aip.id);
+    await logBarangayAipDeleteCrudEvent({
+      actor,
+      aipId: aip.id,
+      details: "Deleted an AIP draft record.",
+      metadata: {
+        prior_status: aip.status,
+      },
+    });
+    await logBarangayAipWorkflowEvent({
+      actor,
+      aipId: aip.id,
+      action: "draft_deleted",
+      hideCrudAction: "aip_deleted",
+      details: "Deleted an AIP draft from the barangay workspace.",
+      metadata: {
+        prior_status: aip.status,
+      },
+    });
     return success("Draft AIP deleted successfully.");
   } catch (error) {
     return failure(

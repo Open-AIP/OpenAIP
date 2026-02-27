@@ -19,6 +19,11 @@ export async function runAuditServiceTests() {
     role: "barangay_official",
     scope: { kind: "barangay", id: "brgy_mamadid" },
   };
+  const cityOfficial: ActorContext = {
+    userId: "user_002",
+    role: "city_official",
+    scope: { kind: "city", id: "city_001" },
+  };
   const citizen: ActorContext = {
     userId: "citizen_001",
     role: "citizen",
@@ -31,13 +36,37 @@ export async function runAuditServiceTests() {
     "Expected admin to receive all activity logs"
   );
 
-  const myFeed = await getAuditFeedForActor(barangayOfficial);
-  const expectedMine = ACTIVITY_LOG_FIXTURE.filter(
-    (row) => row.actorId === barangayOfficial.userId
+  const barangayFeed = await getAuditFeedForActor(barangayOfficial);
+  const expectedBarangay = ACTIVITY_LOG_FIXTURE.filter(
+    (row) =>
+      row.actorRole === "barangay_official" &&
+      row.scope?.scope_type === "barangay" &&
+      row.scope.barangay_id === "brgy_mamadid"
   );
   assert(
-    myFeed.length === expectedMine.length,
-    "Expected official to receive only own activity logs"
+    barangayFeed.length === expectedBarangay.length,
+    "Expected barangay official to receive same-barangay barangay-official activity logs"
+  );
+  assert(
+    barangayFeed.some((row) => row.actorId !== barangayOfficial.userId),
+    "Expected barangay feed to include co-official actions in the same barangay"
+  );
+  assert(
+    barangayFeed.every((row) => row.scope?.scope_type === "barangay"),
+    "Expected barangay feed to include only barangay-scoped activity rows"
+  );
+  assert(
+    barangayFeed.every((row) => row.scope?.barangay_id === "brgy_mamadid"),
+    "Expected barangay feed to exclude other barangays"
+  );
+
+  const cityFeed = await getAuditFeedForActor(cityOfficial);
+  const expectedCityOwn = ACTIVITY_LOG_FIXTURE.filter(
+    (row) => row.actorId === cityOfficial.userId
+  );
+  assert(
+    cityFeed.length === expectedCityOwn.length,
+    "Expected city official behavior to remain own-activity based"
   );
 
   const citizenFeed = await getAuditFeedForActor(citizen);

@@ -18,26 +18,30 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="h-screen w-68.75 shrink-0 sticky top-0 overflow-y-auto bg-sidebar text-sidebar-foreground flex flex-col">
+    <aside className="
+                      h-screen
+                      w-16 md:w-60 lg:w-64
+                      shrink-0
+                      sticky top-0
+                      overflow-y-auto
+                      bg-sidebar
+                      text-sidebar-foreground
+                      flex flex-col
+                    ">
       <div className="px-4 pt-4 pb-3">
         <div className="flex flex-col items-center gap-1">
           <Image
             src="/brand/logo3.svg"
             alt="OpenAIP Logo"
-            width={178}
-            height={177}
+            width={100}
+            height={100}
             className="h-20 w-20 object-contain"
           />
-          <div className="text-[32px] leading-none font-light tracking-tight">OpenAIP</div>
+          <div className="text-3xl font-semibold leading-none">OpenAIP</div>
         </div>
 
-        <div className="mt-5 rounded-[10px] border border-sidebar-border bg-sidebar-primary/45 p-1 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]">
-          <div
-            className="h-14 rounded-xl bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-[32px] leading-none font-normal"
-            style={{ fontFamily: "var(--font-arsenal-sc), serif" }}
-          >
-            Admin
-          </div>
+          <div className="mt-6 h-21 rounded-[9px] border-2 border-[#1B6272] bg-[#114B59] shadow-[0_4px_4px_rgba(0,0,0,0.25)] flex items-center justify-center px-4 text-2xl font-light text-center">
+          Admin
         </div>
       </div>
 
@@ -67,7 +71,7 @@ export default function AdminSidebar() {
       </nav>
 
       <div className="mt-auto px-4 pb-4 pt-2">
-        <div className="rounded-[10px] border border-sidebar-border bg-sidebar-primary/45 p-2">
+        <div className="p-2">
           <LogoutButton role="admin" baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
         </div>
       </div>

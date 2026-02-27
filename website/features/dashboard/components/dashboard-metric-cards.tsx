@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { DashboardAip } from "@/features/dashboard/types/dashboard-types";
+import { AlertCircle, Clock3, FileText, UserCheck, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -51,6 +52,33 @@ function KpiCard({
   );
 }
 
+function CityOperationalKpiCard({
+  label,
+  value,
+  meta,
+  icon,
+  iconClassName,
+}: {
+  label: string;
+  value: ReactNode;
+  meta: string;
+  icon: ReactNode;
+  iconClassName: string;
+}) {
+  return (
+    <Card className="rounded-2xl border border-border bg-card py-0 shadow-none">
+      <CardContent className="flex items-center justify-between p-5">
+        <div className="space-y-1.5">
+          <div className="text-sm leading-tight text-muted-foreground">{label}</div>
+          <div className="whitespace-nowrap tabular-nums text-4xl font-semibold leading-none text-foreground">{value}</div>
+          <div className="text-sm leading-tight text-muted-foreground">{meta}</div>
+        </div>
+        <div className={iconClassName}>{icon}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function KpiRow({
   selectedAip,
   totalProjects,
@@ -64,6 +92,7 @@ export function KpiRow({
   forRevisionCount,
   totalAips,
   oldestPendingDays,
+  scope,
 }: {
   selectedAip: DashboardAip;
   totalProjects: number;
@@ -77,7 +106,52 @@ export function KpiRow({
   forRevisionCount: number;
   totalAips: number;
   oldestPendingDays: number | null;
+  scope?: "city" | "barangay";
 }) {
+  const showCityOperationalKpis = scope === "city" && mode === "operational";
+
+  if (showCityOperationalKpis) {
+    return (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-5">
+        <CityOperationalKpiCard
+          label="Pending Review"
+          value={pendingReviewCount}
+          meta="As of today"
+          icon={<AlertCircle className="h-6 w-6" strokeWidth={2.2} />}
+          iconClassName="shrink-0 text-amber-600"
+        />
+        <CityOperationalKpiCard
+          label="Under Review"
+          value={underReviewCount}
+          meta="As of today"
+          icon={<Clock3 className="h-6 w-6" strokeWidth={2.2} />}
+          iconClassName="shrink-0 text-blue-600"
+        />
+        <CityOperationalKpiCard
+          label="For Revision"
+          value={forRevisionCount}
+          meta="As of today"
+          icon={<FileText className="h-6 w-6" strokeWidth={2.2} />}
+          iconClassName="shrink-0 text-orange-600"
+        />
+        <CityOperationalKpiCard
+          label="Available to Claim"
+          value={pendingReviewCount}
+          meta="Ready for review"
+          icon={<UserCheck className="h-6 w-6" strokeWidth={2.2} />}
+          iconClassName="shrink-0 text-teal-700"
+        />
+        <CityOperationalKpiCard
+          label="Oldest Pending"
+          value={oldestPendingDays ?? 0}
+          meta="days in queue"
+          icon={<Zap className="h-6 w-6" strokeWidth={2.2} />}
+          iconClassName="shrink-0 text-cyan-800"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       {mode === "summary" ? (

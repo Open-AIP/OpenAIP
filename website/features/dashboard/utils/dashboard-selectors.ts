@@ -25,18 +25,26 @@ export function selectBudgetBySector(
   const totals = new Map<string, number>();
 
   for (const project of projects) {
-    const key = project.sectorCode || "unknown";
+    const key = project.category;
     const amount = typeof project.total === "number" ? project.total : 0;
     totals.set(key, (totals.get(key) ?? 0) + amount);
   }
 
   const grandTotal = Array.from(totals.values()).reduce((sum, value) => sum + value, 0);
+  const labelByCategory = new Map<ProjectCategory, string>([
+    ["health", "Health"],
+    ["infrastructure", "Infrastructure"],
+    ["other", "Governance and Public Service"],
+  ]);
   const labelByCode = new Map(sectors.map((sector) => [sector.code, sector.label]));
 
   return Array.from(totals.entries())
     .map(([sectorCode, amount]) => ({
       sectorCode,
-      label: labelByCode.get(sectorCode) ?? sectorCode.toUpperCase(),
+      label:
+        labelByCategory.get(sectorCode as ProjectCategory) ??
+        labelByCode.get(sectorCode) ??
+        sectorCode.toUpperCase(),
       amount,
       percentage: grandTotal > 0 ? (amount / grandTotal) * 100 : 0,
     }))

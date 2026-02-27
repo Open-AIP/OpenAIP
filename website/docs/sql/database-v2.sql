@@ -2193,11 +2193,66 @@ as $$
   );
 $$;
 
+create or replace function public.can_write_published_aip(p_aip_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select exists (
+    select 1
+    from public.aips a
+    where a.id = p_aip_id
+      and a.status = 'published'
+      and public.is_active_auth()
+      and (
+        public.is_admin()
+        or (
+          public.is_barangay_official()
+          and a.barangay_id is not null
+          and a.barangay_id = public.current_barangay_id()
+        )
+        or (
+          public.is_city_official()
+          and a.city_id is not null
+          and a.city_id = public.current_city_id()
+        )
+      )
+  );
+$$;
+
+create or replace function public.can_write_published_project(p_project_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select exists (
+    select 1
+    from public.projects pr
+    where pr.id = p_project_id
+      and public.can_write_published_aip(pr.aip_id)
+  );
+$$;
+
+create or replace function public.can_write_published_project_update(p_project_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select public.can_write_published_project(p_project_id);
+$$;
+
 -- -----------------------------------------------------------------------------
 -- 6B.6) RLS
 -- - Public can read projects for non-draft AIPs (can_read_aip)
 -- - Drafts only readable to owner/admin via can_read_aip (already)
--- - Writes only allowed when can_edit_aip is true (draft/for_revision + owner/admin)
+-- - Writes allowed in edit window (can_edit_aip) or published add-info window
+--   for in-scope barangay/city officials and admin.
 -- -----------------------------------------------------------------------------
 alter table public.projects enable row level security;
 alter table public.health_project_details enable row level security;
@@ -2230,11 +2285,17 @@ for update
 to authenticated
 using (
   public.is_active_auth()
-  and public.can_edit_aip(aip_id)
+  and (
+    public.can_edit_aip(aip_id)
+    or public.can_write_published_aip(aip_id)
+  )
 )
 with check (
   public.is_active_auth()
-  and public.can_edit_aip(aip_id)
+  and (
+    public.can_edit_aip(aip_id)
+    or public.can_write_published_aip(aip_id)
+  )
 );
 
 -- Projects DELETE (allowed only in edit window; tighten to admin-only if preferred)
@@ -2267,7 +2328,10 @@ for insert
 to authenticated
 with check (
   public.is_active_auth()
-  and public.can_edit_project(project_id)
+  and (
+    public.can_edit_project(project_id)
+    or public.can_write_published_project(project_id)
+  )
   and (updated_by is null or updated_by = public.current_user_id())
 );
 
@@ -2276,8 +2340,20 @@ create policy health_details_update_policy
 on public.health_project_details
 for update
 to authenticated
-using (public.is_active_auth() and public.can_edit_project(project_id))
-with check (public.is_active_auth() and public.can_edit_project(project_id));
+using (
+  public.is_active_auth()
+  and (
+    public.can_edit_project(project_id)
+    or public.can_write_published_project(project_id)
+  )
+)
+with check (
+  public.is_active_auth()
+  and (
+    public.can_edit_project(project_id)
+    or public.can_write_published_project(project_id)
+  )
+);
 
 drop policy if exists health_details_delete_policy on public.health_project_details;
 create policy health_details_delete_policy
@@ -2305,7 +2381,10 @@ for insert
 to authenticated
 with check (
   public.is_active_auth()
-  and public.can_edit_project(project_id)
+  and (
+    public.can_edit_project(project_id)
+    or public.can_write_published_project(project_id)
+  )
   and (updated_by is null or updated_by = public.current_user_id())
 );
 
@@ -2314,8 +2393,20 @@ create policy infra_details_update_policy
 on public.infrastructure_project_details
 for update
 to authenticated
-using (public.is_active_auth() and public.can_edit_project(project_id))
-with check (public.is_active_auth() and public.can_edit_project(project_id));
+using (
+  public.is_active_auth()
+  and (
+    public.can_edit_project(project_id)
+    or public.can_write_published_project(project_id)
+  )
+)
+with check (
+  public.is_active_auth()
+  and (
+    public.can_edit_project(project_id)
+    or public.can_write_published_project(project_id)
+  )
+);
 
 drop policy if exists infra_details_delete_policy on public.infrastructure_project_details;
 create policy infra_details_delete_policy

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { toImageResponse } from "@/app/api/projects/_shared/image-response";
 import { getProjectMediaBucketName } from "@/lib/projects/media";
 
 type ProjectLookupRow = {
@@ -84,17 +85,14 @@ export async function GET(
     }
 
     const bucketId = getProjectMediaBucketName();
-    const { data: signed, error: signedError } = await admin.storage
+    const { data: imageData, error: downloadError } = await admin.storage
       .from(bucketId)
-      .createSignedUrl(imagePath, 60 * 5);
-    if (signedError || !signed?.signedUrl) {
-      return NextResponse.json(
-        { message: signedError?.message ?? "Unable to generate cover image URL." },
-        { status: 500 }
-      );
+      .download(imagePath);
+    if (downloadError || !imageData) {
+      return notFoundResponse();
     }
 
-    return NextResponse.redirect(signed.signedUrl, { status: 307 });
+    return toImageResponse(imageData, imagePath);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected project cover media error.";

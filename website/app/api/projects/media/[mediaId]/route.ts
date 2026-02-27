@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { toImageResponse } from "@/app/api/projects/_shared/image-response";
 
 type ProjectUpdateMediaLookupRow = {
   id: string;
@@ -75,17 +76,14 @@ export async function GET(
       return notFoundResponse();
     }
 
-    const { data: signed, error: signedError } = await admin.storage
+    const { data: imageData, error: downloadError } = await admin.storage
       .from(media.bucket_id)
-      .createSignedUrl(media.object_name, 60 * 5);
-    if (signedError || !signed?.signedUrl) {
-      return NextResponse.json(
-        { message: signedError?.message ?? "Unable to generate media URL." },
-        { status: 500 }
-      );
+      .download(media.object_name);
+    if (downloadError || !imageData) {
+      return notFoundResponse();
     }
 
-    return NextResponse.redirect(signed.signedUrl, { status: 307 });
+    return toImageResponse(imageData, media.object_name);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected media error.";
     return NextResponse.json({ message }, { status: 500 });

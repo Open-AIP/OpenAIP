@@ -1,4 +1,8 @@
 import type { FeedbackKind, RoleType } from "@/lib/contracts/databasev2";
+import {
+  CITIZEN_INITIATED_FEEDBACK_KINDS,
+  isCitizenInitiatedFeedbackKind,
+} from "@/lib/constants/feedback-kind";
 import type {
   CommentRepo,
   CommentTargetLookup,
@@ -468,13 +472,16 @@ export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
         .from("feedback")
         .select(FEEDBACK_SELECT_COLUMNS)
         .is("parent_feedback_id", null)
+        .in("kind", [...CITIZEN_INITIATED_FEEDBACK_KINDS])
         .order("updated_at", { ascending: false });
 
       if (error) {
         throw new Error(error.message);
       }
 
-      const roots = (data ?? []) as FeedbackSelectRow[];
+      const roots = ((data ?? []) as FeedbackSelectRow[]).filter((row) =>
+        isCitizenInitiatedFeedbackKind(row.kind)
+      );
       const replies = await listFeedbackRowsByParentIds(
         client,
         roots.map((row) => row.id)

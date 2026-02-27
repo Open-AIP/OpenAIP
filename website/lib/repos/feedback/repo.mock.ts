@@ -19,6 +19,7 @@ import type { CommentMessage, CommentThread } from "./types";
 import { COMMENT_MESSAGES_FIXTURE } from "@/mocks/fixtures/feedback/comment-messages.fixture";
 import { COMMENT_THREADS_FIXTURE } from "@/mocks/fixtures/feedback/comment-threads.fixture";
 import { validateMockIds } from "@/mocks/fixtures/shared/validate-mock-ids";
+import { isCitizenInitiatedFeedbackKind } from "@/lib/constants/feedback-kind";
 import { feedbackDebugLog } from "./debug";
 import { dedupeByKey, findDuplicateKeys } from "./mappers";
 import { getProjectsRepo } from "@/lib/repos/projects/repo";
@@ -47,7 +48,9 @@ export function createMockCommentRepo(): CommentRepo {
 
   return {
     async listThreadsForInbox(_params: ListThreadsForInboxParams): Promise<CommentThread[]> {
-      const sorted = [...threadStore].sort(sortByUpdatedAtDesc);
+      const sorted = [...threadStore]
+        .filter((thread) => isCitizenInitiatedFeedbackKind(thread.preview.kind))
+        .sort(sortByUpdatedAtDesc);
       const duplicates = findDuplicateKeys(sorted, (thread) => thread.id);
       const unique = dedupeByKey(sorted, (thread) => thread.id);
 

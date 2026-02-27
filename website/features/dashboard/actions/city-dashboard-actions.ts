@@ -33,5 +33,5 @@ export async function replyCityFeedbackAction(formData: FormData) {
   await replyToFeedback({ parentFeedbackId, body, authorId: user.userId });
 
   revalidatePath("/city");
-  revalidatePath("/city/comments");
+  revalidatePath("/city/feedback");
 }

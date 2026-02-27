@@ -42,7 +42,7 @@ export const BARANGAY_NAV: NavItem[] = [
     ],
   },
 
-  { label: "Feedback", href: "/barangay/comments", icon: MessageSquare },
+  { label: "Feedback", href: "/barangay/feedback", icon: MessageSquare },
   { label: "Chatbot", href: "/barangay/chatbot", icon: Bot },
   { label: "Account", href: "/barangay/account", icon: UserRound },
   { label: "Audit & Accountability", href: "/barangay/audit", icon: Shield },
@@ -61,7 +61,7 @@ export const CITY_NAV: NavItem[] = [
       { label: "Infrastructure Projects", href: "/city/projects/infrastructure", icon: Building2 },
     ],
   },
-  { label: "Feedback", href: "/city/comments", icon: MessageSquare },
+  { label: "Feedback", href: "/city/feedback", icon: MessageSquare },
   { label: "Chatbot", href: "/city/chatbot", icon: Bot },
   { label: "Account", href: "/city/account", icon: UserRound },
   { label: "Audit & Accountability", href: "/city/audit", icon: Shield },

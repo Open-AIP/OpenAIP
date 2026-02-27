@@ -59,6 +59,12 @@ const {
   runFeedbackDedupeTests,
 } = require("@/tests/repo-smoke/feedback/dedupe.test");
 const {
+  runFeedbackInboxFilterTests,
+} = require("@/tests/repo-smoke/feedback/inbox-filter.test");
+const {
+  runFeedbackRouteTargetTests,
+} = require("@/tests/repo-smoke/feedback/feedback-route-targets.test");
+const {
   runProjectMapperTests,
 } = require("@/tests/repo-smoke/projects/projects.mappers.test");
 const {
@@ -518,6 +524,18 @@ const tests = [
     name: "feedback dedupe keeps unique ids",
     async run() {
       await runFeedbackDedupeTests();
+    },
+  },
+  {
+    name: "feedback inbox filters to citizen-initiated roots",
+    async run() {
+      await runFeedbackInboxFilterTests();
+    },
+  },
+  {
+    name: "feedback routes and redirects target /feedback",
+    async run() {
+      await runFeedbackRouteTargetTests();
     },
   },
   {

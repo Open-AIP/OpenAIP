@@ -279,7 +279,7 @@ function selectWorkingOnItems(input: {
     items.push({
       id: "awaiting_reply",
       label: "Reply to citizen feedback",
-      href: `${base}/comments`,
+      href: `${base}/feedback`,
     });
   }
 

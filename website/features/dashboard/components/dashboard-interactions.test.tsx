@@ -373,16 +373,24 @@ describe("Dashboard links and actions", () => {
   it("routes recent activity audit CTA to provided audit page", () => {
     render(
       <RecentActivityFeed
-        runs={[
+        logs={[
           {
-            id: "run-1",
-            aipId: "aip-1",
-            stage: "extract",
-            status: "succeeded",
-            startedAt: "2026-02-27T08:00:00.000Z",
-            finishedAt: "2026-02-27T08:10:00.000Z",
-            errorCode: null,
-            errorMessage: null,
+            id: "activity-1",
+            actorId: "user-1",
+            actorRole: "barangay_official",
+            action: "project_updated",
+            entityType: "projects",
+            entityId: "project-1",
+            scope: {
+              scope_type: "barangay",
+              barangay_id: "barangay-1",
+              city_id: null,
+              municipality_id: null,
+            },
+            metadata: {
+              actor_name: "Maria Santos",
+              details: "Posted update for road concreting project.",
+            },
             createdAt: "2026-02-27T08:00:00.000Z",
           },
         ]}
@@ -390,9 +398,18 @@ describe("Dashboard links and actions", () => {
       />
     );
 
+    expect(screen.getByText("Project Update")).toBeInTheDocument();
+    expect(screen.getByText("Posted update for road concreting project.")).toBeInTheDocument();
+    expect(screen.getByText(/Maria Santos/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View Audit and Accountability" })).toHaveAttribute(
       "href",
       "/barangay/audit"
     );
+  });
+
+  it("shows empty state when recent activity logs are unavailable", () => {
+    render(<RecentActivityFeed logs={[]} auditHref="/barangay/audit" />);
+
+    expect(screen.getByText("No official activity logs yet.")).toBeInTheDocument();
   });
 });

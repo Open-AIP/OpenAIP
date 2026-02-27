@@ -10,6 +10,7 @@ import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/da
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { replyBarangayFeedbackAction, createBarangayDraftAipAction } from "@/features/dashboard/actions/barangay-dashboard-actions";
 import type { DashboardData, DashboardQueryState, DashboardViewModel } from "@/features/dashboard/types/dashboard-types";
+import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 
 function toCurrency(value: number): string {
   return value.toLocaleString("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -19,10 +20,12 @@ export function BarangayDashboardPage({
   data,
   vm,
   queryState,
+  recentActivityLogs,
 }: {
   data: DashboardData;
   vm: DashboardViewModel;
   queryState: DashboardQueryState;
+  recentActivityLogs: ActivityLogRow[];
 }) {
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long",
@@ -97,7 +100,7 @@ export function BarangayDashboardPage({
             <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyBarangayFeedbackAction} />
           </div>
 
-          <RecentActivityFeed runs={data.latestRuns} auditHref="/barangay/audit" />
+          <RecentActivityFeed logs={recentActivityLogs} auditHref="/barangay/audit" />
         </>
       )}
     </div>

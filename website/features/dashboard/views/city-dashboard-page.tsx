@@ -10,6 +10,7 @@ import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/da
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { createCityDraftAipAction, replyCityFeedbackAction } from "@/features/dashboard/actions/city-dashboard-actions";
 import type { DashboardData, DashboardQueryState, DashboardViewModel } from "@/features/dashboard/types/dashboard-types";
+import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 
 function toCurrency(value: number): string {
   return value.toLocaleString("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -19,10 +20,12 @@ export function CityDashboardPage({
   data,
   vm,
   queryState,
+  recentActivityLogs,
 }: {
   data: DashboardData;
   vm: DashboardViewModel;
   queryState: DashboardQueryState;
+  recentActivityLogs: ActivityLogRow[];
 }) {
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long",
@@ -93,7 +96,7 @@ export function CityDashboardPage({
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-stretch">
             <div className="min-w-0">
-              <RecentActivityFeed runs={data.latestRuns} auditHref="/city/audit" />
+              <RecentActivityFeed logs={recentActivityLogs} auditHref="/city/audit" />
             </div>
             <div className="min-w-0 flex flex-col items-stretch">
               <RecentProjectUpdatesCard logs={data.projectUpdateLogs} />

@@ -1,21 +1,15 @@
 "use client";
 
+import { DonutChart } from "@/components/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { AipStatusDistributionVM } from "@/lib/repos/admin-dashboard/types";
-
-type DonutSegment = AipStatusDistributionVM & {
-  percentage: number;
-};
 
 const createSegments = (data: AipStatusDistributionVM[]) => {
   const total = data.reduce((sum, item) => sum + item.count, 0);
   return {
     total,
-    segments: data.map((item) => ({
-      ...item,
-      percentage: total ? item.count / total : 0,
-    })),
+    segments: data,
   };
 };
 
@@ -27,18 +21,12 @@ export default function AipStatusDonutCard({
   onStatusClick: (status: string) => void;
 }) {
   const { total, segments } = createSegments(data);
-  const radius = 70;
-  const circumference = 2 * Math.PI * radius;
-  const segmentsWithOffset = segments.map((segment, index) => {
-    const offset = segments
-      .slice(0, index)
-      .reduce((sum, prev) => sum + prev.percentage * circumference, 0);
-    return {
-      ...segment,
-      offset,
-      length: segment.percentage * circumference,
-    };
-  });
+  const clickableSlices = segments.filter((segment) => segment.count > 0);
+  const chartData = clickableSlices.map((segment) => ({
+    name: segment.label,
+    value: segment.count,
+    color: segment.color,
+  }));
 
   return (
     <Card className="border-slate-200 py-0 shadow-none">
@@ -48,34 +36,23 @@ export default function AipStatusDonutCard({
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
         <div className="flex flex-col items-center gap-4">
-          <div className="relative flex items-center justify-center">
-            <svg width="250" height="250" viewBox="0 0 200 200">
-              <g transform="translate(100,100) rotate(-90)">
-                {segmentsWithOffset.map((segment) => {
-                  const dashArray = `${segment.length} ${circumference - segment.length}`;
-                  const circle = (
-                    <circle
-                      key={segment.status}
-                      r={radius}
-                      cx={0}
-                      cy={0}
-                      fill="transparent"
-                      stroke={segment.color}
-                      strokeWidth={24}
-                      strokeDasharray={dashArray}
-                      strokeDashoffset={-segment.offset}
-                      className="cursor-pointer"
-                      onClick={() => onStatusClick(segment.status)}
-                    />
-                  );
-                  return circle;
-                })}
-              </g>
-            </svg>
-            <div className="absolute text-center">
-              <div className="text-[12px] text-slate-500">Total</div>
-              <div className="text-[28px] font-semibold text-slate-900">{total}</div>
-            </div>
+          <div className="w-full max-w-[420px]">
+            <DonutChart
+              data={chartData}
+              centerLabel={
+                <div className="leading-tight">
+                  <div className="text-[12px] text-slate-500">Total</div>
+                  <div className="text-[28px] font-semibold text-slate-900">{total}</div>
+                </div>
+              }
+              chartHeightClassName="h-72"
+              onSliceClick={(_, index) => {
+                const clicked = clickableSlices[index];
+                if (clicked) {
+                  onStatusClick(clicked.status);
+                }
+              }}
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] text-slate-600">

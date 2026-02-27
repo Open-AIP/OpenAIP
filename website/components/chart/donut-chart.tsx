@@ -18,6 +18,7 @@ type DonutChartProps = {
   className?: string;
   mobileBreakpoint?: number;
   chartHeightClassName?: string;
+  onSliceClick?: (slice: DonutChartDatum, index: number) => void;
 };
 
 type ChartSize = {
@@ -63,6 +64,7 @@ export function DonutChart({
   className,
   mobileBreakpoint = MOBILE_BREAKPOINT_PX,
   chartHeightClassName = DEFAULT_CHART_HEIGHT_CLASS,
+  onSliceClick,
 }: DonutChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<ChartSize>({ width: 0, height: 0 });
@@ -157,7 +159,7 @@ export function DonutChart({
   const clampPadding = 12;
 
   const renderOutsideLabel = (label: LabelRendererProps) => {
-    const { cx = 0, cy = 0, midAngle = 0, outerRadius: sliceOuterRadius = 0, percent = 0, name, fill } = label;
+    const { cx = 0, cy = 0, midAngle = 0, outerRadius: sliceOuterRadius = 0, name, fill } = label;
     const radians = Math.PI / 180;
     const sin = Math.sin(-midAngle * radians);
     const cos = Math.cos(-midAngle * radians);
@@ -183,8 +185,7 @@ export function DonutChart({
       minX,
       maxX
     );
-    const percentText = formatPercent(percent * 100);
-    const labelText = `${name ?? ""} ${percentText}`.trim();
+    const labelText = `${name ?? ""}`.trim();
 
     return (
       <g>
@@ -254,12 +255,18 @@ export function DonutChart({
               isAnimationActive
               animationDuration={450}
             >
-              {slices.map((slice) => (
+              {slices.map((slice, index) => (
                 <Cell
                   key={`${slice.name}-${slice.color}`}
                   fill={slice.color}
                   stroke="#FFFFFF"
                   strokeWidth={2}
+                  onClick={
+                    onSliceClick
+                      ? () => onSliceClick({ name: slice.name, value: slice.value, color: slice.color }, index)
+                      : undefined
+                  }
+                  style={onSliceClick ? { cursor: "pointer" } : undefined}
                 />
               ))}
             </Pie>

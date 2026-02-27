@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DonutChart } from "@/components/chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -8,19 +9,35 @@ export function BudgetBreakdownSection({
   totalBudget,
   items,
   detailsHref,
+  useComponentDonutChart = false,
 }: {
   totalBudget: string;
   items: Array<{ sectorCode: string; label: string; amount: number; percentage: number }>;
   detailsHref: string;
+  useComponentDonutChart?: boolean;
 }) {
   const dotClassByIndex = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
+  const chartData = items.map((item, index) => ({
+    name: item.label,
+    value: item.amount > 0 ? item.amount : Math.max(item.percentage, 0),
+    color: DONUT_COLORS[index % DONUT_COLORS.length],
+  }));
 
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardHeader className="border-b border-border px-5 py-4"><CardTitle className="text-sm font-medium text-foreground">Budget Breakdown</CardTitle></CardHeader>
       <CardContent className="p-5 space-y-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.15fr]">
-          <BudgetDonutCard items={items} />
+          {useComponentDonutChart ? (
+            <DonutChart
+              data={chartData}
+              centerLabel="Budget Allocation"
+              chartHeightClassName="h-72"
+              className="mx-auto"
+            />
+          ) : (
+            <BudgetDonutCard items={items} />
+          )}
           <div className="space-y-4">
             <div className="border-b border-border pb-4">
               <div className="text-sm text-muted-foreground">Total Budget</div>

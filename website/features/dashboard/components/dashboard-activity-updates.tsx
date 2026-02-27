@@ -87,16 +87,16 @@ export function RecentProjectUpdatesCard({
   ];
 
   return (
-    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">Recent Project Updates</CardTitle></CardHeader>
-      <CardContent className="p-5 space-y-2 text-sm max-h-[418px] overflow-auto">
+    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0 w-full min-w-0 flex flex-col min-h-0 max-h-[418px]">
+      <CardHeader className="shrink-0 p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">Recent Project Updates</CardTitle></CardHeader>
+      <CardContent className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] p-5 pr-4 space-y-2 text-sm">
         {updates.map((update) => (
-          <div key={update.id} className="rounded-lg border border-border bg-secondary p-3 hover:bg-accent">
-            <div className="flex items-center justify-between gap-2">
-              <div className="truncate text-sm font-semibold text-foreground">{update.title}</div>
-              <Badge className="rounded-md border border-border bg-card text-muted-foreground">{update.tag}</Badge>
+          <div key={update.id} className="w-full rounded-lg border border-border bg-secondary p-3 hover:bg-accent">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="min-w-0 truncate text-sm font-semibold text-foreground">{update.title}</div>
+              <Badge className="shrink-0 rounded-md border border-border bg-card text-muted-foreground">{update.tag}</Badge>
             </div>
-            <div className="mt-1 truncate text-sm text-foreground">{update.subtitle}</div>
+            <div className="mt-1 min-w-0 truncate text-sm text-foreground">{update.subtitle}</div>
             <div className="mt-1 text-xs text-muted-foreground">{update.meta}</div>
           </div>
         ))}

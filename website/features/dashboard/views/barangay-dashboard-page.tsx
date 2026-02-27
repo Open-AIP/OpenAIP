@@ -71,14 +71,20 @@ export function BarangayDashboardPage({
         <>
           <KpiRow selectedAip={data.selectedAip} totalProjects={vm.projects.length} totalBudget={toCurrency(vm.totalBudget)} missingTotalCount={vm.missingTotalCount} citizenFeedbackCount={vm.citizenFeedbackCount} awaitingReplyCount={vm.awaitingReplyCount} mode={queryState.kpiMode} pendingReviewCount={pendingReviewCount} underReviewCount={underReviewCount} forRevisionCount={forRevisionCount} totalAips={totalAips} oldestPendingDays={vm.oldestPendingDays} />
 
-          <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
-            <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={`/barangay/aips/${data.selectedAip.id}`} />
-            <div className="space-y-4"><DateCard label={today} /><WorkingOnCard items={vm.workingOnItems} /></div>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
-            <TopFundedProjectsSection queryState={queryState} selectedFiscalYear={data.selectedFiscalYear} sectors={data.sectors} rows={vm.topFundedFiltered} />
-            <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
+          <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-stretch">
+            <div className="min-w-0 w-full">
+              <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={`/barangay/aips/${data.selectedAip.id}`} />
+            </div>
+            <div className="min-w-0 w-full flex flex-col gap-4">
+              <DateCard label={today} />
+              <WorkingOnCard items={vm.workingOnItems} />
+            </div>
+            <div className="min-w-0 w-full">
+              <TopFundedProjectsSection queryState={queryState} sectors={data.sectors} projects={vm.projects} />
+            </div>
+            <div className="min-w-0 w-full flex flex-col items-stretch">
+              <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
+            </div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

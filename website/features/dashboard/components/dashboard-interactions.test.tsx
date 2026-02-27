@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { DashboardHeader } from "./dashboard-header-widgets";
-import { TopProjectsFilters } from "./dashboard-projects-overview";
+import { TopFundedProjectsSection } from "./dashboard-projects-overview";
 import { BudgetBreakdownSection } from "./dashboard-budget-allocation";
 import { AipsByYearTable } from "./dashboard-aip-publication-status";
 import { RecentActivityFeed } from "./dashboard-activity-updates";
@@ -35,6 +35,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   requestSubmitMock.mockReset();
+  window.history.replaceState({}, "", "/barangay");
 });
 
 afterAll(() => {
@@ -50,14 +51,20 @@ const queryState: DashboardQueryState = {
 };
 
 describe("DashboardHeader interactions", () => {
-  it("auto-submits when fiscal year changes and preserves table filters", () => {
+  it("auto-submits when fiscal year changes and syncs latest top-filter URL params", () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/barangay?tableQ=url-filter&category=infrastructure&sector=8000"
+    );
+
     render(
       <DashboardHeader
         title="Welcome to OpenAIP"
         q={queryState.q}
-        tableQ={queryState.tableQ}
-        tableCategory={queryState.tableCategory}
-        tableSector={queryState.tableSector}
+        tableQ="stale-search"
+        tableCategory="health"
+        tableSector="3000"
         selectedFiscalYear={2026}
         availableFiscalYears={[2026, 2025]}
         kpiMode={queryState.kpiMode}
@@ -69,9 +76,15 @@ describe("DashboardHeader interactions", () => {
     });
 
     expect(requestSubmitMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByDisplayValue(queryState.tableQ)).toHaveAttribute("name", "tableQ");
-    expect(screen.getByDisplayValue(queryState.tableCategory)).toHaveAttribute("name", "category");
-    expect(screen.getByDisplayValue(queryState.tableSector)).toHaveAttribute("name", "sector");
+    expect((document.querySelector('input[name="tableQ"]') as HTMLInputElement).value).toBe(
+      "url-filter"
+    );
+    expect((document.querySelector('input[name="category"]') as HTMLInputElement).value).toBe(
+      "infrastructure"
+    );
+    expect((document.querySelector('input[name="sector"]') as HTMLInputElement).value).toBe(
+      "8000"
+    );
   });
 
   it("submits global search on Enter and blur", () => {
@@ -94,31 +107,174 @@ describe("DashboardHeader interactions", () => {
 });
 
 describe("Top funded filters interactions", () => {
-  it("auto-submits on category/type changes and search blur/enter", () => {
+  const replaceStateSpy = vi.spyOn(window.history, "replaceState");
+
+  afterEach(() => {
+    replaceStateSpy.mockReset();
+    vi.useRealTimers();
+  });
+
+  function makeProject(input: {
+    id: string;
+    description: string;
+    category: "health" | "infrastructure" | "other";
+    sectorCode: string;
+    total: number | null;
+    aipRefCode?: string;
+    healthProgramName?: string | null;
+  }) {
+    return {
+      id: input.id,
+      aipId: "aip-2026",
+      aipRefCode: input.aipRefCode ?? `${input.sectorCode}-01`,
+      programProjectDescription: input.description,
+      category: input.category,
+      sectorCode: input.sectorCode,
+      total: input.total,
+      personalServices: null,
+      maintenanceAndOtherOperatingExpenses: null,
+      capitalOutlay: null,
+      errors: null,
+      isHumanEdited: false,
+      editedAt: null,
+      healthProgramName: input.healthProgramName ?? null,
+    };
+  }
+
+  const projects = [
+    makeProject({
+      id: "p-road",
+      description: "Road Repair Program",
+      category: "infrastructure",
+      sectorCode: "8000",
+      total: 900000,
+      aipRefCode: "8000-01",
+    }),
+    makeProject({
+      id: "p-health",
+      description: "Health Center Upgrade",
+      category: "health",
+      sectorCode: "3000",
+      total: 650000,
+      aipRefCode: "3000-01",
+      healthProgramName: "Primary Care",
+    }),
+    makeProject({
+      id: "p-other",
+      description: "General Admin Improvements",
+      category: "other",
+      sectorCode: "1000",
+      total: null,
+      aipRefCode: "1000-01",
+    }),
+  ];
+
+  it("filters live while typing without Enter and without form-submit refresh", () => {
+    vi.useFakeTimers();
+
     render(
-      <TopProjectsFilters
-        queryState={queryState}
-        selectedFiscalYear={2026}
+      <TopFundedProjectsSection
+        queryState={{ ...queryState, tableQ: "", tableCategory: "all", tableSector: "all" }}
         sectors={[
           { code: "3000", label: "Social Services" },
           { code: "8000", label: "Economic Services" },
+          { code: "1000", label: "General Services" },
         ]}
+        projects={projects}
       />
     );
 
-    fireEvent.change(screen.getByDisplayValue("Health"), {
-      target: { value: "infrastructure" },
+    expect(screen.getByText("Road Repair Program")).toBeInTheDocument();
+    expect(screen.getByText("Health Center Upgrade")).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText("Search projects..."), {
+        target: { value: "road" },
+      });
+      vi.advanceTimersByTime(200);
     });
-    fireEvent.change(screen.getByDisplayValue("Social Services"), {
+
+    expect(screen.getByText("Road Repair Program")).toBeInTheDocument();
+    expect(screen.queryByText("Health Center Upgrade")).toBeNull();
+    expect(requestSubmitMock).toHaveBeenCalledTimes(0);
+    expect(replaceStateSpy).toHaveBeenCalled();
+  });
+
+  it("filters instantly on category and type changes", () => {
+    vi.useFakeTimers();
+
+    render(
+      <TopFundedProjectsSection
+        queryState={{ ...queryState, tableQ: "", tableCategory: "all", tableSector: "all" }}
+        sectors={[
+          { code: "3000", label: "Social Services" },
+          { code: "8000", label: "Economic Services" },
+          { code: "1000", label: "General Services" },
+        ]}
+        projects={projects}
+      />
+    );
+
+    fireEvent.change(screen.getByDisplayValue("All Categories"), {
+      target: { value: "health" },
+    });
+    expect(screen.getByText("Health Center Upgrade")).toBeInTheDocument();
+    expect(screen.queryByText("Road Repair Program")).toBeNull();
+
+    fireEvent.change(screen.getByDisplayValue("All Types"), {
       target: { value: "8000" },
     });
+    expect(screen.queryByText("Health Center Upgrade")).toBeNull();
+    expect(screen.queryByText("Road Repair Program")).toBeNull();
+  });
 
-    const input = screen.getByPlaceholderText("Search projects...");
-    fireEvent.keyDown(input, { key: "Enter" });
-    fireEvent.change(input, { target: { value: "road" } });
-    fireEvent.blur(input);
+  it("keeps unrelated URL params and clears default top-filter keys", () => {
+    vi.useFakeTimers();
+    window.history.replaceState(
+      {},
+      "",
+      "/barangay?year=2026&q=global&tableQ=road&category=health&sector=3000"
+    );
 
-    expect(requestSubmitMock).toHaveBeenCalledTimes(4);
+    render(
+      <TopFundedProjectsSection
+        queryState={{
+          ...queryState,
+          tableQ: "road",
+          tableCategory: "health",
+          tableSector: "3000",
+        }}
+        sectors={[
+          { code: "3000", label: "Social Services" },
+          { code: "8000", label: "Economic Services" },
+          { code: "1000", label: "General Services" },
+        ]}
+        projects={projects}
+      />
+    );
+
+    replaceStateSpy.mockClear();
+
+    fireEvent.change(screen.getByPlaceholderText("Search projects..."), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByDisplayValue("Health"), {
+      target: { value: "all" },
+    });
+    fireEvent.change(screen.getByDisplayValue("Social Services"), {
+      target: { value: "all" },
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    const latestUrl = String(replaceStateSpy.mock.calls.at(-1)?.[2] ?? "");
+    expect(latestUrl).toContain("year=2026");
+    expect(latestUrl).toContain("q=global");
+    expect(latestUrl).not.toContain("tableQ=");
+    expect(latestUrl).not.toContain("category=");
+    expect(latestUrl).not.toContain("sector=");
   });
 });
 

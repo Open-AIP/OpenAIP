@@ -152,6 +152,7 @@ export default function InfrastructureProjectDetailPageView({
             allowPosting
             projectId={project.id}
             scope={scope}
+            projectKind="infrastructure"
           />
         )
       ) : (

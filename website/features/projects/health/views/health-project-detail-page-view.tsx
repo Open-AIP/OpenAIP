@@ -150,6 +150,8 @@ export default function HealthProjectDetailPageView({
             allowPosting
             projectId={project.id}
             scope={scope}
+            projectKind="health"
+            participantsTargetTotal={project.totalTargetParticipants ?? 0}
           />
         )
       ) : (

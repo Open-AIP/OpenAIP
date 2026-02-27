@@ -53,20 +53,45 @@ function clamp01to100(n: number) {
 export default function PostUpdateForm({
   projectId,
   scope,
+  projectKind,
+  currentProgressPercent,
+  currentParticipantsReached,
+  participantsTargetTotal,
   onCreate,
 }: {
   projectId: string;
   scope: "barangay" | "city";
+  projectKind: "health" | "infrastructure";
+  currentProgressPercent: number;
+  currentParticipantsReached: number;
+  participantsTargetTotal?: number | null;
   onCreate: (update: ProjectUpdateUi) => void;
 }) {
   const router = useRouter();
+  const baselineProgress = clamp01to100(currentProgressPercent);
   const [title, setTitle] = React.useState("");
   const [desc, setDesc] = React.useState("");
-  const [progress, setProgress] = React.useState<number>(0);
+  const [progress, setProgress] = React.useState<number>(baselineProgress);
   const [attendance, setAttendance] = React.useState<string>("");
   const [photos, setPhotos] = React.useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const requiresAttendance = projectKind === "health";
+  const currentParticipantsReachedDisplay = Math.max(
+    0,
+    Math.trunc(currentParticipantsReached)
+  );
+  const participantsTargetDisplay =
+    participantsTargetTotal === null || participantsTargetTotal === undefined
+      ? null
+      : Math.max(0, Math.trunc(participantsTargetTotal));
+  const normalizedProgress = clamp01to100(progress);
+  const currentProgressAtLimit = baselineProgress >= 100;
+  const isProgressForward = normalizedProgress > baselineProgress;
+
+  React.useEffect(() => {
+    setProgress(baselineProgress);
+  }, [baselineProgress]);
 
   function onPickPhotos(files: FileList | null) {
     if (!files) return;
@@ -76,9 +101,11 @@ export default function PostUpdateForm({
 
   async function submit() {
     if (isSubmitting) return;
+    if (currentProgressAtLimit) return;
     if (title.trim().length < 3) return;
     if (desc.trim().length < 10) return;
-    if (!attendance) return;
+    if (requiresAttendance && !attendance) return;
+    if (!isProgressForward) return;
 
     try {
       setIsSubmitting(true);
@@ -87,8 +114,10 @@ export default function PostUpdateForm({
       const formData = new FormData();
       formData.set("title", title.trim());
       formData.set("description", desc.trim());
-      formData.set("progressPercent", String(clamp01to100(progress)));
-      formData.set("attendanceCount", attendance.trim());
+      formData.set("progressPercent", String(normalizedProgress));
+      if (requiresAttendance && attendance.trim()) {
+        formData.set("attendanceCount", attendance.trim());
+      }
       for (const photo of photos) {
         formData.append("photos", photo);
       }
@@ -116,7 +145,7 @@ export default function PostUpdateForm({
 
       setTitle("");
       setDesc("");
-      setProgress(0);
+      setProgress(normalizedProgress);
       setAttendance("");
       setPhotos([]);
     } catch (error) {
@@ -129,7 +158,12 @@ export default function PostUpdateForm({
   }
 
   const disabled =
-    isSubmitting || title.trim().length < 3 || desc.trim().length < 10 || !attendance;
+    isSubmitting ||
+    currentProgressAtLimit ||
+    title.trim().length < 3 ||
+    desc.trim().length < 10 ||
+    (requiresAttendance && !attendance) ||
+    !isProgressForward;
 
   return (
     <Card className="border-slate-200 h-fit">
@@ -160,9 +194,19 @@ export default function PostUpdateForm({
 
         <div className="space-y-2">
           <Label>Progress Percentage</Label>
+          <div className="text-xs text-slate-500">
+            Current progress: {baselineProgress}%. New update must be greater than{" "}
+            {baselineProgress}%.
+          </div>
+          {currentProgressAtLimit ? (
+            <div className="text-xs text-amber-700">
+              Current progress is already 100%. You can no longer post a higher progress
+              update.
+            </div>
+          ) : null}
           <div className="flex items-center justify-between text-xs text-slate-500">
             <span>0%</span>
-            <span className="text-slate-700 font-medium">{clamp01to100(progress)}%</span>
+            <span className="text-slate-700 font-medium">{normalizedProgress}%</span>
             <span>100%</span>
           </div>
           <input
@@ -170,20 +214,31 @@ export default function PostUpdateForm({
             min={0}
             max={100}
             value={progress}
-            onChange={(e) => setProgress(Number(e.target.value))}
+            onChange={(e) => setProgress(clamp01to100(Number(e.target.value)))}
             className="w-full"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>Attendance Count *</Label>
-          <Input
-            value={attendance}
-            onChange={(e) => setAttendance(e.target.value.replace(/[^\d]/g, ""))}
-            inputMode="numeric"
-            placeholder="Number of participants"
-          />
-        </div>
+        {requiresAttendance ? (
+          <div className="space-y-2">
+            <Label>Attendance Count *</Label>
+            {participantsTargetDisplay !== null ? (
+              <div className="text-xs text-slate-500">
+                Current participants reached:{" "}
+                <span className="font-medium text-slate-700">
+                  {currentParticipantsReachedDisplay.toLocaleString()} /{" "}
+                  {participantsTargetDisplay.toLocaleString()}
+                </span>
+              </div>
+            ) : null}
+            <Input
+              value={attendance}
+              onChange={(e) => setAttendance(e.target.value.replace(/[^\d]/g, ""))}
+              inputMode="numeric"
+              placeholder="Number of participants"
+            />
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <Label>Upload Photos (Optional)</Label>

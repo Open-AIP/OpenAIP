@@ -9,6 +9,11 @@ import {
 } from "@/lib/projects/media";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
+import {
+  getCurrentProgressBaseline,
+  isStrictlyIncreasingProgress,
+} from "./progress-guardrails";
+import { normalizeAttendanceForProjectCategory } from "./attendance-normalization";
 
 type RouteScope = "barangay" | "city";
 type ProjectKind = "health" | "infrastructure";
@@ -598,9 +603,6 @@ export async function handlePostUpdateRequest(input: {
       throw new ApiError(400, "Progress percentage must not exceed 100.");
     }
 
-    const attendanceCount =
-      attendanceRaw === null ? null : parseNonNegativeInteger(attendanceRaw, "Attendance count");
-
     const photos = getMultiImageFiles(form, "photos");
     if (photos.length > MAX_UPDATE_PHOTOS) {
       throw new ApiError(400, `You can upload at most ${MAX_UPDATE_PHOTOS} photos.`);
@@ -628,6 +630,33 @@ export async function handlePostUpdateRequest(input: {
       throw new ApiError(
         403,
         "Posting updates is only allowed for projects under published AIPs."
+      );
+    }
+
+    const attendanceCount = normalizeAttendanceForProjectCategory({
+      projectCategory: project.category,
+      attendanceRaw,
+      parseNonNegativeInteger,
+    });
+
+    const { data: currentProgressRows, error: currentProgressError } = await client
+      .from("project_updates")
+      .select("progress_percent")
+      .eq("project_id", project.id)
+      .eq("status", "active")
+      .order("progress_percent", { ascending: false })
+      .limit(1);
+    if (currentProgressError) {
+      throw new ApiError(400, currentProgressError.message);
+    }
+
+    const currentBaselineProgress = getCurrentProgressBaseline(
+      (currentProgressRows ?? []) as Array<{ progress_percent: number | null }>
+    );
+    if (!isStrictlyIncreasingProgress(progressPercent, currentBaselineProgress)) {
+      throw new ApiError(
+        400,
+        `Progress percentage must be greater than current progress (${currentBaselineProgress}%).`
       );
     }
 

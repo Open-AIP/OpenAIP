@@ -1,65 +1,27 @@
 import { Button } from "@/components/ui/button";
+import { LineGraphCard } from "@/components/chart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageSquare } from "lucide-react";
 import type { DashboardFeedback } from "@/features/dashboard/types/dashboard-types";
 
 export function FeedbackTrendCard({ points }: { points: Array<{ dayLabel: string; isoDate: string; count: number }> }) {
-  const max = Math.max(1, ...points.map((row) => row.count));
-  const chartWidth = 520;
-  const chartHeight = 180;
-  const leftPad = 40;
-  const rightPad = 10;
-  const topPad = 14;
-  const bottomPad = 28;
-  const innerWidth = chartWidth - leftPad - rightPad;
-  const innerHeight = chartHeight - topPad - bottomPad;
-  const stepX = points.length > 1 ? innerWidth / (points.length - 1) : innerWidth;
-  const linePoints = points
-    .map((point, index) => {
-      const x = leftPad + index * stepX;
-      const y = topPad + innerHeight - (point.count / max) * innerHeight;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const chartData = points.map((point) => ({
+    dayLabel: point.dayLabel,
+    count: point.count,
+  }));
 
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardContent className="p-5">
         <div className="mb-2 text-sm font-medium text-foreground">Feedback Trend</div>
-        <div className="border border-dashed border-border rounded-lg p-6 text-sm text-muted-foreground">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full" aria-label="Feedback trend chart">
-            <line x1={leftPad} y1={topPad + innerHeight} x2={chartWidth - rightPad} y2={topPad + innerHeight} stroke="var(--muted-foreground)" strokeWidth="1" />
-            <line x1={leftPad} y1={topPad} x2={leftPad} y2={topPad + innerHeight} stroke="var(--muted-foreground)" strokeWidth="1" />
-            {[0, 0.5, 1].map((ratio) => {
-              const y = topPad + innerHeight - ratio * innerHeight;
-              const label = Math.round(ratio * max);
-              return (
-                <g key={ratio}>
-                  <line x1={leftPad} y1={y} x2={chartWidth - rightPad} y2={y} stroke="var(--border)" strokeDasharray="4 4" />
-                  <text x={leftPad - 8} y={y + 4} fontSize="11" textAnchor="end" fill="var(--muted-foreground)">{label}</text>
-                </g>
-              );
-            })}
-            {points.map((point, index) => {
-              const x = leftPad + index * stepX;
-              return (
-                <line key={`x-grid-${point.isoDate}`} x1={x} y1={topPad} x2={x} y2={topPad + innerHeight} stroke="var(--border)" strokeDasharray="4 4" />
-              );
-            })}
-            <polyline fill="none" stroke="var(--chart-1)" strokeWidth="2.5" points={linePoints} />
-            {points.map((point, index) => {
-              const x = leftPad + index * stepX;
-              const y = topPad + innerHeight - (point.count / max) * innerHeight;
-              return (
-                <g key={`dot-${point.isoDate}`}>
-                  <circle cx={x} cy={y} r="3.2" fill="var(--card)" stroke="var(--chart-1)" strokeWidth="2" />
-                  <text x={x} y={topPad + innerHeight + 16} fontSize="11" textAnchor="middle" fill="var(--muted-foreground)">{point.dayLabel}</text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
+        <LineGraphCard
+          data={chartData}
+          xKey="dayLabel"
+          series={[{ key: "count", label: "Feedback", color: "var(--chart-1)" }]}
+          className="rounded-lg border border-dashed border-border bg-transparent p-3"
+          heightClass="h-56"
+        />
       </CardContent>
     </Card>
   );

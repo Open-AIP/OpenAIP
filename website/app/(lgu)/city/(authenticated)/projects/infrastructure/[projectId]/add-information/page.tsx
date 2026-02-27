@@ -42,6 +42,9 @@ export default async function InfrastructureAddInformationRoute({
         targetCompletionDate: project.targetCompletionDate,
         implementingOffice: project.implementingOffice,
         fundingSource: project.fundingSource,
+        contractorName: project.contractorName ?? "",
+        contractCost: String(project.contractCost ?? ""),
+        status: project.status,
       }}
     />
   );

@@ -32,6 +32,7 @@ import {
  * Project type discriminator
  */
 type ProjectKind = "health" | "infrastructure";
+type ProjectStatus = "proposed" | "ongoing" | "completed" | "on_hold";
 
 /**
  * Breadcrumb navigation item
@@ -61,6 +62,11 @@ type ProjectInfo = {
   budgetAllocated?: string;
   implementingOffice?: string;
   fundingSource?: string;
+  totalTargetParticipants?: string;
+  targetParticipants?: string;
+  contractorName?: string;
+  contractCost?: string;
+  status?: ProjectStatus;
 };
 
 function normalizeStringValue(value: string | null | undefined): string | undefined {
@@ -118,6 +124,11 @@ export default function AddInformationPage({
       budgetAllocated: normalizeStringValue(projectInfo?.budgetAllocated),
       implementingOffice: normalizeStringValue(projectInfo?.implementingOffice),
       fundingSource: normalizeStringValue(projectInfo?.fundingSource),
+      totalTargetParticipants: normalizeStringValue(projectInfo?.totalTargetParticipants),
+      targetParticipants: normalizeStringValue(projectInfo?.targetParticipants),
+      contractorName: normalizeStringValue(projectInfo?.contractorName),
+      contractCost: normalizeStringValue(projectInfo?.contractCost),
+      status: projectInfo?.status,
     }),
     [projectInfo]
   );
@@ -140,6 +151,11 @@ export default function AddInformationPage({
     budgetAllocated: normalizedProjectInfo.budgetAllocated,
     implementingOffice: normalizedProjectInfo.implementingOffice,
     fundingSource: normalizedProjectInfo.fundingSource,
+    totalTargetParticipants: normalizedProjectInfo.totalTargetParticipants,
+    targetParticipants: normalizedProjectInfo.targetParticipants,
+    contractorName: normalizedProjectInfo.contractorName,
+    contractCost: normalizedProjectInfo.contractCost,
+    status: normalizedProjectInfo.status,
   };
 
   // Single form controller - replaces all individual useState calls
@@ -147,12 +163,13 @@ export default function AddInformationPage({
     register,
     handleSubmit,
     control,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
   } = useForm<HealthAddInfoFormData | InfraAddInfoFormData>({
     resolver,
     mode: "onChange",
     defaultValues: defaultValues as unknown as HealthAddInfoFormData | InfraAddInfoFormData,
   });
+  const canSubmit = isValid && isDirty && !isSubmitting;
 
   /**
    * Submission handler - separated from UI logic
@@ -161,7 +178,7 @@ export default function AddInformationPage({
   const onSubmit: SubmitHandler<HealthAddInfoFormData | InfraAddInfoFormData> = async (
     data
   ) => {
-    if (isSubmitting) return;
+    if (isSubmitting || !isDirty) return;
 
     try {
       setIsSubmitting(true);
@@ -192,6 +209,9 @@ export default function AddInformationPage({
               startDate: normalizedProjectInfo.startDate,
               targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
               budgetAllocated: normalizedProjectInfo.budgetAllocated,
+              totalTargetParticipants: normalizedProjectInfo.totalTargetParticipants,
+              targetParticipants: normalizedProjectInfo.targetParticipants,
+              status: normalizedProjectInfo.status,
             }
           : {
               projectName: normalizedProjectInfo.name,
@@ -200,6 +220,9 @@ export default function AddInformationPage({
               fundingSource: normalizedProjectInfo.fundingSource,
               startDate: normalizedProjectInfo.startDate,
               targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+              contractorName: normalizedProjectInfo.contractorName,
+              contractCost: normalizedProjectInfo.contractCost,
+              status: normalizedProjectInfo.status,
             };
 
       for (const [key, value] of Object.entries(requiredPrefilledFields)) {
@@ -339,7 +362,7 @@ export default function AddInformationPage({
           <Button
             type="submit"
             className="bg-[#022437] hover:bg-[#022437]/90"
-            disabled={!isValid || isSubmitting}
+            disabled={!canSubmit}
           >
             {isSubmitting ? "Saving..." : "Done"}
           </Button>

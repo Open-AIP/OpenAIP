@@ -42,6 +42,9 @@ export default async function HealthAddInformationRoute({
         targetCompletionDate: project.targetCompletionDate,
         budgetAllocated: String(project.budgetAllocated ?? ""),
         implementingOffice: project.implementingOffice,
+        totalTargetParticipants: String(project.totalTargetParticipants ?? ""),
+        targetParticipants: project.targetParticipants ?? "",
+        status: project.status,
       }}
     />
   );

@@ -179,7 +179,7 @@ export function KpiCard({
   );
 
   const cardClassName = cn(
-    "rounded-2xl border bg-slate-50 text-slate-900 shadow-none",
+    "rounded-2xl border bg-white text-slate-900 shadow-none",
     variant === "compact" ? "min-h-[96px] p-3" : "min-h-[112px] p-4",
     borderClass,
     onClick

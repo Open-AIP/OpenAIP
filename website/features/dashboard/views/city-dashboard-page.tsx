@@ -44,7 +44,16 @@ export function CityDashboardPage({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Welcome to OpenAIP" q={queryState.q} selectedFiscalYear={data.selectedFiscalYear} availableFiscalYears={data.availableFiscalYears} kpiMode={queryState.kpiMode} />
+      <DashboardHeader
+        title="Welcome to OpenAIP"
+        q={queryState.q}
+        tableQ={queryState.tableQ}
+        tableCategory={queryState.tableCategory}
+        tableSector={queryState.tableSector}
+        selectedFiscalYear={data.selectedFiscalYear}
+        availableFiscalYears={data.availableFiscalYears}
+        kpiMode={queryState.kpiMode}
+      />
 
       {!data.selectedAip ? (
         <Card className="border-slate-200 py-0 shadow-sm">
@@ -77,13 +86,13 @@ export function CityDashboardPage({
               <h2 className="text-4xl font-semibold text-slate-900">City AIP Status</h2>
               <AipCoverageCard selectedAip={data.selectedAip} />
               <PublicationTimelineCard years={publicationYears} />
-              <AipsByYearTable rows={data.allAips} />
+              <AipsByYearTable rows={data.allAips} basePath="/city" />
             </div>
             <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyCityFeedbackAction} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <RecentActivityFeed runs={data.latestRuns} />
+            <RecentActivityFeed runs={data.latestRuns} auditHref="/city/audit" />
             <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
           </div>
         </>

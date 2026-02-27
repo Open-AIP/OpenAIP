@@ -1,33 +1,58 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronDown, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRef } from "react";
+import type { ProjectCategory } from "@/lib/contracts/databasev2/enums";
 
 export function DashboardHeader({
   title,
   q = "",
+  tableQ = "",
+  tableCategory = "all",
+  tableSector = "all",
   selectedFiscalYear,
   availableFiscalYears = [],
   kpiMode = "summary",
 }: {
   title: string;
   q?: string;
+  tableQ?: string;
+  tableCategory?: ProjectCategory | "all";
+  tableSector?: string | "all";
   selectedFiscalYear?: number;
   availableFiscalYears?: number[];
   kpiMode?: "summary" | "operational";
 }) {
   const resolvedYear = selectedFiscalYear ?? new Date().getFullYear();
   const yearOptions = availableFiscalYears.length > 0 ? availableFiscalYears : [resolvedYear];
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   return (
     <div className="w-full space-y-6">
       <h1 className="text-5xl font-bold text-foreground">{title}</h1>
-      <form method="get" className="flex items-center justify-between gap-4">
+      <form ref={formRef} method="get" className="flex items-center justify-between gap-4">
         <input type="hidden" name="kpi" value={kpiMode} />
+        <input type="hidden" name="tableQ" value={tableQ} />
+        <input type="hidden" name="category" value={tableCategory} />
+        <input type="hidden" name="sector" value={tableSector} />
         <div className="relative w-full max-w-[360px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
             name="q"
             defaultValue={q}
+            onBlur={(event) => {
+              if (event.currentTarget.value !== q) {
+                formRef.current?.requestSubmit();
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                formRef.current?.requestSubmit();
+              }
+            }}
             placeholder="Global search..."
             className="h-10 w-full rounded-lg border-0 bg-secondary pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Global search"
@@ -39,6 +64,7 @@ export function DashboardHeader({
             <select
               name="year"
               defaultValue={String(resolvedYear)}
+              onChange={() => formRef.current?.requestSubmit()}
               className="h-10 w-[120px] appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label="Select Year"
             >

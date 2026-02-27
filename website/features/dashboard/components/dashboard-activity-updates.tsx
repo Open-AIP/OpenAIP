@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardRun } from "@/features/dashboard/types/dashboard-types";
 import { formatPipelineStatus, formatStageLabel } from "@/features/dashboard/utils/dashboard-selectors";
@@ -8,7 +10,13 @@ function formatDateTime(value: string | null): string {
   return new Date(value).toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export function RecentActivityFeed({ runs }: { runs: DashboardRun[] }) {
+export function RecentActivityFeed({
+  runs,
+  auditHref,
+}: {
+  runs: DashboardRun[];
+  auditHref: "/barangay/audit" | "/city/audit";
+}) {
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">Recent Activity</CardTitle></CardHeader>
@@ -24,7 +32,13 @@ export function RecentActivityFeed({ runs }: { runs: DashboardRun[] }) {
           </div>
         ))}
         {runs.length === 0 && <div className="rounded-lg border border-border bg-secondary p-3 text-sm text-muted-foreground">No extraction runs for this AIP yet.</div>}
-        <div className="rounded-lg border border-border bg-card p-3 text-center text-sm text-primary hover:underline">View Audit and Accountability</div>
+        <Button
+          asChild
+          variant="ghost"
+          className="h-auto rounded-lg border border-border bg-card p-3 text-center text-sm text-primary hover:underline"
+        >
+          <Link href={auditHref}>View Audit and Accountability</Link>
+        </Button>
       </CardContent>
     </Card>
   );

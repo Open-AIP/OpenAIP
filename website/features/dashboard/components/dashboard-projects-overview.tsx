@@ -1,3 +1,5 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Building2, ChevronDown, Heart, Search, TrendingUp } from "lucide-react";
 import type { DashboardQueryState, DashboardSector, DashboardProject } from "@/features/dashboard/types/dashboard-types";
 import { hasProjectErrors } from "@/features/dashboard/utils/dashboard-selectors";
+import { useRef } from "react";
 
 export function TopFundedProjectsSection({
   queryState,
@@ -42,8 +45,10 @@ export function TopProjectsFilters({
   selectedFiscalYear: number;
   sectors: DashboardSector[];
 }) {
+  const formRef = useRef<HTMLFormElement | null>(null);
+
   return (
-    <form method="get" className="grid grid-cols-1 gap-3 md:grid-cols-3">
+    <form ref={formRef} method="get" className="grid grid-cols-1 gap-3 md:grid-cols-3">
       <input type="hidden" name="q" value={queryState.q} />
       <input type="hidden" name="year" value={selectedFiscalYear} />
       <input type="hidden" name="kpi" value={queryState.kpiMode} />
@@ -52,12 +57,28 @@ export function TopProjectsFilters({
         <Input
           name="tableQ"
           defaultValue={queryState.tableQ}
+          onBlur={(event) => {
+            if (event.currentTarget.value !== queryState.tableQ) {
+              formRef.current?.requestSubmit();
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              formRef.current?.requestSubmit();
+            }
+          }}
           placeholder="Search projects..."
           className="h-9 rounded-lg border-0 bg-secondary pl-9 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         />
       </div>
       <div className="relative">
-        <select name="category" defaultValue={queryState.tableCategory} className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+        <select
+          name="category"
+          defaultValue={queryState.tableCategory}
+          onChange={() => formRef.current?.requestSubmit()}
+          className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <option value="all">All Categories</option>
           <option value="health">Health</option>
           <option value="infrastructure">Infrastructure</option>
@@ -66,7 +87,12 @@ export function TopProjectsFilters({
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       </div>
       <div className="relative">
-        <select name="sector" defaultValue={queryState.tableSector} className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+        <select
+          name="sector"
+          defaultValue={queryState.tableSector}
+          onChange={() => formRef.current?.requestSubmit()}
+          className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <option value="all">All Types</option>
           {sectors.map((sector) => (
             <option key={sector.code} value={sector.code}>{sector.label}</option>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,7 +80,13 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function AipsByYearTable({ rows }: { rows: DashboardAip[] }) {
+export function AipsByYearTable({
+  rows,
+  basePath,
+}: {
+  rows: DashboardAip[];
+  basePath: "/barangay" | "/city";
+}) {
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium text-foreground">AIPs by Year</CardTitle></CardHeader>
@@ -91,9 +98,11 @@ export function AipsByYearTable({ rows }: { rows: DashboardAip[] }) {
             <Badge className={`w-fit border text-xs font-medium ${STATUS_STYLES[aip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(aip.status)}</Badge>
             <span className="truncate text-muted-foreground">{aip.uploadedBy ?? "System User"}</span>
             <span className="truncate tabular-nums text-muted-foreground">{formatDate(aip.uploadedDate ?? aip.statusUpdatedAt)}</span>
-            <Button size="sm" variant="ghost" className="justify-self-end text-primary hover:underline">
+            <Button asChild size="sm" variant="ghost" className="justify-self-end text-primary hover:underline">
+              <Link href={`${basePath}/aips/${aip.id}`}>
               <Eye className="mr-1 h-4 w-4" />
               View
+              </Link>
             </Button>
           </div>
         ))}

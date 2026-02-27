@@ -44,7 +44,16 @@ export function BarangayDashboardPage({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Welcome to OpenAIP" q={queryState.q} selectedFiscalYear={data.selectedFiscalYear} availableFiscalYears={data.availableFiscalYears} kpiMode={queryState.kpiMode} />
+      <DashboardHeader
+        title="Welcome to OpenAIP"
+        q={queryState.q}
+        tableQ={queryState.tableQ}
+        tableCategory={queryState.tableCategory}
+        tableSector={queryState.tableSector}
+        selectedFiscalYear={data.selectedFiscalYear}
+        availableFiscalYears={data.availableFiscalYears}
+        kpiMode={queryState.kpiMode}
+      />
 
       {!data.selectedAip ? (
         <Card className="border-slate-200 py-0 shadow-sm">
@@ -77,12 +86,12 @@ export function BarangayDashboardPage({
               <h2 className="text-4xl font-semibold text-slate-900">Barangay AIP Status</h2>
               <AipCoverageCard selectedAip={data.selectedAip} />
               <PublicationTimelineCard years={publicationYears} />
-              <AipsByYearTable rows={data.allAips} />
+              <AipsByYearTable rows={data.allAips} basePath="/barangay" />
             </div>
             <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyBarangayFeedbackAction} />
           </div>
 
-          <RecentActivityFeed runs={data.latestRuns} />
+          <RecentActivityFeed runs={data.latestRuns} auditHref="/barangay/audit" />
         </>
       )}
     </div>

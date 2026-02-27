@@ -1,98 +1,18 @@
-import type {
-  AipStatus,
-  FeedbackKind,
-  FeedbackTargetType,
-  PipelineStage,
-  PipelineStatus,
-  ProjectCategory,
-} from "@/lib/contracts/databasev2/enums";
+import type { AipStatus, ProjectCategory } from "@/lib/contracts/databasev2/enums";
+import type { DashboardFeedback, DashboardProject } from "@/lib/repos/dashboard/repo";
 
-export type DashboardScope = "barangay" | "city";
+export { CITIZEN_FEEDBACK_KINDS } from "@/lib/repos/dashboard/repo";
 
-export const CITIZEN_FEEDBACK_KINDS = [
-  "question",
-  "suggestion",
-  "concern",
-  "commend",
-] as const satisfies readonly FeedbackKind[];
-
-export type DashboardAip = {
-  id: string;
-  fiscalYear: number;
-  status: AipStatus;
-  statusUpdatedAt: string;
-  submittedAt: string | null;
-  publishedAt: string | null;
-  createdAt: string;
-};
-
-export type DashboardProject = {
-  id: string;
-  aipId: string;
-  aipRefCode: string;
-  programProjectDescription: string;
-  category: ProjectCategory;
-  sectorCode: string;
-  total: number | null;
-  personalServices: number | null;
-  maintenanceAndOtherOperatingExpenses: number | null;
-  capitalOutlay: number | null;
-  errors: unknown;
-  isHumanEdited: boolean;
-  editedAt: string | null;
-  healthProgramName: string | null;
-};
-
-export type DashboardSector = {
-  code: string;
-  label: string;
-};
-
-export type DashboardRun = {
-  id: string;
-  aipId: string;
-  stage: PipelineStage;
-  status: PipelineStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  errorCode: string | null;
-  errorMessage: string | null;
-  createdAt: string;
-};
-
-export type DashboardReview = {
-  id: string;
-  aipId: string;
-  action: "approve" | "request_revision" | "claim_review";
-  note: string | null;
-  reviewerId: string;
-  createdAt: string;
-};
-
-export type DashboardFeedback = {
-  id: string;
-  targetType: FeedbackTargetType;
-  aipId: string | null;
-  projectId: string | null;
-  parentFeedbackId: string | null;
-  kind: FeedbackKind;
-  body: string;
-  createdAt: string;
-};
-
-export type DashboardData = {
-  scope: DashboardScope;
-  scopeId: string;
-  selectedFiscalYear: number;
-  selectedAip: DashboardAip | null;
-  availableFiscalYears: number[];
-  allAips: DashboardAip[];
-  projects: DashboardProject[];
-  sectors: DashboardSector[];
-  latestRuns: DashboardRun[];
-  reviews: DashboardReview[];
-  feedback: DashboardFeedback[];
-};
+export type {
+  DashboardScope,
+  DashboardAip,
+  DashboardProject,
+  DashboardSector,
+  DashboardRun,
+  DashboardReview,
+  DashboardFeedback,
+  DashboardData,
+} from "@/lib/repos/dashboard/repo";
 
 export type DashboardQueryState = {
   q: string;

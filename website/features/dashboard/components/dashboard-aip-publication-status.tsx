@@ -89,8 +89,8 @@ export function AipsByYearTable({ rows }: { rows: DashboardAip[] }) {
           <div key={aip.id} className="grid h-14 grid-cols-[72px_140px_1fr_120px_auto] items-center border-b border-border px-3 py-2 text-sm hover:bg-accent">
             <span className="font-medium tabular-nums truncate">{aip.fiscalYear}</span>
             <Badge className={`w-fit border text-xs font-medium ${STATUS_STYLES[aip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(aip.status)}</Badge>
-            <span className="truncate text-muted-foreground">{(aip as DashboardAip & { uploadedBy?: string }).uploadedBy ?? "System User"}</span>
-            <span className="truncate tabular-nums text-muted-foreground">{formatDate((aip as DashboardAip & { uploadedDate?: string }).uploadedDate ?? aip.statusUpdatedAt)}</span>
+            <span className="truncate text-muted-foreground">{aip.uploadedBy ?? "System User"}</span>
+            <span className="truncate tabular-nums text-muted-foreground">{formatDate(aip.uploadedDate ?? aip.statusUpdatedAt)}</span>
             <Button size="sm" variant="ghost" className="justify-self-end text-primary hover:underline">
               <Eye className="mr-1 h-4 w-4" />
               View

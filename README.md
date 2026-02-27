@@ -70,6 +70,12 @@ Core data flow:
 3. Worker claims the queued run, downloads the PDF via signed URL, processes stages, and writes outputs to DB/storage.
 4. UI reads/polls/subscribes to run progress and displays final AIP/project data.
 
+### Dashboard Backend Architecture
+- Dashboard backend is implemented with server-repo adapters in `website/lib/repos/dashboard/*` (`repo.ts`, `repo.server.ts`, `repo.mock.ts`, `repo.supabase.ts`, `types.ts`).
+- Reads are scope-filtered and aggregated from existing tables (`aips`, `projects`, `feedback`, `extraction_runs`, `aip_reviews`, `uploaded_files`, `profiles`).
+- Barangay write flows are hardened: draft creation is FY-validated and idempotent; feedback replies enforce citizen-root constraints through feedback threads repo.
+- Mock behavior follows global selector flags only (`NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_USE_MOCKS`).
+
 ## Project Structure
 | Path | Responsibility |
 |---|---|

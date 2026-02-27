@@ -20,6 +20,8 @@ function makePayload(scope: "barangay" | "city"): DashboardData {
         submittedAt: null,
         publishedAt: null,
         createdAt: NOW,
+        uploadedBy: "Mock Barangay Official",
+        uploadedDate: NOW,
       },
       {
         id: `${scope}-aip-2025`,
@@ -29,6 +31,8 @@ function makePayload(scope: "barangay" | "city"): DashboardData {
         submittedAt: NOW,
         publishedAt: NOW,
         createdAt: NOW,
+        uploadedBy: "Mock System User",
+        uploadedDate: NOW,
       },
     ],
     selectedAip: {
@@ -39,6 +43,8 @@ function makePayload(scope: "barangay" | "city"): DashboardData {
       submittedAt: null,
       publishedAt: null,
       createdAt: NOW,
+      uploadedBy: "Mock Barangay Official",
+      uploadedDate: NOW,
     },
     sectors: [
       { code: "1000", label: "General Services" },

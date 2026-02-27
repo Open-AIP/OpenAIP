@@ -74,6 +74,12 @@ const {
   runProjectRepoTests,
 } = require("@/tests/repo-smoke/projects/projects.repo.mock.test");
 const {
+  runDashboardRepoSelectorTests,
+} = require("@/tests/repo-smoke/dashboard/dashboard.repo.selector.test");
+const {
+  runDashboardMapperTests,
+} = require("@/tests/repo-smoke/dashboard/dashboard.mappers.test");
+const {
   runChatRepoTests,
 } = require("@/tests/repo-smoke/chat/chat.repo.mock.test");
 const {
@@ -560,6 +566,18 @@ const tests = [
     name: "project.repo.mock tests",
     async run() {
       await runProjectRepoTests();
+    },
+  },
+  {
+    name: "dashboard.repo selector tests",
+    async run() {
+      await runDashboardRepoSelectorTests();
+    },
+  },
+  {
+    name: "dashboard.mapper tests",
+    async run() {
+      await runDashboardMapperTests();
     },
   },
   {

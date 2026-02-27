@@ -1,5 +1,8 @@
 import type { AipStatus, ProjectCategory } from "@/lib/contracts/databasev2/enums";
-import type { DashboardFeedback, DashboardProject } from "@/lib/repos/dashboard/repo";
+import type {
+  DashboardFeedback,
+  DashboardProject,
+} from "@/lib/repos/dashboard/repo";
 
 export { CITIZEN_FEEDBACK_KINDS } from "@/lib/repos/dashboard/repo";
 
@@ -11,6 +14,7 @@ export type {
   DashboardRun,
   DashboardReview,
   DashboardFeedback,
+  DashboardProjectUpdateLog,
   DashboardData,
 } from "@/lib/repos/dashboard/repo";
 

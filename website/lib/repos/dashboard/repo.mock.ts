@@ -8,6 +8,7 @@ import {
   type DashboardAip,
   type DashboardData,
   type DashboardFeedback,
+  type DashboardProjectUpdateLog,
 } from "./types";
 
 type DashboardState = {
@@ -33,6 +34,7 @@ function createInitialState(): DashboardState {
 const STATE = createInitialState();
 let draftCounter = 1;
 let feedbackCounter = 1;
+const PROJECT_UPDATE_ACTION_SET = new Set<string>(["project_info_updated", "project_updated"]);
 
 function selectScopeData(scope: "barangay" | "city"): ScopeData {
   return scope === "city" ? STATE.city : STATE.barangay;
@@ -76,6 +78,7 @@ function buildScopedDashboardData(input: {
       latestRuns: [],
       reviews: [],
       feedback: [],
+      projectUpdateLogs: [],
     };
   }
 
@@ -85,6 +88,10 @@ function buildScopedDashboardData(input: {
     if (item.targetType === "aip") return item.aipId === selectedAip.id;
     if (item.targetType === "project") return !!item.projectId && projectIdSet.has(item.projectId);
     return false;
+  });
+  const projectUpdateLogs = input.source.projectUpdateLogs.filter((log) => {
+    if (!PROJECT_UPDATE_ACTION_SET.has(log.action)) return false;
+    return projectIdSet.has(log.entityId);
   });
 
   return {
@@ -99,6 +106,11 @@ function buildScopedDashboardData(input: {
     latestRuns: input.source.latestRuns.filter((run) => run.aipId === selectedAip.id),
     reviews: input.source.reviews.filter((review) => review.aipId === selectedAip.id),
     feedback: feedback.map((item) => ({ ...item })),
+    projectUpdateLogs: projectUpdateLogs.map(
+      (log): DashboardProjectUpdateLog => ({
+        ...log,
+      })
+    ),
   };
 }
 

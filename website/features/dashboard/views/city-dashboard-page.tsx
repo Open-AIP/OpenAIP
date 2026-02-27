@@ -96,7 +96,7 @@ export function CityDashboardPage({
               <RecentActivityFeed runs={data.latestRuns} auditHref="/city/audit" />
             </div>
             <div className="min-w-0 flex flex-col items-stretch">
-              <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
+              <RecentProjectUpdatesCard logs={data.projectUpdateLogs} />
             </div>
           </div>
         </>

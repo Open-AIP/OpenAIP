@@ -5,7 +5,7 @@ import { DashboardHeader } from "./dashboard-header-widgets";
 import { TopFundedProjectsSection } from "./dashboard-projects-overview";
 import { BudgetBreakdownSection } from "./dashboard-budget-allocation";
 import { AipsByYearTable } from "./dashboard-aip-publication-status";
-import { RecentActivityFeed } from "./dashboard-activity-updates";
+import { RecentActivityFeed, RecentProjectUpdatesCard } from "./dashboard-activity-updates";
 import type { DashboardQueryState } from "@/features/dashboard/types/dashboard-types";
 
 vi.mock("next/link", () => ({
@@ -279,6 +279,48 @@ describe("Top funded filters interactions", () => {
 });
 
 describe("Dashboard links and actions", () => {
+  it("renders project update logs with mapped action tags", () => {
+    render(
+      <RecentProjectUpdatesCard
+        logs={[
+          {
+            id: "log-1",
+            action: "project_info_updated",
+            entityId: "project-1",
+            projectRefCode: "3000-01",
+            title: "Project information updated",
+            body: "Updated health project information for 3000-01.",
+            actorName: "Maria Santos",
+            createdAt: "2026-02-27T08:00:00.000Z",
+          },
+          {
+            id: "log-2",
+            action: "project_updated",
+            entityId: "project-2",
+            projectRefCode: "8000-01",
+            title: "Drainage progress update",
+            body: "Posted update with latest progress and implementation details.",
+            actorName: "Juan Dela Cruz",
+            createdAt: "2026-02-27T09:00:00.000Z",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("Drainage progress update")).toBeInTheDocument();
+    expect(screen.getByText("Project information updated")).toBeInTheDocument();
+    expect(screen.getByText("Post Update")).toBeInTheDocument();
+    expect(screen.getByText("Add Information")).toBeInTheDocument();
+  });
+
+  it("shows empty state when project update logs are unavailable", () => {
+    render(<RecentProjectUpdatesCard logs={[]} />);
+
+    expect(
+      screen.getByText("No add-information or project-update logs yet.")
+    ).toBeInTheDocument();
+  });
+
   it("keeps only View AIP Details in budget breakdown", () => {
     render(
       <BudgetBreakdownSection

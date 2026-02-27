@@ -84,6 +84,17 @@ export type DashboardFeedback = {
   createdAt: string;
 };
 
+export type DashboardProjectUpdateLog = {
+  id: string;
+  action: "project_info_updated" | "project_updated";
+  entityId: string;
+  projectRefCode: string;
+  title: string;
+  body: string;
+  actorName: string;
+  createdAt: string;
+};
+
 export type DashboardData = {
   scope: DashboardScope;
   scopeId: string;
@@ -96,6 +107,7 @@ export type DashboardData = {
   latestRuns: DashboardRun[];
   reviews: DashboardReview[];
   feedback: DashboardFeedback[];
+  projectUpdateLogs: DashboardProjectUpdateLog[];
 };
 
 export type DashboardQueryState = {

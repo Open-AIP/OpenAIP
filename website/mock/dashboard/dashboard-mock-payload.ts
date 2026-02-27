@@ -149,6 +149,48 @@ function makePayload(scope: "barangay" | "city"): DashboardData {
         createdAt: NOW,
       },
     ],
+    projectUpdateLogs: [
+      {
+        id: `${scope}-log-1`,
+        action: "project_info_updated",
+        entityId: `${scope}-proj-1`,
+        projectRefCode: "3000-01",
+        title: "Project information updated",
+        body: "Updated health project information for 3000-01.",
+        actorName: "Mock Barangay Official",
+        createdAt: NOW,
+      },
+      {
+        id: `${scope}-log-2`,
+        action: "project_updated",
+        entityId: `${scope}-proj-2`,
+        projectRefCode: "8000-01",
+        title: "Drainage progress update",
+        body: "Posted update with latest progress and implementation details.",
+        actorName: "Mock Barangay Official",
+        createdAt: NOW,
+      },
+      {
+        id: `${scope}-log-legacy`,
+        action: "project_updated",
+        entityId: `${scope}-proj-legacy`,
+        projectRefCode: "9999-01",
+        title: "Legacy project update",
+        body: "This log should be filtered out for the selected AIP.",
+        actorName: "Mock System User",
+        createdAt: NOW,
+      },
+      {
+        id: `${scope}-log-other-action`,
+        action: "project_record_updated" as unknown as "project_info_updated",
+        entityId: `${scope}-proj-1`,
+        projectRefCode: "3000-01",
+        title: "Non-target action log",
+        body: "This log should be excluded because action is unsupported.",
+        actorName: "Mock System User",
+        createdAt: NOW,
+      },
+    ],
   };
 }
 

@@ -37,6 +37,7 @@ function createDashboardData(scope: "barangay" | "city"): DashboardData {
         createdAt: "2026-02-27T00:00:00.000Z",
       },
     ],
+    projectUpdateLogs: [],
   };
 }
 

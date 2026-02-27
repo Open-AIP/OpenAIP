@@ -18,6 +18,7 @@ export type {
   DashboardRun,
   DashboardReview,
   DashboardFeedback,
+  DashboardProjectUpdateLog,
   DashboardData,
   DashboardQueryState,
   DashboardViewModel,

@@ -12,6 +12,7 @@ import {
   type DashboardAip,
   type DashboardData,
   type DashboardFeedback,
+  type DashboardProjectUpdateLog,
   type DashboardProject,
   type DashboardReview,
   type DashboardRun,
@@ -101,7 +102,17 @@ type ParentProjectRow = {
   aip_id: string;
 };
 
+type ActivityLogRow = {
+  id: string;
+  action: string;
+  entity_id: string | null;
+  entity_table: string | null;
+  metadata: unknown;
+  created_at: string;
+};
+
 const CITIZEN_KIND_SET = new Set<string>(CITIZEN_FEEDBACK_KINDS);
+const PROJECT_UPDATE_ACTION_SET = new Set<string>(["project_info_updated", "project_updated"]);
 
 function getScopeColumn(scope: DashboardScope): "barangay_id" | "city_id" {
   return scope === "city" ? "city_id" : "barangay_id";
@@ -176,6 +187,20 @@ function mapFeedbackRow(row: FeedbackRow): DashboardFeedback {
     body: row.body,
     createdAt: row.created_at,
   };
+}
+
+function getMetadataObject(metadata: unknown): Record<string, unknown> {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return {};
+  }
+  return metadata as Record<string, unknown>;
+}
+
+function getMetadataString(metadata: Record<string, unknown>, key: string): string | null {
+  const value = metadata[key];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 async function listAipsByScope(
@@ -335,6 +360,73 @@ async function listFeedback(
   }
 
   return rows.map(mapFeedbackRow);
+}
+
+async function listProjectUpdateLogs(
+  client: SupabaseClient,
+  input: {
+    scope: DashboardScope;
+    scopeId: string;
+    projects: DashboardProject[];
+  }
+): Promise<DashboardProjectUpdateLog[]> {
+  if (input.projects.length === 0) return [];
+
+  const scopeColumn = getScopeColumn(input.scope);
+  const projectIdSet = new Set(input.projects.map((project) => project.id));
+  const projectRefCodeById = new Map(
+    input.projects.map((project) => [project.id, project.aipRefCode])
+  );
+
+  const { data, error } = await client
+    .from("activity_log")
+    .select("id,action,entity_id,entity_table,metadata,created_at")
+    .in("action", ["project_info_updated", "project_updated"])
+    .eq("entity_table", "projects")
+    .eq(scopeColumn, input.scopeId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? []) as ActivityLogRow[];
+  const logs: DashboardProjectUpdateLog[] = [];
+
+  for (const row of rows) {
+    if (!row.entity_id || !projectIdSet.has(row.entity_id)) continue;
+    if (!PROJECT_UPDATE_ACTION_SET.has(row.action)) continue;
+    const action = row.action as DashboardProjectUpdateLog["action"];
+    const projectRefCode = projectRefCodeById.get(row.entity_id);
+    if (!projectRefCode) continue;
+
+    const metadata = getMetadataObject(row.metadata);
+    const title =
+      action === "project_updated"
+        ? getMetadataString(metadata, "update_title") ?? "Project update posted"
+        : "Project information updated";
+    const body =
+      action === "project_updated"
+        ? getMetadataString(metadata, "update_body") ??
+          getMetadataString(metadata, "details") ??
+          ""
+        : getMetadataString(metadata, "details") ?? "";
+    const actorName =
+      getMetadataString(metadata, "uploader_name") ??
+      getMetadataString(metadata, "actor_name") ??
+      "Unknown";
+
+    logs.push({
+      id: row.id,
+      action,
+      entityId: row.entity_id,
+      projectRefCode,
+      title,
+      body,
+      actorName,
+      createdAt: row.created_at,
+    });
+  }
+
+  return logs;
 }
 
 async function assertFeedbackParentInScope(
@@ -517,16 +609,22 @@ export function createSupabaseDashboardRepo(): DashboardRepo {
           latestRuns: [],
           reviews: [],
           feedback: [],
+          projectUpdateLogs: [],
         };
       }
 
       const projects = await listProjects(client, selectedAip.id);
       const projectIds = projects.map((project) => project.id);
-      const [sectors, latestRuns, reviews, feedback] = await Promise.all([
+      const [sectors, latestRuns, reviews, feedback, projectUpdateLogs] = await Promise.all([
         listSectors(client),
         listLatestRuns(client, selectedAip.id),
         listAipReviews(client, selectedAip.id),
         listFeedback(client, { aipId: selectedAip.id, projectIds }),
+        listProjectUpdateLogs(client, {
+          scope: input.scope,
+          scopeId: input.scopeId,
+          projects,
+        }),
       ]);
 
       return {
@@ -541,6 +639,7 @@ export function createSupabaseDashboardRepo(): DashboardRepo {
         latestRuns,
         reviews,
         feedback,
+        projectUpdateLogs,
       } satisfies DashboardData;
     },
 

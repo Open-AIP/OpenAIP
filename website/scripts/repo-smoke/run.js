@@ -80,6 +80,9 @@ const {
   runDashboardMapperTests,
 } = require("@/tests/repo-smoke/dashboard/dashboard.mappers.test");
 const {
+  runDashboardProjectUpdateLogsTests,
+} = require("@/tests/repo-smoke/dashboard/dashboard.project-update-logs.test");
+const {
   runChatRepoTests,
 } = require("@/tests/repo-smoke/chat/chat.repo.mock.test");
 const {
@@ -578,6 +581,12 @@ const tests = [
     name: "dashboard.mapper tests",
     async run() {
       await runDashboardMapperTests();
+    },
+  },
+  {
+    name: "dashboard project update logs tests",
+    async run() {
+      await runDashboardProjectUpdateLogsTests();
     },
   },
   {

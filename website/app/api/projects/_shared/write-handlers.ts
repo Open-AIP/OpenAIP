@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { withWorkflowActivityMetadata } from "@/lib/audit/activity-log";
+import { withWorkflowActivityMetadata } from "@/lib/audit/workflow-metadata";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { normalizeDateForStorage } from "@/features/projects/shared/add-information/date-normalization";

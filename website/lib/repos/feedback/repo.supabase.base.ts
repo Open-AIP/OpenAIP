@@ -1,5 +1,5 @@
 import type { FeedbackKind, RoleType } from "@/lib/contracts/databasev2";
-import { withWorkflowActivityMetadata } from "@/lib/audit/activity-log";
+import { withWorkflowActivityMetadata } from "@/lib/audit/workflow-metadata";
 import {
   CITIZEN_INITIATED_FEEDBACK_KINDS,
   isCitizenInitiatedFeedbackKind,

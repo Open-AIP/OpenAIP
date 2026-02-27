@@ -2,6 +2,164 @@ import type { ChatMessageRole } from "@/lib/contracts/databasev2";
 
 export type { ChatMessageRole };
 
+export type ChatCitationScopeType =
+  | "barangay"
+  | "city"
+  | "municipality"
+  | "unknown"
+  | "system";
+
+export type ChatResponseStatus = "answer" | "clarification" | "refusal";
+
+export type RefusalReason =
+  | "retrieval_failure"
+  | "document_limitation"
+  | "ambiguous_scope"
+  | "missing_required_parameter"
+  | "unsupported_request";
+
+export type ChatClarificationOption = {
+  optionIndex: number;
+  lineItemId: string;
+  title: string;
+  refCode: string | null;
+  fiscalYear: number | null;
+  barangayName: string | null;
+  total: string | null;
+};
+
+export type ChatCityFallbackClarificationOption = {
+  optionIndex: number;
+  action: "use_barangays_in_city" | "cancel";
+  label: string;
+};
+
+export type ChatClarificationPayload =
+  | {
+      id: string;
+      kind: "line_item_disambiguation";
+      prompt: string;
+      options: ChatClarificationOption[];
+    }
+  | {
+      id: string;
+      kind: "city_aip_missing_fallback";
+      prompt: string;
+      options: ChatCityFallbackClarificationOption[];
+    };
+
+export type AggregationIntentType =
+  | "top_projects"
+  | "totals_by_sector"
+  | "totals_by_fund_source"
+  | "compare_years";
+
+export type AggregationLogIntentType =
+  | "aggregate_top_projects"
+  | "aggregate_totals_by_sector"
+  | "aggregate_totals_by_fund_source"
+  | "aggregate_compare_years";
+
+export type ChatClarificationContextLineItem = {
+  factFields: string[];
+  scopeReason: string;
+  barangayName: string | null;
+};
+
+export type ChatClarificationContextCityFallback = {
+  cityId: string;
+  cityName: string;
+  fiscalYearParsed: number | null;
+  // Backward compatibility for older persisted clarification payloads.
+  fiscalYear?: number | null;
+  originalIntent:
+    | "total_investment_program"
+    | AggregationLogIntentType
+    | AggregationIntentType;
+  limit?: number | null;
+  yearA?: number | null;
+  yearB?: number | null;
+  listOnly?: boolean;
+};
+
+export type ChatCitation = {
+  sourceId: string;
+  chunkId?: string | null;
+  aipId?: string | null;
+  fiscalYear?: number | null;
+  scopeType?: ChatCitationScopeType;
+  scopeId?: string | null;
+  scopeName?: string | null;
+  similarity?: number | null;
+  distance?: number | null;
+  matchScore?: number | null;
+  snippet: string;
+  insufficient?: boolean;
+  metadata?: unknown | null;
+};
+
+export type ChatScopeResolutionMode =
+  | "global"
+  | "own_barangay"
+  | "named_scopes"
+  | "ambiguous"
+  | "unresolved";
+
+export type ChatScopeResolution = {
+  mode: ChatScopeResolutionMode;
+  requestedScopes: Array<{
+    scopeType: "barangay" | "city" | "municipality";
+    scopeName: string;
+  }>;
+  resolvedTargets: Array<{
+    scopeType: "barangay" | "city" | "municipality";
+    scopeId: string;
+    scopeName: string;
+  }>;
+  unresolvedScopes?: string[];
+  ambiguousScopes?: Array<{ scopeName: string; candidateCount: number }>;
+};
+
+export type ChatRetrievalMeta = {
+  refused: boolean;
+  reason:
+    | "ok"
+    | "insufficient_evidence"
+    | "clarification_needed"
+    | "verifier_failed"
+    | "ambiguous_scope"
+    | "pipeline_error"
+    | "validation_failed"
+    | "unknown";
+  topK?: number;
+  minSimilarity?: number;
+  contextCount?: number;
+  verifierPassed?: boolean;
+  scopeResolution?: ChatScopeResolution;
+  latencyMs?: number;
+  status?: ChatResponseStatus;
+  refusalReason?: RefusalReason;
+  refusalDetail?: string;
+  suggestions?: string[];
+  kind?: "clarification" | "clarification_resolved";
+  clarification?: ChatClarificationPayload & {
+    context?: ChatClarificationContextLineItem | ChatClarificationContextCityFallback;
+  };
+  clarificationResolution?: {
+    clarificationId: string;
+    selectedLineItemId: string;
+  };
+  scopeReason?: string;
+  fallbackContext?: {
+    mode: "barangays_in_city";
+    cityId: string;
+    cityName: string;
+    barangayIdsCount: number;
+    coverageBarangays: string[];
+    aggregationSource: string;
+  };
+};
+
 export const ChatRepoErrors = {
   FORBIDDEN: "FORBIDDEN",
   INVALID_ROLE: "INVALID_ROLE",
@@ -25,7 +183,7 @@ export type ChatMessage = {
   role: ChatMessageRole;
   content: string;
   createdAt: string;
-  citations?: unknown | null;
-  retrievalMeta?: unknown | null;
+  citations?: ChatCitation[] | null;
+  retrievalMeta?: ChatRetrievalMeta | null;
 };
 

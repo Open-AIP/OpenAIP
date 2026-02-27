@@ -208,6 +208,7 @@ def categorize_from_summarized_json_str(
         uploaded_file_id=str(doc.get("uploaded_file_id")) if doc.get("uploaded_file_id") else None,
         document=doc.get("document") if isinstance(doc.get("document"), dict) else _fallback_document(),
         projects=updated_projects,
+        totals=doc.get("totals") if isinstance(doc.get("totals"), list) else [],
         summary=doc.get("summary") if isinstance(doc.get("summary"), dict) else None,
         warnings=doc.get("warnings") if isinstance(doc.get("warnings"), list) else [],
         quality=doc.get("quality") if isinstance(doc.get("quality"), dict) else None,

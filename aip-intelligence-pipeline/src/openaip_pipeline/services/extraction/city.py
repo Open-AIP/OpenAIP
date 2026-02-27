@@ -26,6 +26,7 @@ from openaip_pipeline.core.artifact_contract import (
 )
 from openaip_pipeline.core.resources import read_text
 from openaip_pipeline.services.extraction.document_metadata import extract_document_metadata
+from openaip_pipeline.services.extraction.totals_extractor import extract_totals_from_pdf
 from openaip_pipeline.services.openai_utils import build_openai_client, safe_usage_dict
 
 
@@ -264,10 +265,33 @@ def run_extraction(
         on_progress=on_progress,
     )
     document, doc_warnings = extract_document_metadata(pdf_path, scope="city", page_count_hint=page_count)
+    fiscal_year = int(document.get("fiscal_year") or 0)
+    lgu_name = None
+    if isinstance(document.get("lgu"), dict):
+        name_value = (document.get("lgu") or {}).get("name")
+        if isinstance(name_value, str):
+            lgu_name = name_value
+    totals = (
+        extract_totals_from_pdf(pdf_path=pdf_path, fiscal_year=fiscal_year, barangay_name=lgu_name)
+        if fiscal_year > 0
+        else []
+    )
+    warnings = list(doc_warnings)
+    if not totals:
+        print("[EXTRACTION][CITY] totals_not_found: total_investment_program", flush=True)
+        warnings.append(
+            {
+                "code": "TOTALS_NOT_FOUND",
+                "message": "totals_not_found: total_investment_program",
+                "details": {"source_label": "total_investment_program"},
+                "source_refs": [],
+            }
+        )
+
     quality = compute_quality(
         projects=projects,
         document=document,
-        warnings=doc_warnings,
+        warnings=warnings,
         project_key_normalized_changes_count=int(usage.get("project_key_normalized_changes_count") or 0),
     )
     payload = make_stage_root(
@@ -276,17 +300,18 @@ def run_extraction(
         uploaded_file_id=uploaded_file_id,
         document=document,
         projects=projects,
-        warnings=doc_warnings,
+        warnings=warnings,
         quality=quality,
+        totals=totals,
     )
     json_str = json.dumps(payload, indent=2, ensure_ascii=False)
     elapsed = round(time.perf_counter() - start_ts, 4)
-    print(f"[EXTRACTION][CITY] elapsed={elapsed:.2f}s projects={len(projects)}", flush=True)
+    print(f"[EXTRACTION][CITY] elapsed={elapsed:.2f}s projects={len(projects)} totals={len(totals)}", flush=True)
     return ExtractionResult(
         job_id=job_id,
         model=model,
         source_pdf=pdf_path,
-        extracted={"projects": projects},
+        extracted={"projects": projects, "totals": totals},
         usage=usage,
         payload=payload,
         json_str=json_str,

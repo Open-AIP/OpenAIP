@@ -1,64 +1,57 @@
 # Account Feature Guide
 
 ## A. Purpose
-Provide an authenticated LGU user with:
-- a read-only view of their account/profile fields, and
-- a password update/reset form.
-
-This feature is intentionally UI-focused today; it does not own a repository/service layer yet.
+Provide authenticated LGU users with:
+- read-only account/profile details, and
+- password update capability.
 
 ## B. UI Surfaces
-- Route: `app/(lgu)/barangay/(authenticated)/account/page.tsx`
-- View: `features/account/account-view.tsx`
-- Form: `features/account/update-password-form.tsx`
+Routes:
+- `app/(lgu)/barangay/(authenticated)/account/page.tsx`
+- `app/(lgu)/city/(authenticated)/account/page.tsx`
 
-## C. Data Flow (diagram in text)
+Feature files:
+- `features/account/account-view.tsx`
+- `features/account/update-password-form.tsx`
+
+## C. Data Flow
 `app/(lgu)/.../account/page.tsx`
-→ `getUser()` (auth action; existing auth flow)
-→ `features/account/account-view.tsx`
-→ `features/account/update-password-form.tsx`
-→ (client) `supabase.auth.updateUser({ password })`
+-> `getUser()` from `lib/actions/auth.actions`
+-> `features/account/account-view.tsx`
+-> `features/account/update-password-form.tsx`
+-> `supabase.auth.updateUser({ password })`
 
 ## D. databasev2 Alignment
 Relevant DBV2 objects:
-- `public.profiles` + `public.role_type` (role/scope binding)
+- `public.profiles`
+- `public.role_type`
 
-Key constraints & visibility rules this feature must respect:
-- Roles are strictly one of: `citizen`, `barangay_official`, `city_official`, `municipal_official`, `admin`.
-- Scope binding is enforced by DB constraint `chk_profiles_scope_binding` (admins unbound; officials bound to exactly one geo scope; citizens bound to barangay).
+Constraints that matter to this feature:
+- Roles are limited to `citizen`, `barangay_official`, `city_official`, `municipal_official`, `admin`.
+- Scope binding is enforced by `chk_profiles_scope_binding`.
 
-How those rules should be enforced (repo/service boundaries):
-- Profile reads should ultimately come from a `ProfilesRepo` (future) that reads `public.profiles` for the current user (`profiles_select_self_or_admin` policy).
-- Password updates are auth-layer concerns (Supabase Auth), not `databasev2` tables.
+Enforcement boundaries:
+- Profile data should ultimately be read from `public.profiles` under RLS.
+- Password updates remain in Supabase Auth, not in DBV2 tables.
 
-## E. Current Implementation (Mock)
-- Profile fields displayed in `AccountView` currently come from `getUser()` in `app/(lgu)/barangay/(authenticated)/account/page.tsx`.
-- There is no feature-local mock table or repository for profiles in `features/account/`.
+## E. Current Implementation
+- Account pages currently map data from `getUser()`.
+- There is no feature-local `ProfilesRepo` yet.
 
-## F. Supabase Swap Plan (Future-only)
-Checklist (keep UI unchanged):
-1) Create `features/account/data/profiles.repo.ts` (interface) for `getMyProfile()` and `updateMyProfile()` (if needed).
-2) Add `features/account/data/profiles.repo.supabase.ts` adapter that queries `public.profiles` by `auth.uid()` (RLS-enforced).
-3) Add `features/account/data/profiles.repo.mock.ts` if you want local dev without Supabase.
-4) Update `app/(lgu)/.../account/page.tsx` to use the new repo/service instead of directly mapping `getUser()` fields (do not change auth flows).
-
-Method → table mapping:
-- `getMyProfile()` → `public.profiles` (select by `id = auth.uid()`)
-
-RLS vs server routes:
-- `public.profiles` reads should rely on RLS.
-- Password updates should continue using the auth client (not a DB table).
+## F. Future Extraction (Optional)
+If this feature moves fully to DB-backed profile reads:
+1. Add `features/account/data/profiles.repo.ts`.
+2. Add `features/account/data/profiles.repo.supabase.ts`.
+3. Keep password updates in auth-layer APIs.
 
 ## G. Testing Checklist
 Manual:
-- Visit `/(lgu)/barangay/account` while authenticated.
-- Confirm read-only fields render and the password form submits.
-- Confirm redirect logic after password update still routes to the correct dashboard for your current role routing scheme.
+- Verify both barangay and city account pages render profile fields.
+- Verify password update flow succeeds and redirects correctly.
 
 Automated:
-- (None currently in this feature.) Add component tests only if/when account gains domain logic.
+- Add component tests if domain logic is introduced in this feature.
 
-## H. Gotchas / Pitfalls
-- Draft/visibility rules in DBV2 do not apply here; this feature is about identity/profile + auth.
-- Role naming: DBV2 roles are `*_official` variants; UI routing may use different strings. Keep a single mapping layer (auth/domain) rather than leaking UI route roles into DB logic.
-
+## H. Pitfalls
+- Do not mix UI route role labels with DB role values; keep mapping centralized.
+- Do not model password state in `public.profiles`.

@@ -2,7 +2,14 @@ import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockChatRepo } from "./repo.mock";
 
-export type { ChatMessage, ChatMessageRole, ChatSession } from "./types";
+export type {
+  ChatCitation,
+  ChatMessage,
+  ChatMessageRole,
+  ChatRetrievalMeta,
+  ChatScopeResolution,
+  ChatSession,
+} from "./types";
 export { ChatRepoErrors } from "./types";
 
 import type { ChatMessage, ChatSession } from "./types";

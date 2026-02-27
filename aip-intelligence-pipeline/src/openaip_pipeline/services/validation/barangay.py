@@ -244,6 +244,7 @@ def validate_projects_json_str(
         uploaded_file_id=str(extraction_obj.get("uploaded_file_id")) if extraction_obj.get("uploaded_file_id") else None,
         document=extraction_obj.get("document") if isinstance(extraction_obj.get("document"), dict) else _fallback_document(),
         projects=merged_projects,
+        totals=extraction_obj.get("totals") if isinstance(extraction_obj.get("totals"), list) else [],
         summary=extraction_obj.get("summary") if isinstance(extraction_obj.get("summary"), dict) else None,
         warnings=warnings,
         quality=extraction_obj.get("quality") if isinstance(extraction_obj.get("quality"), dict) else None,

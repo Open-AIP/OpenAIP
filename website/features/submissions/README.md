@@ -1,86 +1,77 @@
 # Submissions Feature Guide
 
 ## A. Purpose
-Support the LGU review workflow for barangay AIPs:
-- city official (or admin) sees submitted AIPs in scope,
-- reviewer can explicitly claim ownership (`claim_review`),
-- reviewer can request revision (`for_revision`) or publish (`published`),
-- review events are append-only in `public.aip_reviews`.
+Support city-level review workflow for barangay AIPs:
+- list submitted AIPs,
+- claim review ownership,
+- request revision or approve/publish,
+- preserve append-only review history.
 
 ## B. UI Surfaces
 Routes:
-- `app/(lgu)/city/(authenticated)/submissions/page.tsx` (feed)
-- `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx` (detail + review actions)
-- `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/[projectId]/page.tsx` (project detail, read-only)
+- `app/(lgu)/city/(authenticated)/submissions/page.tsx`
+- `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/page.tsx`
+- `app/(lgu)/city/(authenticated)/submissions/aip/[aipId]/[projectId]/page.tsx`
 
-Feature components/services:
+Feature files:
 - `features/submissions/views/SubmissionsView.tsx`
-- `features/submissions/components/SubmissionTable.tsx`
 - `features/submissions/views/city-submission-review-detail.tsx`
+- `features/submissions/components/SubmissionTable.tsx`
 - `features/submissions/actions/submissionsReview.actions.ts`
 
-Repo contract + adapters:
-- `lib/repos/submissions/repo.ts`
+Repo files:
 - `lib/repos/submissions/repo.server.ts`
 - `lib/repos/submissions/repo.mock.ts`
 - `lib/repos/submissions/repo.supabase.ts`
-- `lib/repos/submissions/queries.ts`
 
 ## C. Data Flow
-Feed page:
-- `getCitySubmissionsFeed()` -> `getAipSubmissionsReviewRepo()` -> adapter -> `SubmissionsView`
+Page/server action
+-> `getAipSubmissionsReviewRepo()`
+-> repo selector
+-> adapter:
+  - mock mode: `repo.mock.ts`
+  - supabase mode: `repo.supabase.ts`
 
-Detail page:
-- server component loads detail only (no auto-claim side effect)
-- user chooses `Just View` or `Review & Claim`
-- claim path calls `claimReviewAction()` -> repo `claimReview()`
-- decision path calls `publishAipAction()` / `requestRevisionAction()`
-- project rows are paginated and open a dedicated project detail route
+Claim flow:
+- `claimReviewAction()` calls repo `claimReview()`
+- Supabase implementation uses RPC `public.claim_aip_review(p_aip_id uuid)`
+
+Decision flow:
+- `requestRevisionAction()` writes `request_revision` and sets `for_revision`
+- `publishAipAction()` writes `approve` and sets `published`
 
 ## D. databasev2 Alignment
-Relevant tables/enums:
-- `public.aips` (`public.aip_status`)
-- `public.aip_reviews` (`public.review_action`: `claim_review`, `approve`, `request_revision`)
+Primary tables/enums:
+- `public.aips` with `public.aip_status`
+- `public.aip_reviews` with `public.review_action`
 
 Lifecycle:
-- `pending_review` + claim -> `under_review` + append `claim_review`
-- `under_review` + request revision (owner only) -> append `request_revision` + set `for_revision`
-- `under_review` + publish (owner only) -> append `approve` + set `published`
+- `pending_review` + claim -> `under_review`
+- `under_review` + request revision -> `for_revision`
+- `under_review` + approve -> `published`
 
-Ownership rules:
-- Active assignment is inferred from the latest `aip_reviews` row when it is `claim_review`.
-- If latest action is not `claim_review`, assignment is considered cleared.
-- City officials cannot override another active claim.
-- Admin can claim to take over, then perform review actions.
+Ownership model:
+- latest `claim_review` entry determines active reviewer,
+- non-claim latest action clears active assignment,
+- admins can take over by claiming again.
 
 ## E. UX Rules
-- `/city/submissions`:
-  - `pending_review` action opens detail with `?mode=review&intent=review` (claim modal)
-  - `under_review` action opens detail with `?mode=review`
-  - compatibility: legacy links with only `?intent=review` still enter review context
-- `/city/submissions/aip/[aipId]`:
-  - shows breadcrumbs (`Submissions > [AIP]`)
-  - project table uses pagination (10 rows/page)
-  - row click opens `/city/submissions/aip/[aipId]/[projectId]` and preserves current query params
-- `/city/submissions/aip/[aipId]/[projectId]`:
-  - shows breadcrumbs (`Submissions > [AIP] > Project [Ref]`)
-  - uses read-only project detail view (no field edits, no review submit)
-- Claim modal options:
-  - `Just View`: no status change, no owner assignment
-  - `Review & Claim`: assigns owner and enables review actions
-  - after successful claim, review actions appear immediately via optimistic UI while refresh syncs persisted status/assignment
-- Non-owner users in review mode see disabled action controls and owner notice.
-- When unclaimed (or admin takeover path), detail shows a claim button.
+- Pending rows prompt claim modal with `Just View` and `Review & Claim`.
+- Review actions are disabled for non-owner reviewers.
+- Detail pages preserve breadcrumb and pagination context.
+- Project detail pages are read-only from submissions flow.
 
 ## F. Testing Checklist
 Manual:
-- Open `/city/submissions` and verify reviewer changes after claim + refresh.
-- From a pending AIP, click `Review`:
-  - `Just View` keeps status pending and actions disabled.
-  - `Review & Claim` changes to under review and enables actions for owner.
-- Confirm non-owner cannot publish/request revision.
-- Confirm admin can take over by claiming first.
+- Claim a pending submission and verify owner/status refresh.
+- Verify `Just View` does not mutate status.
+- Verify non-owner cannot publish/request revision.
+- Verify admin takeover requires claim first.
 
 Automated:
 - `tests/repo-smoke/submissions/submissions.queries.test.ts`
 - `tests/repo-smoke/submissions/submissions.repo.mock.test.ts`
+
+## G. Pitfalls
+- Keep claim ownership checks aligned with latest-review semantics.
+- Do not allow direct publish/request revision without active claim ownership.

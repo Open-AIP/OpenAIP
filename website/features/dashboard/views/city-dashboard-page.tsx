@@ -31,10 +31,12 @@ export function CityDashboardPage({
     day: "numeric",
   });
 
-  const totalAips = data.allAips.length;
   const pendingReviewCount = data.allAips.filter((aip) => aip.status === "pending_review").length;
   const underReviewCount = data.allAips.filter((aip) => aip.status === "under_review").length;
   const forRevisionCount = data.allAips.filter((aip) => aip.status === "for_revision").length;
+  const healthProjectsCount = vm.projects.filter((project) => project.category === "health").length;
+  const infraProjectsCount = vm.projects.filter((project) => project.category === "infrastructure").length;
+  const projectBreakdownText = `Health: ${healthProjectsCount} | Infra: ${infraProjectsCount}`;
 
   const publicationYears = data.allAips
     .map((aip) => aip.fiscalYear)
@@ -60,7 +62,7 @@ export function CityDashboardPage({
         </Card>
       ) : (
         <>
-          <KpiRow selectedAip={data.selectedAip} totalProjects={vm.projects.length} totalBudget={toCurrency(vm.totalBudget)} missingTotalCount={vm.missingTotalCount} citizenFeedbackCount={vm.citizenFeedbackCount} awaitingReplyCount={vm.awaitingReplyCount} mode={queryState.kpiMode} pendingReviewCount={pendingReviewCount} underReviewCount={underReviewCount} forRevisionCount={forRevisionCount} totalAips={totalAips} oldestPendingDays={vm.oldestPendingDays} scope="city" />
+          <KpiRow selectedAip={data.selectedAip} totalProjects={vm.projects.length} totalBudget={toCurrency(vm.totalBudget)} citizenFeedbackCount={vm.citizenFeedbackCount} awaitingReplyCount={vm.awaitingReplyCount} hiddenCount={vm.lguNotesPosted} pendingReviewCount={pendingReviewCount} underReviewCount={underReviewCount} forRevisionCount={forRevisionCount} oldestPendingDays={vm.oldestPendingDays} fiscalYear={data.selectedAip.fiscalYear} projectBreakdownText={projectBreakdownText} scope="city" />
 
           <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
             <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={`/city/aips/${data.selectedAip.id}`} useComponentDonutChart />
@@ -91,3 +93,5 @@ export function CityDashboardPage({
     </div>
   );
 }
+
+

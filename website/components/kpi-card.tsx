@@ -81,7 +81,7 @@ export function KpiCard({
   subtext,
   meta,
   icon,
-  iconPlacement = "left",
+  iconPlacement,
   variant = "status",
   accent = "none",
   accentMode = "border",
@@ -91,6 +91,7 @@ export function KpiCard({
 }: KpiCardProps) {
   const resolvedAccent = normalizeAccent(accent);
   const resolvedBadgeAccent = normalizeAccent(badge?.accent);
+  const resolvedIconPlacement = iconPlacement ?? (variant === "split" ? "right" : "left");
   const accentClasses = resolvedAccent === "none" ? ACCENT_CLASS_MAP.slate : ACCENT_CLASS_MAP[resolvedAccent];
   const badgeClasses = resolvedBadgeAccent === "none" ? ACCENT_CLASS_MAP.slate.chip : ACCENT_CLASS_MAP[resolvedBadgeAccent].chip;
 
@@ -128,22 +129,17 @@ export function KpiCard({
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className={cn("min-w-0", iconNode ? "flex items-center gap-2" : "block")}>
-          {iconNode && iconPlacement === "left" ? iconNode : null}
+          {iconNode && resolvedIconPlacement === "left" ? iconNode : null}
           <p className="truncate text-xs text-slate-500">{label}</p>
         </div>
         <div className="flex items-center gap-2">
           {badgeNode}
-          {iconNode && iconPlacement === "right" ? iconNode : null}
+          {iconNode && resolvedIconPlacement === "right" ? iconNode : null}
         </div>
       </div>
       <div className={cn("break-words text-2xl font-semibold leading-tight", valueClass)}>{value}</div>
       {subtext ? <div className="text-xs text-slate-500">{subtext}</div> : null}
       {meta ? <div className="text-xs leading-relaxed text-slate-500">{meta}</div> : null}
-      {accentMode === "chip" && !badgeNode && resolvedAccent !== "none" ? (
-        <span className={cn("inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium", accentClasses.chip)}>
-          Highlight
-        </span>
-      ) : null}
     </div>
   );
 
@@ -170,7 +166,7 @@ export function KpiCard({
           {badgeNode}
         </div>
       </div>
-      {iconNode && iconPlacement === "right" ? iconNode : null}
+      {iconNode && resolvedIconPlacement === "right" ? iconNode : null}
     </div>
   );
 
@@ -183,7 +179,7 @@ export function KpiCard({
   );
 
   const cardClassName = cn(
-    "rounded-2xl border bg-white text-slate-900 shadow-sm",
+    "rounded-2xl border bg-slate-50 text-slate-900 shadow-none",
     variant === "compact" ? "min-h-[96px] p-3" : "min-h-[112px] p-4",
     borderClass,
     onClick
@@ -204,4 +200,3 @@ export function KpiCard({
 }
 
 export default KpiCard;
-

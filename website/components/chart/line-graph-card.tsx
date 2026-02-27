@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type LineSeriesConfig = {
   key: string;

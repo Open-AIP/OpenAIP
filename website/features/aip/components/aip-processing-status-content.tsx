@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type {
   AipProcessingRunView,
   PipelineStageUi,

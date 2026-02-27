@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { LguRecord } from "@/lib/repos/lgu/repo";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import LguRowActions from "./lgu-row-actions";
 
 function statusBadgeClass(status: LguRecord["status"]) {

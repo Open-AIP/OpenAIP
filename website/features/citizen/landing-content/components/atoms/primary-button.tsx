@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type PrimaryButtonProps = {
   label: string;

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type CardShellProps = {
   children: ReactNode;

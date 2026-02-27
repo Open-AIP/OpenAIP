@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import type { FinalCtaVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import LandingFooter from "../../components/layout/landing-footer";
 import { MOTION_TOKENS, VIEWPORT_ONCE } from "../../components/motion/motion-primitives";
 

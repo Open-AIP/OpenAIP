@@ -26,7 +26,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { ListOfBarangays } from '@/constants'
-import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
+import { getRolePath, getRoleEmailPlaceholder } from "@/lib/ui/auth-helpers";
 import { verifyOfficialInviteEligibilityAction } from "@/lib/actions/signup.actions";
 // import { time } from 'console'
 

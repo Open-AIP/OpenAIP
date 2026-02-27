@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
 import { getCommentStatusBadge } from "../lib/status";

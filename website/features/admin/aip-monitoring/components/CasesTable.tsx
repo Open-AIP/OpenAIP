@@ -25,7 +25,7 @@ import {
   UserX,
 } from "lucide-react";
 import type { CaseRow, CaseType } from "../types/monitoring.types";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 function caseBadgeClass(caseType: CaseType) {
   switch (caseType) {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type ViewAllProjectsCardProps = {
   title: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, type ClipboardEvent, type KeyboardEvent } from "react";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type CitizenOtpInputProps = {
   value: string;

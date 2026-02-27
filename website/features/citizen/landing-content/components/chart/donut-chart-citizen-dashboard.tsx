@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 export type DonutChartSegment = {
   key: string;

@@ -1,4 +1,4 @@
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { CitizenChatSessionVM } from "../types/citizen-chatbot.types";
 
 export default function CitizenChatSessionItem({

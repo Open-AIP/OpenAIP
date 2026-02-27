@@ -1,4 +1,4 @@
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type LguMapPanelPlaceholderProps = {
   className?: string;

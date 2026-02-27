@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 export type DonutChartDatum = {
   name: string;

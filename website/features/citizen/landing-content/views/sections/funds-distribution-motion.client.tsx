@@ -7,7 +7,7 @@ import DonutChartCitizenDashboard, {
   type DonutChartSegment,
 } from "../../components/chart/donut-chart-citizen-dashboard";
 import { MOTION_TOKENS, VIEWPORT_ONCE } from "../../components/motion/motion-primitives";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type FundsDistributionMotionProps = {
   vm: SectorDistributionVM;

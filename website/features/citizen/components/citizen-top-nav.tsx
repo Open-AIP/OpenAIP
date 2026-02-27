@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { buildCitizenAuthHref } from '@/features/citizen/auth/utils/auth-query';
 import { CITIZEN_NAV } from '@/features/citizen/constants/nav';
-import { cn } from '@/ui/utils';
+import { cn } from '@/lib/ui/utils';
 
 function isActivePath(pathname: string, href: string) {
   if (href === '/') return pathname === '/';

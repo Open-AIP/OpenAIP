@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type CitizenPageHeroProps = {
   title: string;

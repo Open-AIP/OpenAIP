@@ -1,4 +1,4 @@
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { CitizenChatMessageVM } from "../types/citizen-chatbot.types";
 import CitizenChatEvidence from "./citizen-chat-evidence";
 import CitizenChatFollowups from "./citizen-chat-followups";

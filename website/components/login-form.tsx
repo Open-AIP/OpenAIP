@@ -16,7 +16,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
+import { getRolePath, getRoleEmailPlaceholder } from "@/lib/ui/auth-helpers";
 import { toRouteRole } from '@/lib/supabase/proxy'
 
 export function LoginForm({role, baseURL}:AuthParameters) {

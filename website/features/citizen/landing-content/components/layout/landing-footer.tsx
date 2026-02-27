@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type LandingFooterProps = {
   className?: string;

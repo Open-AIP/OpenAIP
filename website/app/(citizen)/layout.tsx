@@ -6,7 +6,7 @@ import { CitizenAuthModalHost } from "@/features/citizen/auth";
 import CitizenFooter from "@/features/citizen/components/citizen-footer";
 import FloatingChatButton from "@/features/citizen/components/floating-chat-button";
 import CitizenTopNav from "@/features/citizen/components/citizen-top-nav";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 const CitizenLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();

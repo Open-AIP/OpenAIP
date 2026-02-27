@@ -3,7 +3,7 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { ChatSessionListItem } from "../types/chat.types";
 
 export default function ChatSessionsPanel({

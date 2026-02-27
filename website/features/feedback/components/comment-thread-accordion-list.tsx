@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 import { CommentThreadPanel } from "./comment-thread-panel";
 import { getCommentThreadHighlightClassName } from "./comment-thread-highlight";

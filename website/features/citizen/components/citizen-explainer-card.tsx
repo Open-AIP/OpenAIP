@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BookOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type CitizenExplainerCardProps = {
   title: string;

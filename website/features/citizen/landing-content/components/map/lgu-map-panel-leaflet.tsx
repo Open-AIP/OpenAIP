@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 const DEFAULT_MARKER_ICON = {
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",

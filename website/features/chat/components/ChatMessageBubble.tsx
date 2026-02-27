@@ -1,7 +1,7 @@
 "use client";
 
 import { formatMatchMetric } from "@/lib/chat/match-metric";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { ChatMessageBubble as ChatMessageBubbleType } from "../types/chat.types";
 
 export default function ChatMessageBubble({

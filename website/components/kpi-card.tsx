@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 export type KpiCardAccent = "none" | "blue" | "green" | "orange" | "yellow" | "slate";
 export type KpiCardVariant = "status" | "compact" | "split";

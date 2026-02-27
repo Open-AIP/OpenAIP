@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import type { ProjectCardVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type ProjectShowcaseCardProps = {
   project: ProjectCardVM;

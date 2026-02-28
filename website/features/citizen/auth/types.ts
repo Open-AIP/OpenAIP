@@ -1,6 +1,6 @@
 export type CitizenAuthStep =
-  | "login"
-  | "signup_email"
+  | "welcome"
+  | "email_password"
   | "verify_otp"
   | "complete_profile";
 

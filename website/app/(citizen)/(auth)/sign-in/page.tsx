@@ -6,7 +6,7 @@ type SignInPageProps = {
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const { next, returnTo } = await searchParams;
-  const params = new URLSearchParams({ auth: "login" });
+  const params = new URLSearchParams({ auth: "login", authStep: "email" });
   const candidate = next ?? returnTo;
 
   if (typeof candidate === "string" && candidate.startsWith("/") && !candidate.startsWith("//")) {

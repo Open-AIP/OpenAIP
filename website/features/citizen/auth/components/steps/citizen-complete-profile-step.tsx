@@ -1,96 +1,72 @@
 "use client";
 
-import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import CitizenAuthHeader from "@/features/citizen/auth/components/citizen-auth-header";
+
+type SelectOption = {
+  value: string;
+  label: string;
+};
 
 type CitizenCompleteProfileStepProps = {
   titleId: string;
   descriptionId: string;
   firstName: string;
   lastName: string;
-  barangay: string;
-  city: string;
-  province: string;
-  password: string;
+  provinceId: string;
+  cityOrMunicipalityId: string;
+  barangayId: string;
+  provinceOptions: SelectOption[];
+  cityOrMunicipalityOptions: SelectOption[];
+  barangayOptions: SelectOption[];
+  isGeoLoading: boolean;
+  geoLoadError: string | null;
   errorMessage: string | null;
   isLoading: boolean;
-  barangayOptions: readonly string[];
-  cityOptions: readonly string[];
-  provinceOptions: readonly string[];
   onFirstNameChange: (value: string) => void;
   onLastNameChange: (value: string) => void;
-  onBarangayChange: (value: string) => void;
-  onCityChange: (value: string) => void;
   onProvinceChange: (value: string) => void;
-  onPasswordChange: (value: string) => void;
+  onCityOrMunicipalityChange: (value: string) => void;
+  onBarangayChange: (value: string) => void;
   onSubmit: () => void;
 };
-
-function SelectField({
-  id,
-  label,
-  value,
-  placeholder,
-  options,
-  disabled,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  placeholder: string;
-  options: readonly string[];
-  disabled: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="text-sm font-medium text-slate-800">
-        {label}
-      </Label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40 disabled:cursor-not-allowed disabled:opacity-70"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
 
 export default function CitizenCompleteProfileStep({
   titleId,
   descriptionId,
   firstName,
   lastName,
-  barangay,
-  city,
-  province,
-  password,
+  provinceId,
+  cityOrMunicipalityId,
+  barangayId,
+  provinceOptions,
+  cityOrMunicipalityOptions,
+  barangayOptions,
+  isGeoLoading,
+  geoLoadError,
   errorMessage,
   isLoading,
-  barangayOptions,
-  cityOptions,
-  provinceOptions,
   onFirstNameChange,
   onLastNameChange,
-  onBarangayChange,
-  onCityChange,
   onProvinceChange,
-  onPasswordChange,
+  onCityOrMunicipalityChange,
+  onBarangayChange,
   onSubmit,
 }: CitizenCompleteProfileStepProps) {
+  const isCityDisabled =
+    isLoading || isGeoLoading || !provinceId || cityOrMunicipalityOptions.length === 0;
+  const isBarangayDisabled =
+    isLoading || isGeoLoading || !cityOrMunicipalityId || barangayOptions.length === 0;
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-white p-8 md:p-10">
       <div className="m-auto w-full max-w-md space-y-7">
@@ -98,7 +74,7 @@ export default function CitizenCompleteProfileStep({
           titleId={titleId}
           descriptionId={descriptionId}
           title="Complete Your Profile"
-          description="Please provide the following details to finalize your account."
+          description="All fields are required before you can continue."
         />
 
         <form
@@ -144,59 +120,106 @@ export default function CitizenCompleteProfileStep({
             </div>
           </div>
 
-          <SelectField
-            id="citizen-barangay"
-            label="Choose Barangay"
-            value={barangay}
-            placeholder="Select barangay"
-            options={barangayOptions}
-            onChange={onBarangayChange}
-            disabled={isLoading}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="citizen-province" className="text-sm font-medium text-slate-800">
+              Province
+            </Label>
+            <Select
+              value={provinceId || undefined}
+              onValueChange={onProvinceChange}
+              disabled={isLoading}
+            >
+              <SelectTrigger
+                id="citizen-province"
+                className="h-12 w-full rounded-xl border-slate-300 bg-white px-3 text-base text-slate-900 focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
+              >
+                <SelectValue placeholder={isGeoLoading ? "Loading provinces..." : "Select province"} />
+              </SelectTrigger>
+              <SelectContent>
+                {provinceOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <SelectField
-              id="citizen-city"
-              label="Choose City"
-              value={city}
-              placeholder="Select city"
-              options={cityOptions}
-              onChange={onCityChange}
-              disabled={isLoading}
-            />
-            <SelectField
-              id="citizen-province"
-              label="Choose Province"
-              value={province}
-              placeholder="Select province"
-              options={provinceOptions}
-              onChange={onProvinceChange}
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="citizen-signup-password" className="text-sm font-medium text-slate-800">
-              Password
-            </Label>
-            <div className="relative">
-              <Lock
-                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                aria-hidden
-              />
-              <Input
-                id="citizen-signup-password"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                value={password}
-                onChange={(event) => onPasswordChange(event.target.value)}
-                disabled={isLoading}
-                className="h-12 rounded-xl border-slate-300 bg-white pl-11 text-base text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="citizen-city-or-municipality" className="text-sm font-medium text-slate-800">
+                City
+              </Label>
+              <Select
+                value={cityOrMunicipalityId || undefined}
+                onValueChange={onCityOrMunicipalityChange}
+                disabled={isCityDisabled}
+              >
+                <SelectTrigger
+                  id="citizen-city-or-municipality"
+                  className="h-12 w-full rounded-xl border-slate-300 bg-white px-3 text-base text-slate-900 focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
+                >
+                  <SelectValue
+                    placeholder={
+                      isGeoLoading
+                        ? "Loading cities..."
+                        : provinceId
+                          ? "Select city"
+                          : "Select province first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {cityOrMunicipalityOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="citizen-barangay" className="text-sm font-medium text-slate-800">
+                Barangay
+              </Label>
+              <Select
+                value={barangayId || undefined}
+                onValueChange={onBarangayChange}
+                disabled={isBarangayDisabled}
+              >
+                <SelectTrigger
+                  id="citizen-barangay"
+                  className="h-12 w-full rounded-xl border-slate-300 bg-white px-3 text-base text-slate-900 focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
+                >
+                  <SelectValue
+                    placeholder={
+                      isGeoLoading
+                        ? "Loading barangays..."
+                        : cityOrMunicipalityId
+                          ? "Select barangay"
+                          : "Select city first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {barangayOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
+          {geoLoadError ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {geoLoadError}
+            </p>
+          ) : null}
 
           {errorMessage ? (
             <p
@@ -212,7 +235,7 @@ export default function CitizenCompleteProfileStep({
             className="h-12 w-full rounded-xl bg-[#022E45] text-base font-semibold text-white hover:bg-[#01304A] focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
             disabled={isLoading}
           >
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? "Saving profile..." : "Save and continue"}
           </Button>
         </form>
       </div>

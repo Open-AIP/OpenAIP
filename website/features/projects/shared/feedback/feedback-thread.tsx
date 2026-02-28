@@ -5,6 +5,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
+  buildCitizenAuthHref,
+  setReturnToInSessionStorage,
+} from "@/features/citizen/auth/utils/auth-query";
+import {
   createProjectFeedback,
   createProjectFeedbackReply,
   listProjectFeedback,
@@ -76,13 +80,6 @@ function normalizeApiError(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function buildFeedbackSignInHref(currentPath: string): string {
-  const params = new URLSearchParams();
-  params.set("next", currentPath);
-  params.set("returnTo", currentPath);
-  return `/sign-in?${params.toString()}`;
-}
-
 export function FeedbackThread({ projectId }: FeedbackThreadProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -90,6 +87,7 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
 
   const [isAuthLoading, setIsAuthLoading] = React.useState(true);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [isProfileComplete, setIsProfileComplete] = React.useState(false);
 
   const [items, setItems] = React.useState<ProjectFeedbackItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -105,9 +103,52 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
     return `${path}#feedback`;
   }, [pathname, searchParams]);
 
-  const redirectToCitizenSignIn = React.useCallback(() => {
-    router.push(buildFeedbackSignInHref(currentDetailPath));
-  }, [currentDetailPath, router]);
+  const openAuthModal = React.useCallback(
+    (input: { forceCompleteProfile?: boolean }) => {
+      setReturnToInSessionStorage(currentDetailPath);
+      const href = buildCitizenAuthHref({
+        pathname,
+        searchParams,
+        mode: input.forceCompleteProfile ? null : "login",
+        launchStep: "email",
+        completeProfile: input.forceCompleteProfile === true,
+        next: currentDetailPath,
+      });
+      router.replace(href, { scroll: false });
+    },
+    [currentDetailPath, pathname, router, searchParams]
+  );
+
+  const requireFeedbackAccess = React.useCallback((): boolean => {
+    if (!isAuthenticated) {
+      openAuthModal({ forceCompleteProfile: false });
+      return false;
+    }
+
+    if (!isProfileComplete) {
+      openAuthModal({ forceCompleteProfile: true });
+      return false;
+    }
+
+    return true;
+  }, [isAuthenticated, isProfileComplete, openAuthModal]);
+
+  const loadProfileStatus = React.useCallback(async () => {
+    const response = await fetch("/profile/status", {
+      method: "GET",
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | { ok?: boolean; isComplete?: boolean }
+      | null;
+
+    if (!response.ok || !payload?.ok) {
+      setIsProfileComplete(false);
+      return;
+    }
+
+    setIsProfileComplete(payload.isComplete === true);
+  }, []);
 
   const loadFeedback = React.useCallback(async () => {
     setLoading(true);
@@ -136,11 +177,13 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
 
       if (error || !data.user?.id) {
         setIsAuthenticated(false);
+        setIsProfileComplete(false);
         setIsAuthLoading(false);
         return;
       }
 
       setIsAuthenticated(true);
+      await loadProfileStatus();
       setIsAuthLoading(false);
     }
 
@@ -149,6 +192,11 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       setIsAuthenticated(Boolean(session?.user?.id));
+      if (session?.user?.id) {
+        void loadProfileStatus();
+      } else {
+        setIsProfileComplete(false);
+      }
       setIsAuthLoading(false);
     });
 
@@ -156,14 +204,13 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfileStatus]);
 
   const threads = React.useMemo(() => groupFeedbackThreads(items), [items]);
 
   const handleReplyClick = React.useCallback(
     (item: ProjectFeedbackItem) => {
-      if (!isAuthenticated) {
-        redirectToCitizenSignIn();
+      if (!requireFeedbackAccess()) {
         return;
       }
 
@@ -174,14 +221,13 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         replyToAuthor: item.author.fullName,
       });
     },
-    [isAuthenticated, redirectToCitizenSignIn]
+    [requireFeedbackAccess]
   );
 
   const handleCreateRootFeedback = React.useCallback(
     async (input: { kind: CitizenProjectFeedbackKind; body: string }) => {
-      if (!isAuthenticated) {
-        redirectToCitizenSignIn();
-        throw new Error("Please sign in to post feedback.");
+      if (!requireFeedbackAccess()) {
+        throw new Error("Complete sign in and profile setup to post feedback.");
       }
 
       setIsPostingRoot(true);
@@ -214,15 +260,19 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         );
       } catch (error) {
         setItems((current) => current.filter((item) => item.id !== optimisticId));
-        if (error instanceof ProjectFeedbackRequestError && error.status === 401) {
-          redirectToCitizenSignIn();
+        if (error instanceof ProjectFeedbackRequestError) {
+          if (error.status === 401) {
+            openAuthModal({ forceCompleteProfile: false });
+          } else if (error.status === 403 && error.message.toLowerCase().includes("complete")) {
+            openAuthModal({ forceCompleteProfile: true });
+          }
         }
         throw new Error(normalizeApiError(error, "Failed to post feedback."));
       } finally {
         setIsPostingRoot(false);
       }
     },
-    [isAuthenticated, projectId, redirectToCitizenSignIn]
+    [openAuthModal, projectId, requireFeedbackAccess]
   );
 
   const handleCreateReplyFeedback = React.useCallback(
@@ -231,9 +281,8 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         throw new Error("Reply target is missing.");
       }
 
-      if (!isAuthenticated) {
-        redirectToCitizenSignIn();
-        throw new Error("Please sign in to post a reply.");
+      if (!requireFeedbackAccess()) {
+        throw new Error("Complete sign in and profile setup to post a reply.");
       }
 
       setPostingReplyRootId(replyComposer.rootId);
@@ -268,15 +317,19 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         setReplyComposer(null);
       } catch (error) {
         setItems((current) => current.filter((item) => item.id !== optimisticId));
-        if (error instanceof ProjectFeedbackRequestError && error.status === 401) {
-          redirectToCitizenSignIn();
+        if (error instanceof ProjectFeedbackRequestError) {
+          if (error.status === 401) {
+            openAuthModal({ forceCompleteProfile: false });
+          } else if (error.status === 403 && error.message.toLowerCase().includes("complete")) {
+            openAuthModal({ forceCompleteProfile: true });
+          }
         }
         throw new Error(normalizeApiError(error, "Failed to post reply."));
       } finally {
         setPostingReplyRootId(null);
       }
     },
-    [isAuthenticated, projectId, redirectToCitizenSignIn, replyComposer]
+    [openAuthModal, projectId, replyComposer, requireFeedbackAccess]
   );
 
   return (
@@ -290,10 +343,16 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
             </p>
           </div>
 
-          {!isAuthenticated ? (
+          {!isAuthenticated || !isProfileComplete ? (
             <Button
               type="button"
-              onClick={redirectToCitizenSignIn}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  openAuthModal({ forceCompleteProfile: false });
+                  return;
+                }
+                openAuthModal({ forceCompleteProfile: true });
+              }}
               aria-label="Add project feedback"
               disabled={isAuthLoading}
             >
@@ -302,7 +361,7 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
           ) : null}
         </div>
 
-        {isAuthenticated ? (
+        {isAuthenticated && isProfileComplete ? (
           <div className="mt-4">
             <FeedbackComposer
               submitLabel={isPostingRoot ? "Posting..." : "Post feedback"}

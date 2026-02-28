@@ -4,6 +4,7 @@ import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
 import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
+import { isCitizenProfileComplete } from "@/lib/auth/citizen-profile-completion";
 import { NextResponse } from "next/server";
 
 type ReplyRequestBody = {
@@ -28,7 +29,9 @@ type ChatMessageRow = {
 };
 
 type ProfileScopeRow = {
+  id: string;
   role: RoleType;
+  full_name: string | null;
   barangay_id: string | null;
   city_id: string | null;
   municipality_id: string | null;
@@ -263,7 +266,7 @@ export async function POST(request: Request) {
 
     const { data: profileData, error: profileError } = await server
       .from("profiles")
-      .select("role,barangay_id,city_id,municipality_id")
+      .select("id,role,full_name,barangay_id,city_id,municipality_id")
       .eq("id", userId)
       .maybeSingle();
 
@@ -276,6 +279,16 @@ export async function POST(request: Request) {
     }
 
     const profile = profileData as ProfileScopeRow;
+    if (profile.role !== "citizen") {
+      return NextResponse.json({ error: "Only citizens can use this endpoint." }, { status: 403 });
+    }
+    if (!isCitizenProfileComplete(profile)) {
+      return NextResponse.json(
+        { error: "Complete your profile before using the AI Assistant." },
+        { status: 403 }
+      );
+    }
+
     const chatbotPolicy = await getTypedAppSetting("controls.chatbot_policy");
     if (!chatbotPolicy.isEnabled) {
       return NextResponse.json(
@@ -362,4 +375,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

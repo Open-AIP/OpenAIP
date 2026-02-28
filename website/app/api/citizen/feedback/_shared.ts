@@ -1,4 +1,5 @@
 import type { RoleType } from "@/lib/contracts/databasev2";
+import { isCitizenProfileComplete } from "@/lib/auth/citizen-profile-completion";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -373,7 +374,7 @@ export async function requireCitizenActor(
   const userId = authData.user.id;
   const { data: profileData, error: profileError } = await client
     .from("profiles")
-    .select("id,role")
+    .select("id,role,full_name,barangay_id,city_id,municipality_id")
     .eq("id", userId)
     .maybeSingle();
 
@@ -383,6 +384,13 @@ export async function requireCitizenActor(
 
   if (!profileData || profileData.role !== "citizen") {
     throw new CitizenFeedbackApiError(403, "Only citizens can post project feedback.");
+  }
+
+  if (!isCitizenProfileComplete(profileData)) {
+    throw new CitizenFeedbackApiError(
+      403,
+      "Complete your profile before posting feedback."
+    );
   }
 
   return { userId };

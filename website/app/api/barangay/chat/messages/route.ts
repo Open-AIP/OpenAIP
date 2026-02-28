@@ -487,7 +487,8 @@ function resolveLineItemClarificationOptionFromSelection(input: {
   options: ChatClarificationOption[];
 }): ChatClarificationOption | null {
   if (input.selection.kind === "numeric") {
-    const option = input.options.find((item) => item.optionIndex === input.selection.optionIndex);
+    const { optionIndex } = input.selection;
+    const option = input.options.find((item) => item.optionIndex === optionIndex);
     return option ?? null;
   }
 
@@ -513,7 +514,8 @@ function resolveCityFallbackClarificationOptionFromSelection(input: {
   if (input.selection.kind !== "numeric") {
     return null;
   }
-  const option = input.options.find((item) => item.optionIndex === input.selection.optionIndex);
+  const { optionIndex } = input.selection;
+  const option = input.options.find((item) => item.optionIndex === optionIndex);
   return option ?? null;
 }
 
@@ -1663,14 +1665,7 @@ function toResponseStatus(
   if (retrievalMeta.status === "clarification" || retrievalMeta.kind === "clarification") {
     return {
       status: "clarification",
-      clarification: retrievalMeta.clarification
-        ? {
-            id: retrievalMeta.clarification.id,
-            kind: retrievalMeta.clarification.kind,
-            prompt: retrievalMeta.clarification.prompt,
-            options: retrievalMeta.clarification.options,
-          }
-        : undefined,
+      clarification: retrievalMeta.clarification ?? undefined,
     };
   }
 
@@ -2453,7 +2448,7 @@ async function resolveTotalsAssistantPayload(input: {
         reason: mapRefusalReasonToMetaReason(scopeRefusal.status, scopeRefusal.reason),
         status: scopeRefusal.status,
         refusalReason: scopeRefusal.reason,
-        refusalDetail: scopeResult.errorMessage ?? null,
+        refusalDetail: scopeResult.errorMessage ?? undefined,
         suggestions: scopeRefusal.suggestions,
         scopeResolution: input.scopeResolution,
       },

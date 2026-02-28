@@ -1,4 +1,4 @@
-import { BARANGAY_DASHBOARD_MOCK, CITY_DASHBOARD_MOCK } from "@/mock/dashboard/dashboard-mock-payload";
+import { BARANGAY_DASHBOARD_MOCK, CITY_DASHBOARD_MOCK } from "@/mocks/dashboard/dashboard-mock-payload";
 import { applyAipUploaderMetadata, resolveDefaultFiscalYear, resolveSelectedFiscalYear } from "./mappers";
 import type { DashboardRepo } from "./repo";
 import {

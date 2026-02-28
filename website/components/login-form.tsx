@@ -243,14 +243,12 @@ export function LoginForm({role, baseURL}:AuthParameters) {
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  {role !== 'admin' && 
-                    <Link
-                      href={`${rolePath}/forgot-password`}
-                      className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                    >
-                      Forgot your password?
-                    </Link>
-                  }
+                  <Link
+                    href={`${rolePath}/forgot-password`}
+                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
                 </div>
                 <Input
                   id="password"
@@ -266,14 +264,12 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                 {isLoading ? 'Logging in...' : 'Login'}
               </Button>
             </div>
-            {role !== 'admin' && 
-              <div className="mt-4 text-center text-sm">
-                Don&apos;t have an account?{' '}
-                <Link href={`${rolePath}/sign-up`} className="underline underline-offset-4">
-                  Sign up
-                </Link>
-              </div>
-            }
+            <div className="mt-4 text-center text-sm">
+              Don&apos;t have an account?{' '}
+              <Link href={`${rolePath}/sign-up`} className="underline underline-offset-4">
+                Sign up
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

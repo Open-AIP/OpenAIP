@@ -8,7 +8,6 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/ui/utils";
 import type { LguVariant } from "@/types/navigation";
 import { BARANGAY_NAV, CITY_NAV } from "@/constants/lgu-nav";
-import { LogoutButton } from "@/components/logout-button";
 
 type Props = {
   variant: LguVariant;
@@ -175,13 +174,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
         </ul>
       </nav>
 
-      {/* Footer / Logout */}
-      <div className="p-4 mt-auto">
-        <div className="text-xs mb-3"> </div>
-        <div className="rounded-xl bg-[#022437] p-2">
-          <LogoutButton role={variant} baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
-        </div>
-      </div>
+    
     </aside>
   );
 }

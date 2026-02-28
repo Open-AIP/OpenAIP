@@ -6,6 +6,20 @@ const nextConfig: NextConfig = {
     // "Next.js package not found" panics on dev.
     root: process.cwd(),
   },
+  async redirects() {
+    return [
+      {
+        source: "/barangay/comments",
+        destination: "/barangay/feedback",
+        permanent: false,
+      },
+      {
+        source: "/city/comments",
+        destination: "/city/feedback",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

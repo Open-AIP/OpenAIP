@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { InfrastructureProject } from "@/features/projects/types";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -20,10 +21,15 @@ import {
   PhilippinePeso,
   Landmark,
   Plus,
-  Flag,
 } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
+import {
+  DEFAULT_PROJECT_IMAGE_SRC,
+  PROJECT_LOGO_FALLBACK_SRC,
+  resolveProjectImageSource,
+} from "@/features/projects/shared/project-image";
+import { toDateRangeLabel } from "@/features/projects/shared/project-date";
 
 /**
  * InfrastructureProjectInformationCard Component
@@ -43,14 +49,34 @@ import { PRIMARY_BUTTON_CLASS } from "@/constants/theme";
  * @param scope - Administrative scope (city or barangay) for routing
  */
 export default function InfrastructureProjectInformationCard({
-  aipYear,
   project,
-  scope = "barangay"
+  scope = "barangay",
+  useLogoFallback = false,
 }: {
   aipYear: number;
   project: InfrastructureProject;
   scope?: "city" | "barangay" | "citizen";
+  useLogoFallback?: boolean;
 }) {
+  const [imageSrc, setImageSrc] = useState<string>(
+    () =>
+      resolveProjectImageSource(project.imageUrl, {
+        useLogoFallback,
+        defaultSource: DEFAULT_PROJECT_IMAGE_SRC,
+      }) ?? DEFAULT_PROJECT_IMAGE_SRC
+  );
+
+  useEffect(() => {
+    setImageSrc(
+      resolveProjectImageSource(project.imageUrl, {
+        useLogoFallback,
+        defaultSource: DEFAULT_PROJECT_IMAGE_SRC,
+      }) ?? DEFAULT_PROJECT_IMAGE_SRC
+    );
+  }, [project.imageUrl, useLogoFallback]);
+
+  const dateRange = toDateRangeLabel(project.startDate, project.targetCompletionDate) ?? "N/A";
+
   return (
     <Card className="border-slate-200">
       <CardContent className="p-6">
@@ -72,11 +98,19 @@ export default function InfrastructureProjectInformationCard({
           <div className="lg:w-96 shrink-0">
             <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden bg-slate-100">
               <Image
-                src={project.imageUrl || "/default/default-no-image.jpg"}
+                src={imageSrc}
                 alt={project.title}
                 fill
                 className="object-cover object-center"
                 sizes="(min-width: 1024px) 384px, 100vw"
+                onError={() => {
+                  if (!useLogoFallback) return;
+                  setImageSrc((current) =>
+                    current === PROJECT_LOGO_FALLBACK_SRC
+                      ? current
+                      : PROJECT_LOGO_FALLBACK_SRC
+                  );
+                }}
               />
             </div>
           </div>
@@ -107,17 +141,9 @@ export default function InfrastructureProjectInformationCard({
 
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-500">Start Date:</span>
+                <span className="text-slate-500">Date:</span>
                 <span className="font-medium text-slate-900">
-                  {project.startDate || `January ${aipYear}`}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3 text-sm">
-                <Flag className="w-4 h-4 text-slate-400" />
-                <span className="text-slate-500">Target Completion:</span>
-                <span className="font-medium text-slate-900">
-                  {project.targetCompletionDate || "N/A"}
+                  {dateRange}
                 </span>
               </div>
 

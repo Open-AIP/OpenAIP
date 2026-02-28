@@ -37,6 +37,16 @@ Repository selection is centralized in:
 - `lib/config/appEnv.ts`
 - `lib/repos/_shared/selector.ts`
 
+## Dashboard Backend Notes
+
+- Dashboard backend uses repo-domain architecture at `lib/repos/dashboard/*`.
+- Reads are server-side and scope-filtered (`barangay` / `city`) using existing tables (`aips`, `projects`, `feedback`, `extraction_runs`, `aip_reviews`, `uploaded_files`, `profiles`).
+- Dashboard AIP rows include uploader metadata from the latest `uploaded_files.is_current` record plus uploader `profiles.full_name`.
+- Barangay write actions are strict:
+  - draft create validates FY (`2000..2100`), enforces barangay scope, and is idempotent on duplicate FY
+  - feedback reply validates body/length and parent eligibility, and routes reply creation through feedback threads repo for invariant + audit preservation
+- Dashboard mock mode does not use a dashboard-only toggle; it follows global flags only (`NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_USE_MOCKS`).
+
 ## Quality Checks
 
 ```bash

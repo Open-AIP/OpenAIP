@@ -9,9 +9,6 @@ import { cn } from "@/ui/utils";
 import type { LguVariant } from "@/types/navigation";
 import { BARANGAY_NAV, CITY_NAV } from "@/constants/lgu-nav";
 
-// Optional: use your existing logout button if you already have it
-import { LogoutButton } from "@/components/logout-button";
-
 type Props = {
   variant: LguVariant;
   scopeDisplayName?: string;
@@ -156,14 +153,6 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
           })}
         </ul>
       </nav>
-
-      {/* Footer / Logout */}
-      <div className="p-4 mt-auto">
-        <div className="text-xs mb-3"> </div>
-        <div className="rounded-xl bg-[#022437] p-2">
-          <LogoutButton role={variant} baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
-        </div>
-      </div>
     </aside>
   );
 }

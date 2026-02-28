@@ -8,25 +8,28 @@ function assert(condition: boolean, message: string) {
 
 export async function runCommentRepoSelectorTests() {
   const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+  const oldUseMocks = process.env.NEXT_PUBLIC_USE_MOCKS;
 
   try {
     process.env.NEXT_PUBLIC_APP_ENV = "dev";
+    process.env.NEXT_PUBLIC_USE_MOCKS = "true";
     const devRepo = getCommentRepo();
     const threads = await devRepo.listThreadsForInbox({ lguId: "lgu_001" });
     assert(Array.isArray(threads), "Expected mock repo to return threads in dev");
 
     process.env.NEXT_PUBLIC_APP_ENV = "staging";
-    let threw = false;
-    try {
-      getCommentRepo();
-    } catch (error) {
-      threw = /server-only|not implemented/i.test(
-        error instanceof Error ? error.message : String(error)
-      );
-    }
-    assert(threw, "Expected client-safe repo getter to throw outside mock mode");
+    process.env.NEXT_PUBLIC_USE_MOCKS = "false";
+    const stagingRepo = getCommentRepo();
+    assert(
+      typeof stagingRepo.listThreadsForInbox === "function" &&
+        typeof stagingRepo.getThread === "function" &&
+        typeof stagingRepo.listMessages === "function" &&
+        typeof stagingRepo.addReply === "function",
+      "Expected staging/no-mock selector to return a concrete comment repo adapter"
+    );
   } finally {
     process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+    process.env.NEXT_PUBLIC_USE_MOCKS = oldUseMocks;
   }
 }
 

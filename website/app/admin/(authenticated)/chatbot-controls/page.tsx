@@ -1,6 +1,6 @@
-import Placeholder from "@/components/layout/placeholder";
+import { redirect } from "next/navigation";
 
 export default function ChatbotControlsPage() {
-  return <Placeholder title="Chatbot Controls" description="This module is under development." />;
+  redirect("/admin/usage-controls?tab=chatbot");
 }
 

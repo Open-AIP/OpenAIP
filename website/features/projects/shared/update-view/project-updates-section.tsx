@@ -15,6 +15,27 @@ import type { ProjectUpdateUi } from "@/features/projects/types";
 import UpdatesTimelineView from "./updates-timeline-view";
 import PostUpdateForm from "./post-update-form";
 
+type PostingScope = "barangay" | "city";
+type PostingProjectKind = "health" | "infrastructure";
+
+type ProjectUpdatesSectionProps =
+  | {
+      initialUpdates: ProjectUpdateUi[];
+      allowPosting?: false;
+      projectId?: never;
+      scope?: never;
+      projectKind?: never;
+      participantsTargetTotal?: never;
+    }
+  | {
+      initialUpdates: ProjectUpdateUi[];
+      allowPosting: true;
+      projectId: string;
+      scope: PostingScope;
+      projectKind: PostingProjectKind;
+      participantsTargetTotal?: number | null;
+    };
+
 /**
  * ProjectUpdatesSection Component
  * 
@@ -29,23 +50,44 @@ import PostUpdateForm from "./post-update-form";
  * 
  * @param initialUpdates - Initial array of project updates
  */
-export default function ProjectUpdatesSection({
-  initialUpdates,
-  allowPosting = true,
-}: {
-  initialUpdates: ProjectUpdateUi[];
-  allowPosting?: boolean;
-}) {
+export default function ProjectUpdatesSection(props: ProjectUpdatesSectionProps) {
+  const { initialUpdates } = props;
   const [updates, setUpdates] = React.useState<ProjectUpdateUi[]>(initialUpdates);
 
-  if (!allowPosting) {
+  React.useEffect(() => {
+    setUpdates(initialUpdates);
+  }, [initialUpdates]);
+
+  const currentProgressPercent = React.useMemo(
+    () => updates.reduce((maxProgress, update) => Math.max(maxProgress, update.progressPercent), 0),
+    [updates]
+  );
+
+  const currentParticipantsReached = React.useMemo(
+    () =>
+      updates.reduce(
+        (totalParticipants, update) => totalParticipants + (update.attendanceCount ?? 0),
+        0
+      ),
+    [updates]
+  );
+
+  if (props.allowPosting !== true) {
     return <UpdatesTimelineView updates={updates} />;
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
       <UpdatesTimelineView updates={updates} />
-      <PostUpdateForm onCreate={(u) => setUpdates((prev) => [u, ...prev])} />
+      <PostUpdateForm
+        projectId={props.projectId}
+        scope={props.scope}
+        projectKind={props.projectKind}
+        currentProgressPercent={currentProgressPercent}
+        currentParticipantsReached={currentParticipantsReached}
+        participantsTargetTotal={props.participantsTargetTotal}
+        onCreate={(u) => setUpdates((prev) => [u, ...prev])}
+      />
     </div>
   );
 }

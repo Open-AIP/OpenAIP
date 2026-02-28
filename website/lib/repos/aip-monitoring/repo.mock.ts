@@ -10,7 +10,7 @@ import {
 
 export function createMockAipMonitoringRepo(): AipMonitoringRepo {
   return {
-    getSeedData() {
+    async getSeedData() {
       return {
         aips: AIP_MONITORING_AIPS,
         reviews: AIP_MONITORING_REVIEWS,

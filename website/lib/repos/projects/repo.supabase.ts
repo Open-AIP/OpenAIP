@@ -1,16 +1,442 @@
 import "server-only";
 
-import { NotImplementedError } from "@/lib/core/errors";
+import { supabaseServer } from "@/lib/supabase/server";
+import {
+  toProjectCoverProxyUrl,
+  toProjectUpdateMediaProxyUrl,
+} from "@/lib/projects/media";
+import type {
+  HealthProjectDetailsRow,
+  InfrastructureProjectDetailsRow,
+  ProjectUpdateMediaRow,
+  ProjectUpdateRow,
+  ProjectRow,
+} from "./db.types";
+import { mapProjectRowToUiModel } from "./mappers";
 import type { ProjectsRepo } from "./repo";
+import type {
+  HealthProject,
+  InfrastructureProject,
+  ProjectUpdate,
+  ProjectReadOptions,
+  ProjectBundle,
+  UiProject,
+} from "./types";
 
-// [SUPABASE-SWAP] Future Supabase adapter for `ProjectsRepo`.
-// [DBV2] Tables (canonical):
-// - `public.projects` (id, aip_id, aip_ref_code, program_project_description, category, totals, timestamps, etc.)
-// - `public.health_project_details` (project_id, program_name, description, target_participants, total_target_participants, audit fields)
-// - `public.infrastructure_project_details` (project_id, project_name, contractor_name, contract_cost, start_date, target_completion_date, audit fields)
-// [SECURITY] Reads must respect `public.can_read_project(project_id)` / `public.can_read_aip(aip_id)` via RLS.
-export function createSupabaseProjectsRepo(): ProjectsRepo {
-  throw new NotImplementedError(
-    "lib/repos/projects/repo.supabase.ts not implemented (Supabase swap deferred)."
+type ProjectRowWithMeta = ProjectRow;
+
+type AipScopeRow = {
+  id: string;
+};
+
+type AipYearRow = {
+  id: string;
+  fiscal_year: number;
+};
+
+type ProjectUpdateSelectRow = Pick<
+  ProjectUpdateRow,
+  | "id"
+  | "project_id"
+  | "title"
+  | "description"
+  | "progress_percent"
+  | "attendance_count"
+  | "status"
+  | "created_at"
+>;
+
+type ProjectUpdateMediaSelectRow = Pick<
+  ProjectUpdateMediaRow,
+  "id" | "update_id" | "project_id" | "created_at"
+>;
+
+type ProjectUpdateWithoutRef = Omit<ProjectUpdate, "projectRefCode">;
+
+const PROJECT_SELECT_COLUMNS = [
+  "id",
+  "aip_id",
+  "extraction_artifact_id",
+  "aip_ref_code",
+  "program_project_description",
+  "implementing_agency",
+  "start_date",
+  "completion_date",
+  "expected_output",
+  "source_of_funds",
+  "personal_services",
+  "maintenance_and_other_operating_expenses",
+  "financial_expenses",
+  "capital_outlay",
+  "total",
+  "climate_change_adaptation",
+  "climate_change_mitigation",
+  "cc_topology_code",
+  "prm_ncr_lgu_rm_objective_results_indicator",
+  "errors",
+  "category",
+  "status",
+  "image_url",
+  "sector_code",
+  "is_human_edited",
+  "edited_by",
+  "edited_at",
+  "created_at",
+  "updated_at",
+].join(",");
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
   );
+}
+
+function toDateLabel(value: string): string {
+  return new Date(value).toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function hasBarangayScopeHint(options?: ProjectReadOptions): boolean {
+  if (!options) return false;
+  return options.barangayId !== undefined || options.barangayScopeName !== undefined;
+}
+
+function hasCityScopeHint(options?: ProjectReadOptions): boolean {
+  if (!options) return false;
+  return options.cityId !== undefined || options.cityScopeName !== undefined;
+}
+
+async function resolveReadableAipIds(
+  client: Awaited<ReturnType<typeof supabaseServer>>,
+  options?: ProjectReadOptions
+): Promise<Set<string> | null> {
+  const enforcePublishedOnly = options?.publishedOnly === true;
+  const hasBarangayScope = hasBarangayScopeHint(options);
+  const hasCityScope = hasCityScopeHint(options);
+  const scoped = hasBarangayScope || hasCityScope;
+
+  if (!enforcePublishedOnly && !scoped) return null;
+  if (hasBarangayScope && !options?.barangayId) return new Set<string>();
+  if (hasCityScope && !options?.cityId) return new Set<string>();
+
+  let query = client.from("aips").select("id");
+
+  if (enforcePublishedOnly) {
+    query = query.eq("status", "published");
+  }
+
+  if (options?.barangayId) {
+    query = query.eq("barangay_id", options.barangayId);
+  }
+
+  if (options?.cityId) {
+    query = query.eq("city_id", options.cityId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Set(((data ?? []) as AipScopeRow[]).map((row) => row.id));
+}
+
+async function loadDetailsByProjectIds(projectIds: string[]) {
+  const healthByProjectId = new Map<string, HealthProjectDetailsRow>();
+  const infraByProjectId = new Map<string, InfrastructureProjectDetailsRow>();
+
+  if (projectIds.length === 0) {
+    return { healthByProjectId, infraByProjectId };
+  }
+
+  const client = await supabaseServer();
+  const [healthResult, infraResult] = await Promise.all([
+    client
+      .from("health_project_details")
+      .select(
+        "project_id,program_name,description,target_participants,total_target_participants,updated_by,updated_at,created_at"
+      )
+      .in("project_id", projectIds),
+    client
+      .from("infrastructure_project_details")
+      .select(
+        "project_id,project_name,contractor_name,contract_cost,start_date,target_completion_date,updated_by,updated_at,created_at"
+      )
+      .in("project_id", projectIds),
+  ]);
+
+  if (healthResult.error) {
+    throw new Error(healthResult.error.message);
+  }
+
+  if (infraResult.error) {
+    throw new Error(infraResult.error.message);
+  }
+
+  for (const row of (healthResult.data ?? []) as HealthProjectDetailsRow[]) {
+    healthByProjectId.set(row.project_id, row);
+  }
+
+  for (const row of (infraResult.data ?? []) as InfrastructureProjectDetailsRow[]) {
+    infraByProjectId.set(row.project_id, row);
+  }
+
+  return { healthByProjectId, infraByProjectId };
+}
+
+async function loadUpdatesByProjectIds(projectIds: string[]) {
+  const updatesByProjectId = new Map<string, ProjectUpdateWithoutRef[]>();
+  if (projectIds.length === 0) {
+    return updatesByProjectId;
+  }
+
+  const client = await supabaseServer();
+  const { data: updatesData, error: updatesError } = await client
+    .from("project_updates")
+    .select("id,project_id,title,description,progress_percent,attendance_count,status,created_at")
+    .in("project_id", projectIds)
+    .order("created_at", { ascending: false });
+  if (updatesError) {
+    throw new Error(updatesError.message);
+  }
+
+  const updateRows = (updatesData ?? []) as ProjectUpdateSelectRow[];
+  const activeUpdateRows = updateRows.filter((row) => row.status === "active");
+  const updateIds = activeUpdateRows.map((row) => row.id);
+
+  const mediaByUpdateId = new Map<string, ProjectUpdateMediaSelectRow[]>();
+  if (updateIds.length > 0) {
+    const { data: mediaData, error: mediaError } = await client
+      .from("project_update_media")
+      .select("id,update_id,project_id,created_at")
+      .in("update_id", updateIds)
+      .order("created_at", { ascending: true });
+    if (mediaError) {
+      throw new Error(mediaError.message);
+    }
+
+    for (const row of (mediaData ?? []) as ProjectUpdateMediaSelectRow[]) {
+      const list = mediaByUpdateId.get(row.update_id) ?? [];
+      list.push(row);
+      mediaByUpdateId.set(row.update_id, list);
+    }
+  }
+
+  for (const row of activeUpdateRows) {
+    const mediaRows = mediaByUpdateId.get(row.id) ?? [];
+    const nextUpdate: ProjectUpdateWithoutRef = {
+      id: row.id,
+      title: row.title,
+      date: toDateLabel(row.created_at),
+      description: row.description,
+      progressPercent: row.progress_percent,
+      attendanceCount: row.attendance_count ?? undefined,
+      photoUrls:
+        mediaRows.length > 0
+          ? mediaRows.map((mediaRow) => toProjectUpdateMediaProxyUrl(mediaRow.id))
+          : undefined,
+    };
+
+    const list = updatesByProjectId.get(row.project_id) ?? [];
+    list.push(nextUpdate);
+    updatesByProjectId.set(row.project_id, list);
+  }
+
+  return updatesByProjectId;
+}
+
+async function loadAipFiscalYears(aipIds: string[]) {
+  const fiscalYearByAipId = new Map<string, number>();
+  if (aipIds.length === 0) {
+    return fiscalYearByAipId;
+  }
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("aips")
+    .select("id,fiscal_year")
+    .in("id", aipIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  for (const row of (data ?? []) as AipYearRow[]) {
+    fiscalYearByAipId.set(row.id, row.fiscal_year);
+  }
+
+  return fiscalYearByAipId;
+}
+
+function mapProjectToUiModel(
+  row: ProjectRowWithMeta,
+  details: {
+    healthByProjectId: Map<string, HealthProjectDetailsRow>;
+    infraByProjectId: Map<string, InfrastructureProjectDetailsRow>;
+  },
+  updatesByProjectId: Map<string, ProjectUpdateWithoutRef[]>,
+  aipFiscalYearByAipId: Map<string, number>
+): UiProject {
+  const health = details.healthByProjectId.get(row.id) ?? null;
+  const infra = details.infraByProjectId.get(row.id) ?? null;
+  const updates = (updatesByProjectId.get(row.id) ?? []).map((update) => ({
+    ...update,
+    projectRefCode: row.aip_ref_code,
+  }));
+
+  const mapped = mapProjectRowToUiModel(row, health, infra, {
+    status: row.status,
+    imageUrl: row.image_url ? toProjectCoverProxyUrl(row.id) : null,
+    year: aipFiscalYearByAipId.get(row.aip_id) ?? null,
+  });
+
+  return {
+    ...mapped,
+    updates,
+  };
+}
+
+async function listProjectsInternal(input?: {
+  aipId?: string;
+  category?: "health" | "infrastructure";
+  options?: ProjectReadOptions;
+}): Promise<UiProject[]> {
+  const client = await supabaseServer();
+  const scopedAipIds = await resolveReadableAipIds(client, input?.options);
+  if (scopedAipIds && scopedAipIds.size === 0) {
+    return [];
+  }
+
+  let query = client.from("projects").select(PROJECT_SELECT_COLUMNS);
+
+  if (input?.aipId) {
+    query = query.eq("aip_id", input.aipId);
+  }
+
+  if (input?.category) {
+    query = query.eq("category", input.category);
+  }
+
+  if (scopedAipIds) {
+    query = query.in("aip_id", Array.from(scopedAipIds));
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as unknown as ProjectRowWithMeta[];
+  const projectIds = rows.map((row) => row.id);
+  const aipIds = Array.from(new Set(rows.map((row) => row.aip_id)));
+  const [details, updatesByProjectId, aipFiscalYearByAipId] = await Promise.all([
+    loadDetailsByProjectIds(projectIds),
+    loadUpdatesByProjectIds(projectIds),
+    loadAipFiscalYears(aipIds),
+  ]);
+
+  return rows.map((row) => mapProjectToUiModel(row, details, updatesByProjectId, aipFiscalYearByAipId));
+}
+
+async function getProjectByRefOrId(
+  projectIdOrRefCode: string,
+  options?: ProjectReadOptions
+): Promise<UiProject | null> {
+  const client = await supabaseServer();
+  const scopedAipIds = await resolveReadableAipIds(client, options);
+  if (scopedAipIds && scopedAipIds.size === 0) {
+    return null;
+  }
+
+  let row: ProjectRowWithMeta | null = null;
+
+  if (isUuid(projectIdOrRefCode)) {
+    let byId = client
+      .from("projects")
+      .select(PROJECT_SELECT_COLUMNS)
+      .eq("id", projectIdOrRefCode);
+    if (scopedAipIds) {
+      byId = byId.in("aip_id", Array.from(scopedAipIds));
+    }
+    const byIdResult = await byId.maybeSingle();
+
+    if (byIdResult.error) {
+      throw new Error(byIdResult.error.message);
+    }
+
+    row = (byIdResult.data as ProjectRowWithMeta | null) ?? null;
+  }
+
+  if (!row) {
+    let byRefCode = client
+      .from("projects")
+      .select(PROJECT_SELECT_COLUMNS)
+      .eq("aip_ref_code", projectIdOrRefCode)
+      .order("created_at", { ascending: false })
+      .limit(2);
+    if (scopedAipIds) {
+      byRefCode = byRefCode.in("aip_id", Array.from(scopedAipIds));
+    }
+    const byRefCodeResult = await byRefCode;
+
+    if (byRefCodeResult.error) {
+      throw new Error(byRefCodeResult.error.message);
+    }
+
+    const rows = ((byRefCodeResult.data ?? []) as unknown) as ProjectRowWithMeta[];
+    row = rows[0] ?? null;
+  }
+
+  if (!row) {
+    return null;
+  }
+
+  if (scopedAipIds && !scopedAipIds.has(row.aip_id)) {
+    return null;
+  }
+
+  const [details, updatesByProjectId, aipFiscalYearByAipId] = await Promise.all([
+    loadDetailsByProjectIds([row.id]),
+    loadUpdatesByProjectIds([row.id]),
+    loadAipFiscalYears([row.aip_id]),
+  ]);
+  return mapProjectToUiModel(row, details, updatesByProjectId, aipFiscalYearByAipId);
+}
+
+export function createSupabaseProjectsRepo(): ProjectsRepo {
+  return {
+    async listByAip(aipId: string, options?: ProjectReadOptions): Promise<UiProject[]> {
+      return listProjectsInternal({ aipId, options });
+    },
+
+    async getById(projectId: string, options?: ProjectReadOptions): Promise<UiProject | null> {
+      return getProjectByRefOrId(projectId, options);
+    },
+
+    async listHealth(options?: ProjectReadOptions): Promise<HealthProject[]> {
+      const projects = await listProjectsInternal({ category: "health", options });
+      return projects.filter((project) => project.kind === "health") as HealthProject[];
+    },
+
+    async listInfrastructure(options?: ProjectReadOptions): Promise<InfrastructureProject[]> {
+      const projects = await listProjectsInternal({ category: "infrastructure", options });
+      return projects.filter((project) => project.kind === "infrastructure") as InfrastructureProject[];
+    },
+
+    async getByRefCode(
+      projectRefCode: string,
+      options?: ProjectReadOptions
+    ): Promise<ProjectBundle | null> {
+      const project = await getProjectByRefOrId(projectRefCode, options);
+      if (!project) return null;
+      if (project.kind !== "health" && project.kind !== "infrastructure") {
+        return null;
+      }
+      return project as ProjectBundle;
+    },
+  };
 }

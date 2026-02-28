@@ -37,13 +37,32 @@ export function __resetMockChatState() {
 
 export function createMockChatRepo(): ChatRepo {
   return {
-    async listSessions(userId: string): Promise<ChatSession[]> {
-      return sessionsStore
+    async listSessions(userId: string, options?: { query?: string }): Promise<ChatSession[]> {
+      const loweredQuery = options?.query?.trim().toLowerCase() ?? "";
+      let filtered = sessionsStore
         .filter((session) => session.userId === userId)
         .sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
+
+      if (!loweredQuery) {
+        return filtered;
+      }
+
+      filtered = filtered.filter((session) => {
+        const title = (session.title ?? "").toLowerCase();
+        if (title.includes(loweredQuery)) {
+          return true;
+        }
+
+        return messagesStore.some((message) => {
+          if (message.sessionId !== session.id) return false;
+          return message.content.toLowerCase().includes(loweredQuery);
+        });
+      });
+
+      return filtered;
     },
 
     async getSession(sessionId: string): Promise<ChatSession | null> {
@@ -88,6 +107,17 @@ export function createMockChatRepo(): ChatRepo {
       ];
 
       return updated;
+    },
+
+    async deleteSession(sessionId: string): Promise<boolean> {
+      const beforeCount = sessionsStore.length;
+      sessionsStore = sessionsStore.filter((session) => session.id !== sessionId);
+      if (sessionsStore.length === beforeCount) {
+        return false;
+      }
+
+      messagesStore = messagesStore.filter((message) => message.sessionId !== sessionId);
+      return true;
     },
 
     async listMessages(sessionId: string): Promise<ChatMessage[]> {

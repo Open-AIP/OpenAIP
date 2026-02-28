@@ -1,13 +1,28 @@
 export type ProjectKind = "health" | "infrastructure";
 
 export const PROJECT_STATUS_VALUES = [
-  "planning",
+  "proposed",
   "ongoing",
   "completed",
   "on_hold",
 ] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
+
+export type BarangayProjectScope = {
+  barangayId?: string | null;
+  barangayScopeName?: string | null;
+};
+
+export type CityProjectScope = {
+  cityId?: string | null;
+  cityScopeName?: string | null;
+};
+
+export type ProjectReadOptions = BarangayProjectScope &
+  CityProjectScope & {
+  publishedOnly?: boolean;
+};
 
 export type ProjectMaster = {
   projectRefCode: string; // ✅ single join key
@@ -22,6 +37,8 @@ export type ProjectMaster = {
 export type HealthProjectDetails = {
   projectRefCode: string;
   month: string;
+  startDate: string;
+  targetCompletionDate: string;
 
   totalTargetParticipants: number;
   targetParticipants: string;
@@ -78,6 +95,8 @@ export type HealthProject =
 
     // health-specific display fields
     month: HealthProjectDetails["month"];
+    startDate: HealthProjectDetails["startDate"];
+    targetCompletionDate: HealthProjectDetails["targetCompletionDate"];
     description: string;
     totalTargetParticipants: HealthProjectDetails["totalTargetParticipants"];
     targetParticipants: HealthProjectDetails["targetParticipants"];

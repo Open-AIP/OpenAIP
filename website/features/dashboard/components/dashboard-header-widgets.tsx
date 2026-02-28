@@ -1,33 +1,79 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronDown, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useRef } from "react";
+import type { ProjectCategory } from "@/lib/contracts/databasev2/enums";
 
 export function DashboardHeader({
   title,
   q = "",
+  tableQ = "",
+  tableCategory = "all",
+  tableSector = "all",
   selectedFiscalYear,
   availableFiscalYears = [],
   kpiMode = "summary",
 }: {
   title: string;
   q?: string;
+  tableQ?: string;
+  tableCategory?: ProjectCategory | "all";
+  tableSector?: string | "all";
   selectedFiscalYear?: number;
   availableFiscalYears?: number[];
   kpiMode?: "summary" | "operational";
 }) {
   const resolvedYear = selectedFiscalYear ?? new Date().getFullYear();
   const yearOptions = availableFiscalYears.length > 0 ? availableFiscalYears : [resolvedYear];
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const tableQRef = useRef<HTMLInputElement | null>(null);
+  const categoryRef = useRef<HTMLInputElement | null>(null);
+  const sectorRef = useRef<HTMLInputElement | null>(null);
+
+  const syncTopFiltersFromUrl = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tableQFromUrl = params.get("tableQ");
+    const categoryFromUrl = params.get("category");
+    const sectorFromUrl = params.get("sector");
+
+    if (tableQRef.current) tableQRef.current.value = tableQFromUrl ?? tableQ;
+    if (categoryRef.current) categoryRef.current.value = categoryFromUrl ?? tableCategory;
+    if (sectorRef.current) sectorRef.current.value = sectorFromUrl ?? tableSector;
+  }, [tableQ, tableCategory, tableSector]);
+
+  const submitWithSyncedFilters = useCallback(() => {
+    syncTopFiltersFromUrl();
+    formRef.current?.requestSubmit();
+  }, [syncTopFiltersFromUrl]);
 
   return (
     <div className="w-full space-y-6">
       <h1 className="text-5xl font-bold text-foreground">{title}</h1>
-      <form method="get" className="flex items-center justify-between gap-4">
+      <form ref={formRef} method="get" className="flex items-center justify-between gap-4">
         <input type="hidden" name="kpi" value={kpiMode} />
+        <input ref={tableQRef} type="hidden" name="tableQ" defaultValue={tableQ} />
+        <input ref={categoryRef} type="hidden" name="category" defaultValue={tableCategory} />
+        <input ref={sectorRef} type="hidden" name="sector" defaultValue={tableSector} />
         <div className="relative w-full max-w-[360px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
             name="q"
             defaultValue={q}
+            onBlur={(event) => {
+              if (event.currentTarget.value !== q) {
+                submitWithSyncedFilters();
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submitWithSyncedFilters();
+              }
+            }}
             placeholder="Global search..."
             className="h-10 w-full rounded-lg border-0 bg-secondary pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Global search"
@@ -39,6 +85,7 @@ export function DashboardHeader({
             <select
               name="year"
               defaultValue={String(resolvedYear)}
+              onChange={() => submitWithSyncedFilters()}
               className="h-10 w-[120px] appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label="Select Year"
             >
@@ -130,7 +177,7 @@ export function DateCard({ label, backgroundImageUrl }: { label: string; backgro
 
   return (
     <Card
-      className="relative h-[79px] overflow-hidden rounded-xl border-0 py-0"
+      className="relative h-[79px] w-full min-w-0 overflow-hidden rounded-xl border-0 py-0"
     >
       {backgroundImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -152,7 +199,7 @@ export function DateCard({ label, backgroundImageUrl }: { label: string; backgro
 
 export function WorkingOnCard({ items }: { items: Array<{ id: string; label: string; href: string }> }) {
   return (
-    <Card className="rounded-xl border border-border bg-card py-0 text-card-foreground">
+    <Card className="w-full min-w-0 rounded-xl border border-border bg-card py-0 text-card-foreground">
       <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium">You&apos;re Working On</CardTitle></CardHeader>
       <CardContent className="p-5 space-y-3">
         {items.length === 0 ? (

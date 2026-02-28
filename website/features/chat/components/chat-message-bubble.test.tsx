@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import ChatMessageBubble from "./ChatMessageBubble";
 
 describe("ChatMessageBubble", () => {
@@ -11,6 +11,7 @@ describe("ChatMessageBubble", () => {
           role: "assistant",
           content: "Sample response",
           timeLabel: "10:00 AM",
+          deliveryStatus: "sent",
           retrievalMeta: null,
           citations: [
             {
@@ -56,6 +57,7 @@ describe("ChatMessageBubble", () => {
           role: "assistant",
           content: "Which one did you mean?",
           timeLabel: "10:01 AM",
+          deliveryStatus: "sent",
           retrievalMeta: {
             refused: false,
             reason: "clarification_needed",
@@ -85,6 +87,7 @@ describe("ChatMessageBubble", () => {
           role: "assistant",
           content: "I cannot answer right now.",
           timeLabel: "10:02 AM",
+          deliveryStatus: "sent",
           retrievalMeta: {
             refused: true,
             reason: "insufficient_evidence",
@@ -112,6 +115,7 @@ describe("ChatMessageBubble", () => {
           role: "assistant",
           content: "I couldn't find a matching entry.",
           timeLabel: "10:03 AM",
+          deliveryStatus: "sent",
           retrievalMeta: {
             refused: true,
             reason: "insufficient_evidence",
@@ -138,5 +142,27 @@ describe("ChatMessageBubble", () => {
         content.includes("2. Provide the Ref code (e.g., 8000-003-002-006).")
       )
     ).toBeInTheDocument();
+  });
+
+  it("shows failed status and retry action for failed user messages", () => {
+    const onRetry = vi.fn();
+    render(
+      <ChatMessageBubble
+        message={{
+          id: "msg-failed-user",
+          role: "user",
+          content: "Tell me about project ABC",
+          timeLabel: "10:04 AM",
+          deliveryStatus: "failed",
+          onRetry,
+          retrievalMeta: null,
+          citations: [],
+        }}
+      />
+    );
+
+    expect(screen.getByText("Failed to send.")).toBeInTheDocument();
+    screen.getByRole("button", { name: "Retry" }).click();
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

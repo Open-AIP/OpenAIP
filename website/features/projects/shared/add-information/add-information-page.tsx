@@ -20,6 +20,7 @@ import { Upload } from "lucide-react";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { FormField } from "./FormField";
 import { healthFieldConfig, infraFieldConfig } from "./field-config";
+import { toDateInputValue } from "./date-normalization";
 import {
   healthAddInfoSchema,
   infraAddInfoSchema,
@@ -31,6 +32,7 @@ import {
  * Project type discriminator
  */
 type ProjectKind = "health" | "infrastructure";
+type ProjectStatus = "proposed" | "ongoing" | "completed" | "on_hold";
 
 /**
  * Breadcrumb navigation item
@@ -53,13 +55,30 @@ type UploaderInfo = {
  * Pre-filled project information (for disabled fields)
  */
 type ProjectInfo = {
-  month?: string;
-  year?: string;
   name?: string;
   description?: string;
+  startDate?: string;
+  targetCompletionDate?: string;
+  budgetAllocated?: string;
   implementingOffice?: string;
   fundingSource?: string;
+  totalTargetParticipants?: string;
+  targetParticipants?: string;
+  contractorName?: string;
+  contractCost?: string;
+  status?: ProjectStatus;
 };
+
+function normalizeStringValue(value: string | null | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function hasNonEmptyFormValue(formData: FormData, key: string): boolean {
+  const current = formData.get(key);
+  return typeof current === "string" && current.trim().length > 0;
+}
 
 /**
  * AddInformationPage Component
@@ -79,17 +98,40 @@ type ProjectInfo = {
  * @param projectInfo - Pre-filled project data (optional)
  */
 export default function AddInformationPage({
+  projectId,
+  scope,
   kind,
   breadcrumb,
   uploader,
   projectInfo,
 }: {
+  projectId: string;
+  scope: "barangay" | "city";
   kind: ProjectKind;
   breadcrumb: BreadcrumbItem[];
   uploader: UploaderInfo;
   projectInfo?: ProjectInfo;
 }) {
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const normalizedProjectInfo = React.useMemo(
+    () => ({
+      name: normalizeStringValue(projectInfo?.name),
+      description: normalizeStringValue(projectInfo?.description),
+      startDate: toDateInputValue(projectInfo?.startDate),
+      targetCompletionDate: toDateInputValue(projectInfo?.targetCompletionDate),
+      budgetAllocated: normalizeStringValue(projectInfo?.budgetAllocated),
+      implementingOffice: normalizeStringValue(projectInfo?.implementingOffice),
+      fundingSource: normalizeStringValue(projectInfo?.fundingSource),
+      totalTargetParticipants: normalizeStringValue(projectInfo?.totalTargetParticipants),
+      targetParticipants: normalizeStringValue(projectInfo?.targetParticipants),
+      contractorName: normalizeStringValue(projectInfo?.contractorName),
+      contractCost: normalizeStringValue(projectInfo?.contractCost),
+      status: projectInfo?.status,
+    }),
+    [projectInfo]
+  );
 
   // Select schema and config based on project type
   const schema = kind === "health" ? healthAddInfoSchema : infraAddInfoSchema;
@@ -100,51 +142,120 @@ export default function AddInformationPage({
     zodResolver(schemaForResolver) as unknown as Resolver<
       HealthAddInfoFormData | InfraAddInfoFormData
     >;
+  const defaultValues: Record<string, string | File | null | undefined> = {
+    photoFile: null,
+    projectName: normalizedProjectInfo.name,
+    description: normalizedProjectInfo.description,
+    startDate: normalizedProjectInfo.startDate,
+    targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+    budgetAllocated: normalizedProjectInfo.budgetAllocated,
+    implementingOffice: normalizedProjectInfo.implementingOffice,
+    fundingSource: normalizedProjectInfo.fundingSource,
+    totalTargetParticipants: normalizedProjectInfo.totalTargetParticipants,
+    targetParticipants: normalizedProjectInfo.targetParticipants,
+    contractorName: normalizedProjectInfo.contractorName,
+    contractCost: normalizedProjectInfo.contractCost,
+    status: normalizedProjectInfo.status,
+  };
 
   // Single form controller - replaces all individual useState calls
   const {
     register,
     handleSubmit,
     control,
-    watch,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
   } = useForm<HealthAddInfoFormData | InfraAddInfoFormData>({
     resolver,
     mode: "onChange",
-    defaultValues: {
-      // Pre-fill disabled fields from projectInfo
-      ...(projectInfo?.month && { month: projectInfo.month }),
-      ...(projectInfo?.year && { year: projectInfo.year }),
-      ...(projectInfo?.name && { projectName: projectInfo.name }),
-      ...(projectInfo?.description && { description: projectInfo.description }),
-      ...(projectInfo?.implementingOffice && { implementingOffice: projectInfo.implementingOffice }),
-      ...(projectInfo?.fundingSource && { fundingSource: projectInfo.fundingSource }),
-      photoFile: null,
-    },
+    defaultValues: defaultValues as unknown as HealthAddInfoFormData | InfraAddInfoFormData,
   });
-
-  const photoFile = watch("photoFile");
+  const canSubmit = isValid && isDirty && !isSubmitting;
 
   /**
    * Submission handler - separated from UI logic
-   * This is the boundary where form data becomes business logic
-   * 
-   * Future: Replace console.log with Supabase insert/update
+   * This is the boundary where form data becomes backend persistence input.
    */
-  const onSubmit: SubmitHandler<HealthAddInfoFormData | InfraAddInfoFormData> = (data) => {
-    // Clean payload for submission
-    const payload = {
-      kind,
-      photoFileName: photoFile?.name ?? null,
-      ...data,
-    };
+  const onSubmit: SubmitHandler<HealthAddInfoFormData | InfraAddInfoFormData> = async (
+    data
+  ) => {
+    if (isSubmitting || !isDirty) return;
 
-    console.log("ADD INFO SUBMIT:", payload);
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
 
-    // TODO: Replace with Supabase mutation
-    // await createProjectInfo(payload);
-    
-    router.back();
+      const formData = new FormData();
+      formData.set("kind", kind);
+
+      for (const [key, value] of Object.entries(data)) {
+        if (key === "photoFile") {
+          if (value instanceof File) {
+            formData.set(key, value);
+          }
+          continue;
+        }
+
+        if (typeof value === "string") {
+          formData.set(key, value);
+        }
+      }
+
+      const requiredPrefilledFields =
+        kind === "health"
+          ? {
+              projectName: normalizedProjectInfo.name,
+              description: normalizedProjectInfo.description,
+              implementingOffice: normalizedProjectInfo.implementingOffice,
+              startDate: normalizedProjectInfo.startDate,
+              targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+              budgetAllocated: normalizedProjectInfo.budgetAllocated,
+              totalTargetParticipants: normalizedProjectInfo.totalTargetParticipants,
+              targetParticipants: normalizedProjectInfo.targetParticipants,
+              status: normalizedProjectInfo.status,
+            }
+          : {
+              projectName: normalizedProjectInfo.name,
+              description: normalizedProjectInfo.description,
+              implementingOffice: normalizedProjectInfo.implementingOffice,
+              fundingSource: normalizedProjectInfo.fundingSource,
+              startDate: normalizedProjectInfo.startDate,
+              targetCompletionDate: normalizedProjectInfo.targetCompletionDate,
+              contractorName: normalizedProjectInfo.contractorName,
+              contractCost: normalizedProjectInfo.contractCost,
+              status: normalizedProjectInfo.status,
+            };
+
+      for (const [key, value] of Object.entries(requiredPrefilledFields)) {
+        if (!value) continue;
+        if (!hasNonEmptyFormValue(formData, key)) {
+          formData.set(key, value);
+        }
+      }
+
+      const response = await fetch(
+        `/api/${scope}/projects/${encodeURIComponent(projectId)}/add-information`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Failed to save project information.");
+      }
+
+      router.refresh();
+      router.back();
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to save project information."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -251,11 +362,14 @@ export default function AddInformationPage({
           <Button
             type="submit"
             className="bg-[#022437] hover:bg-[#022437]/90"
-            disabled={!isValid}
+            disabled={!canSubmit}
           >
-            Done
+            {isSubmitting ? "Saving..." : "Done"}
           </Button>
         </div>
+        {submitError ? (
+          <p className="mt-3 text-sm text-red-600 text-right">{submitError}</p>
+        ) : null}
       </form>
     </div>
   );

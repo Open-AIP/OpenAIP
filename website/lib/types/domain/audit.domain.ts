@@ -10,11 +10,22 @@ export type ActivityLogEntityType =
   | (string & {});
 
 export type ActivityLogAction =
+  | "aip_created"
+  | "aip_updated"
+  | "aip_deleted"
+  | "project_record_created"
+  | "project_record_updated"
+  | "project_record_deleted"
+  | "feedback_created"
+  | "feedback_updated"
+  | "feedback_deleted"
   | "draft_created"
   | "submission_created"
   | "revision_uploaded"
   | "cancelled"
+  | "draft_deleted"
   | "project_updated"
+  | "project_info_updated"
   | "comment_replied"
   | "approval_granted"
   | "revision_requested"

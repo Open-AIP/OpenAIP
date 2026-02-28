@@ -37,7 +37,7 @@ OpenAIP is a monorepo for a role-based LGU web platform and an AI pipeline that 
 | Pipeline Backend | FastAPI + Python 3.11 worker/service package (`openaip-pipeline`) |
 | Database | Supabase Postgres |
 | Auth | Supabase Auth + role-based route gating |
-| Storage | Supabase Storage (`aip-pdfs`, `aip-artifacts`) |
+| Storage | Supabase Storage (`aip-pdfs`, `aip-artifacts`, `project-media`) |
 | Realtime | Supabase Realtime on `public.extraction_runs` |
 | AI/ML | OpenAI (`gpt-5.2`, `text-embedding-3-large`), LangChain OpenAI |
 | Tooling | npm, Vitest, ESLint, pytest, Ruff, Pyright, Docker Compose |
@@ -69,6 +69,12 @@ Core data flow:
 2. Web API stores file metadata and queues a run in `public.extraction_runs`.
 3. Worker claims the queued run, downloads the PDF via signed URL, processes stages, and writes outputs to DB/storage.
 4. UI reads/polls/subscribes to run progress and displays final AIP/project data.
+
+### Dashboard Backend Architecture
+- Dashboard backend is implemented with server-repo adapters in `website/lib/repos/dashboard/*` (`repo.ts`, `repo.server.ts`, `repo.mock.ts`, `repo.supabase.ts`, `types.ts`).
+- Reads are scope-filtered and aggregated from existing tables (`aips`, `projects`, `feedback`, `extraction_runs`, `aip_reviews`, `uploaded_files`, `profiles`).
+- Barangay write flows are hardened: draft creation is FY-validated and idempotent; feedback replies enforce citizen-root constraints through feedback threads repo.
+- Mock behavior follows global selector flags only (`NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_USE_MOCKS`).
 
 ## Project Structure
 | Path | Responsibility |
@@ -140,6 +146,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<supabase-publishable-or-anon-key>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<optional-fallback-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
 SUPABASE_STORAGE_ARTIFACT_BUCKET=aip-artifacts
+SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET=project-media
 
 BASE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_ENV=dev
@@ -189,6 +196,7 @@ Website env reference:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes* | Client-exposed | Fallback if publishable key not set |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only | Elevated server actions (uploads/admin ops) |
 | `SUPABASE_STORAGE_ARTIFACT_BUCKET` | No | Server-only | Artifact bucket used for strict draft delete cleanup (default `aip-artifacts`) |
+| `SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET` | No | Server-only | Private bucket used for project cover images and update photos (default `project-media`) |
 | `BASE_URL` | Yes | Server-only | Absolute app origin for auth page helpers |
 | `NEXT_PUBLIC_APP_ENV` | No | Client-exposed | `dev`/`staging`/`prod`; controls mock selection |
 | `NEXT_PUBLIC_USE_MOCKS` | No | Client-exposed | Force mock repos when `true` |
@@ -314,9 +322,16 @@ Recommended workflow:
    - `website/docs/sql/2026-02-22_set_config_app_embed_call.sql`
    - `website/docs/sql/2026-02-24_chatbot_rag_global_scope.sql`
    - `website/docs/sql/2026-02-24_create_aip_totals.sql`
+   - `website/docs/sql/2026-02-26_add_information_published_rls_fix.sql`
+   - `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql`
+   - `website/docs/sql/2026-02-26_projects_updates_and_media.sql`
+   - `website/docs/sql/2026-02-26_projects_status_proposed_rename.sql`
+   - `website/docs/sql/2026-02-27_barangay_audit_crud_workflow.sql`
+   - Note: `2026-02-26_projects_status_proposed_rename.sql` renames existing `projects.status` values from `planning` to `proposed`.
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)
    - `aip-artifacts` (pipeline artifacts when payload exceeds inline threshold)
+   - `project-media` (private project cover/update images served via API proxy)
 
 ### Publish-Time Categorize Embedding
 When an AIP transitions to `published`, DB trigger `trg_aip_published_embed_categorize` asynchronously calls the Edge Function `embed_categorize_artifact` via `pg_net`.
@@ -464,7 +479,7 @@ docker build -f Dockerfile.worker -t openaip-pipeline-worker .
 ```
 
 Production runtime requirements:
-- Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`)
+- Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`, `SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET`)
 - Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
 - Supabase project with DB schema and storage buckets in place
 - Outbound network access from pipeline runtime to Supabase + OpenAI
@@ -512,6 +527,7 @@ Common hosting options for this codebase:
 | Runs stay `queued` forever | Worker not running or cannot claim runs | Start `openaip-worker`; verify pipeline `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` |
 | Worker fails with `OPENAI_API_KEY not found` | Missing OpenAI secret in pipeline env | Set `OPENAI_API_KEY` in `aip-intelligence-pipeline/.env` |
 | `POST /v1/runs/dev/local` returns 403 | Dev routes disabled | Set `PIPELINE_DEV_ROUTES=true` in pipeline env |
+| `Invalid schema: app` from chatbot/admin settings APIs | Supabase Data API does not expose `app` schema, or `app.settings` is missing/inaccessible | Expose `app` in Supabase Data API schemas and run `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql` |
 | `pytest`/`ruff`/`pyright` command not found | Dev extras not installed | Reinstall with `python -m pip install -e ".[dev]"` |
 | `Fatal error in launcher` when running `pip` inside pipeline venv | Venv launchers still point to old folder path after rename | Recreate `.venv`, then use `python -m pip install --upgrade pip` and `python -m pip install -e ".[dev]"` |
 

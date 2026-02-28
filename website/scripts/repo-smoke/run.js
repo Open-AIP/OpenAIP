@@ -59,17 +59,38 @@ const {
   runFeedbackDedupeTests,
 } = require("@/tests/repo-smoke/feedback/dedupe.test");
 const {
+  runFeedbackInboxFilterTests,
+} = require("@/tests/repo-smoke/feedback/inbox-filter.test");
+const {
+  runFeedbackRouteTargetTests,
+} = require("@/tests/repo-smoke/feedback/feedback-route-targets.test");
+const {
+  runFeedbackCommentReplyAuditLogTests,
+} = require("@/tests/repo-smoke/feedback/comment-reply-activity-log.test");
+const {
   runProjectMapperTests,
 } = require("@/tests/repo-smoke/projects/projects.mappers.test");
 const {
   runProjectRepoTests,
 } = require("@/tests/repo-smoke/projects/projects.repo.mock.test");
 const {
+  runDashboardRepoSelectorTests,
+} = require("@/tests/repo-smoke/dashboard/dashboard.repo.selector.test");
+const {
+  runDashboardMapperTests,
+} = require("@/tests/repo-smoke/dashboard/dashboard.mappers.test");
+const {
+  runDashboardProjectUpdateLogsTests,
+} = require("@/tests/repo-smoke/dashboard/dashboard.project-update-logs.test");
+const {
   runChatRepoTests,
 } = require("@/tests/repo-smoke/chat/chat.repo.mock.test");
 const {
   runAuditServiceTests,
 } = require("@/tests/repo-smoke/audit/audit.queries.test");
+const {
+  runAuditCrudDedupeTests,
+} = require("@/tests/repo-smoke/audit/audit.dedupe.test");
 const {
   getAuditFeedForActor,
 } = require("@/lib/repos/audit/queries");
@@ -88,6 +109,22 @@ const {
 const {
   runRepoSelectorOverrideTests,
 } = require("@/tests/repo-smoke/shared/selector.override.test");
+const { getCommentRepo } = require("@/lib/repos/feedback/repo.server");
+const { getFeedbackRepo } = require("@/lib/repos/feedback/repo.server");
+const { getFeedbackThreadsRepo } = require("@/lib/repos/feedback/repo.server");
+const { getCommentTargetLookup } = require("@/lib/repos/feedback/repo.server");
+const { getAuditRepo } = require("@/lib/repos/audit/repo.server");
+const { getChatRepo } = require("@/lib/repos/chat/repo.server");
+const { getAdminDashboardRepo } = require("@/lib/repos/admin-dashboard/repo");
+const { getAipMonitoringRepo } = require("@/lib/repos/aip-monitoring/repo");
+const { getFeedbackModerationRepo } = require("@/lib/repos/feedback-moderation/repo");
+const {
+  getFeedbackModerationProjectUpdatesRepo,
+} = require("@/lib/repos/feedback-moderation-project-updates/repo");
+const { getUsageControlsRepo } = require("@/lib/repos/usage-controls/repo");
+const {
+  getSystemAdministrationRepo,
+} = require("@/lib/repos/system-administration/repo");
 
 function assert(condition, message) {
   if (!condition) {
@@ -190,6 +227,31 @@ const tests = [
     },
   },
   {
+    name: "projectService publishedOnly filters health/infrastructure counts",
+    async run() {
+      const healthResults = await projectService.getHealthProjects({ publishedOnly: true });
+      const infraResults = await projectService.getInfrastructureProjects({ publishedOnly: true });
+      assert(healthResults.length === 4, "Expected 4 published health projects from mock data");
+      assert(
+        infraResults.length === 5,
+        "Expected 5 published infrastructure projects from mock data"
+      );
+    },
+  },
+  {
+    name: "projectService publishedOnly hides non-published direct project access",
+    async run() {
+      const hidden = await projectService.getHealthProjectById("PROJ-H-2026-001", {
+        publishedOnly: true,
+      });
+      const visible = await projectService.getHealthProjectById("PROJ-H-2026-002", {
+        publishedOnly: true,
+      });
+      assert(hidden === null, "Expected non-published project to be hidden");
+      assert(visible?.id === "PROJ-H-2026-002", "Expected published project to remain visible");
+    },
+  },
+  {
     name: "getProjectsRepo dev defaults to mock",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
@@ -203,22 +265,25 @@ const tests = [
     },
   },
   {
-    name: "getProjectsRepo staging throws not implemented",
+    name: "getProjectsRepo staging returns concrete adapter",
     async run() {
       const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      const oldUseMocks = process.env.NEXT_PUBLIC_USE_MOCKS;
       process.env.NEXT_PUBLIC_APP_ENV = "staging";
+      process.env.NEXT_PUBLIC_USE_MOCKS = "false";
       try {
-        let threw = false;
-        try {
-          getProjectsRepo();
-        } catch (error) {
-          threw = /not implemented/i.test(
-            error instanceof Error ? error.message : String(error)
-          );
-        }
-        assert(threw, "Expected Not implemented error in staging");
+        const repo = getProjectsRepo();
+        assert(
+          typeof repo.listByAip === "function" &&
+            typeof repo.getById === "function" &&
+            typeof repo.listHealth === "function" &&
+            typeof repo.listInfrastructure === "function" &&
+            typeof repo.getByRefCode === "function",
+          "Expected staging/no-mock selector to return a concrete projects repo adapter"
+        );
       } finally {
         process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+        process.env.NEXT_PUBLIC_USE_MOCKS = oldUseMocks;
       }
     },
   },
@@ -320,7 +385,7 @@ const tests = [
     },
   },
   {
-    name: "getCommentRepo throws outside mock mode",
+    name: "getCommentRepo selector supports non-mock mode",
     async run() {
       await runCommentRepoSelectorTests();
     },
@@ -329,6 +394,133 @@ const tests = [
     name: "shared selector override forces mocks",
     async run() {
       await runRepoSelectorOverrideTests();
+    },
+  },
+  {
+    name: "no-mock gate: in-scope repo selectors instantiate in staging",
+    async run() {
+      const oldEnv = process.env.NEXT_PUBLIC_APP_ENV;
+      const oldUseMocks = process.env.NEXT_PUBLIC_USE_MOCKS;
+
+      process.env.NEXT_PUBLIC_APP_ENV = "staging";
+      process.env.NEXT_PUBLIC_USE_MOCKS = "false";
+
+      try {
+        const checks = [
+          {
+            label: "ProjectsRepo",
+            repo: getProjectsRepo(),
+            methods: ["listByAip", "getById", "listHealth", "listInfrastructure", "getByRefCode"],
+          },
+          {
+            label: "CommentRepo(server)",
+            repo: getCommentRepo(),
+            methods: ["listThreadsForInbox", "getThread", "listMessages", "addReply"],
+          },
+          {
+            label: "CommentTargetLookup(server)",
+            repo: getCommentTargetLookup(),
+            methods: ["getProject", "getAip", "getAipItem"],
+          },
+          {
+            label: "FeedbackRepo(server)",
+            repo: getFeedbackRepo(),
+            methods: ["listForAip", "listForProject", "createForAip", "createForProject", "reply"],
+          },
+          {
+            label: "FeedbackThreadsRepo(server)",
+            repo: getFeedbackThreadsRepo(),
+            methods: ["listThreadRootsByTarget", "listThreadMessages", "createRoot", "createReply"],
+          },
+          {
+            label: "AuditRepo(server)",
+            repo: getAuditRepo(),
+            methods: ["listMyActivity", "listBarangayOfficialActivity", "listAllActivity"],
+          },
+          {
+            label: "ChatRepo(server)",
+            repo: getChatRepo(),
+            methods: [
+              "listSessions",
+              "getSession",
+              "createSession",
+              "renameSession",
+              "deleteSession",
+              "listMessages",
+              "appendUserMessage",
+            ],
+          },
+          {
+            label: "AdminDashboardRepo",
+            repo: getAdminDashboardRepo(),
+            methods: [
+              "getSummary",
+              "getAipStatusDistribution",
+              "getReviewBacklog",
+              "getUsageMetrics",
+              "getRecentActivity",
+              "listLguOptions",
+            ],
+          },
+          {
+            label: "AipMonitoringRepo",
+            repo: getAipMonitoringRepo(),
+            methods: ["getSeedData"],
+          },
+          {
+            label: "FeedbackModerationRepo",
+            repo: getFeedbackModerationRepo(),
+            methods: ["listDataset", "hideFeedback", "unhideFeedback"],
+          },
+          {
+            label: "FeedbackModerationProjectUpdatesRepo",
+            repo: getFeedbackModerationProjectUpdatesRepo(),
+            methods: ["getSeedData", "flagUpdate", "removeUpdate"],
+          },
+          {
+            label: "UsageControlsRepo",
+            repo: getUsageControlsRepo(),
+            methods: [
+              "getRateLimitSettings",
+              "updateRateLimitSettings",
+              "getChatbotMetrics",
+              "getChatbotRateLimitPolicy",
+              "updateChatbotRateLimitPolicy",
+              "getChatbotSystemPolicy",
+              "updateChatbotSystemPolicy",
+              "listFlaggedUsers",
+              "getUserAuditHistory",
+              "temporarilyBlockUser",
+              "unblockUser",
+            ],
+          },
+          {
+            label: "SystemAdministrationRepo",
+            repo: getSystemAdministrationRepo(),
+            methods: [
+              "getSecuritySettings",
+              "updateSecuritySettings",
+              "getNotificationSettings",
+              "updateNotificationSettings",
+              "getSystemBannerDraft",
+              "publishSystemBanner",
+              "listAuditLogs",
+            ],
+          },
+        ];
+
+        checks.forEach(({ label, repo, methods }) => {
+          methods.forEach((methodName) => {
+            assert(
+              typeof repo[methodName] === "function",
+              `${label} missing method: ${methodName}`
+            );
+          });
+        });
+      } finally {
+        process.env.NEXT_PUBLIC_APP_ENV = oldEnv;
+        process.env.NEXT_PUBLIC_USE_MOCKS = oldUseMocks;
+      }
     },
   },
   {
@@ -350,6 +542,24 @@ const tests = [
     },
   },
   {
+    name: "feedback inbox filters to citizen-initiated roots",
+    async run() {
+      await runFeedbackInboxFilterTests();
+    },
+  },
+  {
+    name: "feedback routes and redirects target /feedback",
+    async run() {
+      await runFeedbackRouteTargetTests();
+    },
+  },
+  {
+    name: "feedback repo logs comment_replied for barangay official replies",
+    async run() {
+      await runFeedbackCommentReplyAuditLogTests();
+    },
+  },
+  {
     name: "project.mapper tests",
     async run() {
       await runProjectMapperTests();
@@ -362,6 +572,24 @@ const tests = [
     },
   },
   {
+    name: "dashboard.repo selector tests",
+    async run() {
+      await runDashboardRepoSelectorTests();
+    },
+  },
+  {
+    name: "dashboard.mapper tests",
+    async run() {
+      await runDashboardMapperTests();
+    },
+  },
+  {
+    name: "dashboard project update logs tests",
+    async run() {
+      await runDashboardProjectUpdateLogsTests();
+    },
+  },
+  {
     name: "chat.repo.mock tests",
     async run() {
       await runChatRepoTests();
@@ -371,6 +599,12 @@ const tests = [
     name: "auditService role gating",
     async run() {
       await runAuditServiceTests();
+    },
+  },
+  {
+    name: "auditService suppresses CRUD duplicates for barangay feed",
+    async run() {
+      await runAuditCrudDedupeTests();
     },
   },
   {

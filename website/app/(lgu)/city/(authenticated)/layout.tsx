@@ -11,11 +11,14 @@ const CityLayout = async ({children} : {children: React.ReactNode}) => {
     redirect("/city/sign-in");
   }
 
-  const { fullName, role, scopeName } = userData;
+  const { fullName, email, role, scopeName, officeLabel } = userData;
 
   if (role !== "city_official") {
     redirect("/city/unauthorized");
   }
+
+  const position = role === "city_official" ? "City Official" : "Official";
+  const office = officeLabel || "City Hall";
 
   return (
     <LguShell 
@@ -23,6 +26,13 @@ const CityLayout = async ({children} : {children: React.ReactNode}) => {
       userName={fullName}
       roleLabel="City Official"
       scopeDisplayName={scopeName ?? undefined}
+      accountProfile={{
+        fullName,
+        email,
+        position,
+        office,
+        role: "city",
+      }}
     >
       {children}
     </LguShell>

@@ -3,6 +3,7 @@ import type { LguVariant } from "@/types/navigation";
 import LguSidebar from "@/components/layout/lgu-sidebar";
 import LguTopbar from "@/components/layout/lgu-topbar";
 import LguFooter from "@/components/layout/lgu-footer";
+import type { LguAccountProfile } from "@/features/account/types";
 
 type Props = {
   variant: LguVariant;
@@ -12,6 +13,7 @@ type Props = {
   userName?: string;
   roleLabel?: string;
   scopeDisplayName?: string;
+  accountProfile: LguAccountProfile;
 };
 
 export default function LguShell({
@@ -20,15 +22,14 @@ export default function LguShell({
   userName = "Juan Dela Cruz",
   roleLabel = variant === "barangay" ? "Barangay Official" : "City Official",
   scopeDisplayName,
+  accountProfile,
 }: Props) {
-  const accountHref = variant === "barangay" ? "/barangay/account" : "/city/account";
-
   return (
     <div className="min-h-screen bg-slate-50 flex">
       <LguSidebar variant={variant} scopeDisplayName={scopeDisplayName} />
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <LguTopbar name={userName} roleLabel={roleLabel} accountHref={accountHref} />
+        <LguTopbar name={userName} roleLabel={roleLabel} accountProfile={accountProfile} />
 
         <main className="flex-1 min-h-0 px-8 py-6">{children}</main>
 

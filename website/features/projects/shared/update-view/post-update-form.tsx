@@ -11,6 +11,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,64 +51,119 @@ function clamp01to100(n: number) {
  * @param onCreate - Callback when a new update is created
  */
 export default function PostUpdateForm({
+  projectId,
+  scope,
+  projectKind,
+  currentProgressPercent,
+  currentParticipantsReached,
+  participantsTargetTotal,
   onCreate,
 }: {
+  projectId: string;
+  scope: "barangay" | "city";
+  projectKind: "health" | "infrastructure";
+  currentProgressPercent: number;
+  currentParticipantsReached: number;
+  participantsTargetTotal?: number | null;
   onCreate: (update: ProjectUpdateUi) => void;
 }) {
+  const router = useRouter();
+  const baselineProgress = clamp01to100(currentProgressPercent);
   const [title, setTitle] = React.useState("");
   const [desc, setDesc] = React.useState("");
-  const [progress, setProgress] = React.useState<number>(0);
+  const [progress, setProgress] = React.useState<number>(baselineProgress);
   const [attendance, setAttendance] = React.useState<string>("");
   const [photos, setPhotos] = React.useState<File[]>([]);
-  const previewUrlsRef = React.useRef<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const requiresAttendance = projectKind === "health";
+  const currentParticipantsReachedDisplay = Math.max(
+    0,
+    Math.trunc(currentParticipantsReached)
+  );
+  const participantsTargetDisplay =
+    participantsTargetTotal === null || participantsTargetTotal === undefined
+      ? null
+      : Math.max(0, Math.trunc(participantsTargetTotal));
+  const normalizedProgress = clamp01to100(progress);
+  const currentProgressAtLimit = baselineProgress >= 100;
+  const isProgressForward = normalizedProgress > baselineProgress;
+
+  React.useEffect(() => {
+    setProgress(baselineProgress);
+  }, [baselineProgress]);
 
   function onPickPhotos(files: FileList | null) {
-    // Revoke previous preview URLs when new photos are selected
-    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    previewUrlsRef.current = [];
-
     if (!files) return;
-    const picked = Array.from(files).slice(0, 5);
+    const picked = Array.from(files).filter((file) => file.size > 0).slice(0, 5);
     setPhotos(picked);
   }
 
-  function submit() {
+  async function submit() {
+    if (isSubmitting) return;
+    if (currentProgressAtLimit) return;
     if (title.trim().length < 3) return;
     if (desc.trim().length < 10) return;
-    if (!attendance) return;
+    if (requiresAttendance && !attendance) return;
+    if (!isProgressForward) return;
 
-    // Create object URLs for the parent to use
-    // Parent owns these URLs and is responsible for cleanup if needed
-    const photoUrls = photos.length ? photos.map((f) => URL.createObjectURL(f)) : undefined;
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
 
-    const next: ProjectUpdateUi = {
-      id: `u-${Date.now()}`,
-      title: title.trim(),
-      date: new Date().toLocaleDateString("en-PH", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-      description: desc.trim(),
-      attendanceCount: Number(attendance || 0),
-      progressPercent: clamp01to100(progress),
-      photoUrls,
-    };
+      const formData = new FormData();
+      formData.set("title", title.trim());
+      formData.set("description", desc.trim());
+      formData.set("progressPercent", String(normalizedProgress));
+      if (requiresAttendance && attendance.trim()) {
+        formData.set("attendanceCount", attendance.trim());
+      }
+      for (const photo of photos) {
+        formData.append("photos", photo);
+      }
 
-    onCreate(next);
+      const response = await fetch(
+        `/api/${scope}/projects/${encodeURIComponent(projectId)}/updates`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+        update?: ProjectUpdateUi;
+      };
 
-    // Clear preview URLs since photos are now owned by parent
-    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    previewUrlsRef.current = [];
+      if (!response.ok || !payload.update) {
+        if (response.ok && !payload.update) {
+          router.refresh();
+        }
+        throw new Error(payload.message ?? "Failed to post project update.");
+      }
 
-    setTitle("");
-    setDesc("");
-    setProgress(0);
-    setAttendance("");
-    setPhotos([]);
+      onCreate(payload.update);
+
+      setTitle("");
+      setDesc("");
+      setProgress(normalizedProgress);
+      setAttendance("");
+      setPhotos([]);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to post project update."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
-  const disabled = title.trim().length < 3 || desc.trim().length < 10 || !attendance;
+  const disabled =
+    isSubmitting ||
+    currentProgressAtLimit ||
+    title.trim().length < 3 ||
+    desc.trim().length < 10 ||
+    (requiresAttendance && !attendance) ||
+    !isProgressForward;
 
   return (
     <Card className="border-slate-200 h-fit">
@@ -138,9 +194,19 @@ export default function PostUpdateForm({
 
         <div className="space-y-2">
           <Label>Progress Percentage</Label>
+          <div className="text-xs text-slate-500">
+            Current progress: {baselineProgress}%. New update must be greater than{" "}
+            {baselineProgress}%.
+          </div>
+          {currentProgressAtLimit ? (
+            <div className="text-xs text-amber-700">
+              Current progress is already 100%. You can no longer post a higher progress
+              update.
+            </div>
+          ) : null}
           <div className="flex items-center justify-between text-xs text-slate-500">
             <span>0%</span>
-            <span className="text-slate-700 font-medium">{clamp01to100(progress)}%</span>
+            <span className="text-slate-700 font-medium">{normalizedProgress}%</span>
             <span>100%</span>
           </div>
           <input
@@ -148,20 +214,31 @@ export default function PostUpdateForm({
             min={0}
             max={100}
             value={progress}
-            onChange={(e) => setProgress(Number(e.target.value))}
+            onChange={(e) => setProgress(clamp01to100(Number(e.target.value)))}
             className="w-full"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>Attendance Count *</Label>
-          <Input
-            value={attendance}
-            onChange={(e) => setAttendance(e.target.value.replace(/[^\d]/g, ""))}
-            inputMode="numeric"
-            placeholder="Number of participants"
-          />
-        </div>
+        {requiresAttendance ? (
+          <div className="space-y-2">
+            <Label>Attendance Count *</Label>
+            {participantsTargetDisplay !== null ? (
+              <div className="text-xs text-slate-500">
+                Current participants reached:{" "}
+                <span className="font-medium text-slate-700">
+                  {currentParticipantsReachedDisplay.toLocaleString()} /{" "}
+                  {participantsTargetDisplay.toLocaleString()}
+                </span>
+              </div>
+            ) : null}
+            <Input
+              value={attendance}
+              onChange={(e) => setAttendance(e.target.value.replace(/[^\d]/g, ""))}
+              inputMode="numeric"
+              placeholder="Number of participants"
+            />
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <Label>Upload Photos (Optional)</Label>
@@ -203,8 +280,11 @@ export default function PostUpdateForm({
           onClick={submit}
           disabled={disabled}
         >
-          Post Update
+          {isSubmitting ? "Posting..." : "Post Update"}
         </Button>
+        {submitError ? (
+          <p className="text-sm text-red-600">{submitError}</p>
+        ) : null}
       </CardContent>
     </Card>
   );

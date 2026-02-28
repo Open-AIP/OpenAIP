@@ -51,6 +51,7 @@ export function FormField<T extends FieldValues>({
           className="h-11 w-full bg-slate-50 border-slate-200"
           placeholder={config.placeholder}
           disabled={config.disabled}
+          readOnly={config.readOnly}
         />
       )}
       
@@ -60,6 +61,7 @@ export function FormField<T extends FieldValues>({
           className="bg-slate-50 border-slate-200 min-h-[90px] w-full"
           placeholder={config.placeholder}
           disabled={config.disabled}
+          readOnly={config.readOnly}
         />
       )}
       
@@ -69,6 +71,7 @@ export function FormField<T extends FieldValues>({
           type="date"
           className="h-11 w-full bg-slate-50 border-slate-200"
           disabled={config.disabled}
+          readOnly={config.readOnly}
         />
       )}
       

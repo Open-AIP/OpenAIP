@@ -26,10 +26,10 @@ export default function ChatThreadPanel({
   isSending: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border bg-card shadow-sm">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="shrink-0 border-b px-6 py-4 text-base font-semibold">{title}</div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
         <div className="space-y-4">
           {messages.map((message) => (
             <ChatMessageBubble key={message.id} message={message} />

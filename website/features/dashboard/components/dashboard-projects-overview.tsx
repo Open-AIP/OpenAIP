@@ -1,22 +1,82 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Building2, ChevronDown, Heart, Search, TrendingUp } from "lucide-react";
 import type { DashboardQueryState, DashboardSector, DashboardProject } from "@/features/dashboard/types/dashboard-types";
 import { hasProjectErrors } from "@/features/dashboard/utils/dashboard-selectors";
+import { useEffect, useMemo, useState } from "react";
+import type { ProjectCategory } from "@/lib/contracts/databasev2/enums";
+
+const TOP_FUNDED_LIMIT = 10;
+const URL_SYNC_DEBOUNCE_MS = 150;
 
 export function TopFundedProjectsSection({
   queryState,
-  selectedFiscalYear,
   sectors,
-  rows,
+  projects,
 }: {
   queryState: DashboardQueryState;
-  selectedFiscalYear: number;
   sectors: DashboardSector[];
-  rows: DashboardProject[];
+  projects: DashboardProject[];
 }) {
+  const [searchText, setSearchText] = useState(queryState.tableQ);
+  const [category, setCategory] = useState<ProjectCategory | "all">(queryState.tableCategory);
+  const [sector, setSector] = useState<string | "all">(queryState.tableSector);
+
+  useEffect(() => {
+    setSearchText(queryState.tableQ);
+  }, [queryState.tableQ]);
+
+  useEffect(() => {
+    setCategory(queryState.tableCategory);
+  }, [queryState.tableCategory]);
+
+  useEffect(() => {
+    setSector(queryState.tableSector);
+  }, [queryState.tableSector]);
+
+  const rows = useMemo(
+    () =>
+      filterTopFundedRows(projects, {
+        searchText,
+        category,
+        sectorCode: sector,
+      }),
+    [projects, searchText, category, sector]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const normalizedSearch = searchText.trim();
+
+      if (normalizedSearch) params.set("tableQ", normalizedSearch);
+      else params.delete("tableQ");
+
+      if (category !== "all") params.set("category", category);
+      else params.delete("category");
+
+      if (sector !== "all") params.set("sector", sector);
+      else params.delete("sector");
+
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+      if (nextUrl !== currentUrl) {
+        window.history.replaceState(window.history.state, "", nextUrl);
+      }
+    }, URL_SYNC_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [searchText, category, sector]);
+
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardHeader className="border-b border-border px-5 py-4">
@@ -26,7 +86,15 @@ export function TopFundedProjectsSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-5 space-y-4">
-        <TopProjectsFilters queryState={queryState} selectedFiscalYear={selectedFiscalYear} sectors={sectors} />
+        <TopProjectsFilters
+          sectors={sectors}
+          searchText={searchText}
+          category={category}
+          sector={sector}
+          onSearchTextChange={setSearchText}
+          onCategoryChange={setCategory}
+          onSectorChange={setSector}
+        />
         <TopProjectsTable rows={rows} sectors={sectors} />
       </CardContent>
     </Card>
@@ -34,30 +102,41 @@ export function TopFundedProjectsSection({
 }
 
 export function TopProjectsFilters({
-  queryState,
-  selectedFiscalYear,
   sectors,
+  searchText,
+  category,
+  sector,
+  onSearchTextChange,
+  onCategoryChange,
+  onSectorChange,
 }: {
-  queryState: DashboardQueryState;
-  selectedFiscalYear: number;
   sectors: DashboardSector[];
+  searchText: string;
+  category: ProjectCategory | "all";
+  sector: string | "all";
+  onSearchTextChange: (value: string) => void;
+  onCategoryChange: (value: ProjectCategory | "all") => void;
+  onSectorChange: (value: string | "all") => void;
 }) {
   return (
-    <form method="get" className="grid grid-cols-1 gap-3 md:grid-cols-3">
-      <input type="hidden" name="q" value={queryState.q} />
-      <input type="hidden" name="year" value={selectedFiscalYear} />
-      <input type="hidden" name="kpi" value={queryState.kpiMode} />
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           name="tableQ"
-          defaultValue={queryState.tableQ}
+          value={searchText}
+          onChange={(event) => onSearchTextChange(event.currentTarget.value)}
           placeholder="Search projects..."
           className="h-9 rounded-lg border-0 bg-secondary pl-9 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         />
       </div>
       <div className="relative">
-        <select name="category" defaultValue={queryState.tableCategory} className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+        <select
+          name="category"
+          value={category}
+          onChange={(event) => onCategoryChange(parseCategoryFilter(event.currentTarget.value))}
+          className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <option value="all">All Categories</option>
           <option value="health">Health</option>
           <option value="infrastructure">Infrastructure</option>
@@ -66,7 +145,12 @@ export function TopProjectsFilters({
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       </div>
       <div className="relative">
-        <select name="sector" defaultValue={queryState.tableSector} className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+        <select
+          name="sector"
+          value={sector}
+          onChange={(event) => onSectorChange(event.currentTarget.value || "all")}
+          className="h-9 w-full appearance-none rounded-lg border-0 bg-secondary px-3 pr-8 text-sm text-foreground hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <option value="all">All Types</option>
           {sectors.map((sector) => (
             <option key={sector.code} value={sector.code}>{sector.label}</option>
@@ -74,9 +158,44 @@ export function TopProjectsFilters({
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       </div>
-      <Button type="submit" variant="outline" className="sr-only">Filter</Button>
-    </form>
+    </div>
   );
+}
+
+function parseCategoryFilter(value: string): ProjectCategory | "all" {
+  if (value === "health" || value === "infrastructure" || value === "other") {
+    return value;
+  }
+  return "all";
+}
+
+function filterTopFundedRows(
+  projects: DashboardProject[],
+  input: { searchText: string; category: ProjectCategory | "all"; sectorCode: string | "all" }
+): DashboardProject[] {
+  const normalizedQuery = input.searchText.trim().toLowerCase();
+  const filtered = projects.filter((project) => {
+    if (input.category !== "all" && project.category !== input.category) return false;
+    if (input.sectorCode !== "all" && project.sectorCode !== input.sectorCode) return false;
+    if (!normalizedQuery) return true;
+    const searchable = [
+      project.programProjectDescription,
+      project.aipRefCode,
+      project.healthProgramName ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+    return searchable.includes(normalizedQuery);
+  });
+
+  return [...filtered]
+    .sort((left, right) => {
+      if (left.total === null && right.total === null) return 0;
+      if (left.total === null) return 1;
+      if (right.total === null) return -1;
+      return right.total - left.total;
+    })
+    .slice(0, TOP_FUNDED_LIMIT);
 }
 
 function toCurrency(value: number): string {
@@ -120,29 +239,29 @@ export function TopProjectsTable({
               <td className="px-3 py-2 text-muted-foreground">{index + 1}</td>
               <td className="px-3 py-2"><div className="max-w-[300px] truncate">{project.programProjectDescription}</div></td>
               <td className="px-3 py-2">
-                {(() => {
-                  const category = resolveCategoryLabel(project);
-                  const categoryClass =
-                    category === "Economic"
-                      ? "bg-mediumseagreen-200 text-mediumseagreen-100"
-                      : category === "Social"
-                        ? "bg-dodgerblue-200 text-dodgerblue-100"
-                        : category === "General"
-                          ? "bg-darkslategray-200 text-darkslategray-100"
-                          : "bg-secondary text-foreground";
-
-                  return (
-                    <Badge className={`rounded-md border border-transparent text-xs font-medium ${categoryClass}`}>
-                      {category}
-                    </Badge>
-                  );
-                })()}
-              </td>
-              <td className="px-3 py-2">
                 <Badge className="rounded-md border border-border bg-card text-xs text-muted-foreground">
                   {isHealthType(resolveTypeLabel(project)) ? <Heart className="mr-1 h-3 w-3" /> : <Building2 className="mr-1 h-3 w-3" />}
                   {resolveTypeLabel(project)}
                 </Badge>
+              </td>
+              <td className="px-3 py-2">
+                {(() => {
+                  const type = resolveCategoryLabel(project);
+                  const typeClass =
+                    type === "Economic"
+                      ? "bg-mediumseagreen-200 text-mediumseagreen-100"
+                      : type === "Social"
+                        ? "bg-dodgerblue-200 text-dodgerblue-100"
+                        : type === "General"
+                          ? "bg-darkslategray-200 text-darkslategray-100"
+                          : "bg-secondary text-foreground";
+
+                  return (
+                    <Badge className={`rounded-md border border-transparent text-xs font-medium ${typeClass}`}>
+                      {type}
+                    </Badge>
+                  );
+                })()}
               </td>
               <td className="px-3 py-2 text-right font-semibold tabular-nums">{toCurrency(project.total ?? 0)}</td>
               <td className="px-3 py-2">

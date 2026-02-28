@@ -46,6 +46,7 @@ import type { PipelineChatCitation } from "@/lib/chat/types";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getChatRepo } from "@/lib/repos/chat/repo.server";
+import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import type {
   AggregationIntentType,
   ChatCitation,
@@ -1783,13 +1784,26 @@ async function getLatestPendingClarification(
   };
 }
 
-async function consumeQuota(userId: string): Promise<{ allowed: boolean; reason: string }> {
+async function consumeQuota(
+  userId: string,
+  route: "barangay_chat_message" | "city_chat_message"
+): Promise<{ allowed: boolean; reason: string }> {
+  const rateLimit = await getTypedAppSetting("controls.chatbot_rate_limit");
+  const perMinute =
+    rateLimit.timeWindow === "per_hour"
+      ? Math.min(120, Math.max(1, Math.ceil(rateLimit.maxRequests / 60)))
+      : 120;
+  const perDay =
+    rateLimit.timeWindow === "per_day"
+      ? Math.min(10000, Math.max(1, rateLimit.maxRequests))
+      : Math.min(10000, Math.max(1, rateLimit.maxRequests * 24));
+
   const admin = supabaseAdmin();
   const { data, error } = await admin.rpc("consume_chat_quota", {
     p_user_id: userId,
-    p_per_minute: 8,
-    p_per_day: 200,
-    p_route: "barangay_chat_message",
+    p_per_minute: perMinute,
+    p_per_day: perDay,
+    p_route: route,
   });
 
   if (error) {
@@ -2706,8 +2720,25 @@ async function resolveTotalsAssistantPayload(input: {
 export async function POST(request: Request) {
   try {
     const actor = await getActorContext();
-    if (!actor || actor.role !== "barangay_official") {
+    if (
+      !actor ||
+      (actor.role !== "barangay_official" && actor.role !== "city_official")
+    ) {
       return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
+    }
+    if (await isUserBlocked(actor.userId)) {
+      return NextResponse.json(
+        { message: "Your account is currently blocked from chatbot usage." },
+        { status: 403 }
+      );
+    }
+
+    const chatbotPolicy = await getTypedAppSetting("controls.chatbot_policy");
+    if (!chatbotPolicy.isEnabled) {
+      return NextResponse.json(
+        { message: "Chatbot is currently disabled by platform policy." },
+        { status: 503 }
+      );
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -2730,7 +2761,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const quota = await consumeQuota(actor.userId);
+    const quota = await consumeQuota(
+      actor.userId,
+      actor.role === "city_official" ? "city_chat_message" : "barangay_chat_message"
+    );
     if (!quota.allowed) {
       return NextResponse.json(
         { message: "Rate limit exceeded. Please try again shortly.", reason: quota.reason },

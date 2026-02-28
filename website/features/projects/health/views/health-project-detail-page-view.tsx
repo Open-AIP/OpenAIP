@@ -88,7 +88,12 @@ export default function HealthProjectDetailPageView({
         </div>
       </div>
 
-      <ProjectInformationCard aipYear={aipYear} project={project} scope={scope} />
+      <ProjectInformationCard
+        aipYear={aipYear}
+        project={project}
+        scope={scope}
+        useLogoFallback={scope === "barangay"}
+      />
 
       {/* ✅ Shared updates UI (timeline + form) */}
       <div className="flex items-center gap-3">
@@ -137,10 +142,18 @@ export default function HealthProjectDetailPageView({
       </div>
 
       {activeTab === "updates" ? (
-        <ProjectUpdatesSection
-          initialUpdates={initialUpdates}
-          allowPosting={scope !== "citizen"}
-        />
+        scope === "citizen" ? (
+          <ProjectUpdatesSection initialUpdates={initialUpdates} allowPosting={false} />
+        ) : (
+          <ProjectUpdatesSection
+            initialUpdates={initialUpdates}
+            allowPosting
+            projectId={project.id}
+            scope={scope}
+            projectKind="health"
+            participantsTargetTotal={project.totalTargetParticipants ?? 0}
+          />
+        )
       ) : (
         <CommentThreadsSplitView
           scope={scope}

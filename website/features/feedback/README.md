@@ -5,8 +5,8 @@ Provide threaded feedback/comment UX for AIP and project contexts, with DBV2-com
 
 ## B. UI Surfaces
 Routes:
-- `app/(lgu)/barangay/(authenticated)/comments/page.tsx`
-- `app/(lgu)/city/(authenticated)/comments/page.tsx`
+- `app/(lgu)/barangay/(authenticated)/feedback/page.tsx`
+- `app/(lgu)/city/(authenticated)/feedback/page.tsx`
 
 Feature files:
 - `features/feedback/views/comments-view.tsx`
@@ -49,7 +49,7 @@ Core rules:
 
 ## F. Testing Checklist
 Manual:
-- Open comments pages for barangay and city.
+- Open feedback pages for barangay and city.
 - Open a thread and post a reply in mock mode.
 - Validate sidebar target resolution still works for AIP and project contexts.
 

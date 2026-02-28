@@ -84,3 +84,22 @@ Rules:
 7. If mapping is non-trivial, add `db.types.ts` + `mappers.ts`.
 8. If you need server orchestration, add `queries.ts` (`import "server-only"`).
 
+## Dashboard Backend Migration (2026-02-27)
+
+Barangay/city dashboard backend access is now migrated to the standard repo domain:
+
+- Removed legacy file: `lib/repo/dashboard-repo.ts`
+- Added new domain:
+  - `lib/repos/dashboard/types.ts`
+  - `lib/repos/dashboard/mappers.ts`
+  - `lib/repos/dashboard/repo.ts`
+  - `lib/repos/dashboard/repo.server.ts`
+  - `lib/repos/dashboard/repo.mock.ts`
+  - `lib/repos/dashboard/repo.supabase.ts`
+- Dashboard hooks/actions now resolve repositories from `@/lib/repos/dashboard/repo.server`.
+- Dashboard mock behavior now follows global policy only (`NEXT_PUBLIC_APP_ENV`, `NEXT_PUBLIC_USE_MOCKS`).
+- Dashboard AIP rows now include uploader metadata from latest `uploaded_files.is_current` joined to `profiles.full_name`.
+- Barangay write actions are hardened:
+  - draft create validates fiscal year, enforces barangay scope, supports idempotent create
+  - reply flow validates body/parent constraints and delegates reply creation to feedback threads repo to preserve audit behavior
+

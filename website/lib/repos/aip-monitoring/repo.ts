@@ -1,5 +1,6 @@
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockAipMonitoringRepo } from "./repo.mock";
+import { createSupabaseAipMonitoringRepo } from "./repo.supabase";
 import type { AipMonitoringDetail } from "@/mocks/fixtures/admin/aip-monitoring/aipMonitoring.mock";
 import type { AipRow, AipReviewRow, ActivityLogRow } from "@/lib/contracts/databasev2";
 
@@ -13,15 +14,13 @@ export type AipMonitoringSeedData = {
 };
 
 export interface AipMonitoringRepo {
-  getSeedData(): AipMonitoringSeedData;
+  getSeedData(): Promise<AipMonitoringSeedData>;
 }
 
 export function getAipMonitoringRepo(): AipMonitoringRepo {
   return selectRepo({
     label: "AipMonitoringRepo",
     mock: () => createMockAipMonitoringRepo(),
-    supabase: () => {
-      throw new Error("AipMonitoringRepo is not implemented for Supabase yet.");
-    },
+    supabase: () => createSupabaseAipMonitoringRepo(),
   });
 }

@@ -13,6 +13,16 @@ export function createMockAuditRepo(): AuditRepo {
         ACTIVITY_LOG_FIXTURE.filter((row) => row.actorId === actorId)
       );
     },
+    async listBarangayOfficialActivity(barangayId: string) {
+      return sortNewestFirst(
+        ACTIVITY_LOG_FIXTURE.filter(
+          (row) =>
+            row.actorRole === "barangay_official" &&
+            row.scope?.scope_type === "barangay" &&
+            row.scope.barangay_id === barangayId
+        )
+      );
+    },
     async listAllActivity() {
       return sortNewestFirst(ACTIVITY_LOG_FIXTURE);
     },

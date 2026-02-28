@@ -10,6 +10,7 @@ import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/da
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { replyBarangayFeedbackAction, createBarangayDraftAipAction } from "@/features/dashboard/actions/barangay-dashboard-actions";
 import type { DashboardData, DashboardQueryState, DashboardViewModel } from "@/features/dashboard/types/dashboard-types";
+import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 
 function toCurrency(value: number): string {
   return value.toLocaleString("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -19,10 +20,12 @@ export function BarangayDashboardPage({
   data,
   vm,
   queryState,
+  recentActivityLogs,
 }: {
   data: DashboardData;
   vm: DashboardViewModel;
   queryState: DashboardQueryState;
+  recentActivityLogs: ActivityLogRow[];
 }) {
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long",
@@ -44,7 +47,16 @@ export function BarangayDashboardPage({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Welcome to OpenAIP" q={queryState.q} selectedFiscalYear={data.selectedFiscalYear} availableFiscalYears={data.availableFiscalYears} kpiMode={queryState.kpiMode} />
+      <DashboardHeader
+        title="Welcome to OpenAIP"
+        q={queryState.q}
+        tableQ={queryState.tableQ}
+        tableCategory={queryState.tableCategory}
+        tableSector={queryState.tableSector}
+        selectedFiscalYear={data.selectedFiscalYear}
+        availableFiscalYears={data.availableFiscalYears}
+        kpiMode={queryState.kpiMode}
+      />
 
       {!data.selectedAip ? (
         <Card className="border-slate-200 py-0 shadow-sm">
@@ -62,14 +74,20 @@ export function BarangayDashboardPage({
         <>
           <KpiRow selectedAip={data.selectedAip} totalProjects={vm.projects.length} totalBudget={toCurrency(vm.totalBudget)} missingTotalCount={vm.missingTotalCount} citizenFeedbackCount={vm.citizenFeedbackCount} awaitingReplyCount={vm.awaitingReplyCount} mode={queryState.kpiMode} pendingReviewCount={pendingReviewCount} underReviewCount={underReviewCount} forRevisionCount={forRevisionCount} totalAips={totalAips} oldestPendingDays={vm.oldestPendingDays} />
 
-          <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
-            <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={`/barangay/aips/${data.selectedAip.id}`} />
-            <div className="space-y-4"><DateCard label={today} /><WorkingOnCard items={vm.workingOnItems} /></div>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
-            <TopFundedProjectsSection queryState={queryState} selectedFiscalYear={data.selectedFiscalYear} sectors={data.sectors} rows={vm.topFundedFiltered} />
-            <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
+          <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-stretch">
+            <div className="min-w-0 w-full">
+              <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={`/barangay/aips/${data.selectedAip.id}`} />
+            </div>
+            <div className="min-w-0 w-full flex flex-col gap-4">
+              <DateCard label={today} />
+              <WorkingOnCard items={vm.workingOnItems} />
+            </div>
+            <div className="min-w-0 w-full">
+              <TopFundedProjectsSection queryState={queryState} sectors={data.sectors} projects={vm.projects} />
+            </div>
+            <div className="min-w-0 w-full flex flex-col items-stretch">
+              <RecentProjectUpdatesCard logs={data.projectUpdateLogs} />
+            </div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -77,12 +95,12 @@ export function BarangayDashboardPage({
               <h2 className="text-4xl font-semibold text-slate-900">Barangay AIP Status</h2>
               <AipCoverageCard selectedAip={data.selectedAip} />
               <PublicationTimelineCard years={publicationYears} />
-              <AipsByYearTable rows={data.allAips} />
+              <AipsByYearTable rows={data.allAips} basePath="/barangay" />
             </div>
             <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyBarangayFeedbackAction} />
           </div>
 
-          <RecentActivityFeed runs={data.latestRuns} />
+          <RecentActivityFeed logs={recentActivityLogs} auditHref="/barangay/audit" />
         </>
       )}
     </div>

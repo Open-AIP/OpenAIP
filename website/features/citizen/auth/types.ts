@@ -7,3 +7,13 @@ export type CitizenAuthStep =
 export type CitizenAuthMode = "login" | "signup";
 
 export type CitizenAuthVariant = "signup_cta" | "login_cta";
+
+export type CitizenAccountProfile = {
+  fullName: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  barangay: string;
+  city: string;
+  province: string;
+};

@@ -22,6 +22,7 @@
 - `POST /auth/resend-otp`
 - `POST /auth/sign-out`
 - `GET /profile/status`
+- `GET /profile/me`
 - `POST /profile/complete`
 
 All new endpoints return:
@@ -35,12 +36,13 @@ All new endpoints return:
   - `full_name` is non-empty
   - `barangay_id` is non-null
 - Profile completion form requires all fields:
-  - first name
-  - last name
+  - full name
   - barangay
   - city
   - province
 - Server validates barangay/city/province consistency against existing geo tables before insert/update.
+- Existing citizen users can edit and re-save their own profile scope through account settings.
+- Citizen profile scope remains barangay-bound in `profiles` (`city_id` and `municipality_id` stay null for citizen rows); city/province are inferred from geo relations.
 
 ## Protected Behavior
 - `/ai-assistant`:
@@ -51,6 +53,18 @@ All new endpoints return:
   - viewing remains public
   - submitting feedback/replies requires authenticated + complete citizen profile
   - server enforces this in feedback POST handlers
+
+## Citizen Nav Account State
+- Signed-out users see `Sign In` in the top nav.
+- After successful sign in/sign up + profile completion, top nav switches to:
+  - citizen full name
+  - citizen barangay
+  - account icon trigger
+- Account icon opens a citizen account modal that supports:
+  - read-only profile view (full name, email, province, city, barangay)
+  - edit/save toggle (email stays read-only)
+  - save enabled only when actual profile changes exist
+  - logout (session ends and nav returns to `Sign In` on the same page)
 
 ## Return-To Safety
 - `returnTo` is captured as relative path and persisted in session storage key `openAip:returnTo`.

@@ -53,6 +53,9 @@ export type ResolveCitizenBarangayResult =
         barangayId: string;
         barangayName: string;
         cityOrMunicipalityName: string;
+        cityId: string | null;
+        municipalityId: string | null;
+        provinceId: string;
         provinceName: string;
       };
     }
@@ -69,6 +72,32 @@ function toNonEmptyString(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+export function splitCitizenFullName(value: string | null | undefined): {
+  firstName: string;
+  lastName: string;
+} {
+  const normalized = toNonEmptyString(value);
+  if (!normalized) {
+    return {
+      firstName: "",
+      lastName: "",
+    };
+  }
+
+  const parts = normalized.split(" ");
+  if (parts.length === 1) {
+    return {
+      firstName: parts[0],
+      lastName: "",
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
 }
 
 export async function getCitizenProfileByUserId(
@@ -203,7 +232,7 @@ export async function resolveCitizenBarangayByNames(
       const provinceId = city?.province_id ?? municipality?.province_id ?? null;
       const provinceName = provinceId ? provinceById.get(provinceId)?.name ?? null : null;
 
-      if (!cityOrMunicipalityName || !provinceName) {
+      if (!cityOrMunicipalityName || !provinceName || !provinceId) {
         return null;
       }
 
@@ -218,6 +247,9 @@ export async function resolveCitizenBarangayByNames(
         barangayId: row.id,
         barangayName: row.name,
         cityOrMunicipalityName,
+        cityId: city?.id ?? null,
+        municipalityId: municipality?.id ?? null,
+        provinceId,
         provinceName,
       };
     })

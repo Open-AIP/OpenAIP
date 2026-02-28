@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/citizen-profile-completion";
 
 type CompleteProfileRequestBody = {
+  fullName?: unknown;
   firstName?: unknown;
   lastName?: unknown;
   barangay?: unknown;
@@ -22,15 +23,17 @@ function normalizeRequiredField(value: unknown): string | null {
 export async function POST(request: Request) {
   try {
     const payload = (await request.json().catch(() => null)) as CompleteProfileRequestBody | null;
+    const fullNameInput = normalizeRequiredField(payload?.fullName);
     const firstName = normalizeRequiredField(payload?.firstName);
     const lastName = normalizeRequiredField(payload?.lastName);
     const barangay = normalizeRequiredField(payload?.barangay);
     const city = normalizeRequiredField(payload?.city);
     const province = normalizeRequiredField(payload?.province);
+    const fullName = fullNameInput ?? [firstName, lastName].filter(Boolean).join(" ").trim();
 
-    if (!firstName || !lastName || !barangay || !city || !province) {
+    if (!fullName || !barangay || !city || !province) {
       return fail(
-        "All profile fields are required: first name, last name, barangay, city, and province.",
+        "All profile fields are required: full name, barangay, city, and province.",
         400
       );
     }
@@ -42,7 +45,6 @@ export async function POST(request: Request) {
     }
 
     const userId = authData.user.id;
-    const fullName = `${firstName} ${lastName}`.trim();
     const resolvedBarangay = await resolveCitizenBarangayByNames(client, {
       barangay,
       city,
@@ -59,35 +61,20 @@ export async function POST(request: Request) {
     }
 
     if (profile) {
-      if (
-        profile.barangay_id &&
-        profile.barangay_id !== resolvedBarangay.value.barangayId
-      ) {
-        return fail(
-          "Your account is already linked to a different barangay. Contact support to update scope.",
-          403
-        );
-      }
-
-      const updatePayload = profile.barangay_id
-        ? { full_name: fullName }
-        : {
-            full_name: fullName,
-            role: "citizen" as const,
-            barangay_id: resolvedBarangay.value.barangayId,
-            city_id: null,
-            municipality_id: null,
-          };
+      const updatePayload = {
+        full_name: fullName,
+        role: "citizen" as const,
+        barangay_id: resolvedBarangay.value.barangayId,
+        city_id: null,
+        municipality_id: null,
+      };
       const { error: updateError } = await client
         .from("profiles")
         .update(updatePayload)
         .eq("id", userId);
 
       if (updateError) {
-        if (
-          updateError.message.toLowerCase().includes("scope is admin-managed") ||
-          updateError.message.toLowerCase().includes("scope is")
-        ) {
+        if (updateError.message.toLowerCase().includes("scope is admin-managed")) {
           return fail(
             "Your profile scope is managed by administrators. Contact support to complete account scope setup.",
             403

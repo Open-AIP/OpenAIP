@@ -18,6 +18,13 @@ export const FEEDBACK_KIND_BADGE_CLASSES: Record<FeedbackKind, string> = {
   ai_finding: "border-violet-200 text-violet-700",
 };
 
+export const CITIZEN_INITIATED_FEEDBACK_KINDS = [
+  "question",
+  "suggestion",
+  "concern",
+  "commend",
+] as const satisfies readonly FeedbackKind[];
+
 export const CATEGORY_KINDS = ["commend", "suggestion", "question", "concern"] as const;
 export type CategoryKind = (typeof CATEGORY_KINDS)[number];
 
@@ -49,4 +56,10 @@ export function getFeedbackKindBadge(kind: FeedbackKind | string) {
     label: formatFeedbackKind(kind),
     className,
   };
+}
+
+export function isCitizenInitiatedFeedbackKind(
+  kind: FeedbackKind | string
+): kind is (typeof CITIZEN_INITIATED_FEEDBACK_KINDS)[number] {
+  return (CITIZEN_INITIATED_FEEDBACK_KINDS as readonly string[]).includes(kind);
 }

@@ -176,9 +176,9 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
       </nav>
 
       {/* Footer / Logout */}
-      <div className="mt-auto p-2 md:p-4">
-        {/* ✅ Compact logout area on small */}
-        <div className="rounded-xl p-1 md:p-2">
+      <div className="p-4 mt-auto">
+        <div className="text-xs mb-3"> </div>
+        <div className="rounded-xl bg-[#022437] p-2">
           <LogoutButton role={variant} baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
         </div>
       </div>

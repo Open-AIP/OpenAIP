@@ -3,7 +3,9 @@ import { getCitizenAipRepo } from "@/lib/repos/citizen-aips";
 import { projectService } from "@/lib/repos/projects/queries";
 
 export default async function CitizenInfrastructureProjectsPage() {
-  const projects = await projectService.getInfrastructureProjects();
+  const projects = await projectService.getInfrastructureProjects({
+    publishedOnly: true,
+  });
   const lguLabel = await getCitizenAipRepo().getDefaultLguLabel();
   const lguOptions = ["All LGUs", lguLabel];
 

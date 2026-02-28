@@ -1,6 +1,6 @@
-import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockSystemAdministrationRepo } from "./repo.mock";
+import { createSupabaseSystemAdministrationRepo } from "./repo.supabase";
 
 export type {
   SystemAdministrationRepo,
@@ -17,11 +17,7 @@ export function getSystemAdministrationRepo(): SystemAdministrationRepo {
   return selectRepo({
     label: "SystemAdministrationRepo",
     mock: () => createMockSystemAdministrationRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "SystemAdministrationRepo is mock-only for now. Add server implementation when wiring Supabase."
-      );
-    },
+    supabase: () => createSupabaseSystemAdministrationRepo(),
   });
 }
 

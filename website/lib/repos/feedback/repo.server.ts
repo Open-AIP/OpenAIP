@@ -1,7 +1,6 @@
 import "server-only";
 
 import { selectRepo } from "@/lib/repos/_shared/selector";
-import { NotImplementedError } from "@/lib/core/errors";
 import type { CommentRepo, CommentTargetLookup, FeedbackRepo, FeedbackThreadsRepo } from "./repo";
 import {
   createMockCommentRepo,
@@ -11,6 +10,7 @@ import {
 } from "./repo.mock";
 import {
   createSupabaseCommentRepo,
+  createSupabaseCommentTargetLookup,
   createSupabaseFeedbackRepo,
   createSupabaseFeedbackThreadsRepo,
 } from "./repo.supabase";
@@ -27,9 +27,7 @@ export function getCommentTargetLookup(): CommentTargetLookup {
   return selectRepo({
     label: "CommentTargetLookup",
     mock: () => createMockCommentTargetLookup(),
-    supabase: () => {
-      throw new NotImplementedError("CommentTargetLookup.supabase not implemented yet.");
-    },
+    supabase: () => createSupabaseCommentTargetLookup(),
   });
 }
 

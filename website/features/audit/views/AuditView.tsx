@@ -75,7 +75,7 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
     return logs.map((row) => {
       const createdAt = new Date(row.createdAt);
       const year = Number.isFinite(createdAt.getTime()) ? createdAt.getFullYear() : null;
-      const name = getMetadataString(row.metadata, "actor_name") ?? row.actorId;
+      const name = (getMetadataString(row.metadata, "actor_name") ?? "").trim() || row.actorId;
       const position =
         getMetadataString(row.metadata, "actor_position") ?? getAuditRoleLabel(row.actorRole ?? null);
       const event = getAuditActionLabel(row.action);

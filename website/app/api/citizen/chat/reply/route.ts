@@ -1,4 +1,7 @@
-import type { Json } from "@/lib/contracts/databasev2";
+import type { Json, RoleType } from "@/lib/contracts/databasev2";
+import type { RetrievalScopePayload, RetrievalScopeTarget } from "@/lib/chat/types";
+import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
+import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -24,43 +27,185 @@ type ChatMessageRow = {
   created_at: string;
 };
 
+type ProfileScopeRow = {
+  role: RoleType;
+  barangay_id: string | null;
+  city_id: string | null;
+  municipality_id: string | null;
+};
+
+type ChatQuotaResult = {
+  allowed: boolean;
+  reason: string;
+};
+
 const MESSAGE_CONTENT_LIMIT = 12000;
 
-function buildAssistantReply(content: string): string {
-  if (content.toLowerCase().includes("budget")) {
-    return (
-      "Based on published AIP documents, review allocations by sector before finalizing recommendations.\\n\\n" +
-      "1. Confirm the current fiscal year totals\\n" +
-      "2. Compare social vs infrastructure allocations\\n" +
-      "3. Check scope-specific projects for your barangay or city\\n" +
-      "4. Validate with official line-item references"
-    );
-  }
-
-  return "I can answer using published AIP records only. Add fiscal year and scope so I can return grounded details with evidence.";
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-function buildCitations(): Json {
+function buildFollowUps(userMessage: string): string[] {
+  const lowered = userMessage.toLowerCase();
+  if (lowered.includes("project")) {
+    return [
+      "Show the top funded projects for this scope.",
+      "Break down the budget by sector for the same fiscal year.",
+      "Compare this project's funding against last fiscal year.",
+    ];
+  }
+
+  if (lowered.includes("budget") || lowered.includes("allocation")) {
+    return [
+      "Show the total allocation by sector.",
+      "List the biggest line items in this scope.",
+      "Compare this fiscal year against the previous year.",
+    ];
+  }
+
   return [
-    {
-      id: `evidence_${Date.now()}`,
-      documentLabel: "Published AIP Registry",
-      snippet: "Relevant allocation and project entries were matched from published AIP documents.",
-      fiscalYear: "FY 2025-2026",
-      pageOrSection: "Budget Summary",
-    },
+    "Show me the total investment for this fiscal year.",
+    "List key projects in this scope.",
+    "What line items support this answer?",
   ];
 }
 
-function buildRetrievalMeta(): Json {
+async function resolveScopeName(
+  admin: ReturnType<typeof supabaseAdmin>,
+  target: RetrievalScopeTarget
+): Promise<string | null> {
+  const table =
+    target.scope_type === "barangay"
+      ? "barangays"
+      : target.scope_type === "city"
+        ? "cities"
+        : "municipalities";
+
+  const { data, error } = await admin
+    .from(table)
+    .select("name")
+    .eq("id", target.scope_id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return typeof data?.name === "string" ? data.name : null;
+}
+
+async function buildRetrievalScope(input: {
+  profile: ProfileScopeRow;
+  admin: ReturnType<typeof supabaseAdmin>;
+}): Promise<RetrievalScopePayload> {
+  const targets: RetrievalScopeTarget[] = [];
+
+  if (input.profile.barangay_id) {
+    targets.push({
+      scope_type: "barangay",
+      scope_id: input.profile.barangay_id,
+      scope_name: "",
+    });
+  } else if (input.profile.city_id) {
+    targets.push({
+      scope_type: "city",
+      scope_id: input.profile.city_id,
+      scope_name: "",
+    });
+  } else if (input.profile.municipality_id) {
+    targets.push({
+      scope_type: "municipality",
+      scope_id: input.profile.municipality_id,
+      scope_name: "",
+    });
+  }
+
+  if (targets.length === 0) {
+    return {
+      mode: "global",
+      targets: [],
+    };
+  }
+
+  const withNames = await Promise.all(
+    targets.map(async (target) => ({
+      ...target,
+      scope_name: (await resolveScopeName(input.admin, target)) ?? target.scope_type,
+    }))
+  );
+
   return {
-    source: "published_aip_only",
-    confidence: "moderate",
-    suggestedFollowUps: [
-      "Show me the total budget by sector for FY 2025-2026.",
-      "List infrastructure projects in my scope.",
-      "Compare this FY against last FY allocations.",
-    ],
+    mode: input.profile.role === "citizen" ? "own_barangay" : "named_scopes",
+    targets: withNames,
+  };
+}
+
+function toDbCitations(payload: {
+  citations: Array<{
+    source_id: string;
+    snippet: string;
+    fiscal_year?: number | null;
+    scope_name?: string | null;
+    metadata?: unknown;
+  }>;
+}): Json {
+  return payload.citations.map((citation, index) => {
+    const metadata =
+      citation.metadata && typeof citation.metadata === "object" && !Array.isArray(citation.metadata)
+        ? (citation.metadata as Record<string, unknown>)
+        : {};
+
+    return {
+      id: citation.source_id || `evidence_${index + 1}`,
+      documentLabel:
+        typeof metadata.document_label === "string"
+          ? metadata.document_label
+          : citation.scope_name || "Published AIP",
+      snippet: citation.snippet,
+      fiscalYear:
+        typeof citation.fiscal_year === "number"
+          ? String(citation.fiscal_year)
+          : null,
+      pageOrSection:
+        typeof metadata.page_no === "number"
+          ? `Page ${metadata.page_no}`
+          : typeof metadata.section === "string"
+            ? metadata.section
+            : null,
+    };
+  }) as Json;
+}
+
+async function consumeCitizenQuota(input: {
+  userId: string;
+  maxRequests: number;
+  timeWindow: "per_hour" | "per_day";
+}): Promise<ChatQuotaResult> {
+  const perMinute =
+    input.timeWindow === "per_hour"
+      ? clamp(Math.ceil(input.maxRequests / 60), 1, 120)
+      : 120;
+  const perDay =
+    input.timeWindow === "per_day"
+      ? clamp(input.maxRequests, 1, 10000)
+      : clamp(input.maxRequests * 24, 1, 10000);
+
+  const admin = supabaseAdmin();
+  const { data, error } = await admin.rpc("consume_chat_quota", {
+    p_user_id: input.userId,
+    p_per_minute: perMinute,
+    p_per_day: perDay,
+    p_route: "citizen_chat_reply",
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const payload = (data ?? {}) as { allowed?: unknown; reason?: unknown };
+  return {
+    allowed: payload.allowed === true,
+    reason: typeof payload.reason === "string" ? payload.reason : "unknown",
   };
 }
 
@@ -92,6 +237,13 @@ export async function POST(request: Request) {
 
     const userId = authData.user.id;
 
+    if (await isUserBlocked(userId)) {
+      return NextResponse.json(
+        { error: "Your account is currently blocked from chatbot usage." },
+        { status: 403 }
+      );
+    }
+
     const { data: sessionData, error: sessionError } = await server
       .from("chat_sessions")
       .select("id,title,context")
@@ -108,22 +260,81 @@ export async function POST(request: Request) {
     }
 
     const session = sessionData as ChatSessionRow;
-    const assistantContent = buildAssistantReply(userMessage);
-    const citations = buildCitations();
-    const retrievalMeta = {
-      ...((buildRetrievalMeta() as Record<string, unknown>) ?? {}),
-      sessionTitle: session.title,
-      context: session.context,
-    } as Json;
+
+    const { data: profileData, error: profileError } = await server
+      .from("profiles")
+      .select("role,barangay_id,city_id,municipality_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+
+    if (!profileData) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+
+    const profile = profileData as ProfileScopeRow;
+    const chatbotPolicy = await getTypedAppSetting("controls.chatbot_policy");
+    if (!chatbotPolicy.isEnabled) {
+      return NextResponse.json(
+        { error: "Citizen chatbot is currently disabled by platform policy." },
+        { status: 503 }
+      );
+    }
+
+    const rateLimitPolicy = await getTypedAppSetting("controls.chatbot_rate_limit");
+    const quota = await consumeCitizenQuota({
+      userId,
+      maxRequests: rateLimitPolicy.maxRequests,
+      timeWindow: rateLimitPolicy.timeWindow,
+    });
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again shortly.", reason: quota.reason },
+        { status: 429 }
+      );
+    }
 
     const admin = supabaseAdmin();
+    const retrievalScope = await buildRetrievalScope({
+      profile,
+      admin,
+    });
+
+    const pipeline = await requestPipelineChatAnswer({
+      question: userMessage,
+      retrievalScope,
+    });
+
+    const citations = toDbCitations({
+      citations: pipeline.citations.map((citation) => ({
+        source_id: citation.source_id,
+        snippet: citation.snippet,
+        fiscal_year: citation.fiscal_year ?? null,
+        scope_name: citation.scope_name ?? null,
+        metadata: citation.metadata,
+      })),
+    });
+
+    const suggestedFollowUps = buildFollowUps(userMessage);
+    const retrievalMeta = {
+      ...(pipeline.retrieval_meta ?? {}),
+      refused: pipeline.refused,
+      source: "pipeline_chat_answer",
+      sessionTitle: session.title,
+      context: session.context,
+      suggestedFollowUps,
+    } as Json;
+
     const { data: insertedData, error: insertError } = await admin
       .from("chat_messages")
       .insert({
         session_id: sessionId,
         role: "assistant",
-        content: assistantContent,
-        citations: citations,
+        content: pipeline.answer,
+        citations,
         retrieval_meta: retrievalMeta,
       })
       .select("id,session_id,role,content,citations,retrieval_meta,created_at")
@@ -134,11 +345,6 @@ export async function POST(request: Request) {
     }
 
     const inserted = insertedData as ChatMessageRow;
-    const followUps =
-      typeof inserted.retrieval_meta === "object" && inserted.retrieval_meta && !Array.isArray(inserted.retrieval_meta)
-        ? ((inserted.retrieval_meta as { suggestedFollowUps?: unknown }).suggestedFollowUps as string[] | undefined)
-        : undefined;
-
     return NextResponse.json({
       message: {
         id: inserted.id,
@@ -149,10 +355,11 @@ export async function POST(request: Request) {
         retrievalMeta: inserted.retrieval_meta,
         createdAt: inserted.created_at,
       },
-      suggestedFollowUps: Array.isArray(followUps) ? followUps : [],
+      suggestedFollowUps,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

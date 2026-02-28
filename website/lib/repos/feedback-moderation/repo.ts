@@ -1,6 +1,6 @@
-﻿import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockFeedbackModerationRepo } from "./repo.mock";
+import { createSupabaseFeedbackModerationRepo } from "./repo.supabase";
 
 export type {
   Dbv2ActivityLogRow,
@@ -24,11 +24,6 @@ export function getFeedbackModerationRepo(): FeedbackModerationRepo {
   return selectRepo({
     label: "FeedbackModerationRepo",
     mock: () => createMockFeedbackModerationRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "FeedbackModerationRepo is mock-only for now. Add server implementation when wiring Supabase."
-      );
-    },
+    supabase: () => createSupabaseFeedbackModerationRepo(),
   });
 }
-

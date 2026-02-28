@@ -3,7 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChatMessage, ChatSession } from "@/lib/repos/chat/repo";
 import type { ChatCitation, ChatRetrievalMeta } from "@/lib/repos/chat/types";
-import type { ChatMessageBubble, ChatSessionListItem } from "../types/chat.types";
+import type {
+  ChatMessageBubble,
+  ChatMessageDeliveryStatus,
+  ChatSessionListItem,
+} from "../types/chat.types";
+
+const SEARCH_DEBOUNCE_MS = 250;
+
+type LocalChatMessage = ChatMessage & {
+  deliveryStatus: ChatMessageDeliveryStatus;
+};
 
 function formatTimeLabel(value: string | null | undefined) {
   if (!value) return "Just now";
@@ -14,9 +24,22 @@ function formatTimeLabel(value: string | null | undefined) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function sortSessionsByUpdatedAt(sessions: ChatSession[]) {
+  return [...sessions].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+}
+
+function toSentMessage(message: ChatMessage): LocalChatMessage {
+  return {
+    ...message,
+    deliveryStatus: "sent",
+  };
+}
+
 function toSessionListItem(params: {
   session: ChatSession;
-  messages: ChatMessage[];
+  messages: LocalChatMessage[];
   isActive: boolean;
 }): ChatSessionListItem {
   const { session, messages, isActive } = params;
@@ -25,25 +48,31 @@ function toSessionListItem(params: {
   return {
     id: session.id,
     title: session.title?.trim() || "New chat",
-    snippet: lastMessage?.content?.trim() || "No messages yet.",
     timeLabel: formatTimeLabel(lastMessage?.createdAt ?? session.lastMessageAt ?? session.updatedAt),
     isActive,
   };
 }
 
-function toBubble(message: ChatMessage): ChatMessageBubble {
+function toBubble(
+  message: LocalChatMessage,
+  onRetry: ((messageId: string) => void) | null
+): ChatMessageBubble {
   return {
     id: message.id,
     role: message.role,
     content: message.content,
     timeLabel: formatTimeLabel(message.createdAt),
+    deliveryStatus: message.deliveryStatus,
+    onRetry:
+      message.role === "user" && message.deliveryStatus === "failed" && onRetry
+        ? () => onRetry(message.id)
+        : null,
     citations: (message.citations as ChatCitation[] | null) ?? [],
     retrievalMeta: (message.retrievalMeta as ChatRetrievalMeta | null) ?? null,
   };
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { cache: "no-store" });
+async function parseResponse<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message =
@@ -52,7 +81,13 @@ async function getJson<T>(url: string): Promise<T> {
         : "Request failed.";
     throw new Error(message);
   }
+
   return payload as T;
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { cache: "no-store" });
+  return parseResponse<T>(response);
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -61,32 +96,94 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "message" in payload
-        ? String((payload as { message: unknown }).message)
-        : "Request failed.";
-    throw new Error(message);
-  }
-  return payload as T;
+  return parseResponse<T>(response);
 }
 
-export function useLguChatbot() {
+async function patchJson<T>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseResponse<T>(response);
+}
+
+async function deleteJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { method: "DELETE" });
+  return parseResponse<T>(response);
+}
+
+export function useLguChatbot(routePrefix = "/api/barangay/chat") {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [messagesBySession, setMessagesBySession] = useState<Record<string, ChatMessage[]>>({});
+  const [messagesBySession, setMessagesBySession] = useState<Record<string, LocalChatMessage[]>>({});
   const [loadedSessionIds, setLoadedSessionIds] = useState<Record<string, true>>({});
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [searchSessionIds, setSearchSessionIds] = useState<string[] | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSessions = useCallback(async () => {
-    const payload = await getJson<{ sessions: ChatSession[] }>("/api/barangay/chat/sessions");
-    setSessions(payload.sessions ?? []);
-    setActiveSessionId((prev) => prev ?? payload.sessions?.[0]?.id ?? null);
+  const mergeSessions = useCallback((incoming: ChatSession[]) => {
+    setSessions((prev) => {
+      const map = new Map<string, ChatSession>(prev.map((session) => [session.id, session]));
+      for (const session of incoming) {
+        map.set(session.id, session);
+      }
+      return sortSessionsByUpdatedAt(Array.from(map.values()));
+    });
   }, []);
+
+  const loadSessions = useCallback(async () => {
+    const payload = await getJson<{ sessions: ChatSession[] }>(`${routePrefix}/sessions`);
+    const fetchedSessions = sortSessionsByUpdatedAt(payload.sessions ?? []);
+    setSessions(fetchedSessions);
+    setActiveSessionId((prev) => {
+      if (prev && fetchedSessions.some((session) => session.id === prev)) {
+        return prev;
+      }
+      return fetchedSessions[0]?.id ?? null;
+    });
+  }, [routePrefix]);
+
+  const createSession = useCallback(async (): Promise<ChatSession> => {
+    const payload = await postJson<{ session: ChatSession }>(`${routePrefix}/sessions`, {});
+    const session = payload.session;
+    if (!session) {
+      throw new Error("Invalid session payload.");
+    }
+
+    setSessions((prev) => sortSessionsByUpdatedAt([session, ...prev.filter((item) => item.id !== session.id)]));
+    setActiveSessionId(session.id);
+    setMessagesBySession((prev) => ({ ...prev, [session.id]: [] }));
+    setLoadedSessionIds((prev) => ({ ...prev, [session.id]: true }));
+    return session;
+  }, [routePrefix]);
+
+  const searchSessions = useCallback(
+    async (term: string) => {
+      const payload = await getJson<{ sessions: ChatSession[] }>(
+        `${routePrefix}/sessions?q=${encodeURIComponent(term)}`
+      );
+      return sortSessionsByUpdatedAt(payload.sessions ?? []);
+    },
+    [routePrefix]
+  );
+
+  const applySearchResults = useCallback(
+    (matches: ChatSession[]) => {
+      mergeSessions(matches);
+      setSearchSessionIds(matches.map((session) => session.id));
+    },
+    [mergeSessions]
+  );
+
+  const refreshSearch = useCallback(async () => {
+    const lowered = query.trim();
+    if (!lowered) return;
+    const matches = await searchSessions(lowered);
+    applySearchResults(matches);
+  }, [applySearchResults, query, searchSessions]);
 
   useEffect(() => {
     let isMounted = true;
@@ -108,13 +205,13 @@ export function useLguChatbot() {
       if (!activeSessionId || loadedSessionIds[activeSessionId]) return;
 
       const payload = await getJson<{ messages: ChatMessage[] }>(
-        `/api/barangay/chat/sessions/${activeSessionId}/messages`
+        `${routePrefix}/sessions/${activeSessionId}/messages`
       );
       if (!isMounted) return;
 
       setMessagesBySession((prev) => ({
         ...prev,
-        [activeSessionId]: payload.messages ?? [],
+        [activeSessionId]: (payload.messages ?? []).map(toSentMessage),
       }));
       setLoadedSessionIds((prev) => ({
         ...prev,
@@ -130,31 +227,55 @@ export function useLguChatbot() {
     return () => {
       isMounted = false;
     };
-  }, [activeSessionId, loadedSessionIds]);
+  }, [activeSessionId, loadedSessionIds, routePrefix]);
+
+  useEffect(() => {
+    const lowered = query.trim();
+    if (!lowered) {
+      setSearchSessionIds(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      searchSessions(lowered)
+        .then((matches) => {
+          if (cancelled) return;
+          applySearchResults(matches);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : "Failed to search conversations.");
+        });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [applySearchResults, query, searchSessions]);
+
+  const visibleSessions = useMemo(() => {
+    if (!searchSessionIds) return sessions;
+
+    const byId = new Map<string, ChatSession>(sessions.map((session) => [session.id, session]));
+    return searchSessionIds
+      .map((id) => byId.get(id))
+      .filter((session): session is ChatSession => Boolean(session));
+  }, [searchSessionIds, sessions]);
 
   const sessionListItems = useMemo<ChatSessionListItem[]>(() => {
-    const lowered = query.trim().toLowerCase();
-
-    return sessions
-      .map((session) =>
-        toSessionListItem({
-          session,
-          messages: messagesBySession[session.id] ?? [],
-          isActive: session.id === activeSessionId,
-        })
-      )
-      .filter((session) => {
-        if (!lowered) return true;
-        return (
-          session.title.toLowerCase().includes(lowered) ||
-          session.snippet.toLowerCase().includes(lowered)
-        );
-      });
-  }, [activeSessionId, messagesBySession, query, sessions]);
+    return visibleSessions.map((session) =>
+      toSessionListItem({
+        session,
+        messages: messagesBySession[session.id] ?? [],
+        isActive: session.id === activeSessionId,
+      })
+    );
+  }, [activeSessionId, messagesBySession, visibleSessions]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
   const activeMessages = activeSessionId ? messagesBySession[activeSessionId] ?? [] : [];
-  const bubbles = activeMessages.map(toBubble);
 
   const handleSelect = useCallback((id: string) => {
     setActiveSessionId(id);
@@ -164,58 +285,213 @@ export function useLguChatbot() {
   const handleNewChat = useCallback(async () => {
     setError(null);
     try {
-      const payload = await postJson<{ session: ChatSession }>("/api/barangay/chat/sessions", {});
-      const session = payload.session;
-      if (!session) return;
-      setSessions((prev) => [session, ...prev.filter((item) => item.id !== session.id)]);
-      setActiveSessionId(session.id);
-      setMessagesBySession((prev) => ({ ...prev, [session.id]: [] }));
-      setLoadedSessionIds((prev) => ({ ...prev, [session.id]: true }));
+      await createSession();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create chat.");
     }
-  }, []);
+  }, [createSession]);
 
-  const handleSend = useCallback(async () => {
-    if (!messageInput.trim() || isSending) return;
-    setError(null);
-    setIsSending(true);
+  const sendMessage = useCallback(
+    async (rawContent: string, retryMessageId?: string) => {
+      const content = rawContent.trim();
+      if (!content || isSending) return;
 
-    try {
-      const content = messageInput.trim();
-      setMessageInput("");
+      setError(null);
+      setIsSending(true);
 
-      const payload = await postJson<{
-        sessionId: string;
-        userMessage: ChatMessage;
-        assistantMessage: ChatMessage;
-      }>("/api/barangay/chat/messages", {
-        sessionId: activeSessionId,
-        content,
-      });
-
-      const resolvedSessionId = payload.sessionId;
-      const userMessage = payload.userMessage;
-      const assistantMessage = payload.assistantMessage;
-
-      if (!resolvedSessionId || !userMessage || !assistantMessage) {
-        throw new Error("Invalid chatbot response payload.");
+      let sessionId = activeSessionId;
+      if (!sessionId) {
+        try {
+          const created = await createSession();
+          sessionId = created.id;
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to create chat.");
+          setIsSending(false);
+          return;
+        }
       }
 
-      setActiveSessionId(resolvedSessionId);
-      setLoadedSessionIds((prev) => ({ ...prev, [resolvedSessionId]: true }));
-      setMessagesBySession((prev) => ({
-        ...prev,
-        [resolvedSessionId]: [...(prev[resolvedSessionId] ?? []), userMessage, assistantMessage],
-      }));
+      const optimisticId = retryMessageId ?? `temp_user_${Date.now()}`;
+      const now = new Date().toISOString();
+      if (retryMessageId) {
+        setMessagesBySession((prev) => ({
+          ...prev,
+          [sessionId]: (prev[sessionId] ?? []).map((message) =>
+            message.id === retryMessageId ? { ...message, deliveryStatus: "pending" } : message
+          ),
+        }));
+      } else {
+        setMessageInput("");
+        const optimisticMessage: LocalChatMessage = {
+          id: optimisticId,
+          sessionId,
+          role: "user",
+          content,
+          createdAt: now,
+          citations: null,
+          retrievalMeta: null,
+          deliveryStatus: "pending",
+        };
+        setMessagesBySession((prev) => ({
+          ...prev,
+          [sessionId]: [...(prev[sessionId] ?? []), optimisticMessage],
+        }));
+        setSessions((prev) =>
+          sortSessionsByUpdatedAt(
+            prev.map((session) =>
+              session.id === sessionId
+                ? {
+                    ...session,
+                    lastMessageAt: now,
+                    updatedAt: now,
+                  }
+                : session
+            )
+          )
+        );
+      }
+      setLoadedSessionIds((prev) => ({ ...prev, [sessionId]: true }));
 
-      await loadSessions();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send message.");
-    } finally {
-      setIsSending(false);
-    }
-  }, [activeSessionId, isSending, loadSessions, messageInput]);
+      try {
+        const payload = await postJson<{
+          sessionId: string;
+          userMessage: ChatMessage;
+          assistantMessage: ChatMessage;
+        }>(`${routePrefix}/messages`, {
+          sessionId,
+          content,
+        });
+
+        const resolvedSessionId = payload.sessionId;
+        const userMessage = payload.userMessage;
+        const assistantMessage = payload.assistantMessage;
+
+        if (!resolvedSessionId || !userMessage || !assistantMessage) {
+          throw new Error("Invalid chatbot response payload.");
+        }
+
+        setActiveSessionId(resolvedSessionId);
+        setLoadedSessionIds((prev) => ({ ...prev, [resolvedSessionId]: true }));
+        setMessagesBySession((prev) => {
+          const next: Record<string, LocalChatMessage[]> = {};
+          for (const [key, list] of Object.entries(prev)) {
+            next[key] = list.filter((message) => message.id !== optimisticId);
+          }
+          next[resolvedSessionId] = [
+            ...(next[resolvedSessionId] ?? []),
+            toSentMessage(userMessage),
+            toSentMessage(assistantMessage),
+          ];
+          return next;
+        });
+
+        await loadSessions();
+        await refreshSearch();
+      } catch (err) {
+        setMessagesBySession((prev) => {
+          if (!sessionId) return prev;
+          return {
+            ...prev,
+            [sessionId]: (prev[sessionId] ?? []).map((message) =>
+              message.id === optimisticId ? { ...message, deliveryStatus: "failed" } : message
+            ),
+          };
+        });
+        setError(err instanceof Error ? err.message : "Failed to send message.");
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [activeSessionId, createSession, isSending, loadSessions, refreshSearch, routePrefix]
+  );
+
+  const handleSend = useCallback(async () => {
+    await sendMessage(messageInput);
+  }, [messageInput, sendMessage]);
+
+  const handleRetry = useCallback(
+    async (messageId: string) => {
+      if (!activeSessionId) return;
+      const failedMessage = (messagesBySession[activeSessionId] ?? []).find(
+        (message) => message.id === messageId
+      );
+      if (!failedMessage || failedMessage.deliveryStatus !== "failed") return;
+      await sendMessage(failedMessage.content, failedMessage.id);
+    },
+    [activeSessionId, messagesBySession, sendMessage]
+  );
+
+  const handleRenameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      setError(null);
+      try {
+        const payload = await patchJson<{ session: ChatSession }>(`${routePrefix}/sessions/${sessionId}`, {
+          title,
+        });
+
+        const renamed = payload.session;
+        if (!renamed) {
+          throw new Error("Failed to rename conversation.");
+        }
+
+        mergeSessions([renamed]);
+        await refreshSearch();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to rename conversation.";
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    [mergeSessions, refreshSearch, routePrefix]
+  );
+
+  const handleDeleteSession = useCallback(
+    async (sessionId: string) => {
+      setError(null);
+      try {
+        await deleteJson<{ ok: boolean }>(`${routePrefix}/sessions/${sessionId}`);
+
+        let fallbackSessionId: string | null = null;
+        setSessions((prev) => {
+          const next = prev.filter((session) => session.id !== sessionId);
+          fallbackSessionId = next[0]?.id ?? null;
+          return next;
+        });
+
+        setMessagesBySession((prev) => {
+          const next = { ...prev };
+          delete next[sessionId];
+          return next;
+        });
+        setLoadedSessionIds((prev) => {
+          const next = { ...prev };
+          delete next[sessionId];
+          return next;
+        });
+        setSearchSessionIds((prev) => (prev ? prev.filter((id) => id !== sessionId) : null));
+
+        if (activeSessionId === sessionId) {
+          if (fallbackSessionId) {
+            setActiveSessionId(fallbackSessionId);
+          } else {
+            await createSession();
+          }
+        }
+
+        await refreshSearch();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to delete conversation.";
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    [activeSessionId, createSession, refreshSearch, routePrefix]
+  );
+
+  const bubbles = useMemo(
+    () => activeMessages.map((message) => toBubble(message, handleRetry)),
+    [activeMessages, handleRetry]
+  );
 
   return {
     activeSessionId,
@@ -231,5 +507,7 @@ export function useLguChatbot() {
     handleSelect,
     handleNewChat,
     handleSend,
+    handleRenameSession,
+    handleDeleteSession,
   };
 }

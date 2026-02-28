@@ -15,6 +15,7 @@ import type { ActivityLogRow } from "./types";
 // [DBV2] Backing table is `public.activity_log` (server-only writes; RLS restricts reads).
 export interface AuditRepo {
   listMyActivity(actorId: string): Promise<ActivityLogRow[]>;
+  listBarangayOfficialActivity(barangayId: string): Promise<ActivityLogRow[]>;
   listAllActivity(): Promise<ActivityLogRow[]>;
 }
 

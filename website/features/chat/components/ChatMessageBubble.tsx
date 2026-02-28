@@ -74,15 +74,29 @@ export default function ChatMessageBubble({
               );
             })}
           </div>
-        )}
-
-        <div
-          className={cn(
-            "mt-2 text-[11px]",
-            isUser ? "text-primary-foreground/70" : "text-muted-foreground"
           )}
-        >
-          {message.timeLabel}
+
+        <div className="mt-2 flex items-center justify-between gap-3 text-[11px]">
+          <div className={cn(isUser ? "text-primary-foreground/70" : "text-muted-foreground")}>
+            {message.timeLabel}
+          </div>
+          {isUser && message.deliveryStatus === "pending" && (
+            <div className="text-primary-foreground/70">Sending...</div>
+          )}
+          {isUser && message.deliveryStatus === "failed" && (
+            <div className="flex items-center gap-2">
+              <div className="text-primary-foreground/80">Failed to send.</div>
+              {message.onRetry ? (
+                <button
+                  type="button"
+                  onClick={message.onRetry}
+                  className="underline decoration-primary-foreground/60 underline-offset-2 hover:decoration-primary-foreground"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </div>

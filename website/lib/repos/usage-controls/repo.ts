@@ -1,6 +1,6 @@
-import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockUsageControlsRepo } from "./repo.mock";
+import { createSupabaseUsageControlsRepo } from "./repo.supabase";
 
 export type {
   AuditEntryVM,
@@ -15,10 +15,6 @@ export function getUsageControlsRepo(): UsageControlsRepo {
   return selectRepo({
     label: "UsageControlsRepo",
     mock: () => createMockUsageControlsRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "UsageControlsRepo is mock-only for now. Add server implementation when wiring Supabase."
-      );
-    },
+    supabase: () => createSupabaseUsageControlsRepo(),
   });
 }

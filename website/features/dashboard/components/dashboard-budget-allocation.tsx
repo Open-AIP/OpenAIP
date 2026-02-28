@@ -60,7 +60,6 @@ export function BudgetBreakdownSection({
         </div>
         <div className="border-t border-border pt-4 flex gap-3">
           <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"><Link href={detailsHref}>View AIP Details</Link></Button>
-          <Button asChild variant="outline" className="rounded-lg bg-card border border-border text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"><Link href={detailsHref}>View All Projects</Link></Button>
         </div>
       </CardContent>
     </Card>

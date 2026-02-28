@@ -67,14 +67,75 @@ function normalizeContent(value: string): string {
   return normalized;
 }
 
+function normalizeSearchQuery(value: string | undefined): string {
+  if (!value) return "";
+  return value.trim().slice(0, 200);
+}
+
+function toIlikePattern(value: string): string {
+  const escaped = value.replace(/[%_]/g, "\\$&");
+  return `%${escaped}%`;
+}
+
 export function createSupabaseChatRepo(): ChatRepo {
   return {
-    async listSessions(userId: string): Promise<ChatSession[]> {
+    async listSessions(userId: string, options?: { query?: string }): Promise<ChatSession[]> {
       const client = await supabaseServer();
+      const query = normalizeSearchQuery(options?.query);
+      if (!query) {
+        const { data, error } = await client
+          .from("chat_sessions")
+          .select("id,user_id,title,context,last_message_at,created_at,updated_at")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        return (data ?? []).map((row) => mapSession(row as ChatSessionRow));
+      }
+
+      const pattern = toIlikePattern(query);
+
+      const { data: titleMatches, error: titleError } = await client
+        .from("chat_sessions")
+        .select("id,user_id,title,context,last_message_at,created_at,updated_at")
+        .eq("user_id", userId)
+        .ilike("title", pattern);
+      if (titleError) {
+        throw new Error(titleError.message);
+      }
+
+      const { data: messageMatches, error: messageError } = await client
+        .from("chat_messages")
+        .select("session_id")
+        .ilike("content", pattern);
+      if (messageError) {
+        throw new Error(messageError.message);
+      }
+
+      const sessionIds = new Set<string>();
+      for (const row of titleMatches ?? []) {
+        sessionIds.add(String((row as ChatSessionRow).id));
+      }
+      for (const row of messageMatches ?? []) {
+        if (!row || typeof row !== "object" || !("session_id" in row)) continue;
+        const sessionId = (row as { session_id?: unknown }).session_id;
+        if (typeof sessionId === "string" && sessionId.length > 0) {
+          sessionIds.add(sessionId);
+        }
+      }
+
+      if (sessionIds.size === 0) {
+        return [];
+      }
+
       const { data, error } = await client
         .from("chat_sessions")
         .select("id,user_id,title,context,last_message_at,created_at,updated_at")
         .eq("user_id", userId)
+        .in("id", Array.from(sessionIds))
         .order("updated_at", { ascending: false });
 
       if (error) {
@@ -135,6 +196,21 @@ export function createSupabaseChatRepo(): ChatRepo {
       }
 
       return data ? mapSession(data as ChatSessionRow) : null;
+    },
+
+    async deleteSession(sessionId: string): Promise<boolean> {
+      const client = await supabaseServer();
+      const { data, error } = await client
+        .from("chat_sessions")
+        .delete()
+        .eq("id", sessionId)
+        .select("id");
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return (data ?? []).length > 0;
     },
 
     async listMessages(sessionId: string): Promise<ChatMessage[]> {

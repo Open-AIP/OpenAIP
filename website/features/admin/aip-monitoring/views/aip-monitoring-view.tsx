@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AipMonitoringTabs, { AipMonitoringTab } from "../components/AipMonitoringTabs";
 import AipFiltersRow from "../components/AipFiltersRow";
 import AipsTable from "../components/AipsTable";
@@ -21,7 +21,7 @@ type WorkflowState = { actionType: WorkflowActionType; rowId: string } | null;
 const todayStamp = () => new Date().toISOString().slice(0, 10);
 
 export default function AipMonitoringView() {
-  const seedData = useMemo(() => getAipMonitoringRepo().getSeedData(), []);
+  const repo = useMemo(() => getAipMonitoringRepo(), []);
 
   const [activeTab, setActiveTab] = useState<AipMonitoringTab>("aips");
   const [query, setQuery] = useState("");
@@ -30,26 +30,60 @@ export default function AipMonitoringView() {
   const [caseTypeFilter, setCaseTypeFilter] = useState("all");
   const [lguFilter, setLguFilter] = useState("all");
 
-  const [aipRows] = useState<AipMonitoringRow[]>(() =>
-    mapAipRowsToMonitoringRows({
-      aips: seedData.aips,
-      reviews: seedData.reviews,
-      activity: seedData.activity,
-      details: seedData.details,
-      lguNameByAipId: seedData.lguNameByAipId,
-      reviewerDirectory: seedData.reviewerDirectory,
-    })
-  );
-  const [caseRows, setCaseRows] = useState<CaseRow[]>(() =>
-    mapActivityToCaseRows({
-      activity: seedData.activity,
-      aips: seedData.aips,
-      lguNameByAipId: seedData.lguNameByAipId,
-    })
-  );
+  const [aipRows, setAipRows] = useState<AipMonitoringRow[]>([]);
+  const [caseRows, setCaseRows] = useState<CaseRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [selectedAipId, setSelectedAipId] = useState<string | null>(null);
   const [workflowState, setWorkflowState] = useState<WorkflowState>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const seedData = await repo.getSeedData();
+        if (!isActive) return;
+
+        setAipRows(
+          mapAipRowsToMonitoringRows({
+            aips: seedData.aips,
+            reviews: seedData.reviews,
+            activity: seedData.activity,
+            details: seedData.details,
+            lguNameByAipId: seedData.lguNameByAipId,
+            reviewerDirectory: seedData.reviewerDirectory,
+          })
+        );
+        setCaseRows(
+          mapActivityToCaseRows({
+            activity: seedData.activity,
+            aips: seedData.aips,
+            lguNameByAipId: seedData.lguNameByAipId,
+          })
+        );
+      } catch (loadError) {
+        if (!isActive) return;
+        setError(
+          loadError instanceof Error ? loadError.message : "Failed to load AIP monitoring data."
+        );
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isActive = false;
+    };
+  }, [repo]);
 
   const selectedAip = useMemo(
     () => aipRows.find((row) => row.id === selectedAipId) ?? null,
@@ -193,11 +227,12 @@ export default function AipMonitoringView() {
         lguOptions={lguOptions}
       />
 
-      {activeTab === "aips" ? (
-        <AipsTable
-          rows={filteredAipRows}
-          onViewDetails={(id) => setSelectedAipId(id)}
-        />
+      {loading ? (
+        <div className="text-sm text-slate-500">Loading monitoring data...</div>
+      ) : error ? (
+        <div className="text-sm text-rose-600">{error}</div>
+      ) : activeTab === "aips" ? (
+        <AipsTable rows={filteredAipRows} onViewDetails={(id) => setSelectedAipId(id)} />
       ) : (
         <CasesTable
           rows={filteredCaseRows}

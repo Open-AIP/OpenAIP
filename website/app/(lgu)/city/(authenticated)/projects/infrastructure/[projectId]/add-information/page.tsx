@@ -1,23 +1,29 @@
 import { AddInformationPage } from "@/features/projects";
 import { getUser } from "@/lib/actions/auth.actions";
 import { projectService } from "@/lib/repos/projects/queries";
+import { notFound } from "next/navigation";
 
 export default async function InfrastructureAddInformationRoute({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { fullName, role, officeLabel } = await getUser();
+  const { fullName, role, officeLabel, cityId, scopeName } = await getUser();
   const { projectId } = await params;
-  const project = await projectService.getInfrastructureProjectById(projectId);
+  const project = await projectService.getInfrastructureProjectById(projectId, {
+    cityId,
+    cityScopeName: scopeName,
+    publishedOnly: true,
+  });
 
   if (!project) {
-    // Handle project not found
-    return <div>Project not found</div>;
+    return notFound();
   }
 
   return (
     <AddInformationPage
+      projectId={project.id}
+      scope="city"
       kind="infrastructure"
       breadcrumb={[
         { label: "Infrastructure Projects", href: "/city/projects/infrastructure" },
@@ -32,8 +38,13 @@ export default async function InfrastructureAddInformationRoute({
       projectInfo={{
         name: project.title,
         description: project.description,
+        startDate: project.startDate,
+        targetCompletionDate: project.targetCompletionDate,
         implementingOffice: project.implementingOffice,
         fundingSource: project.fundingSource,
+        contractorName: project.contractorName ?? "",
+        contractCost: String(project.contractCost ?? ""),
+        status: project.status,
       }}
     />
   );

@@ -11,11 +11,14 @@ const BarangayLayout = async ({children} : {children: React.ReactNode}) => {
     redirect("/barangay/sign-in");
   }
 
-  const { fullName, role, scopeName } = userData;
+  const { fullName, email, role, scopeName, officeLabel } = userData;
 
   if (role !== "barangay_official") {
     redirect("/barangay/unauthorized");
   }
+
+  const position = role === "barangay_official" ? "Barangay Official" : "Official";
+  const office = officeLabel || "-";
   
   return (
     <LguShell 
@@ -23,6 +26,13 @@ const BarangayLayout = async ({children} : {children: React.ReactNode}) => {
       userName={fullName}
       roleLabel="Barangay Official"
       scopeDisplayName={scopeName ?? undefined}
+      accountProfile={{
+        fullName,
+        email,
+        position,
+        office,
+        role: "barangay",
+      }}
     >
       {children}
     </LguShell>

@@ -15,17 +15,119 @@ export function inferKind(
   return "other";
 }
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+const HEALTH_MONTH_LOOKUP: Record<string, (typeof MONTH_NAMES)[number]> = {
+  january: "January",
+  jan: "January",
+  february: "February",
+  feb: "February",
+  march: "March",
+  mar: "March",
+  april: "April",
+  apr: "April",
+  may: "May",
+  june: "June",
+  jun: "June",
+  july: "July",
+  jul: "July",
+  august: "August",
+  aug: "August",
+  september: "September",
+  sep: "September",
+  sept: "September",
+  october: "October",
+  oct: "October",
+  november: "November",
+  nov: "November",
+  december: "December",
+  dec: "December",
+};
+
+function parseProjectDateInput(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function extractHealthMonthFromProgramName(
+  value: string | null | undefined
+): (typeof MONTH_NAMES)[number] | null {
+  if (!value) return null;
+  const tokens = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  for (const token of tokens) {
+    const month = HEALTH_MONTH_LOOKUP[token];
+    if (month) return month;
+  }
+
+  return null;
+}
+
+function deriveHealthMonth(
+  projectRow: ProjectRow,
+  healthDetails?: HealthProjectDetailsRow | null
+): string {
+  const monthFromProgramName = extractHealthMonthFromProgramName(
+    healthDetails?.program_name
+  );
+  if (monthFromProgramName) return monthFromProgramName;
+
+  const startDate = parseProjectDateInput(projectRow.start_date);
+  if (startDate) return MONTH_NAMES[startDate.getUTCMonth()] ?? "";
+
+  const completionDate = parseProjectDateInput(projectRow.completion_date);
+  if (completionDate) return MONTH_NAMES[completionDate.getUTCMonth()] ?? "";
+
+  return "";
+}
+
 function getYearFromDates(projectRow: ProjectRow): number {
-  const dateValue = projectRow.start_date ?? projectRow.completion_date;
-  if (!dateValue) return new Date().getFullYear();
-  const year = new Date(dateValue).getFullYear();
-  return Number.isNaN(year) ? new Date().getFullYear() : year;
+  const startDate = parseProjectDateInput(projectRow.start_date);
+  if (startDate) return startDate.getUTCFullYear();
+
+  const completionDate = parseProjectDateInput(projectRow.completion_date);
+  if (completionDate) return completionDate.getUTCFullYear();
+
+  return new Date().getFullYear();
 }
 
 export type ProjectUiMeta = {
   status?: ProjectStatus | null;
   imageUrl?: string | null;
+  year?: number | null;
 };
+
+function resolveProjectYear(
+  projectRow: ProjectRow,
+  meta?: ProjectUiMeta
+): number {
+  const explicitYear = meta?.year;
+  if (typeof explicitYear === "number" && Number.isFinite(explicitYear)) {
+    return Math.trunc(explicitYear);
+  }
+  return getYearFromDates(projectRow);
+}
 
 export function mapProjectRowToUiModel(
   projectRow: ProjectRow,
@@ -39,12 +141,14 @@ export function mapProjectRowToUiModel(
     projectRow.program_project_description || projectRow.expected_output || "Untitled Project";
   const description =
     healthDetails?.description || projectRow.expected_output || projectRow.program_project_description || "";
-  const year = getYearFromDates(projectRow);
-  const status = (meta?.status ?? "planning") as HealthProject["status"];
+  const year = resolveProjectYear(projectRow, meta);
+  const status = (meta?.status ?? "proposed") as HealthProject["status"];
   const imageUrl = meta?.imageUrl ?? undefined;
 
   if (kind === "health") {
-    const month = healthDetails?.program_name ?? "Unknown";
+    const month = deriveHealthMonth(projectRow, healthDetails);
+    const startDate = projectRow.start_date ?? "";
+    const targetCompletionDate = projectRow.completion_date ?? "";
     const totalTargetParticipants = healthDetails?.total_target_participants ?? 0;
     const targetParticipants = healthDetails?.target_participants ?? "";
     const implementingOffice = projectRow.implementing_agency ?? "";
@@ -58,6 +162,8 @@ export function mapProjectRowToUiModel(
       status,
       imageUrl,
       month,
+      startDate,
+      targetCompletionDate,
       description,
       totalTargetParticipants,
       targetParticipants,

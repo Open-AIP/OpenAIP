@@ -73,8 +73,112 @@ export async function runProjectMapperTests() {
   assert(mappedHealth.title === "Health Project", "health title should map");
   assert(mappedHealth.year === 2026, "health year should map");
   assert(mappedHealth.kind === "health", "health kind should map");
+  assert(mappedHealth.month === "January", "health month should map from program_name");
+  assert(
+    mappedHealth.startDate === "2026-01-01",
+    "health startDate should map from project row start_date"
+  );
+  assert(
+    mappedHealth.targetCompletionDate === "",
+    "health targetCompletionDate should map from project row completion_date"
+  );
   assert(mappedHealth.description === "Output", "health description should map");
   assert(mappedHealth.budgetAllocated === 5000, "health budget should map");
+
+  const explicitFiscalYearRow = {
+    ...projectRow,
+    id: "PROJ-H-FISCAL",
+    aip_ref_code: "PROJ-H-FISCAL",
+    start_date: "2026-01-01",
+  } satisfies ProjectRow;
+  const explicitFiscalYearDetails = {
+    ...healthDetails,
+    project_id: "PROJ-H-FISCAL",
+  } satisfies HealthProjectDetailsRow;
+  const mappedWithExplicitFiscalYear = mapProjectRowToUiModel(
+    explicitFiscalYearRow,
+    explicitFiscalYearDetails,
+    null,
+    { year: 2025 }
+  );
+  assert(
+    mappedWithExplicitFiscalYear.year === 2025,
+    "meta.year should override date-derived year"
+  );
+
+  const timezoneBoundaryRow = {
+    ...projectRow,
+    id: "PROJ-H-TIMEZONE",
+    aip_ref_code: "PROJ-H-TIMEZONE",
+    start_date: "2026-01-01T00:30:00+14:00",
+    completion_date: null,
+  } satisfies ProjectRow;
+  const timezoneBoundaryDetails = {
+    ...healthDetails,
+    project_id: "PROJ-H-TIMEZONE",
+  } satisfies HealthProjectDetailsRow;
+  const mappedTimezoneWithoutOverride = mapProjectRowToUiModel(
+    timezoneBoundaryRow,
+    timezoneBoundaryDetails,
+    null
+  );
+  assert(
+    mappedTimezoneWithoutOverride.year === 2025,
+    "date-derived year should reflect parsed timestamp when no override exists"
+  );
+  const mappedTimezoneWithOverride = mapProjectRowToUiModel(
+    timezoneBoundaryRow,
+    timezoneBoundaryDetails,
+    null,
+    { year: 2026 }
+  );
+  assert(
+    mappedTimezoneWithOverride.year === 2026,
+    "meta.year should keep fiscal year across timezone-boundary timestamps"
+  );
+
+  const nonMonthHealthRow = {
+    ...projectRow,
+    id: "PROJ-H-FALLBACK",
+    aip_ref_code: "PROJ-H-FALLBACK",
+    start_date: "2026-03-15",
+    completion_date: null,
+  } satisfies ProjectRow;
+  const nonMonthHealthDetails = {
+    ...healthDetails,
+    project_id: "PROJ-H-FALLBACK",
+    program_name: "Community Wellness Program",
+  } satisfies HealthProjectDetailsRow;
+  const mappedFallbackMonth = mapProjectRowToUiModel(nonMonthHealthRow, nonMonthHealthDetails, null);
+  assert(mappedFallbackMonth.kind === "health", "fallback health row should map as health");
+  assert(
+    mappedFallbackMonth.month === "March",
+    "health month should derive from start_date when program_name is not a month"
+  );
+
+  const noDateHealthRow = {
+    ...projectRow,
+    id: "PROJ-H-NO-DATE",
+    aip_ref_code: "PROJ-H-NO-DATE",
+    start_date: null,
+    completion_date: null,
+  } satisfies ProjectRow;
+  const noDateHealthDetails = {
+    ...healthDetails,
+    project_id: "PROJ-H-NO-DATE",
+    program_name: "Community Wellness Program",
+  } satisfies HealthProjectDetailsRow;
+  const mappedNoDate = mapProjectRowToUiModel(noDateHealthRow, noDateHealthDetails, null);
+  assert(mappedNoDate.kind === "health", "no-date health row should map as health");
+  assert(mappedNoDate.month === "", "health month should be empty when no valid date exists");
+  assert(
+    mappedNoDate.startDate === "",
+    "health startDate should be empty when project start_date is null"
+  );
+  assert(
+    mappedNoDate.targetCompletionDate === "",
+    "health targetCompletionDate should be empty when completion_date is null"
+  );
 
   const infraRow = {
     ...projectRow,

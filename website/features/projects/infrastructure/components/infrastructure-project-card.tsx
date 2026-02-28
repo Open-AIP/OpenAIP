@@ -9,13 +9,19 @@
  */
 
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { InfrastructureProject } from "@/features/projects/types";
 import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
+import {
+  DEFAULT_PROJECT_IMAGE_SRC,
+  PROJECT_LOGO_FALLBACK_SRC,
+  resolveProjectImageSource,
+} from "@/features/projects/shared/project-image";
+import { toDateRangeLabel } from "@/features/projects/shared/project-date";
 
 /**
  * InfrastructureProjectCard Component
@@ -34,11 +40,32 @@ import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-bad
  */
 export default function InfrastructureProjectCard({ 
   project,
-  actionSlot
+  actionSlot,
+  useLogoFallback = false,
 }: { 
   project: InfrastructureProject;
   actionSlot?: ReactNode;
+  useLogoFallback?: boolean;
 }) {
+  const [imageSrc, setImageSrc] = useState<string>(
+    () =>
+      resolveProjectImageSource(project.imageUrl, {
+        useLogoFallback,
+        defaultSource: DEFAULT_PROJECT_IMAGE_SRC,
+      }) ?? DEFAULT_PROJECT_IMAGE_SRC
+  );
+
+  useEffect(() => {
+    setImageSrc(
+      resolveProjectImageSource(project.imageUrl, {
+        useLogoFallback,
+        defaultSource: DEFAULT_PROJECT_IMAGE_SRC,
+      }) ?? DEFAULT_PROJECT_IMAGE_SRC
+    );
+  }, [project.imageUrl, useLogoFallback]);
+
+  const dateRange = toDateRangeLabel(project.startDate, project.targetCompletionDate) ?? "N/A";
+
   return (
     <Card className="border-slate-200 overflow-hidden">
       <CardContent className="p-0">
@@ -47,11 +74,19 @@ export default function InfrastructureProjectCard({
           <div className="w-full lg:w-[420px] flex items-center justify-center bg-slate-100">
             <div className="relative w-full h-[280px] overflow-hidden rounded-xl bg-slate-100">
                 <Image
-                    src={project.imageUrl || "/default/default-no-image.jpg"}
+                    src={imageSrc}
                     alt={project.title}
                     fill
                     className="object-cover object-center"
                     sizes="482px"
+                    onError={() => {
+                      if (!useLogoFallback) return;
+                      setImageSrc((current) =>
+                        current === PROJECT_LOGO_FALLBACK_SRC
+                          ? current
+                          : PROJECT_LOGO_FALLBACK_SRC
+                      );
+                    }}
                 />
                 </div>
             </div>          
@@ -68,16 +103,10 @@ export default function InfrastructureProjectCard({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-10 text-sm text-slate-700">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:col-span-2">
                 <CalendarDays className="h-4 w-4 text-slate-400" />
-                <span className="text-slate-500">Start Date:</span>
-                <span className="font-medium">{project.startDate}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-slate-400" />
-                <span className="text-slate-500">Target Completion:</span>
-                <span className="font-medium">{project.targetCompletionDate}</span>
+                <span className="text-slate-500">Date:</span>
+                <span className="font-medium">{dateRange}</span>
               </div>
 
               <div className="flex items-center gap-2">

@@ -1,7 +1,6 @@
 import type { FeedbackKind, FeedbackTargetType } from "@/lib/contracts/databasev2";
 import type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
 import type { CommentMessage, CommentThread } from "./types";
-import { NotImplementedError } from "@/lib/core/errors";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import {
   createMockCommentRepo,
@@ -9,6 +8,12 @@ import {
   createMockFeedbackRepo,
   createMockFeedbackThreadsRepo,
 } from "./repo.mock";
+import {
+  createSupabaseCommentRepoClient,
+  createSupabaseCommentTargetLookupClient,
+  createSupabaseFeedbackRepoClient,
+  createSupabaseFeedbackThreadsRepoClient,
+} from "./repo.supabase.client";
 
 export type { Comment, CommentMessage, CommentSidebarItem, CommentThread } from "./types";
 export type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadRow } from "./db.types";
@@ -124,11 +129,7 @@ export function getCommentRepo(): CommentRepo {
   return selectRepo({
     label: "CommentRepo",
     mock: () => createMockCommentRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "CommentRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
+    supabase: () => createSupabaseCommentRepoClient(),
   });
 }
 
@@ -136,11 +137,7 @@ export function getCommentTargetLookup(): CommentTargetLookup {
   return selectRepo({
     label: "CommentTargetLookup",
     mock: () => createMockCommentTargetLookup(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "CommentTargetLookup is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
+    supabase: () => createSupabaseCommentTargetLookupClient(),
   });
 }
 
@@ -148,11 +145,7 @@ export function getFeedbackRepo(): FeedbackRepo {
   return selectRepo({
     label: "FeedbackRepo",
     mock: () => createMockFeedbackRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "FeedbackRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
+    supabase: () => createSupabaseFeedbackRepoClient(),
   });
 }
 
@@ -160,10 +153,6 @@ export function getFeedbackThreadsRepo(): FeedbackThreadsRepo {
   return selectRepo({
     label: "FeedbackThreadsRepo",
     mock: () => createMockFeedbackThreadsRepo(),
-    supabase: () => {
-      throw new NotImplementedError(
-        "FeedbackThreadsRepo is server-only outside mock mode. Import from `@/lib/repos/feedback/repo.server`."
-      );
-    },
+    supabase: () => createSupabaseFeedbackThreadsRepoClient(),
   });
 }

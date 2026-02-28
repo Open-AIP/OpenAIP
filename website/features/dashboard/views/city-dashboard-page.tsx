@@ -10,6 +10,7 @@ import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/da
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { createCityDraftAipAction, replyCityFeedbackAction } from "@/features/dashboard/actions/city-dashboard-actions";
 import type { DashboardData, DashboardQueryState, DashboardViewModel } from "@/features/dashboard/types/dashboard-types";
+import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 
 function toCurrency(value: number): string {
   return value.toLocaleString("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -19,10 +20,12 @@ export function CityDashboardPage({
   data,
   vm,
   queryState,
+  recentActivityLogs,
 }: {
   data: DashboardData;
   vm: DashboardViewModel;
   queryState: DashboardQueryState;
+  recentActivityLogs: ActivityLogRow[];
 }) {
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long",
@@ -46,7 +49,16 @@ export function CityDashboardPage({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Welcome to OpenAIP" q={queryState.q} selectedFiscalYear={data.selectedFiscalYear} availableFiscalYears={data.availableFiscalYears} kpiMode={queryState.kpiMode} />
+      <DashboardHeader
+        title="Welcome to OpenAIP"
+        q={queryState.q}
+        tableQ={queryState.tableQ}
+        tableCategory={queryState.tableCategory}
+        tableSector={queryState.tableSector}
+        selectedFiscalYear={data.selectedFiscalYear}
+        availableFiscalYears={data.availableFiscalYears}
+        kpiMode={queryState.kpiMode}
+      />
 
       {!data.selectedAip ? (
         <Card className="border-slate-200 py-0 shadow-sm">
@@ -70,7 +82,7 @@ export function CityDashboardPage({
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.95fr_1fr]">
-            <TopFundedProjectsSection queryState={queryState} selectedFiscalYear={data.selectedFiscalYear} sectors={data.sectors} rows={vm.topFundedFiltered} />
+            <TopFundedProjectsSection queryState={queryState} sectors={data.sectors} projects={vm.projects} />
             <AipStatusColumn statusDistribution={vm.statusDistribution} pendingReviewAging={vm.pendingReviewAging} />
           </div>
 
@@ -79,14 +91,18 @@ export function CityDashboardPage({
               <h2 className="text-4xl font-semibold text-slate-900">City AIP Status</h2>
               <AipCoverageCard selectedAip={data.selectedAip} />
               <PublicationTimelineCard years={publicationYears} />
-              <AipsByYearTable rows={data.allAips} />
+              <AipsByYearTable rows={data.allAips} basePath="/city" />
             </div>
             <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyCityFeedbackAction} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <RecentActivityFeed runs={data.latestRuns} />
-            <RecentProjectUpdatesCard flaggedProjects={vm.flaggedProjects} failedPipelineStages={vm.failedPipelineStages} editableSummary={data.selectedAip.status === "draft" || data.selectedAip.status === "for_revision" ? "Project edits and PDF replacement are allowed." : "Project edits and PDF replacement are locked in this status."} financialSummary={toCurrency(vm.projects.reduce((sum, project) => sum + (project.personalServices ?? 0) + (project.maintenanceAndOtherOperatingExpenses ?? 0) + (project.capitalOutlay ?? 0), 0))} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-stretch">
+            <div className="min-w-0">
+              <RecentActivityFeed logs={recentActivityLogs} auditHref="/city/audit" />
+            </div>
+            <div className="min-w-0 flex flex-col items-stretch">
+              <RecentProjectUpdatesCard logs={data.projectUpdateLogs} />
+            </div>
           </div>
         </>
       )}

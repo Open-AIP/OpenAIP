@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
+import { writeWorkflowActivityLog } from "@/lib/audit/activity-log";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: existingError.message }, { status: 400 });
     }
 
+    const hadExistingAip = Boolean(existing?.id);
     let aipId = existing?.id ?? null;
     let aipStatus = existing?.status ?? null;
 
@@ -152,6 +154,43 @@ export async function POST(request: Request) {
         { message: runInsertError?.message ?? "Failed to queue extraction run." },
         { status: 400 }
       );
+    }
+
+    try {
+      if (hadExistingAip) {
+        await writeWorkflowActivityLog({
+          action: "revision_uploaded",
+          entityTable: "aips",
+          entityId: aipId,
+          scope: { barangayId: actor.scope.id },
+          metadata: {
+            details: `Uploaded a revised AIP PDF for fiscal year ${fiscalYear}.`,
+            aip_status: aipStatus,
+            fiscal_year: fiscalYear,
+            file_name: file.name,
+          },
+        });
+      } else {
+        await writeWorkflowActivityLog({
+          action: "draft_created",
+          entityTable: "aips",
+          entityId: aipId,
+          scope: { barangayId: actor.scope.id },
+          hideCrudAction: "aip_created",
+          metadata: {
+            details: `Created a new AIP draft for fiscal year ${fiscalYear} and uploaded the first PDF.`,
+            aip_status: aipStatus,
+            fiscal_year: fiscalYear,
+            file_name: file.name,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("[AIP_UPLOAD] workflow activity log failed", {
+        aipId,
+        fiscalYear,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     return NextResponse.json(

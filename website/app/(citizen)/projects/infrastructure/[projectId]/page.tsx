@@ -8,7 +8,9 @@ export default async function CitizenInfrastructureProject({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const project = await projectService.getInfrastructureProjectById(projectId);
+  const project = await projectService.getInfrastructureProjectById(projectId, {
+    publishedOnly: true,
+  });
 
   if (!project) return notFound();
 

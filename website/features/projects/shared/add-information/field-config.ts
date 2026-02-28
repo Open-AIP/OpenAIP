@@ -8,6 +8,7 @@ export type FieldConfig = {
   type: FieldType;
   placeholder?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   required?: boolean;
   options?: readonly string[] | string[];
   gridColumn?: "full" | "half";
@@ -15,27 +16,6 @@ export type FieldConfig = {
 
 export const healthFieldConfig: FieldConfig[] = [
   // Pre-filled (disabled) fields
-  {
-    name: "month",
-    label: "Month",
-    type: "select",
-    disabled: true,
-    required: true,
-    gridColumn: "half",
-    options: [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ],
-  },
-  {
-    name: "year",
-    label: "Year",
-    type: "select",
-    disabled: true,
-    required: true,
-    gridColumn: "half",
-    options: Array.from({ length: 6 }, (_, i) => String(2024 + i)),
-  },
   {
     name: "projectName",
     label: "Health Project Name",
@@ -54,7 +34,25 @@ export const healthFieldConfig: FieldConfig[] = [
     required: true,
     gridColumn: "full",
   },
-  
+
+  // Display-only context fields
+  {
+    name: "startDate",
+    label: "Start Date",
+    type: "date",
+    readOnly: true,
+    required: false,
+    gridColumn: "half",
+  },
+  {
+    name: "targetCompletionDate",
+    label: "Completion Date",
+    type: "date",
+    readOnly: true,
+    required: false,
+    gridColumn: "half",
+  },
+
   // Editable fields
   {
     name: "totalTargetParticipants",
@@ -74,24 +72,20 @@ export const healthFieldConfig: FieldConfig[] = [
   },
   {
     name: "budgetAllocated",
-    label: "Budget Allocated (₱)",
+    label: "Budget Allocated (PHP)",
     type: "text",
     placeholder: "Enter budget amount",
+    readOnly: true,
     required: true,
     gridColumn: "half",
   },
   {
     name: "implementingOffice",
     label: "Implementing Office",
-    type: "select",
-    disabled: true,
+    type: "text",
+    readOnly: true,
     required: true,
     gridColumn: "half",
-    options: [
-      "Barangay Health Office",
-      "Barangay Council",
-      "Barangay Nutrition Office",
-    ],
   },
   {
     name: "status",
@@ -108,6 +102,7 @@ export const infraFieldConfig: FieldConfig[] = [
     name: "startDate",
     label: "Start Date",
     type: "date",
+    disabled: true,
     required: true,
     gridColumn: "half",
   },
@@ -115,6 +110,7 @@ export const infraFieldConfig: FieldConfig[] = [
     name: "targetCompletionDate",
     label: "Target Completion Date",
     type: "date",
+    disabled: true,
     required: true,
     gridColumn: "half",
   },
@@ -139,28 +135,18 @@ export const infraFieldConfig: FieldConfig[] = [
   {
     name: "implementingOffice",
     label: "Implementing Office",
-    type: "select",
-    disabled: true,
+    type: "text",
+    readOnly: true,
     required: true,
     gridColumn: "half",
-    options: [
-      "Barangay Engineering Office",
-      "Barangay Council",
-      "City Engineering Office",
-    ],
   },
   {
     name: "fundingSource",
     label: "Funding Source",
-    type: "select",
-    disabled: true,
+    type: "text",
+    readOnly: true,
     required: true,
     gridColumn: "half",
-    options: [
-      "Local Government Fund",
-      "Infrastructure Development Fund",
-      "National Assistance",
-    ],
   },
   {
     name: "contractorName",
@@ -172,7 +158,7 @@ export const infraFieldConfig: FieldConfig[] = [
   },
   {
     name: "contractCost",
-    label: "Contract Cost (₱)",
+    label: "Contract Cost (PHP)",
     type: "text",
     placeholder: "Enter contract cost",
     required: true,

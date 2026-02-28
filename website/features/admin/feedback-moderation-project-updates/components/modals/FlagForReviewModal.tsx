@@ -13,12 +13,14 @@ export default function FlagForReviewModal({
   reason,
   onReasonChange,
   onConfirm,
+  isSubmitting = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reason: string;
   onReasonChange: (value: string) => void;
   onConfirm: () => void;
+  isSubmitting?: boolean;
 }) {
   const isValid = reason.trim().length >= 10;
 
@@ -57,12 +59,13 @@ export default function FlagForReviewModal({
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button className="w-56" disabled={!isValid} onClick={onConfirm}>
-              Confirm Flag for Review
+            <Button className="w-56" disabled={!isValid || isSubmitting} onClick={onConfirm}>
+              {isSubmitting ? "Flagging..." : "Confirm Flag for Review"}
             </Button>
             <Button
               variant="outline"
               className="w-56"
+              disabled={isSubmitting}
               onClick={() => onOpenChange(false)}
             >
               Cancel

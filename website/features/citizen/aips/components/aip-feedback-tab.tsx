@@ -248,7 +248,7 @@ function FeedbackCard({
   );
 }
 
-export default function AipCommentsTab({ aipId, feedbackCount }: Props) {
+export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -264,7 +264,7 @@ export default function AipCommentsTab({ aipId, feedbackCount }: Props) {
   const currentDetailPath = React.useMemo(() => {
     const query = searchParams.toString();
     const path = query ? `${pathname}?${query}` : pathname;
-    return `${path}#comments`;
+    return `${path}#feedback`;
   }, [pathname, searchParams]);
 
   const redirectToCitizenSignIn = React.useCallback(() => {
@@ -436,7 +436,7 @@ export default function AipCommentsTab({ aipId, feedbackCount }: Props) {
   return (
     <Card className="border-slate-200">
       <CardHeader>
-        <CardTitle className="text-3xl text-slate-900">Comments</CardTitle>
+        <CardTitle className="text-3xl text-slate-900">Feedback</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-5">
@@ -451,13 +451,13 @@ export default function AipCommentsTab({ aipId, feedbackCount }: Props) {
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex justify-end">
               <Button type="button" onClick={redirectToCitizenSignIn} disabled={isAuthLoading}>
-                Sign in to comment
+                Sign in to share feedback
               </Button>
             </div>
           </div>
         ) : (
           <FeedbackComposer
-            submitLabel={isPostingRoot ? "Posting..." : "Post comment"}
+            submitLabel={isPostingRoot ? "Posting..." : "Post feedback"}
             disabled={isPostingRoot}
             placeholder="Share your thoughts about this AIP."
             onSubmit={handleCreateRootFeedback}

@@ -1,0 +1,86 @@
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import CitizenAipProjectDetailView from "./views/citizen-aip-project-detail-view";
+import type { AipDetails, AipProjectDetails } from "./types";
+
+vi.mock("@/components/layout/breadcrumb-nav", () => ({
+  BreadcrumbNav: () => <div data-testid="breadcrumb" />,
+}));
+
+vi.mock("@/features/projects/shared/feedback", () => ({
+  FeedbackThread: () => <div data-testid="feedback-thread" />,
+}));
+
+function buildAip(): AipDetails {
+  return {
+    id: "aip-1",
+    scopeType: "city",
+    scopeId: "city-1",
+    lguLabel: "City of Cabuyao",
+    title: "City of Cabuyao - Annual Investment Plan (AIP) 2026",
+    fiscalYear: 2026,
+    publishedAt: "2026-01-15T00:00:00.000Z",
+    budgetTotal: 1000000,
+    projectsCount: 1,
+    description: "AIP description",
+    subtitle: "Annual Investment Plan for Fiscal Year 2026",
+    fileName: "AIP_2026.pdf",
+    pdfUrl: "https://example.com/aip.pdf",
+    summaryText: "Summary",
+    detailedDescriptionIntro: "Intro",
+    detailedBullets: [],
+    detailedClosing: "Closing",
+    projectRows: [],
+    accountability: {
+      uploadedBy: null,
+      reviewedBy: null,
+      approvedBy: null,
+      uploadDate: null,
+      approvalDate: null,
+    },
+    feedbackCount: 0,
+  };
+}
+
+function buildProject(aiIssues: string[]): AipProjectDetails {
+  return {
+    aipId: "aip-1",
+    projectId: "project-1",
+    category: "other",
+    sector: "General Sector",
+    projectRefCode: "1000-001-000-001",
+    title: "Road rehabilitation project",
+    description: "Project description",
+    implementingAgency: "City Engineering Office",
+    sourceOfFunds: "General Fund",
+    expectedOutput: "Rehabilitated roads",
+    startDate: "2026-03-01",
+    completionDate: "2026-06-30",
+    totalAmount: 500000,
+    aiIssues,
+  };
+}
+
+describe("CitizenAipProjectDetailView AI status", () => {
+  it("shows flagged state and issue list when AI issues exist", () => {
+    render(
+      <CitizenAipProjectDetailView
+        aip={buildAip()}
+        project={buildProject([
+          "Budget breakdown is missing.",
+          "Timeline milestone details are incomplete.",
+        ])}
+      />
+    );
+
+    expect(screen.getByText("AI flagged this project for potential issues.")).toBeInTheDocument();
+    expect(screen.getByText("Budget breakdown is missing.")).toBeInTheDocument();
+    expect(screen.getByText("Timeline milestone details are incomplete.")).toBeInTheDocument();
+  });
+
+  it("shows clean state when there are no AI issues", () => {
+    render(<CitizenAipProjectDetailView aip={buildAip()} project={buildProject([])} />);
+
+    expect(screen.getByText("No AI-detected issues for this project.")).toBeInTheDocument();
+  });
+});

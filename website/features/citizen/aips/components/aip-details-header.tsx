@@ -1,7 +1,6 @@
-import { Calendar, Download, FileText } from 'lucide-react';
+import { Calendar, FileText } from 'lucide-react';
 import { BreadcrumbNav } from '@/components/layout/breadcrumb-nav';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import type { AipDetails } from '@/features/citizen/aips/types';
 import { formatCurrency, formatPublishedDate } from '@/features/citizen/aips/data/aips.data';
 
@@ -32,19 +31,6 @@ export default function AipDetailsHeader({ aip }: { aip: AipDetails }) {
           </div>
         </div>
 
-        {aip.pdfUrl ? (
-          <Button variant="outline" className="border-slate-300 bg-white" asChild>
-            <a href={aip.pdfUrl} target="_blank" rel="noreferrer">
-              <Download className="h-4 w-4" />
-              Download PDF
-            </a>
-          </Button>
-        ) : (
-          <Button variant="outline" className="border-slate-300 bg-white" disabled>
-            <Download className="h-4 w-4" />
-            Download PDF
-          </Button>
-        )}
       </div>
     </section>
   );

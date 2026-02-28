@@ -29,6 +29,8 @@ export default function CitizenAipProjectDetailView({
   aip: AipDetails;
   project: AipProjectDetails;
 }) {
+  const hasAiIssues = project.aiIssues.length > 0;
+
   return (
     <section className="space-y-6">
       <BreadcrumbNav
@@ -47,7 +49,7 @@ export default function CitizenAipProjectDetailView({
                 AIP Project Detail
               </p>
               <CardTitle className="text-3xl text-slate-900">{project.title}</CardTitle>
-              <p className="text-sm text-slate-600">{aip.lguLabel} • FY {aip.fiscalYear}</p>
+              <p className="text-sm text-slate-600">{aip.lguLabel} | FY {aip.fiscalYear}</p>
             </div>
 
             <div className="flex gap-2">
@@ -62,7 +64,27 @@ export default function CitizenAipProjectDetailView({
           <p className="text-sm leading-relaxed text-slate-700">{project.description}</p>
         </CardHeader>
 
-        <CardContent className="grid gap-4 md:grid-cols-2">
+        <CardContent className="space-y-4">
+          <div
+            className={`rounded-lg border p-4 ${
+              hasAiIssues ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"
+            }`}
+          >
+            <p className={`text-sm font-semibold ${hasAiIssues ? "text-rose-800" : "text-emerald-800"}`}>
+              {hasAiIssues
+                ? "AI flagged this project for potential issues."
+                : "No AI-detected issues for this project."}
+            </p>
+            {hasAiIssues ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-800/90">
+                {project.aiIssues.map((issue, index) => (
+                  <li key={`${issue}-${index}`}>{issue}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
           <LabelValue label="Implementing Agency" value={project.implementingAgency} />
           <LabelValue label="Source of Funds" value={project.sourceOfFunds} />
           <LabelValue label="Expected Output" value={project.expectedOutput} />
@@ -72,6 +94,7 @@ export default function CitizenAipProjectDetailView({
           />
           <LabelValue label="Start Date" value={project.startDate} />
           <LabelValue label="Completion Date" value={project.completionDate} />
+          </div>
         </CardContent>
       </Card>
 

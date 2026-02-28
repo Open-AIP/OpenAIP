@@ -29,6 +29,7 @@ export type AipProjectRow = {
   projectRefCode: string;
   programDescription: string;
   totalAmount: number;
+  hasLguNote: boolean;
 };
 
 export type AipDetails = AipListItem & {
@@ -58,6 +59,7 @@ export type AipProjectDetails = {
   startDate: string | null;
   completionDate: string | null;
   totalAmount: number;
+  aiIssues: string[];
 };
 
 export type AipFilterLguOption = {

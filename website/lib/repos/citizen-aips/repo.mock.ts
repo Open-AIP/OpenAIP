@@ -1,6 +1,5 @@
 import "server-only";
 
-import { formatDate } from "@/lib/formatting";
 import { AIP_ACCOUNTABILITY_BY_ID } from "@/mocks/fixtures/aip/aip-accountability.fixture";
 import { CITIZEN_AIP_COMMENTS } from "@/mocks/fixtures/aip/aip-comments.fixture";
 import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
@@ -98,11 +97,16 @@ function toAccountability(aip: FixtureAip): CitizenAipAccountability {
             }
           : null,
     reviewedBy: null,
-    approvedBy: null,
-    uploadDate: fixture?.uploadDate ? formatDate(fixture.uploadDate) : aip.uploadedAt ?? null,
-    approvalDate: fixture?.approvalDate
-      ? formatDate(fixture.approvalDate)
-      : aip.publishedAt ?? null,
+    approvedBy: fixture?.approvedBy
+      ? {
+          id: null,
+          name: fixture.approvedBy.name,
+          role: null,
+          roleLabel: fixture.approvedBy.role ?? "Official",
+        }
+      : null,
+    uploadDate: fixture?.uploadDate ?? aip.uploadedAt ?? null,
+    approvalDate: fixture?.approvalDate ?? aip.publishedAt ?? null,
   };
 }
 
@@ -124,6 +128,7 @@ function toDetailRecord(aip: FixtureAip): CitizenAipDetailRecord {
       projectRefCode: row.projectRefCode,
       programDescription: row.aipDescription,
       totalAmount: row.amount,
+      hasLguNote: Boolean(row.officialComment?.trim()),
     })),
     accountability: toAccountability(aip),
     feedbackCount: CITIZEN_AIP_COMMENTS.length,
@@ -168,6 +173,7 @@ export function createMockCitizenAipRepo(): CitizenAipRepo {
         startDate: null,
         completionDate: null,
         totalAmount: project.amount,
+        aiIssues: project.aiIssues ?? [],
       };
     },
   };

@@ -403,7 +403,7 @@ export async function resolveProjectByIdOrRef(
   id: string;
   aipId: string;
   aipRefCode: string;
-  category: "health" | "infrastructure";
+  category: "health" | "infrastructure" | "other";
   aipStatus: AipLookupRow["status"];
 }> {
   const normalized = projectIdOrRef.trim();
@@ -446,7 +446,7 @@ export async function resolveProjectByIdOrRef(
     row = rows[0] ?? null;
   }
 
-  if (!row || (row.category !== "health" && row.category !== "infrastructure")) {
+  if (!row) {
     throw new CitizenFeedbackApiError(404, "Project not found.");
   }
 

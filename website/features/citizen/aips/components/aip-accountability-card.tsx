@@ -15,6 +15,18 @@ const MutedRow = ({ children }: { children: ReactNode }) => (
   <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">{children}</div>
 );
 
+function formatAccountabilityDate(value: string | null): string {
+  if (!value) return "N/A";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "N/A";
+  return parsed.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Manila",
+  });
+}
+
 const PersonRow = ({
   label,
   person,
@@ -53,9 +65,6 @@ export default function AipAccountabilityCard({ accountability }: Props) {
           <div className="space-y-6 pb-6">
             <PersonRow label="Uploaded by:" person={accountability.uploadedBy ?? null} />
           </div>
-          <div className="space-y-6 py-6">
-            <PersonRow label="Reviewed by:" person={accountability.reviewedBy ?? null} />
-          </div>
           <div className="space-y-6 pt-6">
             <PersonRow label="Approved by:" person={accountability.approvedBy ?? null} />
           </div>
@@ -64,11 +73,11 @@ export default function AipAccountabilityCard({ accountability }: Props) {
         <div className="grid gap-4 text-sm text-slate-700 md:grid-cols-2">
           <div>
             <RowLabel>Upload Date</RowLabel>
-            <p className="mt-1">{accountability.uploadDate ? new Date(accountability.uploadDate).toLocaleDateString("en-PH") : "N/A"}</p>
+            <p className="mt-1">{formatAccountabilityDate(accountability.uploadDate)}</p>
           </div>
           <div>
             <RowLabel>Approval Date</RowLabel>
-            <p className="mt-1">{accountability.approvalDate ? new Date(accountability.approvalDate).toLocaleDateString("en-PH") : "N/A"}</p>
+            <p className="mt-1">{formatAccountabilityDate(accountability.approvalDate)}</p>
           </div>
         </div>
       </CardContent>

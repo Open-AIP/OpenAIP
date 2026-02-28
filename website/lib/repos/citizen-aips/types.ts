@@ -45,6 +45,7 @@ export type CitizenAipDetailProjectRow = {
   projectRefCode: string;
   programDescription: string;
   totalAmount: number;
+  hasLguNote: boolean;
 };
 
 export type CitizenAipDetailRecord = CitizenAipListRecord & {
@@ -71,6 +72,7 @@ export type CitizenAipProjectDetailRecord = {
   startDate: string | null;
   completionDate: string | null;
   totalAmount: number;
+  aiIssues: string[];
 };
 
 export type CitizenAipRepo = {

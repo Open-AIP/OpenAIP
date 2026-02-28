@@ -95,7 +95,7 @@ describe("GET|POST /api/citizen/aips/[aipId]/feedback", () => {
     expect(body.items[0].kind).toBe("lgu_note");
   });
 
-  it("POST creates a citizen root AIP feedback comment", async () => {
+  it("POST creates a citizen root AIP feedback entry", async () => {
     mockSupabaseServer.mockResolvedValue(
       createInsertClient({
         id: "fb-2",

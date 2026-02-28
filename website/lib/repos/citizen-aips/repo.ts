@@ -2,6 +2,8 @@ import "server-only";
 
 import type { Json, RoleType } from "@/lib/contracts/databasev2";
 import { selectRepo } from "@/lib/repos/_shared/selector";
+import { normalizeProjectErrors } from "@/lib/repos/aip/project-review";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { createMockCitizenAipRepo } from "./repo.mock";
 import type {
@@ -40,6 +42,7 @@ type ProjectRow = {
   total: number | null;
   category: "health" | "infrastructure" | "other";
   sector_code: string;
+  errors: Json | null;
   implementing_agency: string | null;
   source_of_funds: string | null;
   expected_output: string | null;
@@ -88,6 +91,7 @@ const PROJECT_SELECT_COLUMNS = [
   "total",
   "category",
   "sector_code",
+  "errors",
   "implementing_agency",
   "source_of_funds",
   "expected_output",
@@ -172,7 +176,7 @@ function parseSummary(row: ArtifactRow | undefined): string | null {
   return null;
 }
 
-function toProjectRow(row: ProjectRow): CitizenAipDetailProjectRow {
+function toProjectRow(row: ProjectRow, hasLguNote: boolean): CitizenAipDetailProjectRow {
   return {
     id: row.id,
     aipId: row.aip_id,
@@ -181,6 +185,7 @@ function toProjectRow(row: ProjectRow): CitizenAipDetailProjectRow {
     projectRefCode: row.aip_ref_code,
     programDescription: row.program_project_description,
     totalAmount: typeof row.total === "number" && Number.isFinite(row.total) ? row.total : 0,
+    hasLguNote,
   };
 }
 
@@ -231,14 +236,25 @@ async function getProfilesByIds(userIds: string[]): Promise<Map<string, ProfileR
   const uniqueIds = Array.from(new Set(userIds.filter((value) => value.trim().length > 0)));
   if (!uniqueIds.length) return new Map();
 
-  const client = await supabaseServer();
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,full_name,role")
-    .in("id", uniqueIds);
+  try {
+    const admin = supabaseAdmin();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("id,full_name,role")
+      .in("id", uniqueIds);
 
-  if (error) throw new Error(error.message);
-  return new Map(((data ?? []) as ProfileRow[]).map((row) => [row.id, row]));
+    if (error) throw new Error(error.message);
+    return new Map(((data ?? []) as ProfileRow[]).map((row) => [row.id, row]));
+  } catch {
+    const client = await supabaseServer();
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,full_name,role")
+      .in("id", uniqueIds);
+
+    if (error) throw new Error(error.message);
+    return new Map(((data ?? []) as ProfileRow[]).map((row) => [row.id, row]));
+  }
 }
 
 async function getProjectsByAipIds(aipIds: string[]): Promise<Map<string, ProjectRow[]>> {
@@ -260,6 +276,31 @@ async function getProjectsByAipIds(aipIds: string[]): Promise<Map<string, Projec
     map.set(row.aip_id, list);
   }
   return map;
+}
+
+async function getProjectIdsWithPublicLguNotes(projectIds: string[]): Promise<Set<string>> {
+  const uniqueProjectIds = Array.from(new Set(projectIds.filter((value) => value.trim().length > 0)));
+  if (!uniqueProjectIds.length) return new Set();
+
+  const client = await supabaseServer();
+  const { data, error } = await client
+    .from("feedback")
+    .select("project_id")
+    .eq("target_type", "project")
+    .eq("kind", "lgu_note")
+    .eq("is_public", true)
+    .in("project_id", uniqueProjectIds);
+
+  if (error) throw new Error(error.message);
+
+  const projectIdsWithLguNotes = new Set<string>();
+  for (const row of (data ?? []) as Array<{ project_id: string | null }>) {
+    if (typeof row.project_id === "string" && row.project_id.length > 0) {
+      projectIdsWithLguNotes.add(row.project_id);
+    }
+  }
+
+  return projectIdsWithLguNotes;
 }
 
 async function getLatestSummariesByAipIds(aipIds: string[]): Promise<Map<string, ArtifactRow>> {
@@ -316,8 +357,8 @@ async function getReviewsByAipId(aipId: string): Promise<AipReviewRow[]> {
 
 async function createSignedPdfUrl(file: UploadedFileRow | undefined): Promise<string | null> {
   if (!file) return null;
-  const client = await supabaseServer();
-  const { data, error } = await client.storage
+  const admin = supabaseAdmin();
+  const { data, error } = await admin.storage
     .from(file.bucket_id)
     .createSignedUrl(file.object_name, 60 * 60);
 
@@ -344,7 +385,7 @@ function buildAccountability(input: {
       latestApproved?.reviewer_id ? input.profilesById.get(latestApproved.reviewer_id) : null
     ),
     uploadDate: input.uploadedAt,
-    approvalDate: input.publishedAt,
+    approvalDate: latestApproved?.created_at ?? input.publishedAt,
   };
 }
 
@@ -408,6 +449,9 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
       if (feedbackCountResult.error) throw new Error(feedbackCountResult.error.message);
 
       const projects = projectsByAipId.get(aip.id) ?? [];
+      const projectIdsWithLguNotes = await getProjectIdsWithPublicLguNotes(
+        projects.map((project) => project.id)
+      );
       const summaryText = parseSummary(summariesByAipId.get(aip.id));
       const file = currentFilesByAipId.get(aip.id);
       const uploaderId = file?.uploaded_by ?? null;
@@ -438,7 +482,9 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
         pdfUrl: await createSignedPdfUrl(file),
         summaryText: summaryText ?? DEFAULT_SUMMARY,
         detailedBullets: toDetailedBullets(projects),
-        projectRows: projects.map(toProjectRow),
+        projectRows: projects.map((project) =>
+          toProjectRow(project, projectIdsWithLguNotes.has(project.id))
+        ),
         accountability,
         feedbackCount: feedbackCountResult.count ?? 0,
       } satisfies CitizenAipDetailRecord;
@@ -481,6 +527,7 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
         startDate: row.start_date,
         completionDate: row.completion_date,
         totalAmount: typeof row.total === "number" && Number.isFinite(row.total) ? row.total : 0,
+        aiIssues: normalizeProjectErrors(row.errors) ?? [],
       } satisfies CitizenAipProjectDetailRecord;
     },
   };

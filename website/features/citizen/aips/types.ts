@@ -1,56 +1,68 @@
-import type { Sector } from "@/lib/repos/aip/repo";
+import type { ProjectCategory } from "@/lib/contracts/databasev2";
+import type {
+  CitizenAipAccountability,
+  CitizenAipProjectSector,
+  CitizenAipScopeType,
+} from "@/lib/repos/citizen-aips";
+
+export type AipAccountability = CitizenAipAccountability;
 
 export type AipListItem = {
   id: string;
-  lguName: string;
+  scopeType: CitizenAipScopeType;
+  scopeId: string;
+  lguLabel: string;
   title: string;
-  year: string;
-  publishedDate: string;
-  budget: string;
+  fiscalYear: number;
+  publishedAt: string | null;
+  budgetTotal: number;
   projectsCount: number;
   description: string;
 };
 
-export type AipProjectSector = Sector;
+export type AipProjectSector = CitizenAipProjectSector;
 
 export type AipProjectRow = {
   id: string;
+  category: ProjectCategory;
   sector: AipProjectSector;
-  aipReferenceCode: string;
+  projectRefCode: string;
   programDescription: string;
-  totalAmount: string;
-};
-
-export type AccountabilityPerson = {
-  name: string;
-  role?: string;
-  office?: string;
-};
-
-export type AipAccountability = {
-  uploadedBy?: AccountabilityPerson | null;
-  reviewedBy?: AccountabilityPerson | null;
-  approvedBy?: AccountabilityPerson | null;
-  uploadDate?: string;
-  approvalDate?: string;
-};
-
-export type CommentPlaceholder = {
-  id: string;
-  name: string;
-  barangay: string;
-  timestamp: string;
-  content: string;
+  totalAmount: number;
 };
 
 export type AipDetails = AipListItem & {
   subtitle: string;
-  pdfFilename: string;
-  summary: string;
+  fileName: string;
+  pdfUrl: string | null;
+  summaryText: string;
   detailedDescriptionIntro: string;
   detailedBullets: string[];
   detailedClosing: string;
   projectRows: AipProjectRow[];
-  placeholderComments: CommentPlaceholder[];
-  accountability: AipAccountability;
+  accountability: CitizenAipAccountability;
+  feedbackCount: number;
+};
+
+export type AipProjectDetails = {
+  aipId: string;
+  projectId: string;
+  category: ProjectCategory;
+  sector: AipProjectSector;
+  projectRefCode: string;
+  title: string;
+  description: string;
+  implementingAgency: string | null;
+  sourceOfFunds: string | null;
+  expectedOutput: string | null;
+  startDate: string | null;
+  completionDate: string | null;
+  totalAmount: number;
+};
+
+export type AipFilterLguOption = {
+  key: string;
+  scopeType: CitizenAipScopeType;
+  scopeId: string;
+  label: string;
 };

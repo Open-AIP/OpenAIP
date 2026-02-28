@@ -3,6 +3,7 @@ import { BreadcrumbNav } from '@/components/layout/breadcrumb-nav';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { AipDetails } from '@/features/citizen/aips/types';
+import { formatCurrency, formatPublishedDate } from '@/features/citizen/aips/data/aips.data';
 
 export default function AipDetailsHeader({ aip }: { aip: AipDetails }) {
   return (
@@ -24,17 +25,26 @@ export default function AipDetailsHeader({ aip }: { aip: AipDetails }) {
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <span className="inline-flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Published {aip.publishedDate}
+              Published {formatPublishedDate(aip.publishedAt)}
             </span>
-            <span>Budget: {aip.budget}</span>
+            <span>Budget: {formatCurrency(aip.budgetTotal)}</span>
             <Badge className="bg-[#5ba6cb] text-white">{aip.projectsCount} Projects</Badge>
           </div>
         </div>
 
-        <Button variant="outline" className="border-slate-300 bg-white">
-          <Download className="h-4 w-4" />
-          Download PDF
-        </Button>
+        {aip.pdfUrl ? (
+          <Button variant="outline" className="border-slate-300 bg-white" asChild>
+            <a href={aip.pdfUrl} target="_blank" rel="noreferrer">
+              <Download className="h-4 w-4" />
+              Download PDF
+            </a>
+          </Button>
+        ) : (
+          <Button variant="outline" className="border-slate-300 bg-white" disabled>
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Button>
+        )}
       </div>
     </section>
   );

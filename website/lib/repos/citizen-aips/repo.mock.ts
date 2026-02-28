@@ -1,25 +1,174 @@
 import "server-only";
 
-import { getAipRepo } from "@/lib/repos/aip/repo.server";
-import type { CitizenAipRepo } from "./types";
+import { formatDate } from "@/lib/formatting";
+import { AIP_ACCOUNTABILITY_BY_ID } from "@/mocks/fixtures/aip/aip-accountability.fixture";
+import { CITIZEN_AIP_COMMENTS } from "@/mocks/fixtures/aip/aip-comments.fixture";
+import { AIP_PROJECT_ROWS_TABLE } from "@/mocks/fixtures/aip/aip-project-rows.table.fixture";
+import { AIPS_TABLE } from "@/mocks/fixtures/aip/aips.table.fixture";
+import type {
+  CitizenAipAccountability,
+  CitizenAipDetailRecord,
+  CitizenAipListRecord,
+  CitizenAipProjectDetailRecord,
+  CitizenAipProjectSector,
+  CitizenAipRepo,
+} from "./types";
 
-const DEFAULT_LGU_LABEL = "Barangay";
+type FixtureAip = (typeof AIPS_TABLE)[number];
+type FixtureProject = (typeof AIP_PROJECT_ROWS_TABLE)[number];
+
+function normalizeBarangayName(name: string): string {
+  return name.replace(/^(brgy\.?|barangay)\s+/i, "").trim();
+}
+
+function toLguLabel(aip: FixtureAip): string {
+  if (aip.scope === "barangay") {
+    const baseName = normalizeBarangayName(aip.barangayName ?? "");
+    return baseName ? `Brgy. ${baseName}` : "Brgy. Unknown";
+  }
+  return "City of Cabuyao";
+}
+
+function toScopeType(aip: FixtureAip): "city" | "barangay" {
+  return aip.scope === "barangay" ? "barangay" : "city";
+}
+
+function toScopeId(aip: FixtureAip): string {
+  return aip.id;
+}
+
+function toSectorLabel(value: FixtureProject["sector"]): CitizenAipProjectSector {
+  if (value === "General Sector") return "General Sector";
+  if (value === "Social Sector") return "Social Sector";
+  if (value === "Economic Sector") return "Economic Sector";
+  if (value === "Other Services") return "Other Services";
+  return "Unknown";
+}
+
+function toCategory(
+  kind: FixtureProject["kind"]
+): CitizenAipProjectDetailRecord["category"] {
+  if (kind === "health") return "health";
+  if (kind === "infrastructure") return "infrastructure";
+  return "other";
+}
+
+function sumBudget(projects: FixtureProject[]): number {
+  return projects.reduce((sum, row) => sum + row.amount, 0);
+}
+
+function toListRecord(aip: FixtureAip): CitizenAipListRecord {
+  const projects = AIP_PROJECT_ROWS_TABLE.filter((row) => row.aipId === aip.id);
+  const lguLabel = toLguLabel(aip);
+
+  return {
+    id: aip.id,
+    scopeType: toScopeType(aip),
+    scopeId: toScopeId(aip),
+    lguLabel,
+    title: `${lguLabel} - Annual Investment Plan (AIP) ${aip.year}`,
+    description:
+      aip.summaryText?.slice(0, 280) ??
+      `Annual Investment Plan for ${lguLabel} covering fiscal year ${aip.year}.`,
+    fiscalYear: aip.year,
+    publishedAt: aip.publishedAt ?? null,
+    budgetTotal: projects.length ? sumBudget(projects) : aip.budget,
+    projectsCount: projects.length,
+  };
+}
+
+function toAccountability(aip: FixtureAip): CitizenAipAccountability {
+  const fixture = AIP_ACCOUNTABILITY_BY_ID[aip.id as keyof typeof AIP_ACCOUNTABILITY_BY_ID];
+
+  return {
+    uploadedBy:
+      fixture?.uploadedBy
+        ? {
+            id: null,
+            name: fixture.uploadedBy.name,
+            role: null,
+            roleLabel: fixture.uploadedBy.role ?? "Official",
+          }
+        : aip.uploader
+          ? {
+              id: null,
+              name: aip.uploader.name,
+              role: null,
+              roleLabel: aip.uploader.role,
+            }
+          : null,
+    reviewedBy: null,
+    approvedBy: null,
+    uploadDate: fixture?.uploadDate ? formatDate(fixture.uploadDate) : aip.uploadedAt ?? null,
+    approvalDate: fixture?.approvalDate
+      ? formatDate(fixture.approvalDate)
+      : aip.publishedAt ?? null,
+  };
+}
+
+function toDetailRecord(aip: FixtureAip): CitizenAipDetailRecord {
+  const list = toListRecord(aip);
+  const projects = AIP_PROJECT_ROWS_TABLE.filter((row) => row.aipId === aip.id);
+
+  return {
+    ...list,
+    fileName: aip.fileName || `AIP_${aip.year}.pdf`,
+    pdfUrl: aip.pdfUrl || null,
+    summaryText: aip.summaryText || list.description,
+    detailedBullets: aip.detailedBullets ?? [],
+    projectRows: projects.map((row) => ({
+      id: row.id,
+      aipId: row.aipId,
+      category: toCategory(row.kind),
+      sector: toSectorLabel(row.sector),
+      projectRefCode: row.projectRefCode,
+      programDescription: row.aipDescription,
+      totalAmount: row.amount,
+    })),
+    accountability: toAccountability(aip),
+    feedbackCount: CITIZEN_AIP_COMMENTS.length,
+  };
+}
 
 export function createMockCitizenAipRepo(): CitizenAipRepo {
   return {
-    async getDefaultLguLabel() {
-      const repo = getAipRepo({ defaultScope: "barangay" });
-      const aips = await repo.listVisibleAips({
-        visibility: "public",
-        scope: "barangay",
-      });
+    async listPublishedAips() {
+      return [...AIPS_TABLE]
+        .filter((aip) => aip.status === "published")
+        .sort((left, right) => right.year - left.year)
+        .map(toListRecord);
+    },
 
-      for (const aip of aips) {
-        const label = aip.barangayName?.trim();
-        if (label) return label;
-      }
+    async getPublishedAipDetail(aipId) {
+      const aip = AIPS_TABLE.find((row) => row.id === aipId && row.status === "published");
+      if (!aip) return null;
+      return toDetailRecord(aip);
+    },
 
-      return DEFAULT_LGU_LABEL;
+    async getPublishedAipProjectDetail(input) {
+      const aip = AIPS_TABLE.find((row) => row.id === input.aipId && row.status === "published");
+      if (!aip) return null;
+
+      const project = AIP_PROJECT_ROWS_TABLE.find(
+        (row) => row.id === input.projectId && row.aipId === input.aipId
+      );
+      if (!project) return null;
+
+      return {
+        aipId: input.aipId,
+        projectId: project.id,
+        category: toCategory(project.kind),
+        sector: toSectorLabel(project.sector),
+        projectRefCode: project.projectRefCode,
+        title: project.aipDescription,
+        description: project.aipDescription,
+        implementingAgency: null,
+        sourceOfFunds: null,
+        expectedOutput: null,
+        startDate: null,
+        completionDate: null,
+        totalAmount: project.amount,
+      };
     },
   };
 }

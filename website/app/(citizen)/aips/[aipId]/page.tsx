@@ -1,10 +1,21 @@
 import AipDetailsHeader from '@/features/citizen/aips/components/aip-details-header';
 import AipDetailsTabs from '@/features/citizen/aips/components/aip-details-tabs';
-import { DEFAULT_AIP_ID, getCitizenAipDetails } from '@/features/citizen/aips/data/aips.data';
+import { toAipDetails } from '@/features/citizen/aips/data/aips.data';
+import { getCitizenAipRepo } from '@/lib/repos/citizen-aips';
+import { notFound } from 'next/navigation';
+
+export const dynamic = "force-dynamic";
 
 const CitizenAipDetailsPage = async ({ params }: { params: Promise<{ aipId: string }> }) => {
   const { aipId } = await params;
-  const aipDetails = getCitizenAipDetails(aipId || DEFAULT_AIP_ID);
+  const repo = getCitizenAipRepo();
+  const record = await repo.getPublishedAipDetail(aipId);
+
+  if (!record) {
+    notFound();
+  }
+
+  const aipDetails = toAipDetails(record);
 
   return (
     <section className="space-y-6">

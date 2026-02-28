@@ -1,16 +1,19 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CircleHelp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AipDetails, AipProjectSector } from '@/features/citizen/aips/types';
+import { formatCurrency } from '@/features/citizen/aips/data/aips.data';
 
 const SECTOR_TABS: AipProjectSector[] = ['General Sector', 'Social Sector', 'Economic Sector', 'Other Services'];
 
 export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
+  const router = useRouter();
   const [activeSector, setActiveSector] = useState<AipProjectSector>('General Sector');
   const [query, setQuery] = useState('');
 
@@ -21,7 +24,7 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
       .filter((row) => {
         if (!loweredQuery) return true;
         return (
-          row.aipReferenceCode.toLowerCase().includes(loweredQuery) ||
+          row.projectRefCode.toLowerCase().includes(loweredQuery) ||
           row.programDescription.toLowerCase().includes(loweredQuery)
         );
       });
@@ -79,10 +82,16 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="text-sm text-slate-700">{row.aipReferenceCode}</TableCell>
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    router.push(`/aips/${encodeURIComponent(aip.id)}/${encodeURIComponent(row.id)}`);
+                  }}
+                >
+                  <TableCell className="text-sm text-slate-700">{row.projectRefCode}</TableCell>
                   <TableCell className="text-sm text-slate-700">{row.programDescription}</TableCell>
-                  <TableCell className="text-right text-sm text-slate-700">{row.totalAmount}</TableCell>
+                  <TableCell className="text-right text-sm text-slate-700">{formatCurrency(row.totalAmount)}</TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && (

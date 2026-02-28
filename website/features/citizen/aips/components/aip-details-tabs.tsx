@@ -28,7 +28,7 @@ export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
           value="comments"
           className="h-8 rounded-full px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
-          Comments ({aip.placeholderComments.length})
+          Comments ({aip.feedbackCount})
         </TabsTrigger>
       </TabsList>
 
@@ -43,7 +43,7 @@ export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
       </TabsContent>
 
       <TabsContent value="comments">
-        <AipCommentsTab comments={aip.placeholderComments} />
+        <AipCommentsTab aipId={aip.id} feedbackCount={aip.feedbackCount} />
       </TabsContent>
     </Tabs>
   );

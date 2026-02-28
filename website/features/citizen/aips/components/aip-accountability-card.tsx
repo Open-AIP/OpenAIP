@@ -20,7 +20,7 @@ const PersonRow = ({
   person,
 }: {
   label: string;
-  person?: { name: string; role?: string; office?: string } | null;
+  person?: { name: string; roleLabel?: string } | null;
 }) => (
   <div className="space-y-3">
     <RowLabel>{label}</RowLabel>
@@ -29,8 +29,7 @@ const PersonRow = ({
       {person ? (
         <div className="space-y-1 text-sm text-slate-700">
           <p className="font-semibold text-slate-900">{person.name}</p>
-          {person.role && <p>{person.role}</p>}
-          {person.office && <p>{person.office}</p>}
+          {person.roleLabel && <p>{person.roleLabel}</p>}
         </div>
       ) : (
         <p className="text-sm text-slate-500">N/A</p>
@@ -65,11 +64,11 @@ export default function AipAccountabilityCard({ accountability }: Props) {
         <div className="grid gap-4 text-sm text-slate-700 md:grid-cols-2">
           <div>
             <RowLabel>Upload Date</RowLabel>
-            <p className="mt-1">{accountability.uploadDate ?? "N/A"}</p>
+            <p className="mt-1">{accountability.uploadDate ? new Date(accountability.uploadDate).toLocaleDateString("en-PH") : "N/A"}</p>
           </div>
           <div>
             <RowLabel>Approval Date</RowLabel>
-            <p className="mt-1">{accountability.approvalDate ?? "N/A"}</p>
+            <p className="mt-1">{accountability.approvalDate ? new Date(accountability.approvalDate).toLocaleDateString("en-PH") : "N/A"}</p>
           </div>
         </div>
       </CardContent>

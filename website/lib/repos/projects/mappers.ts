@@ -116,6 +116,7 @@ export type ProjectUiMeta = {
   status?: ProjectStatus | null;
   imageUrl?: string | null;
   year?: number | null;
+  lguLabel?: string | null;
 };
 
 function resolveProjectYear(
@@ -127,6 +128,12 @@ function resolveProjectYear(
     return Math.trunc(explicitYear);
   }
   return getYearFromDates(projectRow);
+}
+
+function resolveProjectLguLabel(meta?: ProjectUiMeta): string {
+  const label = meta?.lguLabel?.trim();
+  if (!label) return "Unknown LGU";
+  return label;
 }
 
 export function mapProjectRowToUiModel(
@@ -142,6 +149,7 @@ export function mapProjectRowToUiModel(
   const description =
     healthDetails?.description || projectRow.expected_output || projectRow.program_project_description || "";
   const year = resolveProjectYear(projectRow, meta);
+  const lguLabel = resolveProjectLguLabel(meta);
   const status = (meta?.status ?? "proposed") as HealthProject["status"];
   const imageUrl = meta?.imageUrl ?? undefined;
 
@@ -159,6 +167,7 @@ export function mapProjectRowToUiModel(
       kind: "health",
       year,
       title,
+      lguLabel,
       status,
       imageUrl,
       month,
@@ -182,13 +191,14 @@ export function mapProjectRowToUiModel(
     const implementingOffice = projectRow.implementing_agency ?? "";
     const fundingSource = projectRow.source_of_funds ?? "";
     const contractorName = infraDetails?.contractor_name ?? "";
-    const contractCost = infraDetails?.contract_cost ?? 0;
+    const contractCost = infraDetails?.contract_cost ?? projectRow.total ?? 0;
 
     const project: InfrastructureProject = {
       id: projectRefCode,
       kind: "infrastructure",
       year,
       title,
+      lguLabel,
       status,
       imageUrl,
       description,
@@ -210,6 +220,7 @@ export function mapProjectRowToUiModel(
     projectRefCode,
     year,
     title,
+    lguLabel,
     status,
     imageUrl,
     updates: [],

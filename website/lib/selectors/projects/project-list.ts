@@ -1,6 +1,7 @@
 type ProjectListRow = {
   year: number;
   title: string;
+  lguLabel?: string | null;
   description?: string | null;
   implementingOffice?: string | null;
   contractorName?: string | null;
@@ -32,14 +33,28 @@ export function prefixProjectTitles<T extends ProjectListRow>(projects: T[], pre
 }
 
 export function filterProjectsByScopeOption<T>(
-  projects: T[],
+  projects: (T & { lguLabel?: string | null })[],
   scopeFilter: string,
-  allowedScopeLabel: string
-): T[] {
-  if (scopeFilter === DEFAULT_SCOPE_OPTION || scopeFilter === allowedScopeLabel) {
+): (T & { lguLabel?: string | null })[] {
+  if (scopeFilter === DEFAULT_SCOPE_OPTION) {
     return projects;
   }
-  return [];
+
+  return projects.filter((project) => project.lguLabel === scopeFilter);
+}
+
+export function getProjectLguOptions<T extends { lguLabel?: string | null }>(
+  projects: T[]
+): string[] {
+  const labels = Array.from(
+    new Set(
+      projects
+        .map((project) => project.lguLabel?.trim())
+        .filter((label): label is string => Boolean(label))
+    )
+  ).sort((left, right) => left.localeCompare(right));
+
+  return [DEFAULT_SCOPE_OPTION, ...labels];
 }
 
 export function filterProjectsByYearAndQuery<T extends ProjectListRow>(

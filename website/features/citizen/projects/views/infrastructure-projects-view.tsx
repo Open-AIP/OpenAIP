@@ -10,37 +10,29 @@ import type { InfrastructureProject } from "@/lib/repos/projects/types";
 import {
   filterProjectsByScopeOption,
   filterProjectsByYearAndQuery,
+  getProjectLguOptions,
   getProjectYearsDescending,
-  prefixProjectTitles,
 } from "@/lib/selectors/projects/project-list";
 import ProjectFilters from "../components/project-filters";
 
 type InfrastructureProjectsViewProps = {
   projects: InfrastructureProject[];
-  lguLabel: string;
-  lguOptions: string[];
 };
 
 export default function InfrastructureProjectsView({
   projects,
-  lguLabel,
-  lguOptions,
 }: InfrastructureProjectsViewProps) {
   const years = useMemo(() => getProjectYearsDescending(projects), [projects]);
+  const lguOptions = useMemo(() => getProjectLguOptions(projects), [projects]);
 
   const [yearFilter, setYearFilter] = useState<string>(String(years[0] ?? "all"));
   const [scopeFilter, setScopeFilter] = useState<string>("All LGUs");
   const [query, setQuery] = useState<string>("");
 
-  const displayProjects = useMemo(
-    () => prefixProjectTitles(projects, lguLabel),
-    [projects, lguLabel]
-  );
-
   const filteredProjects = useMemo(() => {
-    const scopedProjects = filterProjectsByScopeOption(displayProjects, scopeFilter, lguLabel);
+    const scopedProjects = filterProjectsByScopeOption(projects, scopeFilter);
     return filterProjectsByYearAndQuery(scopedProjects, { yearFilter, query });
-  }, [displayProjects, scopeFilter, lguLabel, yearFilter, query]);
+  }, [projects, scopeFilter, yearFilter, query]);
 
   return (
     <section className="space-y-6">

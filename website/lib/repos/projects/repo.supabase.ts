@@ -29,9 +29,17 @@ type AipScopeRow = {
   id: string;
 };
 
-type AipYearRow = {
+type AipMetaRow = {
   id: string;
   fiscal_year: number;
+  barangay_id: string | null;
+  city_id: string | null;
+  municipality_id: string | null;
+};
+
+type NameLookupRow = {
+  id: string;
+  name: string;
 };
 
 type ProjectUpdateSelectRow = Pick<
@@ -249,27 +257,132 @@ async function loadUpdatesByProjectIds(projectIds: string[]) {
   return updatesByProjectId;
 }
 
-async function loadAipFiscalYears(aipIds: string[]) {
+function normalizeBarangayName(name: string): string {
+  return name.replace(/^(brgy\.?|barangay)\s+/i, "").trim();
+}
+
+function normalizeCityName(name: string): string {
+  return name.replace(/^city of\s+/i, "").trim();
+}
+
+async function loadAipMetaByAipIds(aipIds: string[]) {
   const fiscalYearByAipId = new Map<string, number>();
+  const lguLabelByAipId = new Map<string, string>();
   if (aipIds.length === 0) {
-    return fiscalYearByAipId;
+    return { fiscalYearByAipId, lguLabelByAipId };
   }
 
   const client = await supabaseServer();
   const { data, error } = await client
     .from("aips")
-    .select("id,fiscal_year")
+    .select("id,fiscal_year,barangay_id,city_id,municipality_id")
     .in("id", aipIds);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  for (const row of (data ?? []) as AipYearRow[]) {
-    fiscalYearByAipId.set(row.id, row.fiscal_year);
+  const aipRows = (data ?? []) as AipMetaRow[];
+  const barangayIds = Array.from(
+    new Set(
+      aipRows
+        .map((row) => row.barangay_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const cityIds = Array.from(
+    new Set(
+      aipRows
+        .map((row) => row.city_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const municipalityIds = Array.from(
+    new Set(
+      aipRows
+        .map((row) => row.municipality_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+
+  const [barangayResult, cityResult, municipalityResult] = await Promise.all([
+    barangayIds.length
+      ? client.from("barangays").select("id,name").in("id", barangayIds)
+      : Promise.resolve({ data: [], error: null }),
+    cityIds.length
+      ? client.from("cities").select("id,name").in("id", cityIds)
+      : Promise.resolve({ data: [], error: null }),
+    municipalityIds.length
+      ? client.from("municipalities").select("id,name").in("id", municipalityIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (barangayResult.error) {
+    throw new Error(barangayResult.error.message);
+  }
+  if (cityResult.error) {
+    throw new Error(cityResult.error.message);
+  }
+  if (municipalityResult.error) {
+    throw new Error(municipalityResult.error.message);
   }
 
-  return fiscalYearByAipId;
+  const barangayNameById = new Map<string, string>();
+  const cityNameById = new Map<string, string>();
+  const municipalityNameById = new Map<string, string>();
+
+  for (const row of (barangayResult.data ?? []) as NameLookupRow[]) {
+    const normalizedName = normalizeBarangayName(row.name);
+    if (normalizedName) {
+      barangayNameById.set(row.id, normalizedName);
+    }
+  }
+
+  for (const row of (cityResult.data ?? []) as NameLookupRow[]) {
+    const normalizedName = normalizeCityName(row.name);
+    if (normalizedName) {
+      cityNameById.set(row.id, normalizedName);
+    }
+  }
+
+  for (const row of (municipalityResult.data ?? []) as NameLookupRow[]) {
+    const normalizedName = normalizeCityName(row.name);
+    if (normalizedName) {
+      municipalityNameById.set(row.id, normalizedName);
+    }
+  }
+
+  for (const row of aipRows) {
+    fiscalYearByAipId.set(row.id, row.fiscal_year);
+
+    if (row.barangay_id) {
+      const name = barangayNameById.get(row.barangay_id);
+      if (name) {
+        lguLabelByAipId.set(row.id, `Brgy. ${name}`);
+        continue;
+      }
+    }
+
+    if (row.city_id) {
+      const name = cityNameById.get(row.city_id);
+      if (name) {
+        lguLabelByAipId.set(row.id, `City of ${name}`);
+        continue;
+      }
+    }
+
+    if (row.municipality_id) {
+      const name = municipalityNameById.get(row.municipality_id);
+      if (name) {
+        lguLabelByAipId.set(row.id, `City of ${name}`);
+        continue;
+      }
+    }
+
+    lguLabelByAipId.set(row.id, "Unknown LGU");
+  }
+
+  return { fiscalYearByAipId, lguLabelByAipId };
 }
 
 function mapProjectToUiModel(
@@ -279,7 +392,8 @@ function mapProjectToUiModel(
     infraByProjectId: Map<string, InfrastructureProjectDetailsRow>;
   },
   updatesByProjectId: Map<string, ProjectUpdateWithoutRef[]>,
-  aipFiscalYearByAipId: Map<string, number>
+  aipFiscalYearByAipId: Map<string, number>,
+  aipLguLabelByAipId: Map<string, string>
 ): UiProject {
   const health = details.healthByProjectId.get(row.id) ?? null;
   const infra = details.infraByProjectId.get(row.id) ?? null;
@@ -292,6 +406,7 @@ function mapProjectToUiModel(
     status: row.status,
     imageUrl: row.image_url ? toProjectCoverProxyUrl(row.id) : null,
     year: aipFiscalYearByAipId.get(row.aip_id) ?? null,
+    lguLabel: aipLguLabelByAipId.get(row.aip_id) ?? "Unknown LGU",
   });
 
   return {
@@ -333,13 +448,21 @@ async function listProjectsInternal(input?: {
   const rows = (data ?? []) as unknown as ProjectRowWithMeta[];
   const projectIds = rows.map((row) => row.id);
   const aipIds = Array.from(new Set(rows.map((row) => row.aip_id)));
-  const [details, updatesByProjectId, aipFiscalYearByAipId] = await Promise.all([
+  const [details, updatesByProjectId, aipMeta] = await Promise.all([
     loadDetailsByProjectIds(projectIds),
     loadUpdatesByProjectIds(projectIds),
-    loadAipFiscalYears(aipIds),
+    loadAipMetaByAipIds(aipIds),
   ]);
 
-  return rows.map((row) => mapProjectToUiModel(row, details, updatesByProjectId, aipFiscalYearByAipId));
+  return rows.map((row) =>
+    mapProjectToUiModel(
+      row,
+      details,
+      updatesByProjectId,
+      aipMeta.fiscalYearByAipId,
+      aipMeta.lguLabelByAipId
+    )
+  );
 }
 
 async function getProjectByRefOrId(
@@ -399,12 +522,18 @@ async function getProjectByRefOrId(
     return null;
   }
 
-  const [details, updatesByProjectId, aipFiscalYearByAipId] = await Promise.all([
+  const [details, updatesByProjectId, aipMeta] = await Promise.all([
     loadDetailsByProjectIds([row.id]),
     loadUpdatesByProjectIds([row.id]),
-    loadAipFiscalYears([row.aip_id]),
+    loadAipMetaByAipIds([row.aip_id]),
   ]);
-  return mapProjectToUiModel(row, details, updatesByProjectId, aipFiscalYearByAipId);
+  return mapProjectToUiModel(
+    row,
+    details,
+    updatesByProjectId,
+    aipMeta.fiscalYearByAipId,
+    aipMeta.lguLabelByAipId
+  );
 }
 
 export function createSupabaseProjectsRepo(): ProjectsRepo {

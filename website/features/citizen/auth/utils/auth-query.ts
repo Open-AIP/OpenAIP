@@ -19,13 +19,19 @@ export function parseCitizenAuthQuery(
 ): ParsedCitizenAuthQuery {
   const rawMode = searchParams.get("auth");
   const rawNext = searchParams.get("next");
+  const rawReturnTo = searchParams.get("returnTo");
 
   const mode: CitizenAuthMode | null =
     rawMode === "login" || rawMode === "signup" ? rawMode : null;
+  const resolvedNext = isSafeNextPath(rawNext)
+    ? rawNext
+    : isSafeNextPath(rawReturnTo)
+      ? rawReturnTo
+      : null;
 
   return {
     mode,
-    next: isSafeNextPath(rawNext) ? rawNext : null,
+    next: resolvedNext,
   };
 }
 
@@ -41,8 +47,10 @@ export function buildCitizenAuthHref(input: {
   const nextValue = input.next;
   if (isSafeNextPath(nextValue)) {
     params.set("next", nextValue);
+    params.set("returnTo", nextValue);
   } else {
     params.delete("next");
+    params.delete("returnTo");
   }
 
   const query = params.toString();
@@ -56,6 +64,7 @@ export function clearCitizenAuthQuery(
   const params = new URLSearchParams(searchParams.toString());
   params.delete("auth");
   params.delete("next");
+  params.delete("returnTo");
   const query = params.toString();
   return query ? `${pathname}?${query}` : pathname;
 }

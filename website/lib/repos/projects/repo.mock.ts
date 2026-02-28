@@ -22,6 +22,16 @@ function getInfraDetails(projectId: string) {
   return MOCK_INFRA_DETAILS_ROWS.find((row) => row.project_id === projectId) ?? null;
 }
 
+function getMockLguLabelByAipId(aipId: string): string {
+  const aip = AIPS_TABLE.find((item) => item.id === aipId);
+  if (!aip) return "Unknown LGU";
+  if (aip.scope === "barangay") {
+    const raw = aip.barangayName?.replace(/^(brgy\.?|barangay)\s+/i, "").trim();
+    return raw ? `Brgy. ${raw}` : "Brgy. Unknown";
+  }
+  return "City LGU";
+}
+
 function normalizeBarangayScopeName(value: string): string {
   return value
     .toLowerCase()
@@ -126,6 +136,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         const mapped = mapProjectRowToUiModel(row, health, infra, {
           status: row.status ?? null,
           imageUrl: row.image_url ?? null,
+          lguLabel: getMockLguLabelByAipId(row.aip_id),
         });
         return attachUpdates(mapped);
       });
@@ -143,6 +154,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
       const mapped = mapProjectRowToUiModel(row, health, infra, {
         status: row.status ?? null,
         imageUrl: row.image_url ?? null,
+        lguLabel: getMockLguLabelByAipId(row.aip_id),
       });
       return attachUpdates(mapped);
     },
@@ -161,6 +173,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         const mapped = mapProjectRowToUiModel(row, details, null, {
           status: row.status ?? null,
           imageUrl: row.image_url ?? null,
+          lguLabel: getMockLguLabelByAipId(row.aip_id),
         });
         if (mapped.kind !== "health") {
           throw new Error(`Expected health project mapping for ${row.id}`);
@@ -183,6 +196,7 @@ export function createMockProjectsRepoImpl(): ProjectsRepo {
         const mapped = mapProjectRowToUiModel(row, null, details, {
           status: row.status ?? null,
           imageUrl: row.image_url ?? null,
+          lguLabel: getMockLguLabelByAipId(row.aip_id),
         });
         if (mapped.kind !== "infrastructure") {
           throw new Error(`Expected infrastructure project mapping for ${row.id}`);

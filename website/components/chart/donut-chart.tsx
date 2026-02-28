@@ -90,6 +90,13 @@ export function DonutChart({
     };
 
     measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => {
+        window.removeEventListener("resize", measure);
+      };
+    }
+
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) {
@@ -221,6 +228,63 @@ export function DonutChart({
     );
   };
 
+  const pieChart = (
+    <PieChart margin={chartMargin}>
+      <Pie
+        data={slices}
+        dataKey="value"
+        nameKey="name"
+        cx="50%"
+        cy="50%"
+        outerRadius={outerRadius}
+        innerRadius={innerRadius}
+        stroke="#FFFFFF"
+        strokeWidth={2}
+        labelLine={false}
+        label={showOutsideLabels ? renderOutsideLabel : false}
+        isAnimationActive
+        animationDuration={450}
+      >
+        {slices.map((slice, index) => (
+          <Cell
+            key={`${slice.name}-${slice.color}`}
+            fill={slice.color}
+            stroke="#FFFFFF"
+            strokeWidth={2}
+            onClick={
+              onSliceClick
+                ? () => onSliceClick({ name: slice.name, value: slice.value, color: slice.color }, index)
+                : undefined
+            }
+            style={onSliceClick ? { cursor: "pointer" } : undefined}
+          />
+        ))}
+      </Pie>
+
+      {!isMobile ? (
+        <Tooltip
+          cursor={false}
+          wrapperStyle={{ outline: "none" }}
+          content={({ active, payload }) => {
+            const first = (payload as TooltipPayloadItem[] | undefined)?.[0]?.payload;
+            if (!active || !first) {
+              return null;
+            }
+
+            return (
+              <div className="rounded-md border border-border bg-background/95 px-3 py-2 text-xs shadow-sm">
+                <div className="font-medium text-foreground">{first.name}</div>
+                <div className="text-muted-foreground">
+                  {first.value.toLocaleString()} ({formatPercent(first.percent)})
+                </div>
+              </div>
+            );
+          }}
+        />
+      ) : null}
+    </PieChart>
+  );
+
   return (
     <section className={cn("w-full max-w-full min-w-0", className)}>
       {title || subtitle ? (
@@ -238,62 +302,17 @@ export function DonutChart({
           showOutsideLabels ? "overflow-visible" : "overflow-hidden"
         )}
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart margin={chartMargin}>
-            <Pie
-              data={slices}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={outerRadius}
-              innerRadius={innerRadius}
-              stroke="#FFFFFF"
-              strokeWidth={2}
-              labelLine={false}
-              label={showOutsideLabels ? renderOutsideLabel : false}
-              isAnimationActive
-              animationDuration={450}
-            >
-              {slices.map((slice, index) => (
-                <Cell
-                  key={`${slice.name}-${slice.color}`}
-                  fill={slice.color}
-                  stroke="#FFFFFF"
-                  strokeWidth={2}
-                  onClick={
-                    onSliceClick
-                      ? () => onSliceClick({ name: slice.name, value: slice.value, color: slice.color }, index)
-                      : undefined
-                  }
-                  style={onSliceClick ? { cursor: "pointer" } : undefined}
-                />
-              ))}
-            </Pie>
-
-            {!isMobile ? (
-              <Tooltip
-                cursor={false}
-                wrapperStyle={{ outline: "none" }}
-                content={({ active, payload }) => {
-                  const first = (payload as TooltipPayloadItem[] | undefined)?.[0]?.payload;
-                  if (!active || !first) {
-                    return null;
-                  }
-
-                  return (
-                    <div className="rounded-md border border-border bg-background/95 px-3 py-2 text-xs shadow-sm">
-                      <div className="font-medium text-foreground">{first.name}</div>
-                      <div className="text-muted-foreground">
-                        {first.value.toLocaleString()} ({formatPercent(first.percent)})
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-            ) : null}
-          </PieChart>
-        </ResponsiveContainer>
+        {size.width > 0 && size.height > 0 ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={240} minHeight={240}>
+            {pieChart}
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <PieChart width={240} height={240} margin={chartMargin}>
+              {pieChart.props.children}
+            </PieChart>
+          </div>
+        )}
 
         {centerLabel ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

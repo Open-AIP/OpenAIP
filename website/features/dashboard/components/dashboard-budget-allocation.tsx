@@ -9,12 +9,10 @@ export function BudgetBreakdownSection({
   totalBudget,
   items,
   detailsHref,
-  useComponentDonutChart = false,
 }: {
   totalBudget: string;
   items: Array<{ sectorCode: string; label: string; amount: number; percentage: number }>;
   detailsHref: string;
-  useComponentDonutChart?: boolean;
 }) {
   const dotClassByIndex = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
   const chartData = items.map((item, index) => ({
@@ -28,16 +26,12 @@ export function BudgetBreakdownSection({
       <CardHeader className="border-b border-border px-5 py-4"><CardTitle className="text-sm font-medium text-foreground">Budget Breakdown</CardTitle></CardHeader>
       <CardContent className="p-5 space-y-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.15fr]">
-          {useComponentDonutChart ? (
-            <DonutChart
-              data={chartData}
-              centerLabel="Budget Allocation"
-              chartHeightClassName="h-72"
-              className="mx-auto"
-            />
-          ) : (
-            <BudgetDonutCard items={items} />
-          )}
+          <DonutChart
+            data={chartData}
+            centerLabel="Budget Allocation"
+            chartHeightClassName="h-72"
+            className="mx-auto"
+          />
           <div className="space-y-4">
             <div className="border-b border-border pb-4">
               <div className="text-sm text-muted-foreground">Total Budget</div>
@@ -63,45 +57,5 @@ export function BudgetBreakdownSection({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-export function BudgetDonutCard({
-  items,
-}: {
-  items: Array<{ sectorCode: string; label: string; amount: number; percentage: number }>;
-}) {
-  const donutStops = items.reduce(
-    (acc, item, index) => {
-      const start = acc.cursor;
-      const end = start + item.percentage;
-      const color = DONUT_COLORS[index % DONUT_COLORS.length];
-      acc.parts.push(`${color} ${start}% ${end}%`);
-      acc.cursor = end;
-      return acc;
-    },
-    { parts: [] as string[], cursor: 0 }
-  );
-  const donutBg =
-    donutStops.parts.length > 0 ? `conic-gradient(${donutStops.parts.join(", ")})` : "conic-gradient(#e2e8f0 0 100%)";
-
-  const calloutPositions = [
-    "right-[-74px] top-[4px]",
-    "left-[-86px] top-[78px]",
-    "right-[-74px] bottom-[10px]",
-    "right-[-72px] top-[122px]",
-  ];
-
-  return (
-    <div className="grid grid-cols-1 gap-4">
-      <div className="relative mx-auto h-56 w-56 rounded-full overflow-hidden" style={{ background: donutBg }}>
-        <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card" />
-        {items.slice(0, 4).map((item, index) => (
-          <div key={`callout-${item.sectorCode}`} className={`absolute text-sm text-muted-foreground ${calloutPositions[index]}`}>
-            {item.label} {item.percentage.toFixed(0)}%
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

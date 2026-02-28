@@ -44,6 +44,7 @@ type ActivityLogFilters = {
   actorId?: string;
   actorRole?: string;
   barangayId?: string;
+  cityId?: string;
 };
 
 function toScope(row: ActivityLogSelectRow): ActivityScopeSnapshot {
@@ -147,6 +148,9 @@ async function listActivityRows(
   if (filters.barangayId) {
     query = query.eq("barangay_id", filters.barangayId);
   }
+  if (filters.cityId) {
+    query = query.eq("city_id", filters.cityId);
+  }
 
   const { data, error } = await query;
   if (error) {
@@ -195,6 +199,12 @@ export function createSupabaseAuditRepo(): AuditRepo {
       return listActivityRows({
         actorRole: "barangay_official",
         barangayId,
+      });
+    },
+    async listCityOfficialActivity(cityId: string): Promise<ActivityLogRow[]> {
+      return listActivityRows({
+        actorRole: "city_official",
+        cityId,
       });
     },
     async listAllActivity(): Promise<ActivityLogRow[]> {

@@ -23,6 +23,16 @@ export function createMockAuditRepo(): AuditRepo {
         )
       );
     },
+    async listCityOfficialActivity(cityId: string) {
+      return sortNewestFirst(
+        ACTIVITY_LOG_FIXTURE.filter(
+          (row) =>
+            row.actorRole === "city_official" &&
+            row.scope?.scope_type === "city" &&
+            row.scope.city_id === cityId
+        )
+      );
+    },
     async listAllActivity() {
       return sortNewestFirst(ACTIVITY_LOG_FIXTURE);
     },

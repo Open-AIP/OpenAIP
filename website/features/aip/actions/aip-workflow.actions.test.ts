@@ -6,6 +6,8 @@ const mockGetActorContext = vi.fn();
 const mockGetAipDetail = vi.fn();
 const mockSupabaseAdmin = vi.fn();
 const mockSupabaseServer = vi.fn();
+const mockWriteActivityLog = vi.fn();
+const mockWriteWorkflowActivityLog = vi.fn();
 
 type UploadedFileRefRow = {
   bucket_id: string | null;
@@ -28,7 +30,8 @@ let artifactQueryErrorMessage: string | null = null;
 let storageFailureBucket: string | null = null;
 let dbDeleteErrorMessage: string | null = null;
 let storageRemoveCalls: StorageRemoveCall[] = [];
-let deleteAipsEqMock = vi.fn(async () => ({ error: null }));
+type DeleteEqResult = { error: { message: string } | null };
+let deleteAipsEqMock = vi.fn<() => Promise<DeleteEqResult>>(async () => ({ error: null }));
 
 vi.mock("@/lib/config/appEnv", () => ({
   getAppEnv: () => mockGetAppEnv(),
@@ -37,6 +40,11 @@ vi.mock("@/lib/config/appEnv", () => ({
 
 vi.mock("@/lib/domain/get-actor-context", () => ({
   getActorContext: () => mockGetActorContext(),
+}));
+
+vi.mock("@/lib/audit/activity-log", () => ({
+  writeActivityLog: (...args: unknown[]) => mockWriteActivityLog(...args),
+  writeWorkflowActivityLog: (...args: unknown[]) => mockWriteWorkflowActivityLog(...args),
 }));
 
 vi.mock("@/lib/repos/aip/repo.server", () => ({
@@ -78,19 +86,34 @@ import { deleteAipDraftAction } from "./aip-workflow.actions";
 function createSupabaseServerClient() {
   return {
     from: (table: string) => {
-      if (table !== "aip_reviews") {
-        throw new Error(`Unexpected supabaseServer table in test: ${table}`);
-      }
-
-      return {
-        select: () => ({
-          eq: () => ({
+      if (table === "aip_reviews") {
+        return {
+          select: () => ({
             eq: () => ({
-              limit: async () => ({ data: [], error: null }),
+              eq: () => ({
+                limit: async () => ({ data: [], error: null }),
+              }),
             }),
           }),
-        }),
-      };
+        };
+      }
+
+      if (table === "aips") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: { id: "aip-001" },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected supabaseServer table in test: ${table}`);
     },
   };
 }
@@ -167,6 +190,10 @@ describe("deleteAipDraftAction strict storage-first deletion", () => {
     mockGetAppEnv.mockReturnValue("dev");
     mockIsMockEnabled.mockReturnValue(false);
     mockGetActorContext.mockResolvedValue(null);
+    mockWriteActivityLog.mockReset();
+    mockWriteActivityLog.mockResolvedValue("log-001");
+    mockWriteWorkflowActivityLog.mockReset();
+    mockWriteWorkflowActivityLog.mockResolvedValue("log-002");
     mockGetAipDetail.mockResolvedValue({
       id: "aip-001",
       scope: "barangay",
@@ -286,5 +313,32 @@ describe("deleteAipDraftAction strict storage-first deletion", () => {
     });
     expect(storageRemoveCalls).toEqual([]);
     expect(deleteAipsEqMock).not.toHaveBeenCalled();
+  });
+
+  it("writes manual aip_deleted activity log for city official draft deletion", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "city-official-001",
+      role: "city_official",
+      scope: { kind: "city", id: "city-001" },
+    });
+    mockGetAipDetail.mockResolvedValue({
+      id: "aip-001",
+      scope: "city",
+      status: "draft",
+    });
+
+    const result = await deleteAipDraftAction({ aipId: "aip-001" });
+
+    expect(result).toEqual({ ok: true, message: "Draft AIP deleted successfully." });
+    expect(mockWriteActivityLog).toHaveBeenCalledTimes(1);
+    expect(mockWriteActivityLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "aip_deleted",
+        entityTable: "aips",
+        entityId: "aip-001",
+        scope: { cityId: "city-001" },
+      })
+    );
+    expect(mockWriteWorkflowActivityLog).not.toHaveBeenCalled();
   });
 });

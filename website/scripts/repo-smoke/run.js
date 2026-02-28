@@ -435,7 +435,12 @@ const tests = [
           {
             label: "AuditRepo(server)",
             repo: getAuditRepo(),
-            methods: ["listMyActivity", "listBarangayOfficialActivity", "listAllActivity"],
+            methods: [
+              "listMyActivity",
+              "listBarangayOfficialActivity",
+              "listCityOfficialActivity",
+              "listAllActivity",
+            ],
           },
           {
             label: "ChatRepo(server)",
@@ -616,11 +621,14 @@ const tests = [
         const actor = {
           userId: "uuid-not-in-mock",
           role: "city_official",
-          scope: { kind: "city", id: "cabuyao" },
+          scope: { kind: "city", id: "city_001" },
         };
         const result = await getAuditFeedForActor(actor);
         const expected = ACTIVITY_LOG_FIXTURE.filter(
-          (row) => row.scope?.scope_type === "city"
+          (row) =>
+            row.actorRole === "city_official" &&
+            row.scope?.scope_type === "city" &&
+            row.scope.city_id === "city_001"
         ).length;
         assert(
           result.length === expected,

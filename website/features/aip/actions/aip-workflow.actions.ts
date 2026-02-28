@@ -159,7 +159,12 @@ async function logBarangayAipDeleteCrudEvent(input: {
   details: string;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
-  if (!input.actor || input.actor.role !== "barangay_official") return;
+  if (
+    !input.actor ||
+    (input.actor.role !== "barangay_official" && input.actor.role !== "city_official")
+  ) {
+    return;
+  }
 
   const actorName = await resolveActorName(input.actor);
   const actorPosition = toRoleLabel(input.actor.role);

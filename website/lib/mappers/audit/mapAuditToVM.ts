@@ -98,6 +98,12 @@ export function getAuditActionLabel(action: string): string {
       return "Project Information Update";
     case "comment_replied":
       return "Comment Reply";
+    case "aip_review_record_created":
+      return "AIP Review Record Created";
+    case "aip_review_record_updated":
+      return "AIP Review Record Updated";
+    case "aip_review_record_deleted":
+      return "AIP Review Record Deleted";
     case "approval_granted":
       return "Approval";
     case "revision_requested":

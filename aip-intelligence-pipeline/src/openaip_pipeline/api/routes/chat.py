@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Literal
 
@@ -7,10 +8,14 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from openaip_pipeline.core.settings import Settings
+from openaip_pipeline.services.intent.chat_shortcuts import maybe_handle_conversational_intent
+from openaip_pipeline.services.intent.router import IntentRouter
 from openaip_pipeline.services.openai_utils import build_openai_client
 from openaip_pipeline.services.rag.rag import answer_with_rag
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
+_INTENT_ROUTER = IntentRouter()
 
 
 class RetrievalScopeTarget(BaseModel):
@@ -60,12 +65,42 @@ def _require_internal_token(provided_token: str | None) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized internal token.")
 
 
+def _intent_router_enabled() -> bool:
+    value = os.getenv("INTENT_ROUTER_ENABLED", "false").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 @router.post("/answer", response_model=ChatAnswerResponse)
 def chat_answer(
     req: ChatAnswerRequest,
     x_pipeline_token: str | None = Header(default=None),
 ) -> ChatAnswerResponse:
     _require_internal_token(x_pipeline_token)
+    if _intent_router_enabled():
+        intent_result = _INTENT_ROUTER.route(req.question)
+        logger.info(
+            "Intent router: intent=%s confidence=%.3f method=%s",
+            intent_result.intent.value,
+            intent_result.confidence,
+            intent_result.method,
+        )
+        shortcut = maybe_handle_conversational_intent(req.question, intent_result)
+        if shortcut is not None:
+            return ChatAnswerResponse(
+                question=req.question,
+                answer=shortcut["message"],
+                refused=False,
+                citations=[],
+                retrieval_meta={
+                    "reason": "conversational_shortcut",
+                    "intent": intent_result.intent.value,
+                    "confidence": intent_result.confidence,
+                    "method": intent_result.method,
+                    "feature_flag": "INTENT_ROUTER_ENABLED",
+                },
+                context_count=0,
+            )
+
     settings = Settings.load(require_supabase=True, require_openai=True)
     model_name = (req.model_name or settings.pipeline_model).strip() or settings.pipeline_model
 

@@ -11,6 +11,8 @@ from .thresholds import DEFAULT_MIN_MARGIN, DEFAULT_MIN_TOP1
 from .types import IntentResult, IntentType
 
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-MiniLM-L3-v2"
+_BUILTIN_DEFAULT_MIN_TOP1 = DEFAULT_MIN_TOP1
+_BUILTIN_DEFAULT_MIN_MARGIN = DEFAULT_MIN_MARGIN
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -19,7 +21,12 @@ except Exception:  # pragma: no cover - exercised via init-time fallback in test
 
 
 class SemanticIntentClassifier:
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME) -> None:
+    def __init__(
+        self,
+        model_name: str = DEFAULT_MODEL_NAME,
+        min_top1: float = DEFAULT_MIN_TOP1,
+        min_margin: float = DEFAULT_MIN_MARGIN,
+    ) -> None:
         validate_prototypes()
 
         if SentenceTransformer is None:
@@ -29,6 +36,18 @@ class SemanticIntentClassifier:
             )
 
         self._model_name = model_name
+        self._min_top1 = self._resolve_threshold(
+            configured_value=min_top1,
+            builtin_default=_BUILTIN_DEFAULT_MIN_TOP1,
+            live_default=DEFAULT_MIN_TOP1,
+            name="min_top1",
+        )
+        self._min_margin = self._resolve_threshold(
+            configured_value=min_margin,
+            builtin_default=_BUILTIN_DEFAULT_MIN_MARGIN,
+            live_default=DEFAULT_MIN_MARGIN,
+            name="min_margin",
+        )
         try:
             self._model = SentenceTransformer(model_name)
             self._prototype_embeddings = self._build_prototype_embeddings()
@@ -36,6 +55,19 @@ class SemanticIntentClassifier:
             raise RuntimeError(
                 f"Failed to initialize semantic intent classifier with model '{model_name}': {exc}"
             ) from exc
+
+    @staticmethod
+    def _resolve_threshold(
+        *,
+        configured_value: float,
+        builtin_default: float,
+        live_default: float,
+        name: str,
+    ) -> float:
+        value = live_default if configured_value == builtin_default else configured_value
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be between 0.0 and 1.0.")
+        return float(value)
 
     def _build_prototype_embeddings(self) -> dict[IntentType, np.ndarray]:
         grouped: dict[IntentType, np.ndarray] = {}
@@ -113,7 +145,7 @@ class SemanticIntentClassifier:
 
         margin = top1_score - (top2_score if top2_score is not None else 0.0)
         resolved_intent = top1_intent
-        if top1_score < DEFAULT_MIN_TOP1 or margin < DEFAULT_MIN_MARGIN:
+        if top1_score < self._min_top1 or margin < self._min_margin:
             resolved_intent = IntentType.UNKNOWN
 
         return IntentResult(

@@ -1,0 +1,85 @@
+text,expected_intent
+hello,GREETING
+hi there,GREETING
+good morning,GREETING
+good evening,GREETING
+kumusta,GREETING
+hey openaip,GREETING
+hello po,GREETING
+thanks,THANKS
+thank you,THANKS
+salamat,THANKS
+thank you for the help,THANKS
+ok thanks,THANKS
+maraming salamat,THANKS
+appreciate it,THANKS
+that answer is wrong,COMPLAINT
+this looks incorrect,COMPLAINT
+mali ang sagot,COMPLAINT
+that does not match the aip,COMPLAINT
+you gave the wrong amount,COMPLAINT
+this budget looks off,COMPLAINT
+please fix this result,COMPLAINT
+can you clarify,CLARIFY
+what do you mean,CLARIFY
+paki explain,CLARIFY
+explain that again,CLARIFY
+please be more specific,CLARIFY
+can you rephrase the answer,CLARIFY
+alin ba talaga,CLARIFY
+total investment,TOTAL_AGGREGATION
+"hello, total AIP budget 2025",TOTAL_AGGREGATION
+what is the total budget for 2025,TOTAL_AGGREGATION
+sum of all projects,TOTAL_AGGREGATION
+overall aip investment,TOTAL_AGGREGATION
+grand total of programs,TOTAL_AGGREGATION
+magkano ang total aip,TOTAL_AGGREGATION
+budget by sector,CATEGORY_AGGREGATION
+total per fund source,CATEGORY_AGGREGATION
+show category breakdown,CATEGORY_AGGREGATION
+how much per sector,CATEGORY_AGGREGATION
+compare budget by category,CATEGORY_AGGREGATION
+fund source totals,CATEGORY_AGGREGATION
+sector summary for the aip,CATEGORY_AGGREGATION
+REF-2025-001 details,LINE_ITEM_LOOKUP
+ref 2025 001,LINE_ITEM_LOOKUP
+project code abc123,LINE_ITEM_LOOKUP
+reference number 2025-009,LINE_ITEM_LOOKUP
+what is ref code 2026-101,LINE_ITEM_LOOKUP
+show ref 2024-015 line,LINE_ITEM_LOOKUP
+details of project code 2025x9,LINE_ITEM_LOOKUP
+tell me about the drainage project,PROJECT_DETAIL
+project details for road repair,PROJECT_DETAIL
+what is the timeline for the health center project,PROJECT_DETAIL
+who is implementing the market project,PROJECT_DETAIL
+expected output of the bridge project,PROJECT_DETAIL
+show details for the street lighting project,PROJECT_DETAIL
+ano details ng water system project,PROJECT_DETAIL
+explain this aip document,DOCUMENT_EXPLANATION
+what does this section mean,DOCUMENT_EXPLANATION
+summarize the budget page,DOCUMENT_EXPLANATION
+help me understand this line in the aip,DOCUMENT_EXPLANATION
+what is the purpose of this entry,DOCUMENT_EXPLANATION
+explain the narrative in this document,DOCUMENT_EXPLANATION
+ano ibig sabihin ng section na ito,DOCUMENT_EXPLANATION
+who is the contractor,OUT_OF_SCOPE
+predict next year's budget,OUT_OF_SCOPE
+who won the bidding,OUT_OF_SCOPE
+what did you eat,OUT_OF_SCOPE
+who is the mayor,OUT_OF_SCOPE
+will the budget increase next year,OUT_OF_SCOPE
+sino ang nanalo sa bidding,OUT_OF_SCOPE
+which barangay is this for,SCOPE_NEEDS_CLARIFICATION
+which city should I check,SCOPE_NEEDS_CLARIFICATION
+saan ito,SCOPE_NEEDS_CLARIFICATION
+anong barangay ito,SCOPE_NEEDS_CLARIFICATION
+show budget for poblacion,SCOPE_NEEDS_CLARIFICATION
+which barangay has this project,SCOPE_NEEDS_CLARIFICATION
+what city do you mean,SCOPE_NEEDS_CLARIFICATION
+i prefer this approach,UNKNOWN
+referral status maybe,UNKNOWN
+hmm okay,UNKNOWN
+not sure,UNKNOWN
+random thought here,UNKNOWN
+budget-ish maybe thing,UNKNOWN
+???,UNKNOWN

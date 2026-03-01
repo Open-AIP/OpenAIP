@@ -94,7 +94,7 @@ export default function InfrastructureProjectDetailPageView({
         aipYear={aipYear}
         project={project}
         scope={scope}
-        useLogoFallback={scope === "barangay"}
+        useLogoFallback={scope === "barangay" || scope === "citizen"}
       />
 
       {/* ✅ Shared updates UI (timeline + form) */}

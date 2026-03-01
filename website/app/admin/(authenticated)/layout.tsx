@@ -9,7 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   if (isTempAdminBypassEnabled()) {
     return (
-      <AdminShell profileName="Admin User" profileRole="System Administration">
+      <AdminShell
+        profileName="Admin User"
+        profileRole="System Administration"
+        profileEmail="admin@example.com"
+      >
         {children}
       </AdminShell>
     );
@@ -29,7 +33,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell profileName={userData.fullName} profileRole={userData.officeLabel}>
+    <AdminShell
+      profileName={userData.fullName}
+      profileRole={userData.officeLabel}
+      profileEmail={userData.email}
+    >
       {children}
     </AdminShell>
   );

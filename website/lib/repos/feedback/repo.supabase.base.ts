@@ -56,6 +56,9 @@ type ProfileSelectRow = {
   barangay_id: string | null;
   city_id: string | null;
   municipality_id: string | null;
+  barangay_name?: string | null;
+  city_name?: string | null;
+  municipality_name?: string | null;
 };
 
 type ScopeNameMaps = {
@@ -213,12 +216,37 @@ async function listProfilesByIds(
     .select("id,role,full_name,barangay_id,city_id,municipality_id")
     .in("id", deduped);
 
-  if (error) {
+  if (error && typeof window === "undefined") {
     throw new Error(error.message);
   }
 
   for (const row of (data ?? []) as ProfileSelectRow[]) {
     map.set(row.id, row);
+  }
+
+  const missingProfileIds = deduped.filter((id) => !map.has(id));
+  if (missingProfileIds.length > 0 && typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams({
+        ids: missingProfileIds.join(","),
+      });
+      const response = await fetch(`/api/internal/feedback/profile-meta?${params.toString()}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { items?: ProfileSelectRow[] }
+          | null;
+        for (const row of payload?.items ?? []) {
+          if (!row?.id) continue;
+          map.set(row.id, row);
+        }
+      }
+    } catch {
+      // Best-effort fallback for browser clients under restrictive profiles RLS.
+    }
   }
 
   return map;
@@ -229,6 +257,22 @@ async function listScopeNameMapsByProfiles(
   profileById: Map<string, ProfileSelectRow>
 ): Promise<ScopeNameMaps> {
   const profiles = Array.from(profileById.values());
+  const barangayNameById = new Map<string, string>();
+  const cityNameById = new Map<string, string>();
+  const municipalityNameById = new Map<string, string>();
+
+  for (const profile of profiles) {
+    if (profile.barangay_id && profile.barangay_name) {
+      barangayNameById.set(profile.barangay_id, profile.barangay_name);
+    }
+    if (profile.city_id && profile.city_name) {
+      cityNameById.set(profile.city_id, profile.city_name);
+    }
+    if (profile.municipality_id && profile.municipality_name) {
+      municipalityNameById.set(profile.municipality_id, profile.municipality_name);
+    }
+  }
+
   const barangayIds = Array.from(
     new Set(
       profiles
@@ -250,16 +294,21 @@ async function listScopeNameMapsByProfiles(
         .filter((value): value is string => typeof value === "string" && value.length > 0)
     )
   );
+  const unresolvedBarangayIds = barangayIds.filter((id) => !barangayNameById.has(id));
+  const unresolvedCityIds = cityIds.filter((id) => !cityNameById.has(id));
+  const unresolvedMunicipalityIds = municipalityIds.filter(
+    (id) => !municipalityNameById.has(id)
+  );
 
   const [barangayResult, cityResult, municipalityResult] = await Promise.all([
-    barangayIds.length
-      ? client.from("barangays").select("id,name").in("id", barangayIds)
+    unresolvedBarangayIds.length
+      ? client.from("barangays").select("id,name").in("id", unresolvedBarangayIds)
       : Promise.resolve({ data: [], error: null }),
-    cityIds.length
-      ? client.from("cities").select("id,name").in("id", cityIds)
+    unresolvedCityIds.length
+      ? client.from("cities").select("id,name").in("id", unresolvedCityIds)
       : Promise.resolve({ data: [], error: null }),
-    municipalityIds.length
-      ? client.from("municipalities").select("id,name").in("id", municipalityIds)
+    unresolvedMunicipalityIds.length
+      ? client.from("municipalities").select("id,name").in("id", unresolvedMunicipalityIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -267,25 +316,20 @@ async function listScopeNameMapsByProfiles(
   if (cityResult.error) throw new Error(cityResult.error.message);
   if (municipalityResult.error) throw new Error(municipalityResult.error.message);
 
+  for (const row of (barangayResult.data ?? []) as Array<{ id: string; name: string }>) {
+    barangayNameById.set(row.id, row.name);
+  }
+  for (const row of (cityResult.data ?? []) as Array<{ id: string; name: string }>) {
+    cityNameById.set(row.id, row.name);
+  }
+  for (const row of (municipalityResult.data ?? []) as Array<{ id: string; name: string }>) {
+    municipalityNameById.set(row.id, row.name);
+  }
+
   return {
-    barangayNameById: new Map(
-      ((barangayResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [
-        row.id,
-        row.name,
-      ])
-    ),
-    cityNameById: new Map(
-      ((cityResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [
-        row.id,
-        row.name,
-      ])
-    ),
-    municipalityNameById: new Map(
-      ((municipalityResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [
-        row.id,
-        row.name,
-      ])
-    ),
+    barangayNameById,
+    cityNameById,
+    municipalityNameById,
   };
 }
 
@@ -969,7 +1013,7 @@ export function createCommentTargetLookupFromClient(
 
       const row = data as ProjectLookupRow;
       return {
-        id: row.aip_ref_code || row.id,
+        id: row.id,
         aipId: row.aip_id,
         title: row.program_project_description || "Project",
         year:

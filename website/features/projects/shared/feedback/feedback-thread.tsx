@@ -8,6 +8,7 @@ import {
   buildCitizenAuthHref,
   setReturnToInSessionStorage,
 } from "@/features/citizen/auth/utils/auth-query";
+import { addCitizenAuthChangedListener } from "@/features/citizen/auth/utils/auth-sync";
 import {
   createProjectFeedback,
   createProjectFeedbackReply,
@@ -114,8 +115,8 @@ export function FeedbackThread({
   const [isPostingRoot, setIsPostingRoot] = React.useState(false);
   const [postingReplyRootId, setPostingReplyRootId] = React.useState<string | null>(null);
   const [replyComposer, setReplyComposer] = React.useState<ReplyComposerState | null>(null);
-  const profileStatusRequestRef = React.useRef<Promise<void> | null>(null);
-  const resolvedProfileStatusUserIdRef = React.useRef<string | null>(null);
+  const authStatusRequestRef = React.useRef<Promise<void> | null>(null);
+  const mountedRef = React.useRef(true);
 
   const currentDetailPath = React.useMemo(() => {
     const query = searchParams.toString();
@@ -153,41 +154,51 @@ export function FeedbackThread({
     return true;
   }, [isAuthenticated, isProfileComplete, openAuthModal]);
 
-  const loadProfileStatus = React.useCallback(
-    async (userId: string) => {
-      if (profileStatusRequestRef.current) {
-        return profileStatusRequestRef.current;
+  const refreshAuthState = React.useCallback(async () => {
+    if (authStatusRequestRef.current) {
+      return authStatusRequestRef.current;
+    }
+
+    const request = (async () => {
+      if (mountedRef.current) {
+        setIsAuthLoading(true);
       }
 
-      const request = (async () => {
-        const response = await fetch("/profile/status", {
-          method: "GET",
-          cache: "no-store",
-        });
-        const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; isComplete?: boolean }
-          | null;
+      const response = await fetch("/profile/status", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; isComplete?: boolean; userId?: string }
+        | null;
+      if (!mountedRef.current) return;
 
-        if (!response.ok || !payload?.ok) {
-          setIsProfileComplete(false);
-          return;
-        }
-
-        setIsProfileComplete(payload.isComplete === true);
-        resolvedProfileStatusUserIdRef.current = userId;
-      })();
-
-      profileStatusRequestRef.current = request;
-      try {
-        await request;
-      } finally {
-        if (profileStatusRequestRef.current === request) {
-          profileStatusRequestRef.current = null;
-        }
+      if (
+        !response.ok ||
+        !payload?.ok ||
+        typeof payload.userId !== "string" ||
+        !payload.userId.trim().length
+      ) {
+        setIsAuthenticated(false);
+        setIsProfileComplete(false);
+        setIsAuthLoading(false);
+        return;
       }
-    },
-    []
-  );
+
+      setIsAuthenticated(true);
+      setIsProfileComplete(payload.isComplete === true);
+      setIsAuthLoading(false);
+    })();
+
+    authStatusRequestRef.current = request;
+    try {
+      await request;
+    } finally {
+      if (authStatusRequestRef.current === request) {
+        authStatusRequestRef.current = null;
+      }
+    }
+  }, []);
 
   const loadFeedback = React.useCallback(async () => {
     setLoading(true);
@@ -207,52 +218,38 @@ export function FeedbackThread({
   }, [loadFeedback]);
 
   React.useEffect(() => {
-    let active = true;
+    mountedRef.current = true;
     const supabase = supabaseBrowser();
 
-    async function resolveAuthState() {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
+    void refreshAuthState();
 
-      if (error || !data.user?.id) {
-        setIsAuthenticated(false);
-        setIsProfileComplete(false);
-        resolvedProfileStatusUserIdRef.current = null;
-        setIsAuthLoading(false);
-        return;
-      }
+    const cleanupAuthChanged = addCitizenAuthChangedListener(() => {
+      void refreshAuthState();
+    });
+    const handleFocus = () => {
+      void refreshAuthState();
+    };
+    const handleVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      void refreshAuthState();
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-      setIsAuthenticated(true);
-      if (resolvedProfileStatusUserIdRef.current !== data.user.id) {
-        await loadProfileStatus(data.user.id);
-      }
-      setIsAuthLoading(false);
-    }
-
-    resolveAuthState();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active) return;
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "INITIAL_SESSION") return;
-
-      const userId = session?.user?.id ?? null;
-      setIsAuthenticated(Boolean(session?.user?.id));
-      if (userId) {
-        if (resolvedProfileStatusUserIdRef.current !== userId) {
-          void loadProfileStatus(userId);
-        }
-      } else {
-        setIsProfileComplete(false);
-        resolvedProfileStatusUserIdRef.current = null;
-      }
-      setIsAuthLoading(false);
+      void refreshAuthState();
     });
 
     return () => {
-      active = false;
+      mountedRef.current = false;
+      cleanupAuthChanged();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       listener.subscription.unsubscribe();
     };
-  }, [loadProfileStatus]);
+  }, [refreshAuthState]);
 
   const threads = React.useMemo(() => {
     const grouped = groupFeedbackThreads(items);

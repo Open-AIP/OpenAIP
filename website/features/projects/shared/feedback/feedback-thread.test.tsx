@@ -5,7 +5,6 @@ import { FeedbackThread } from "./feedback-thread";
 const mockListProjectFeedback = vi.fn();
 const mockCreateProjectFeedback = vi.fn();
 const mockCreateProjectFeedbackReply = vi.fn();
-const mockGetUser = vi.fn();
 const mockOnAuthStateChange = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -21,7 +20,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase/client", () => ({
   supabaseBrowser: () => ({
     auth: {
-      getUser: (...args: unknown[]) => mockGetUser(...args),
       onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
     },
   }),
@@ -41,15 +39,9 @@ describe("FeedbackThread auth status loading", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListProjectFeedback.mockResolvedValue({ items: [] });
-    mockGetUser.mockResolvedValue({
-      data: {
-        user: { id: "citizen-1" },
-      },
-      error: null,
-    });
     mockOnAuthStateChange.mockImplementation(
       (callback: (event: string, session: { user: { id: string } } | null) => void) => {
-        callback("INITIAL_SESSION", { user: { id: "citizen-1" } });
+        callback("INITIAL_SESSION", null);
         return {
           data: {
             subscription: {
@@ -70,7 +62,7 @@ describe("FeedbackThread auth status loading", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ok: true, isComplete: true }),
+      json: async () => ({ ok: true, isComplete: true, userId: "citizen-1" }),
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -84,6 +76,40 @@ describe("FeedbackThread auth status loading", () => {
     expect(fetchMock).toHaveBeenCalledWith("/profile/status", {
       method: "GET",
       cache: "no-store",
+    });
+  });
+
+  it("revalidates auth state when auth-sync event is dispatched", async () => {
+    let isSignedIn = false;
+    const fetchMock = vi.fn<typeof fetch>();
+    fetchMock.mockImplementation(async () => {
+      if (!isSignedIn) {
+        return {
+          ok: false,
+          status: 401,
+          json: async () => ({ ok: false, error: { message: "Authentication required." } }),
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, isComplete: true, userId: "citizen-2" }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<FeedbackThread projectId="proj-1" />);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    isSignedIn = true;
+    window.dispatchEvent(new CustomEvent("openaip:citizen-auth-changed"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });
 });

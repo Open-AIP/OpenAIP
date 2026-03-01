@@ -37,6 +37,9 @@ export type CommentThreadPreview = {
   status: CommentThreadStatus;
   kind: FeedbackKind;
   authorName?: string;
+  authorRoleLabel?: string | null;
+  authorLguLabel?: string | null;
+  // Backward compatibility for existing consumers; prefer authorLguLabel.
   authorScopeLabel?: string | null;
 };
 

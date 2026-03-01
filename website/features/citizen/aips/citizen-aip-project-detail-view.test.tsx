@@ -1,14 +1,19 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import CitizenAipProjectDetailView from "./views/citizen-aip-project-detail-view";
 import type { AipDetails, AipProjectDetails } from "./types";
+
+const mockFeedbackThread = vi.fn();
 
 vi.mock("@/components/layout/breadcrumb-nav", () => ({
   BreadcrumbNav: () => <div data-testid="breadcrumb" />,
 }));
 
 vi.mock("@/features/projects/shared/feedback", () => ({
-  FeedbackThread: () => <div data-testid="feedback-thread" />,
+  FeedbackThread: (props: unknown) => {
+    mockFeedbackThread(props);
+    return <div data-testid="feedback-thread" />;
+  },
 }));
 
 function buildAip(): AipDetails {
@@ -62,6 +67,31 @@ function buildProject(aiIssues: string[]): AipProjectDetails {
 }
 
 describe("CitizenAipProjectDetailView AI status", () => {
+  beforeEach(() => {
+    mockFeedbackThread.mockClear();
+  });
+
+  it("renders separate citizen and workflow feedback containers", () => {
+    render(<CitizenAipProjectDetailView aip={buildAip()} project={buildProject([])} />);
+
+    expect(screen.getAllByTestId("feedback-thread")).toHaveLength(2);
+    expect(mockFeedbackThread).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        projectId: "project-1",
+        rootFilter: "citizen",
+      })
+    );
+    expect(mockFeedbackThread).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        projectId: "project-1",
+        rootFilter: "workflow",
+        readOnly: true,
+      })
+    );
+  });
+
   it("shows flagged state and issue list when AI issues exist", () => {
     render(
       <CitizenAipProjectDetailView

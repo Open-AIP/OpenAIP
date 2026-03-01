@@ -63,6 +63,34 @@ export async function POST(request: Request) {
     }
 
     const rootFeedbackId = parent.parent_feedback_id ?? parent.id;
+    const root =
+      rootFeedbackId === parent.id
+        ? parent
+        : await loadProjectFeedbackRowById(client, rootFeedbackId);
+
+    if (!root) {
+      throw new CitizenFeedbackApiError(404, "Feedback thread root not found.");
+    }
+
+    if (root.parent_feedback_id !== null) {
+      throw new CitizenFeedbackApiError(400, "Feedback thread root is invalid.");
+    }
+
+    if (root.target_type !== "project" || root.project_id !== project.id) {
+      throw new CitizenFeedbackApiError(
+        400,
+        "Feedback thread root does not belong to the selected project."
+      );
+    }
+
+    const [rootItem] = await hydrateProjectFeedbackItems([root]);
+    if (!rootItem || rootItem.author.role !== "citizen") {
+      throw new CitizenFeedbackApiError(
+        403,
+        "Citizens can only reply to citizen-initiated project feedback threads."
+      );
+    }
+
     const { data, error } = await client
       .from("feedback")
       .insert({

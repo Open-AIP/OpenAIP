@@ -55,6 +55,10 @@ vi.mock("../components/aip-processing-inline-status", () => ({
   AipProcessingInlineStatus: () => <div data-testid="aip-processing-inline-status" />,
 }));
 
+vi.mock("../components/lgu-aip-feedback-thread", () => ({
+  LguAipFeedbackThread: () => <div data-testid="lgu-aip-feedback-thread" />,
+}));
+
 vi.mock("./aip-details-table", () => ({
   AipDetailsTableView: ({
     onProjectsStateChange,
@@ -700,5 +704,31 @@ describe("AipDetailView sidebar behavior", () => {
     await waitFor(() => {
       expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeReconnect);
     });
+  });
+
+  it("shows workflow and citizen feedback containers in feedback tab when published", async () => {
+    mockSearchParams = new URLSearchParams("tab=comments&thread=thread-1");
+    render(<AipDetailView aip={baseAip("published")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("No workflow feedback history yet.")).toBeInTheDocument();
+    expect(screen.getByText("Citizen Feedback")).toBeInTheDocument();
+    expect(screen.getByTestId("lgu-aip-feedback-thread")).toBeInTheDocument();
+  });
+
+  it("hides citizen feedback container in feedback tab before publish", async () => {
+    mockSearchParams = new URLSearchParams("tab=comments");
+    render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("No workflow feedback history yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Citizen Feedback")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lgu-aip-feedback-thread")).not.toBeInTheDocument();
   });
 });

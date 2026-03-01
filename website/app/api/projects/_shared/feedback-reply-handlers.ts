@@ -127,10 +127,6 @@ async function resolveScopedProject(input: {
     throw new CitizenFeedbackApiError(404, "Project not found.");
   }
 
-  if (row.category !== "health" && row.category !== "infrastructure") {
-    throw new CitizenFeedbackApiError(404, "Project not found.");
-  }
-
   if (aipStatus !== "published") {
     throw new CitizenFeedbackApiError(
       403,

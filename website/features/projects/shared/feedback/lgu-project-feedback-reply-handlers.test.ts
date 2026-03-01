@@ -343,4 +343,55 @@ describe("handleProjectFeedbackReplyRequest", () => {
     });
     expect(body.item.kind).toBe("lgu_note");
   });
+
+  it("allows replies for projects with category other", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "official-1",
+      role: "barangay_official",
+      scope: { kind: "barangay", id: "brgy-1" },
+    });
+    const client = createScopedProjectClient({
+      projectRows: [
+        {
+          id: "project-1",
+          aip_id: "aip-1",
+          aip_ref_code: "PROJ-OTHER",
+          category: "other",
+          created_at: "2026-02-28T00:00:00.000Z",
+        },
+      ],
+    });
+    mockSupabaseServer.mockResolvedValue(client);
+    mockLoadProjectFeedbackRowById.mockResolvedValue({
+      id: "root-1",
+      target_type: "project",
+      project_id: "project-1",
+      parent_feedback_id: null,
+      kind: "question",
+      body: "Citizen root",
+      author_id: "citizen-1",
+      is_public: true,
+      created_at: "2026-02-28T09:00:00.000Z",
+    });
+
+    const { handleProjectFeedbackReplyRequest } = await import(
+      "@/app/api/projects/_shared/feedback-reply-handlers"
+    );
+
+    const response = await handleProjectFeedbackReplyRequest({
+      request: new Request("http://localhost", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parentFeedbackId: "root-1", body: "Noted." }),
+      }),
+      scope: "barangay",
+      projectIdOrRef: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(response.status).toBe(201);
+    expect(client.getInsertedPayload()).toMatchObject({
+      project_id: "project-1",
+      kind: "lgu_note",
+    });
+  });
 });

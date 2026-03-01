@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSupabaseServer = vi.fn();
-const mockResolveAipById = vi.fn();
-const mockAssertPublishedAipStatus = vi.fn();
+const mockResolveProjectByIdOrRef = vi.fn();
+const mockAssertPublishedProjectAip = vi.fn();
 const mockRequireCitizenActor = vi.fn();
-const mockLoadAipFeedbackRowById = vi.fn();
+const mockLoadProjectFeedbackRowById = vi.fn();
 const mockSanitizeKind = vi.fn();
 const mockSanitizeBody = vi.fn();
-const mockHydrateAipFeedbackItems = vi.fn();
+const mockHydrateProjectFeedbackItems = vi.fn();
 const mockToErrorResponse = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: () => mockSupabaseServer(),
 }));
 
-class MockCitizenAipFeedbackApiError extends Error {
+class MockCitizenFeedbackApiError extends Error {
   status: number;
 
   constructor(status: number, message: string) {
@@ -23,15 +23,15 @@ class MockCitizenAipFeedbackApiError extends Error {
   }
 }
 
-vi.mock("@/app/api/citizen/aips/_feedback-shared", () => ({
-  CitizenAipFeedbackApiError: MockCitizenAipFeedbackApiError,
-  resolveAipById: mockResolveAipById,
-  assertPublishedAipStatus: mockAssertPublishedAipStatus,
+vi.mock("@/app/api/citizen/feedback/_shared", () => ({
+  CitizenFeedbackApiError: MockCitizenFeedbackApiError,
+  resolveProjectByIdOrRef: mockResolveProjectByIdOrRef,
+  assertPublishedProjectAip: mockAssertPublishedProjectAip,
   requireCitizenActor: mockRequireCitizenActor,
-  loadAipFeedbackRowById: mockLoadAipFeedbackRowById,
+  loadProjectFeedbackRowById: mockLoadProjectFeedbackRowById,
   sanitizeCitizenFeedbackKind: mockSanitizeKind,
   sanitizeFeedbackBody: mockSanitizeBody,
-  hydrateAipFeedbackItems: mockHydrateAipFeedbackItems,
+  hydrateProjectFeedbackItems: mockHydrateProjectFeedbackItems,
   toErrorResponse: mockToErrorResponse,
 }));
 
@@ -53,7 +53,7 @@ function createInsertClient(insertedRow: Record<string, unknown>) {
   };
 }
 
-describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
+describe("POST /api/citizen/feedback/reply", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -62,12 +62,12 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
     );
   });
 
-  it("creates an AIP feedback reply anchored to the root thread", async () => {
+  it("creates project feedback reply anchored to citizen root", async () => {
     mockSupabaseServer.mockResolvedValue(
       createInsertClient({
         id: "fb-r1",
-        target_type: "aip",
-        aip_id: "aip-1",
+        target_type: "project",
+        project_id: "project-1",
         parent_feedback_id: "fb-root",
         kind: "question",
         body: "Following up.",
@@ -76,13 +76,13 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
         created_at: "2026-01-03T00:00:00.000Z",
       })
     );
-    mockResolveAipById.mockResolvedValue({ id: "aip-1", status: "published" });
+    mockResolveProjectByIdOrRef.mockResolvedValue({ id: "project-1", aipStatus: "published" });
     mockRequireCitizenActor.mockResolvedValue({ userId: "citizen-1" });
-    mockLoadAipFeedbackRowById
+    mockLoadProjectFeedbackRowById
       .mockResolvedValueOnce({
         id: "fb-parent",
-        target_type: "aip",
-        aip_id: "aip-1",
+        target_type: "project",
+        project_id: "project-1",
         parent_feedback_id: "fb-root",
         kind: "question",
         body: "Parent",
@@ -92,8 +92,8 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
       })
       .mockResolvedValueOnce({
         id: "fb-root",
-        target_type: "aip",
-        aip_id: "aip-1",
+        target_type: "project",
+        project_id: "project-1",
         parent_feedback_id: null,
         kind: "question",
         body: "Root",
@@ -103,56 +103,68 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
       });
     mockSanitizeKind.mockReturnValue("question");
     mockSanitizeBody.mockReturnValue("Following up.");
-    mockHydrateAipFeedbackItems.mockResolvedValue([
-      {
-        id: "fb-r1",
-        aipId: "aip-1",
-        parentFeedbackId: "fb-root",
-        kind: "question",
-        body: "Following up.",
-        createdAt: "2026-01-03T00:00:00.000Z",
-        author: {
-          id: "citizen-1",
-          fullName: "Citizen",
-          role: "citizen",
-          roleLabel: "Citizen",
-          lguLabel: "Brgy. Unknown",
+    mockHydrateProjectFeedbackItems
+      .mockResolvedValueOnce([
+        {
+          id: "fb-root",
+          projectId: "project-1",
+          parentFeedbackId: null,
+          kind: "question",
+          body: "Root",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          author: {
+            id: "citizen-3",
+            fullName: "Citizen",
+            role: "citizen",
+            roleLabel: "Citizen",
+            lguLabel: "Brgy. Sample",
+          },
         },
-      },
-    ]);
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "fb-r1",
+          projectId: "project-1",
+          parentFeedbackId: "fb-root",
+          kind: "question",
+          body: "Following up.",
+          createdAt: "2026-01-03T00:00:00.000Z",
+          author: {
+            id: "citizen-1",
+            fullName: "Citizen",
+            role: "citizen",
+            roleLabel: "Citizen",
+            lguLabel: "Brgy. Sample",
+          },
+        },
+      ]);
 
-    const { POST } = await import(
-      "@/app/api/citizen/aips/[aipId]/feedback/reply/route"
-    );
+    const { POST } = await import("@/app/api/citizen/feedback/reply/route");
     const response = await POST(
       new Request("http://localhost", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          projectId: "project-1",
           parentFeedbackId: "fb-parent",
           kind: "question",
           body: "Following up.",
         }),
-      }),
-      { params: Promise.resolve({ aipId: "aip-1" }) }
+      })
     );
-    const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(mockLoadAipFeedbackRowById).toHaveBeenCalledWith(expect.anything(), "fb-parent");
-    expect(mockLoadAipFeedbackRowById).toHaveBeenCalledWith(expect.anything(), "fb-root");
-    expect(body.item.parentFeedbackId).toBe("fb-root");
   });
 
-  it("rejects replies to workflow-rooted feedback threads", async () => {
+  it("rejects replies to workflow-rooted project feedback threads", async () => {
     mockSupabaseServer.mockResolvedValue(createInsertClient({}));
-    mockResolveAipById.mockResolvedValue({ id: "aip-1", status: "published" });
+    mockResolveProjectByIdOrRef.mockResolvedValue({ id: "project-1", aipStatus: "published" });
     mockRequireCitizenActor.mockResolvedValue({ userId: "citizen-1" });
-    mockLoadAipFeedbackRowById
+    mockLoadProjectFeedbackRowById
       .mockResolvedValueOnce({
         id: "fb-parent",
-        target_type: "aip",
-        aip_id: "aip-1",
+        target_type: "project",
+        project_id: "project-1",
         parent_feedback_id: "fb-root",
         kind: "lgu_note",
         body: "Parent",
@@ -162,8 +174,8 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
       })
       .mockResolvedValueOnce({
         id: "fb-root",
-        target_type: "aip",
-        aip_id: "aip-1",
+        target_type: "project",
+        project_id: "project-1",
         parent_feedback_id: null,
         kind: "lgu_note",
         body: "Root",
@@ -173,10 +185,10 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
       });
     mockSanitizeKind.mockReturnValue("question");
     mockSanitizeBody.mockReturnValue("Following up.");
-    mockHydrateAipFeedbackItems.mockResolvedValueOnce([
+    mockHydrateProjectFeedbackItems.mockResolvedValueOnce([
       {
         id: "fb-root",
-        aipId: "aip-1",
+        projectId: "project-1",
         parentFeedbackId: null,
         kind: "lgu_note",
         body: "Root",
@@ -196,25 +208,23 @@ describe("POST /api/citizen/aips/[aipId]/feedback/reply", () => {
           JSON.stringify({ error: error instanceof Error ? error.message : "error" }),
           {
             status:
-              error instanceof MockCitizenAipFeedbackApiError ? error.status : 500,
+              error instanceof MockCitizenFeedbackApiError ? error.status : 500,
           }
         )
     );
 
-    const { POST } = await import(
-      "@/app/api/citizen/aips/[aipId]/feedback/reply/route"
-    );
+    const { POST } = await import("@/app/api/citizen/feedback/reply/route");
     const response = await POST(
       new Request("http://localhost", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          projectId: "project-1",
           parentFeedbackId: "fb-parent",
           kind: "question",
           body: "Following up.",
         }),
-      }),
-      { params: Promise.resolve({ aipId: "aip-1" }) }
+      })
     );
 
     expect(response.status).toBe(403);

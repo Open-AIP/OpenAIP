@@ -1,4 +1,10 @@
 import type { RoleType } from "@/lib/contracts/databasev2";
+import {
+  buildFeedbackLguLabel,
+  toFeedbackAuthorDisplayRole,
+  toFeedbackRoleLabel,
+  type FeedbackAuthorDisplayRole,
+} from "@/lib/feedback/author-labels";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
@@ -20,11 +26,7 @@ export const AIP_FEEDBACK_MAX_LENGTH = 1000;
 export type CitizenAipFeedbackKind = (typeof CITIZEN_AIP_FEEDBACK_KINDS)[number];
 export type AipFeedbackDisplayKind = (typeof AIP_FEEDBACK_DISPLAY_KINDS)[number];
 
-export type AipFeedbackAuthorRole =
-  | "citizen"
-  | "barangay_official"
-  | "city_official"
-  | "admin";
+export type AipFeedbackAuthorRole = FeedbackAuthorDisplayRole;
 
 export type AipFeedbackApiItem = {
   id: string;
@@ -92,28 +94,6 @@ export class CitizenAipFeedbackApiError extends Error {
   }
 }
 
-function normalizeBarangayName(name: string): string {
-  return name.replace(/^(brgy\.?|barangay)\s+/i, "").trim();
-}
-
-function normalizeCityName(name: string): string {
-  return name.replace(/^city of\s+/i, "").trim();
-}
-
-function toAuthorRole(role: RoleType | null | undefined): AipFeedbackAuthorRole {
-  if (role === "barangay_official") return "barangay_official";
-  if (role === "city_official" || role === "municipal_official") return "city_official";
-  if (role === "admin") return "admin";
-  return "citizen";
-}
-
-function toRoleLabel(role: AipFeedbackAuthorRole): string {
-  if (role === "barangay_official") return "Barangay Official";
-  if (role === "city_official") return "City Official";
-  if (role === "admin") return "Admin";
-  return "Citizen";
-}
-
 function buildLguLabel(params: {
   role: RoleType | null | undefined;
   barangayId: string | null;
@@ -123,26 +103,19 @@ function buildLguLabel(params: {
   cityNameById: Map<string, string>;
   municipalityNameById: Map<string, string>;
 }): string {
-  if (params.role === "admin") {
-    return "System Admin";
-  }
-
-  if (params.role === "citizen" || params.role === "barangay_official") {
-    const rawName = params.barangayId ? params.barangayNameById.get(params.barangayId) : null;
-    const normalized = rawName ? normalizeBarangayName(rawName) : "";
-    return normalized ? `Brgy. ${normalized}` : "Brgy. Unknown";
-  }
-
-  if (params.role === "city_official" || params.role === "municipal_official") {
-    const cityName = params.cityId ? params.cityNameById.get(params.cityId) : null;
-    const municipalityName = params.municipalityId
-      ? params.municipalityNameById.get(params.municipalityId)
-      : null;
-    const normalized = normalizeCityName(cityName ?? municipalityName ?? "");
-    return normalized ? `City of ${normalized}` : "City of Unknown";
-  }
-
-  return "Brgy. Unknown";
+  const barangayName = params.barangayId
+    ? params.barangayNameById.get(params.barangayId)
+    : null;
+  const cityName = params.cityId ? params.cityNameById.get(params.cityId) : null;
+  const municipalityName = params.municipalityId
+    ? params.municipalityNameById.get(params.municipalityId)
+    : null;
+  return buildFeedbackLguLabel({
+    role: params.role,
+    barangayName,
+    cityName,
+    municipalityName,
+  });
 }
 
 function toAuthorMeta(
@@ -151,8 +124,8 @@ function toAuthorMeta(
   cityNameById: Map<string, string>,
   municipalityNameById: Map<string, string>
 ): FeedbackAuthorMeta {
-  const normalizedRole = toAuthorRole(profile.role);
-  const roleLabel = toRoleLabel(normalizedRole);
+  const normalizedRole = toFeedbackAuthorDisplayRole(profile.role);
+  const roleLabel = toFeedbackRoleLabel(normalizedRole);
   const fullName = profile.full_name?.trim() || roleLabel;
   const lguLabel = buildLguLabel({
     role: profile.role,
@@ -282,7 +255,7 @@ function mapFeedbackRowToApiItem(
       id: author?.id ?? row.author_id,
       fullName: author?.fullName ?? "Citizen",
       role: author?.role ?? fallbackRole,
-      roleLabel: author?.roleLabel ?? toRoleLabel(fallbackRole),
+      roleLabel: author?.roleLabel ?? toFeedbackRoleLabel(fallbackRole),
       lguLabel: author?.lguLabel ?? "Brgy. Unknown",
     },
   };

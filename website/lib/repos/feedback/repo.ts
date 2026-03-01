@@ -53,7 +53,8 @@ export type CommentTargetProjectSummary = {
   id: string;
   title: string;
   year?: number;
-  kind?: "health" | "infrastructure";
+  kind?: "health" | "infrastructure" | "other";
+  aipId?: string;
 };
 
 export type CommentTargetAipSummary = {

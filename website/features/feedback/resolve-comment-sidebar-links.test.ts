@@ -42,6 +42,37 @@ describe("resolveCommentSidebar project tab links", () => {
     );
   });
 
+  it("routes category=other project threads to AIP project detail pages", async () => {
+    const threads: CommentThread[] = [
+      {
+        id: "thread-project-other",
+        createdAt: "2026-02-28T09:00:00.000Z",
+        createdByUserId: "citizen-1",
+        target: { targetKind: "project", projectId: "project-other-1" },
+        preview: basePreview,
+      },
+    ];
+
+    const items = await resolveCommentSidebar({
+      threads,
+      scope: "city",
+      getProject: async () => ({
+        id: "project-other-1",
+        title: "Other Project",
+        year: 2026,
+        kind: "other",
+        aipId: "aip-9",
+      }),
+      getAip: async () => null,
+      getAipItem: async () => null,
+      findAipItemByProjectRefCode: async () => null,
+    });
+
+    expect(items[0]?.href).toContain(
+      "/city/aips/aip-9/project-other-1?thread=thread-project-other"
+    );
+  });
+
   it("keeps tab=comments for AIP thread links", async () => {
     const threads: CommentThread[] = [
       {

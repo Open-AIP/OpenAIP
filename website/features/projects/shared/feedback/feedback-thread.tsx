@@ -24,6 +24,12 @@ import type {
 
 type FeedbackThreadProps = {
   projectId: string;
+  rootFilter?: "all" | "citizen" | "workflow";
+  readOnly?: boolean;
+  title?: string;
+  description?: string;
+  emptyStateText?: string;
+  hideHeader?: boolean;
 };
 
 type ReplyComposerState = {
@@ -80,7 +86,19 @@ function normalizeApiError(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function FeedbackThread({ projectId }: FeedbackThreadProps) {
+function isCitizenRoot(thread: ProjectFeedbackThread): boolean {
+  return thread.root.author.role === "citizen";
+}
+
+export function FeedbackThread({
+  projectId,
+  rootFilter = "all",
+  readOnly = false,
+  title = "Feedback",
+  description = "Share a commendation, suggestion, concern, or question for this project.",
+  emptyStateText = EMPTY_STATE_TEXT,
+  hideHeader = false,
+}: FeedbackThreadProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -236,10 +254,18 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
     };
   }, [loadProfileStatus]);
 
-  const threads = React.useMemo(() => groupFeedbackThreads(items), [items]);
+  const threads = React.useMemo(() => {
+    const grouped = groupFeedbackThreads(items);
+    if (rootFilter === "all") return grouped;
+    if (rootFilter === "citizen") return grouped.filter(isCitizenRoot);
+    return grouped.filter((thread) => !isCitizenRoot(thread));
+  }, [items, rootFilter]);
 
   const handleReplyClick = React.useCallback(
     (item: ProjectFeedbackItem) => {
+      if (readOnly) {
+        return;
+      }
       if (!requireFeedbackAccess()) {
         return;
       }
@@ -251,11 +277,14 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         replyToAuthor: item.author.fullName,
       });
     },
-    [requireFeedbackAccess]
+    [readOnly, requireFeedbackAccess]
   );
 
   const handleCreateRootFeedback = React.useCallback(
     async (input: { kind: CitizenProjectFeedbackKind; body: string }) => {
+      if (readOnly) {
+        throw new Error("Posting feedback is disabled.");
+      }
       if (!requireFeedbackAccess()) {
         throw new Error("Complete sign in and profile setup to post feedback.");
       }
@@ -302,11 +331,14 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         setIsPostingRoot(false);
       }
     },
-    [openAuthModal, projectId, requireFeedbackAccess]
+    [openAuthModal, projectId, readOnly, requireFeedbackAccess]
   );
 
   const handleCreateReplyFeedback = React.useCallback(
     async (input: { kind: CitizenProjectFeedbackKind; body: string }) => {
+      if (readOnly) {
+        throw new Error("Replying is disabled.");
+      }
       if (!replyComposer) {
         throw new Error("Reply target is missing.");
       }
@@ -359,56 +391,56 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
         setPostingReplyRootId(null);
       }
     },
-    [openAuthModal, projectId, replyComposer, requireFeedbackAccess]
+    [openAuthModal, projectId, readOnly, replyComposer, requireFeedbackAccess]
   );
 
   return (
     <section className="space-y-4" aria-label="Project feedback thread">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Feedback</h2>
-            <p className="text-sm text-slate-500">
-              Share a commendation, suggestion, concern, or question for this project.
-            </p>
+      {!hideHeader ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+              <p className="text-sm text-slate-500">{description}</p>
+            </div>
+
+            {!readOnly && (!isAuthenticated || !isProfileComplete) ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    openAuthModal({ forceCompleteProfile: false });
+                    return;
+                  }
+                  openAuthModal({ forceCompleteProfile: true });
+                }}
+                aria-label="Add project feedback"
+                disabled={isAuthLoading}
+              >
+                Add feedback
+              </Button>
+            ) : null}
           </div>
 
-          {!isAuthenticated || !isProfileComplete ? (
-            <Button
-              type="button"
-              onClick={() => {
-                if (!isAuthenticated) {
-                  openAuthModal({ forceCompleteProfile: false });
-                  return;
-                }
-                openAuthModal({ forceCompleteProfile: true });
-              }}
-              aria-label="Add project feedback"
-              disabled={isAuthLoading}
-            >
-              Add feedback
-            </Button>
+          {!readOnly && isAuthenticated && isProfileComplete ? (
+            <div className="mt-4">
+              <FeedbackComposer
+                submitLabel={isPostingRoot ? "Posting..." : "Post feedback"}
+                disabled={isPostingRoot}
+                placeholder="Share your feedback with the community and LGU."
+                onSubmit={handleCreateRootFeedback}
+              />
+            </div>
           ) : null}
         </div>
-
-        {isAuthenticated && isProfileComplete ? (
-          <div className="mt-4">
-            <FeedbackComposer
-              submitLabel={isPostingRoot ? "Posting..." : "Post feedback"}
-              disabled={isPostingRoot}
-              placeholder="Share your feedback with the community and LGU."
-              onSubmit={handleCreateRootFeedback}
-            />
-          </div>
-        ) : null}
-      </div>
+      ) : null}
 
       {loading ? <p className="text-sm text-slate-500">Loading feedback...</p> : null}
       {!loading && loadError ? <p className="text-sm text-rose-600">{loadError}</p> : null}
 
       {!loading && !loadError && threads.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
-          {EMPTY_STATE_TEXT}
+          {emptyStateText}
         </div>
       ) : null}
 
@@ -423,7 +455,8 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
                 <FeedbackCard
                   item={thread.root}
                   onReply={handleReplyClick}
-                  replyDisabled={isPostingReply || isPostingRoot || isAuthLoading}
+                  replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
+                  hideReplyButton={readOnly}
                 />
 
                 {thread.replies.length > 0 ? (
@@ -433,14 +466,17 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
                         key={reply.id}
                         item={reply}
                         onReply={handleReplyClick}
-                        replyDisabled={isPostingReply || isPostingRoot || isAuthLoading}
+                        replyDisabled={
+                          readOnly || isPostingReply || isPostingRoot || isAuthLoading
+                        }
+                        hideReplyButton={readOnly}
                         isReply
                       />
                     ))}
                   </div>
                 ) : null}
 
-                {isReplyingHere ? (
+                {isReplyingHere && !readOnly ? (
                   <div className="ml-4 space-y-2 border-l border-slate-200 pl-4">
                     <p className="text-xs text-slate-500">
                       Replying to {replyComposer.replyToAuthor}

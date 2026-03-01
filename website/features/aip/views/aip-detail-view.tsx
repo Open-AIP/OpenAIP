@@ -34,7 +34,7 @@ import { AipStatusInfoCard } from "../components/aip-status-info-card";
 import { AipPublishedByCard } from "../components/aip-published-by-card";
 import { RevisionFeedbackHistoryCard } from "../components/revision-feedback-history-card";
 import { AipDetailsTableView } from "./aip-details-table";
-import { CommentThreadsSplitView } from "@/features/feedback";
+import { LguAipFeedbackThread } from "../components/lgu-aip-feedback-thread";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   cancelAipSubmissionAction,
@@ -1142,11 +1142,44 @@ export default function AipDetailView({
                 </>
               ) : (
                 <div className="space-y-6">
-                  <CommentThreadsSplitView
-                    scope={scope}
-                    target={{ kind: "aip", aipId: aip.id }}
-                    selectedThreadId={threadId}
-                  />
+                  {revisionFeedbackCycles.length > 0 ? (
+                    <RevisionFeedbackHistoryCard
+                      cycles={revisionFeedbackCycles}
+                      title="Workflow Feedback"
+                      description="Official feedback history from AIP submission and revision cycles."
+                      reviewerFallbackLabel="Reviewer"
+                      replyAuthorFallbackLabel="Barangay Official"
+                      emptyStateLabel="No workflow feedback history yet."
+                      emptyRepliesLabel="No official reply saved for this cycle yet."
+                    />
+                  ) : (
+                    <Card className="border-slate-200">
+                      <CardContent className="p-5 text-sm text-slate-600">
+                        No workflow feedback history yet.
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {aip.status === "published" ? (
+                    <Card className="border-slate-200">
+                      <CardContent className="space-y-3 p-5">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            Citizen Feedback
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            Citizen discussion threads for this published AIP.
+                            Officials can reply.
+                          </p>
+                        </div>
+                        <LguAipFeedbackThread
+                          aipId={aip.id}
+                          scope={scope}
+                          selectedThreadId={threadId}
+                        />
+                      </CardContent>
+                    </Card>
+                  ) : null}
                 </div>
               )}
 

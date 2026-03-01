@@ -98,14 +98,24 @@ export default function CitizenAipProjectDetailView({
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200">
-        <CardHeader>
-          <CardTitle className="text-2xl text-slate-900">Project Feedback</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FeedbackThread projectId={project.projectId} />
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <FeedbackThread
+          projectId={project.projectId}
+          rootFilter="citizen"
+          title="Citizen Feedback"
+          description="Citizen discussions for this AIP project."
+          emptyStateText="No citizen feedback yet. Be the first to share your thoughts."
+        />
+
+        <FeedbackThread
+          projectId={project.projectId}
+          rootFilter="workflow"
+          readOnly
+          title="LGU Workflow Feedback"
+          description="Official workflow feedback from the AIP submission and review process."
+          emptyStateText="No workflow feedback was recorded for this project."
+        />
+      </div>
     </section>
   );
 }

@@ -8,35 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { FeedbackComposer } from "@/features/projects/shared/feedback";
 import type { CitizenProjectFeedbackKind } from "@/features/projects/shared/feedback";
-
-type AipFeedbackDisplayKind =
-  | "commend"
-  | "suggestion"
-  | "concern"
-  | "question"
-  | "lgu_note";
-
-type AipFeedbackAuthorRole =
-  | "citizen"
-  | "barangay_official"
-  | "city_official"
-  | "admin";
-
-type AipFeedbackItem = {
-  id: string;
-  aipId: string;
-  parentFeedbackId: string | null;
-  kind: AipFeedbackDisplayKind;
-  body: string;
-  createdAt: string;
-  author: {
-    id: string | null;
-    fullName: string;
-    role: AipFeedbackAuthorRole;
-    roleLabel: string;
-    lguLabel: string;
-  };
-};
+import {
+  type AipFeedbackDisplayKind,
+  type AipFeedbackItem,
+  AipFeedbackRequestError,
+  createCitizenAipFeedback,
+  createCitizenAipFeedbackReply,
+  listAipFeedback,
+  normalizeAipFeedbackApiError,
+} from "./aip-feedback.api";
 
 type AipFeedbackThread = {
   root: AipFeedbackItem;
@@ -53,72 +33,6 @@ type Props = {
   aipId: string;
   feedbackCount: number;
 };
-
-class AipFeedbackRequestError extends Error {
-  readonly status: number;
-
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function readErrorMessage(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "Request failed.";
-  const candidate = (payload as { error?: unknown; message?: unknown }).error;
-  if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
-  const fallback = (payload as { message?: unknown }).message;
-  if (typeof fallback === "string" && fallback.trim()) return fallback.trim();
-  return "Request failed.";
-}
-
-async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new AipFeedbackRequestError(response.status, readErrorMessage(payload));
-  }
-  if (!payload) {
-    throw new AipFeedbackRequestError(500, "Missing response payload.");
-  }
-  return payload as T;
-}
-
-async function listAipFeedback(aipId: string): Promise<{ items: AipFeedbackItem[] }> {
-  return requestJson<{ items: AipFeedbackItem[] }>(`/api/citizen/aips/${encodeURIComponent(aipId)}/feedback`, {
-    method: "GET",
-    cache: "no-store",
-  });
-}
-
-async function createAipFeedback(
-  aipId: string,
-  payload: { kind: CitizenProjectFeedbackKind; body: string }
-): Promise<{ item: AipFeedbackItem }> {
-  return requestJson<{ item: AipFeedbackItem }>(`/api/citizen/aips/${encodeURIComponent(aipId)}/feedback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
-async function createAipFeedbackReply(
-  aipId: string,
-  payload: {
-    parentFeedbackId: string;
-    kind: CitizenProjectFeedbackKind;
-    body: string;
-  }
-): Promise<{ item: AipFeedbackItem }> {
-  return requestJson<{ item: AipFeedbackItem }>(
-    `/api/citizen/aips/${encodeURIComponent(aipId)}/feedback/reply`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }
-  );
-}
 
 function sortByCreatedNewestFirst(items: AipFeedbackItem[]): AipFeedbackItem[] {
   return [...items].sort((left, right) => {
@@ -155,12 +69,6 @@ function groupFeedbackThreads(items: AipFeedbackItem[]): AipFeedbackThread[] {
   }));
 }
 
-function normalizeApiError(error: unknown, fallback: string): string {
-  if (error instanceof AipFeedbackRequestError) return error.message;
-  if (error instanceof Error && error.message.trim().length > 0) return error.message;
-  return fallback;
-}
-
 function buildFeedbackSignInHref(currentPath: string): string {
   const params = new URLSearchParams();
   params.set("next", currentPath);
@@ -183,7 +91,7 @@ function formatFeedbackTimestamp(value: string): string {
     hour12: true,
     timeZone: "Asia/Manila",
   });
-  return `${dateLabel} • ${timeLabel}`;
+  return `${dateLabel} | ${timeLabel}`;
 }
 
 const KIND_LABELS: Record<AipFeedbackDisplayKind, string> = {
@@ -206,10 +114,12 @@ function FeedbackCard({
   item,
   onReply,
   replyDisabled,
+  showReplyButton,
 }: {
   item: AipFeedbackItem;
   onReply: (item: AipFeedbackItem) => void;
   replyDisabled: boolean;
+  showReplyButton?: boolean;
 }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -231,20 +141,98 @@ function FeedbackCard({
 
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.body}</p>
 
-      <div className="mt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs text-slate-600 hover:text-slate-900"
-          aria-label={`Reply to feedback from ${item.author.fullName}`}
-          onClick={() => onReply(item)}
-          disabled={replyDisabled}
-        >
-          Reply
-        </Button>
-      </div>
+      {showReplyButton === false ? null : (
+        <div className="mt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs text-slate-600 hover:text-slate-900"
+            aria-label={`Reply to feedback from ${item.author.fullName}`}
+            onClick={() => onReply(item)}
+            disabled={replyDisabled}
+          >
+            Reply
+          </Button>
+        </div>
+      )}
     </article>
+  );
+}
+
+function ThreadList({
+  threads,
+  postingReplyRootId,
+  isPostingRoot,
+  isAuthLoading,
+  replyComposer,
+  onReply,
+  onCancelReply,
+  onSubmitReply,
+  readOnly,
+}: {
+  threads: AipFeedbackThread[];
+  postingReplyRootId: string | null;
+  isPostingRoot: boolean;
+  isAuthLoading: boolean;
+  replyComposer: ReplyComposerState | null;
+  onReply: (item: AipFeedbackItem) => void;
+  onCancelReply: () => void;
+  onSubmitReply: (input: { kind: CitizenProjectFeedbackKind; body: string }) => Promise<void>;
+  readOnly?: boolean;
+}) {
+  if (threads.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      {threads.map((thread) => {
+        const isPostingReply = postingReplyRootId === thread.root.id;
+        const isReplyingHere = replyComposer?.rootId === thread.root.id;
+
+        return (
+          <div key={thread.root.id} className="space-y-3 rounded-2xl border border-slate-200 p-4">
+            <FeedbackCard
+              item={thread.root}
+              onReply={onReply}
+              replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
+              showReplyButton={!readOnly}
+            />
+
+            {thread.replies.length > 0 ? (
+              <div className="ml-4 space-y-3 border-l border-slate-200 pl-4">
+                {thread.replies.map((reply) => (
+                  <FeedbackCard
+                    key={reply.id}
+                    item={reply}
+                    onReply={onReply}
+                    replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
+                    showReplyButton={!readOnly}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {isReplyingHere && !readOnly ? (
+              <div className="ml-4 space-y-2 border-l border-slate-200 pl-4">
+                <p className="text-xs text-slate-500">
+                  Replying to {replyComposer?.replyToAuthor}
+                </p>
+                <FeedbackComposer
+                  submitLabel={isPostingReply ? "Posting..." : "Post reply"}
+                  disabled={isPostingReply}
+                  placeholder="Write your reply..."
+                  initialKind="question"
+                  onSubmit={onSubmitReply}
+                  onCancel={onCancelReply}
+                />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -278,7 +266,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
       const response = await listAipFeedback(aipId);
       setItems(response.items);
     } catch (error) {
-      setLoadError(normalizeApiError(error, "Failed to load AIP feedback."));
+      setLoadError(normalizeAipFeedbackApiError(error, "Failed to load AIP feedback."));
     } finally {
       setLoading(false);
     }
@@ -319,6 +307,14 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
   }, []);
 
   const threads = React.useMemo(() => groupFeedbackThreads(items), [items]);
+  const citizenThreads = React.useMemo(
+    () => threads.filter((thread) => thread.root.author.role === "citizen"),
+    [threads]
+  );
+  const workflowThreads = React.useMemo(
+    () => threads.filter((thread) => thread.root.author.role !== "citizen"),
+    [threads]
+  );
 
   const handleReplyClick = React.useCallback(
     (item: AipFeedbackItem) => {
@@ -364,7 +360,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
 
       setItems((current) => [optimisticItem, ...current]);
       try {
-        const response = await createAipFeedback(aipId, input);
+        const response = await createCitizenAipFeedback(aipId, input);
         setItems((current) =>
           current.map((item) => (item.id === optimisticId ? response.item : item))
         );
@@ -373,7 +369,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
         if (error instanceof AipFeedbackRequestError && error.status === 401) {
           redirectToCitizenSignIn();
         }
-        throw new Error(normalizeApiError(error, "Failed to post feedback."));
+        throw new Error(normalizeAipFeedbackApiError(error, "Failed to post feedback."));
       } finally {
         setIsPostingRoot(false);
       }
@@ -411,7 +407,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
 
       setItems((current) => [...current, optimisticReply]);
       try {
-        const response = await createAipFeedbackReply(aipId, {
+        const response = await createCitizenAipFeedbackReply(aipId, {
           parentFeedbackId: replyComposer.parentFeedbackId,
           kind: input.kind,
           body: input.body,
@@ -425,7 +421,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
         if (error instanceof AipFeedbackRequestError && error.status === 401) {
           redirectToCitizenSignIn();
         }
-        throw new Error(normalizeApiError(error, "Failed to post reply."));
+        throw new Error(normalizeAipFeedbackApiError(error, "Failed to post reply."));
       } finally {
         setPostingReplyRootId(null);
       }
@@ -434,93 +430,101 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
   );
 
   return (
-    <Card className="border-slate-200">
-      <CardHeader>
-        <CardTitle className="text-3xl text-slate-900">Feedback</CardTitle>
-      </CardHeader>
+    <div className="space-y-6">
+      <Card className="border-slate-200">
+        <CardHeader>
+          <CardTitle className="text-3xl text-slate-900">Citizen Feedback</CardTitle>
+        </CardHeader>
 
-      <CardContent className="space-y-5">
-        <p className="text-lg text-slate-600">
-          Citizen feedback and discussion for this AIP.
-        </p>
-        <p className="text-xs text-slate-500">
-          Published threads: {feedbackCount}
-        </p>
+        <CardContent className="space-y-5">
+          <p className="text-lg text-slate-600">Public citizen feedback for this AIP.</p>
+          <p className="text-xs text-slate-500">Published threads: {feedbackCount}</p>
 
-        {!isAuthenticated ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <div className="flex justify-end">
-              <Button type="button" onClick={redirectToCitizenSignIn} disabled={isAuthLoading}>
-                Sign in to share feedback
-              </Button>
+          {!isAuthenticated ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={redirectToCitizenSignIn}
+                  disabled={isAuthLoading}
+                >
+                  Sign in to share feedback
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <FeedbackComposer
-            submitLabel={isPostingRoot ? "Posting..." : "Post feedback"}
-            disabled={isPostingRoot}
-            placeholder="Share your thoughts about this AIP."
-            onSubmit={handleCreateRootFeedback}
-          />
-        )}
+          ) : (
+            <FeedbackComposer
+              submitLabel={isPostingRoot ? "Posting..." : "Post feedback"}
+              disabled={isPostingRoot}
+              placeholder="Share your thoughts about this AIP."
+              onSubmit={handleCreateRootFeedback}
+            />
+          )}
 
-        {loading ? <p className="text-sm text-slate-500">Loading feedback...</p> : null}
-        {!loading && loadError ? <p className="text-sm text-rose-600">{loadError}</p> : null}
+          {loading ? <p className="text-sm text-slate-500">Loading feedback...</p> : null}
+          {!loading && loadError ? <p className="text-sm text-rose-600">{loadError}</p> : null}
 
-        {!loading && !loadError && threads.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
-            No feedback yet. Be the first to share a commendation, suggestion, concern, or question.
-          </div>
-        ) : null}
+          {!loading && !loadError && citizenThreads.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+              No citizen feedback yet. Be the first to share a commendation, suggestion, concern, or question.
+            </div>
+          ) : null}
 
-        {!loading && !loadError && threads.length > 0 ? (
-          <div className="space-y-4">
-            {threads.map((thread) => {
-              const isPostingReply = postingReplyRootId === thread.root.id;
-              const isReplyingHere = replyComposer?.rootId === thread.root.id;
+          {!loading && !loadError ? (
+            <ThreadList
+              threads={citizenThreads}
+              postingReplyRootId={postingReplyRootId}
+              isPostingRoot={isPostingRoot}
+              isAuthLoading={isAuthLoading}
+              replyComposer={replyComposer}
+              onReply={handleReplyClick}
+              onCancelReply={() => setReplyComposer(null)}
+              onSubmitReply={handleCreateReplyFeedback}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
 
-              return (
-                <div key={thread.root.id} className="space-y-3 rounded-2xl border border-slate-200 p-4">
-                  <FeedbackCard
-                    item={thread.root}
-                    onReply={handleReplyClick}
-                    replyDisabled={isPostingReply || isPostingRoot || isAuthLoading}
-                  />
+      <Card className="border-slate-200">
+        <CardHeader>
+          <CardTitle className="text-3xl text-slate-900">LGU Workflow Feedback</CardTitle>
+        </CardHeader>
 
-                  {thread.replies.length > 0 ? (
-                    <div className="ml-4 space-y-3 border-l border-slate-200 pl-4">
-                      {thread.replies.map((reply) => (
-                        <FeedbackCard
-                          key={reply.id}
-                          item={reply}
-                          onReply={handleReplyClick}
-                          replyDisabled={isPostingReply || isPostingRoot || isAuthLoading}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
+        <CardContent className="space-y-5">
+          <p className="text-lg text-slate-600">
+            Official workflow feedback from the AIP submission and review process.
+          </p>
 
-                  {isReplyingHere ? (
-                    <div className="ml-4 space-y-2 border-l border-slate-200 pl-4">
-                      <p className="text-xs text-slate-500">
-                        Replying to {replyComposer.replyToAuthor}
-                      </p>
-                      <FeedbackComposer
-                        submitLabel={isPostingReply ? "Posting..." : "Post reply"}
-                        disabled={isPostingReply}
-                        placeholder="Write your reply..."
-                        initialKind="question"
-                        onSubmit={handleCreateReplyFeedback}
-                        onCancel={() => setReplyComposer(null)}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+          {loading ? <p className="text-sm text-slate-500">Loading feedback...</p> : null}
+          {!loading && loadError ? <p className="text-sm text-rose-600">{loadError}</p> : null}
+
+          {!loading && !loadError && workflowThreads.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+              No workflow feedback available for this AIP yet.
+            </div>
+          ) : null}
+
+          {!loading && !loadError ? (
+            <ThreadList
+              threads={workflowThreads}
+              postingReplyRootId={null}
+              isPostingRoot={false}
+              isAuthLoading={isAuthLoading}
+              replyComposer={null}
+              onReply={() => {
+                // Read-only workflow container
+              }}
+              onCancelReply={() => {
+                // Read-only workflow container
+              }}
+              onSubmitReply={async () => {
+                // Read-only workflow container
+              }}
+              readOnly
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

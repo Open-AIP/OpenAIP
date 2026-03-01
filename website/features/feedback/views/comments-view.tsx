@@ -150,13 +150,16 @@ export default function CommentsView({
                 {filteredItems.map((item) => {
                   const thread = threadMap.get(item.threadId);
                   const authorName = thread?.preview.authorName ?? "Citizen";
-                  const authorScopeLabel = thread?.preview.authorScopeLabel ?? null;
+                  const authorRoleLabel = thread?.preview.authorRoleLabel ?? null;
+                  const authorLguLabel =
+                    thread?.preview.authorLguLabel ?? thread?.preview.authorScopeLabel ?? null;
 
                   return (
                     <Link key={item.threadId} href={item.href} className="block">
                       <CommentThreadListCard
                         authorName={authorName}
-                        authorScopeLabel={authorScopeLabel}
+                        authorRoleLabel={authorRoleLabel}
+                        authorLguLabel={authorLguLabel}
                         updatedAt={item.updatedAt}
                         kind={thread?.preview.kind ?? "question"}
                         contextTitle={item.contextTitle}

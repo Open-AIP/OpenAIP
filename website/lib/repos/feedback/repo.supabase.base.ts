@@ -4,6 +4,11 @@ import {
   CITIZEN_INITIATED_FEEDBACK_KINDS,
   isCitizenInitiatedFeedbackKind,
 } from "@/lib/constants/feedback-kind";
+import {
+  buildFeedbackLguLabel,
+  toFeedbackAuthorDisplayRole,
+  toFeedbackRoleLabel,
+} from "@/lib/feedback/author-labels";
 import type {
   CommentRepo,
   CommentTargetLookup,
@@ -53,6 +58,12 @@ type ProfileSelectRow = {
   municipality_id: string | null;
 };
 
+type ScopeNameMaps = {
+  barangayNameById: Map<string, string>;
+  cityNameById: Map<string, string>;
+  municipalityNameById: Map<string, string>;
+};
+
 type ProjectLookupRow = {
   id: string;
   aip_id: string;
@@ -90,16 +101,6 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
-}
-
-function toRoleLabel(role: RoleType | null | undefined): string | null {
-  if (!role) return null;
-  if (role === "citizen") return "Citizen";
-  if (role === "barangay_official") return "Barangay Official";
-  if (role === "city_official") return "City Official";
-  if (role === "municipal_official") return "Municipal Official";
-  if (role === "admin") return "Admin";
-  return null;
 }
 
 function toCommentAuthorRole(
@@ -223,6 +224,71 @@ async function listProfilesByIds(
   return map;
 }
 
+async function listScopeNameMapsByProfiles(
+  client: SupabaseClientLike,
+  profileById: Map<string, ProfileSelectRow>
+): Promise<ScopeNameMaps> {
+  const profiles = Array.from(profileById.values());
+  const barangayIds = Array.from(
+    new Set(
+      profiles
+        .map((profile) => profile.barangay_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const cityIds = Array.from(
+    new Set(
+      profiles
+        .map((profile) => profile.city_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const municipalityIds = Array.from(
+    new Set(
+      profiles
+        .map((profile) => profile.municipality_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+
+  const [barangayResult, cityResult, municipalityResult] = await Promise.all([
+    barangayIds.length
+      ? client.from("barangays").select("id,name").in("id", barangayIds)
+      : Promise.resolve({ data: [], error: null }),
+    cityIds.length
+      ? client.from("cities").select("id,name").in("id", cityIds)
+      : Promise.resolve({ data: [], error: null }),
+    municipalityIds.length
+      ? client.from("municipalities").select("id,name").in("id", municipalityIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (barangayResult.error) throw new Error(barangayResult.error.message);
+  if (cityResult.error) throw new Error(cityResult.error.message);
+  if (municipalityResult.error) throw new Error(municipalityResult.error.message);
+
+  return {
+    barangayNameById: new Map(
+      ((barangayResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [
+        row.id,
+        row.name,
+      ])
+    ),
+    cityNameById: new Map(
+      ((cityResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [
+        row.id,
+        row.name,
+      ])
+    ),
+    municipalityNameById: new Map(
+      ((municipalityResult.data ?? []) as Array<{ id: string; name: string }>).map((row) => [
+        row.id,
+        row.name,
+      ])
+    ),
+  };
+}
+
 function toNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -307,8 +373,26 @@ async function resolveAuthorId(
   return authId;
 }
 
-function toThreadPreviewStatus(repliesCount: number) {
-  return repliesCount > 0 ? "responded" : "no_response";
+function isOfficialRole(role: RoleType | null | undefined): boolean {
+  return (
+    role === "barangay_official" ||
+    role === "city_official" ||
+    role === "municipal_official"
+  );
+}
+
+function hasOfficialReply(
+  replies: FeedbackSelectRow[],
+  profileById: Map<string, ProfileSelectRow>
+): boolean {
+  return replies.some((reply) => {
+    if (!reply.author_id) return false;
+    return isOfficialRole(profileById.get(reply.author_id)?.role);
+  });
+}
+
+function toThreadPreviewStatus(officialReplyExists: boolean) {
+  return officialReplyExists ? "responded" : "no_response";
 }
 
 async function getFeedbackRowById(
@@ -348,9 +432,23 @@ function toThreadMessage(
 function toThread(
   root: FeedbackSelectRow,
   replies: FeedbackSelectRow[],
-  profileById: Map<string, ProfileSelectRow>
+  profileById: Map<string, ProfileSelectRow>,
+  scopeNameMaps: ScopeNameMaps
 ): CommentThread {
   const rootProfile = root.author_id ? profileById.get(root.author_id) : null;
+  const role = toFeedbackAuthorDisplayRole(rootProfile?.role);
+  const roleLabel = toFeedbackRoleLabel(role);
+  const authorName = rootProfile?.full_name?.trim() || roleLabel;
+  const authorLguLabel = buildFeedbackLguLabel({
+    role: rootProfile?.role,
+    barangayName: rootProfile?.barangay_id
+      ? scopeNameMaps.barangayNameById.get(rootProfile.barangay_id)
+      : null,
+    cityName: rootProfile?.city_id ? scopeNameMaps.cityNameById.get(rootProfile.city_id) : null,
+    municipalityName: rootProfile?.municipality_id
+      ? scopeNameMaps.municipalityNameById.get(rootProfile.municipality_id)
+      : null,
+  });
   const latestRow = replies[replies.length - 1] ?? root;
   return {
     id: root.id,
@@ -360,10 +458,12 @@ function toThread(
     preview: {
       text: root.body,
       updatedAt: latestRow.created_at,
-      status: toThreadPreviewStatus(replies.length),
+      status: toThreadPreviewStatus(hasOfficialReply(replies, profileById)),
       kind: root.kind,
-      authorName: rootProfile?.full_name ?? "Citizen",
-      authorScopeLabel: toRoleLabel(rootProfile?.role) ?? null,
+      authorName,
+      authorRoleLabel: roleLabel,
+      authorLguLabel,
+      authorScopeLabel: authorLguLabel,
     },
   };
 }
@@ -569,9 +669,12 @@ export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
           ...replies.map((row) => row.author_id ?? ""),
         ].filter(Boolean)
       );
+      const scopeNameMaps = await listScopeNameMapsByProfiles(client, profileById);
 
       return roots
-        .map((root) => toThread(root, repliesByParent.get(root.id) ?? [], profileById))
+        .map((root) =>
+          toThread(root, repliesByParent.get(root.id) ?? [], profileById, scopeNameMaps)
+        )
         .sort(
           (left, right) =>
             new Date(right.preview.updatedAt).getTime() -
@@ -592,8 +695,9 @@ export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
           ...replies.map((row) => row.author_id ?? ""),
         ].filter(Boolean)
       );
+      const scopeNameMaps = await listScopeNameMapsByProfiles(client, profileById);
 
-      return toThread(root, replies, profileById);
+      return toThread(root, replies, profileById, scopeNameMaps);
     },
 
     async listMessages({ threadId }) {
@@ -866,6 +970,7 @@ export function createCommentTargetLookupFromClient(
       const row = data as ProjectLookupRow;
       return {
         id: row.aip_ref_code || row.id,
+        aipId: row.aip_id,
         title: row.program_project_description || "Project",
         year:
           getYearFromDateString(row.start_date) ??
@@ -875,7 +980,9 @@ export function createCommentTargetLookupFromClient(
             ? "health"
             : row.category === "infrastructure"
               ? "infrastructure"
-              : undefined,
+              : row.category === "other"
+                ? "other"
+                : undefined,
       };
     },
 

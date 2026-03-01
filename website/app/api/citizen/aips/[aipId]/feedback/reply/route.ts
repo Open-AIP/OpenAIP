@@ -61,6 +61,34 @@ export async function POST(
     }
 
     const rootFeedbackId = parent.parent_feedback_id ?? parent.id;
+    const root =
+      rootFeedbackId === parent.id
+        ? parent
+        : await loadAipFeedbackRowById(client, rootFeedbackId);
+
+    if (!root) {
+      throw new CitizenAipFeedbackApiError(404, "Feedback thread root not found.");
+    }
+
+    if (root.parent_feedback_id !== null) {
+      throw new CitizenAipFeedbackApiError(400, "Feedback thread root is invalid.");
+    }
+
+    if (root.target_type !== "aip" || root.aip_id !== aip.id) {
+      throw new CitizenAipFeedbackApiError(
+        400,
+        "Feedback thread root does not belong to the selected AIP."
+      );
+    }
+
+    const [rootItem] = await hydrateAipFeedbackItems([root]);
+    if (!rootItem || rootItem.author.role !== "citizen") {
+      throw new CitizenAipFeedbackApiError(
+        403,
+        "Citizens can only reply to citizen-initiated AIP feedback threads."
+      );
+    }
+
     const { data, error } = await client
       .from("feedback")
       .insert({

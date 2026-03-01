@@ -11,6 +11,7 @@ type FeedbackCardProps = {
   replyDisabled?: boolean;
   isReply?: boolean;
   hideLguNoteBadge?: boolean;
+  hideReplyButton?: boolean;
 };
 
 const KIND_LABELS: Record<ProjectFeedbackDisplayKind, string> = {
@@ -55,6 +56,7 @@ export function FeedbackCard({
   replyDisabled = false,
   isReply = false,
   hideLguNoteBadge = false,
+  hideReplyButton = false,
 }: FeedbackCardProps) {
   const isLguNote = item.kind === "lgu_note";
   const shouldShowKindBadge = !(hideLguNoteBadge && isLguNote);
@@ -87,19 +89,21 @@ export function FeedbackCard({
 
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.body}</p>
 
-      <div className="mt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs text-slate-600 hover:text-slate-900"
-          aria-label={`Reply to feedback from ${item.author.fullName}`}
-          onClick={() => onReply(item)}
-          disabled={replyDisabled}
-        >
-          Reply
-        </Button>
-      </div>
+      {!hideReplyButton ? (
+        <div className="mt-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs text-slate-600 hover:text-slate-900"
+            aria-label={`Reply to feedback from ${item.author.fullName}`}
+            onClick={() => onReply(item)}
+            disabled={replyDisabled}
+          >
+            Reply
+          </Button>
+        </div>
+      ) : null}
     </article>
   );
 }

@@ -92,6 +92,9 @@ const {
   runAuditCrudDedupeTests,
 } = require("@/tests/repo-smoke/audit/audit.dedupe.test");
 const {
+  runAuditAdminPaginationTests,
+} = require("@/tests/repo-smoke/audit/audit.admin-pagination.test");
+const {
   getAuditFeedForActor,
 } = require("@/lib/repos/audit/queries");
 const {
@@ -446,6 +449,7 @@ const tests = [
               "listBarangayOfficialActivity",
               "listCityOfficialActivity",
               "listAllActivity",
+              "listActivityPage",
             ],
           },
           {
@@ -614,6 +618,12 @@ const tests = [
     name: "auditService suppresses CRUD duplicates for barangay feed",
     async run() {
       await runAuditCrudDedupeTests();
+    },
+  },
+  {
+    name: "auditService admin pagination and filters",
+    async run() {
+      await runAuditAdminPaginationTests();
     },
   },
   {

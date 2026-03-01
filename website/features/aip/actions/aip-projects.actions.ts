@@ -2,6 +2,7 @@
 
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAipRepo, getAipProjectRepo } from "@/lib/repos/aip/repo.server";
+import { assertActorCanManageBarangayAipWorkflow } from "@/lib/repos/aip/workflow-permissions.server";
 import type { AipProjectRow, SubmitReviewInput } from "@/lib/repos/aip/repo";
 
 export async function listAipProjectsAction(aipId: string): Promise<AipProjectRow[]> {
@@ -23,15 +24,7 @@ async function assertProjectEditOwnership(aipId: string): Promise<void> {
   }
 
   if (aip.scope !== "barangay") return;
-
-  const isBarangayOfficial =
-    actor.role === "barangay_official" &&
-    actor.scope.kind === "barangay" &&
-    !!actor.scope.id;
-
-  if (!isBarangayOfficial) {
-    throw new Error("Only the owning barangay official can edit projects for this AIP.");
-  }
+  await assertActorCanManageBarangayAipWorkflow({ aipId, actor });
 }
 
 export async function submitAipProjectReviewAction(input: SubmitReviewInput): Promise<AipProjectRow> {

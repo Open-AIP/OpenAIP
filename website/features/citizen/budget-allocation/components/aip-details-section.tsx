@@ -15,9 +15,13 @@ type AipDetailsSectionProps = {
   onTabChange: (key: BudgetCategoryKey) => void;
   onSearchChange: (value: string) => void;
   viewAllHref: string;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 };
 
-export default function AipDetailsSection({ vm, onTabChange, onSearchChange, viewAllHref }: AipDetailsSectionProps) {
+export default function AipDetailsSection({ vm, onTabChange, onSearchChange, viewAllHref, page, totalPages, onPageChange }: AipDetailsSectionProps) {
+  const hasPagination = totalPages > 0;
   return (
     <section className="mx-auto max-w-6xl px-6 py-12">
       <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -83,6 +87,20 @@ export default function AipDetailsSection({ vm, onTabChange, onSearchChange, vie
               </TableBody>
             </Table>
           </div>
+
+          {hasPagination ? (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">Page {page} of {totalPages}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex justify-end">
             <Button asChild variant="link" className="text-sm font-semibold text-[#0b5188]">

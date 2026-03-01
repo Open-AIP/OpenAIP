@@ -18,6 +18,16 @@ const nextConfig: NextConfig = {
         destination: "/city/feedback",
         permanent: false,
       },
+      {
+        source: "/about",
+        destination: "/about-us",
+        permanent: false,
+      },
+      {
+        source: "/aboutus",
+        destination: "/about-us",
+        permanent: false,
+      },
     ];
   },
 };

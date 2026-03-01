@@ -16,6 +16,7 @@ import type { ActivityLogRow } from "./types";
 export interface AuditRepo {
   listMyActivity(actorId: string): Promise<ActivityLogRow[]>;
   listBarangayOfficialActivity(barangayId: string): Promise<ActivityLogRow[]>;
+  listCityOfficialActivity(cityId: string): Promise<ActivityLogRow[]>;
   listAllActivity(): Promise<ActivityLogRow[]>;
 }
 

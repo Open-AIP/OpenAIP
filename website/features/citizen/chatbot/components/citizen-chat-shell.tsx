@@ -1,6 +1,11 @@
 import type { RefObject } from "react";
 import type { Json } from "@/lib/contracts/databasev2";
-import type { CitizenChatErrorState as ChatErrorState, CitizenChatMessageVM, CitizenChatSessionVM } from "../types/citizen-chatbot.types";
+import type {
+  CitizenChatComposerMode,
+  CitizenChatErrorState as ChatErrorState,
+  CitizenChatMessageVM,
+  CitizenChatSessionVM,
+} from "../types/citizen-chatbot.types";
 import CitizenChatComposer from "./citizen-chat-composer";
 import CitizenChatErrorState from "./citizen-chat-error-state";
 import CitizenChatHeader from "./citizen-chat-header";
@@ -13,16 +18,23 @@ export default function CitizenChatShell({
   errorState,
   exampleQueries,
   isBootstrapping,
+  isComposerDisabled,
+  composerMode,
+  composerPlaceholder,
   isSending,
   messageInput,
   messages,
+  canManageConversations,
   query,
   sessionItems,
   threadRef,
   onMessageInputChange,
   onNewChat,
+  onDeleteSession,
   onQueryChange,
+  onRenameSession,
   onSelectSession,
+  onComposerPrimaryAction,
   onSend,
   onUseExample,
   onUseFollowUp,
@@ -32,16 +44,23 @@ export default function CitizenChatShell({
   errorState: ChatErrorState;
   exampleQueries: readonly string[];
   isBootstrapping: boolean;
+  isComposerDisabled: boolean;
+  composerMode: CitizenChatComposerMode;
+  composerPlaceholder: string;
   isSending: boolean;
   messageInput: string;
   messages: CitizenChatMessageVM[];
+  canManageConversations: boolean;
   query: string;
   sessionItems: CitizenChatSessionVM[];
   threadRef: RefObject<HTMLDivElement | null>;
   onMessageInputChange: (value: string) => void;
   onNewChat: () => void;
+  onDeleteSession: (id: string) => Promise<void>;
   onQueryChange: (value: string) => void;
+  onRenameSession: (id: string, title: string) => Promise<void>;
   onSelectSession: (id: string) => void;
+  onComposerPrimaryAction: () => void;
   onSend: () => void;
   onUseExample: (value: string) => void;
   onUseFollowUp: (value: string) => void;
@@ -51,10 +70,13 @@ export default function CitizenChatShell({
   return (
     <section className="grid min-h-0 h-full grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
       <CitizenChatSidebar
+        canManageConversations={canManageConversations}
         query={query}
         sessions={sessionItems}
         onQueryChange={onQueryChange}
         onNewChat={onNewChat}
+        onDeleteSession={onDeleteSession}
+        onRenameSession={onRenameSession}
         onSelectSession={onSelectSession}
       />
 
@@ -85,10 +107,13 @@ export default function CitizenChatShell({
         )}
 
         <CitizenChatComposer
+          mode={composerMode}
           value={messageInput}
+          isSending={isSending}
+          placeholder={composerPlaceholder}
           onChange={onMessageInputChange}
-          onSend={onSend}
-          disabled={isSending || errorState === "auth_required"}
+          onPrimaryAction={onComposerPrimaryAction}
+          disabled={isComposerDisabled}
         />
       </div>
     </section>

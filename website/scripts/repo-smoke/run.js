@@ -104,6 +104,12 @@ const {
   runSubmissionsReviewRepoTests,
 } = require("@/tests/repo-smoke/submissions/submissions.repo.mock.test");
 const {
+  runLandingContentRepoMockTests,
+} = require("@/tests/repo-smoke/landing-content/landing-content.repo.mock.test");
+const {
+  runLandingContentViewSmokeTests,
+} = require("@/tests/repo-smoke/landing-content/landing-content.view-smoke.test");
+const {
   getCitySubmissionsFeedForActor,
 } = require("@/lib/repos/submissions/queries");
 const {
@@ -435,7 +441,12 @@ const tests = [
           {
             label: "AuditRepo(server)",
             repo: getAuditRepo(),
-            methods: ["listMyActivity", "listBarangayOfficialActivity", "listAllActivity"],
+            methods: [
+              "listMyActivity",
+              "listBarangayOfficialActivity",
+              "listCityOfficialActivity",
+              "listAllActivity",
+            ],
           },
           {
             label: "ChatRepo(server)",
@@ -616,11 +627,14 @@ const tests = [
         const actor = {
           userId: "uuid-not-in-mock",
           role: "city_official",
-          scope: { kind: "city", id: "cabuyao" },
+          scope: { kind: "city", id: "city_001" },
         };
         const result = await getAuditFeedForActor(actor);
         const expected = ACTIVITY_LOG_FIXTURE.filter(
-          (row) => row.scope?.scope_type === "city"
+          (row) =>
+            row.actorRole === "city_official" &&
+            row.scope?.scope_type === "city" &&
+            row.scope.city_id === "city_001"
         ).length;
         assert(
           result.length === expected,
@@ -641,6 +655,18 @@ const tests = [
     name: "submissionsReview.repo.mock tests",
     async run() {
       await runSubmissionsReviewRepoTests();
+    },
+  },
+  {
+    name: "landing-content repo.mock tests",
+    async run() {
+      await runLandingContentRepoMockTests();
+    },
+  },
+  {
+    name: "landing-content view smoke tests",
+    async run() {
+      await runLandingContentViewSmokeTests();
     },
   },
   {

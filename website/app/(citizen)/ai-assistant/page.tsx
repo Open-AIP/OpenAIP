@@ -1,6 +1,5 @@
 import { CitizenChatbotView } from "@/features/citizen/chatbot";
-
-const CitizenAiAssistantPage = () => {
+const CitizenAiAssistantPage = async () => {
   return (
     <div className="h-full min-h-0">
       <CitizenChatbotView />

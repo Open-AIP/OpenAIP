@@ -20,6 +20,7 @@ export type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadR
 
 export type ListThreadsForInboxParams = {
   lguId: string;
+  scope?: "barangay" | "city";
 };
 
 export type GetThreadParams = {
@@ -53,7 +54,8 @@ export type CommentTargetProjectSummary = {
   id: string;
   title: string;
   year?: number;
-  kind?: "health" | "infrastructure";
+  kind?: "health" | "infrastructure" | "other";
+  aipId?: string;
 };
 
 export type CommentTargetAipSummary = {

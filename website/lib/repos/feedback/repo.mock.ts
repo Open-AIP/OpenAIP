@@ -20,6 +20,7 @@ import { COMMENT_MESSAGES_FIXTURE } from "@/mocks/fixtures/feedback/comment-mess
 import { COMMENT_THREADS_FIXTURE } from "@/mocks/fixtures/feedback/comment-threads.fixture";
 import { validateMockIds } from "@/mocks/fixtures/shared/validate-mock-ids";
 import { isCitizenInitiatedFeedbackKind } from "@/lib/constants/feedback-kind";
+import { toFeedbackRoleLabel } from "@/lib/feedback/author-labels";
 import { feedbackDebugLog } from "./debug";
 import { dedupeByKey, findDuplicateKeys } from "./mappers";
 import { getProjectsRepo } from "@/lib/repos/projects/repo";
@@ -39,6 +40,39 @@ function sortByCreatedAtAsc(a: CommentMessage, b: CommentMessage) {
   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 }
 
+function isOfficialReplyAuthor(role: CommentMessage["authorRole"]): boolean {
+  return role === "barangay_official" || role === "city_official";
+}
+
+function toPreviewAuthorRoleLabel(role: CommentMessage["authorRole"]): string {
+  if (role === "citizen") return toFeedbackRoleLabel("citizen");
+  if (role === "barangay_official") return toFeedbackRoleLabel("barangay_official");
+  if (role === "city_official") return toFeedbackRoleLabel("city_official");
+  return toFeedbackRoleLabel("admin");
+}
+
+function hydrateThreadPreview(thread: CommentThread): CommentThread {
+  const messages = messageStore
+    .filter((message) => message.threadId === thread.id)
+    .sort(sortByCreatedAtAsc);
+  const root = messages[0];
+  const latest = messages[messages.length - 1];
+  const hasOfficialReply = messages.slice(1).some((message) => isOfficialReplyAuthor(message.authorRole));
+
+  return {
+    ...thread,
+    preview: {
+      ...thread.preview,
+      text: latest?.text ?? thread.preview.text,
+      updatedAt: latest?.createdAt ?? thread.preview.updatedAt,
+      status: hasOfficialReply ? "responded" : "no_response",
+      authorRoleLabel: root ? toPreviewAuthorRoleLabel(root.authorRole) : "Citizen",
+      authorLguLabel: thread.preview.authorScopeLabel ?? "Brgy. Unknown",
+      authorScopeLabel: thread.preview.authorScopeLabel ?? "Brgy. Unknown",
+    },
+  };
+}
+
 // [DATAFLOW] Mock implementation for the threaded feedback UI. This is NOT a DBV2 adapter; it simulates threads in memory.
 export function createMockCommentRepo(): CommentRepo {
   if (!mockIdsValidated && process.env.NODE_ENV !== "production") {
@@ -49,6 +83,7 @@ export function createMockCommentRepo(): CommentRepo {
   return {
     async listThreadsForInbox(_params: ListThreadsForInboxParams): Promise<CommentThread[]> {
       const sorted = [...threadStore]
+        .map(hydrateThreadPreview)
         .filter((thread) => isCitizenInitiatedFeedbackKind(thread.preview.kind))
         .sort(sortByUpdatedAtDesc);
       const duplicates = findDuplicateKeys(sorted, (thread) => thread.id);
@@ -70,7 +105,8 @@ export function createMockCommentRepo(): CommentRepo {
     },
 
     async getThread({ threadId }: GetThreadParams): Promise<CommentThread | null> {
-      return threadStore.find((thread) => thread.id === threadId) ?? null;
+      const thread = threadStore.find((entry) => entry.id === threadId) ?? null;
+      return thread ? hydrateThreadPreview(thread) : null;
     },
 
     async listMessages({ threadId }: ListMessagesParams): Promise<CommentMessage[]> {
@@ -125,6 +161,8 @@ export function createMockCommentRepo(): CommentRepo {
             text,
             updatedAt: createdAt,
             status: "responded",
+            authorRoleLabel: thread.preview.authorRoleLabel ?? "Citizen",
+            authorLguLabel: thread.preview.authorLguLabel ?? thread.preview.authorScopeLabel,
           },
         };
       });
@@ -149,6 +187,10 @@ export function createMockCommentTargetLookup(): CommentTargetLookup {
         title: project.title,
         year: project.year,
         kind: project.kind,
+        aipId:
+          AIP_PROJECT_ROWS_TABLE.find(
+            (row) => row.projectRefCode === project.projectRefCode || row.id === id
+          )?.aipId ?? undefined,
       };
     },
 

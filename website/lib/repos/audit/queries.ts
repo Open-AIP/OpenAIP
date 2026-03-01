@@ -134,7 +134,32 @@ export async function getAuditFeedForActor(
     return [];
   }
 
-  if (actor.role === "city_official" || actor.role === "municipal_official") {
+  if (actor.role === "city_official") {
+    if (actor.scope.kind !== "city" || !actor.scope.id) {
+      return [];
+    }
+
+    const scoped = await repo.listCityOfficialActivity(actor.scope.id);
+    if (scoped.length > 0) {
+      return applyCrudDuplicateSuppression(scoped);
+    }
+
+    if (getAppEnv() === "dev") {
+      const all = await repo.listAllActivity();
+      return applyCrudDuplicateSuppression(
+        all.filter(
+          (row) =>
+            row.actorRole === "city_official" &&
+            row.scope?.scope_type === "city" &&
+            row.scope.city_id === actor.scope.id
+        )
+      );
+    }
+
+    return [];
+  }
+
+  if (actor.role === "municipal_official") {
     const mine = await repo.listMyActivity(actor.userId);
     if (mine.length > 0) {
       return mine;

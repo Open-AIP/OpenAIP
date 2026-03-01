@@ -149,20 +149,15 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
                 </Link>
               </motion.div>
             ) : (
-              // TODO: Wire final CTA click action when a destination route is available.
               <motion.button
                 type="button"
+                disabled
+                aria-disabled="true"
                 aria-label="View Full AIP"
                 className={cn(
                   "inline-flex items-center justify-center rounded-xl bg-white px-8 py-3 text-base font-semibold text-[#143240]",
-                  "shadow-[0_8px_22px_rgba(0,0,0,0.22)]"
+                  "cursor-not-allowed opacity-50 shadow-[0_8px_22px_rgba(0,0,0,0.22)]"
                 )}
-                whileHover={reducedMotion ? undefined : { scale: 1.02 }}
-                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
-                transition={{
-                  duration: reducedMotion ? 0.12 : 0.18,
-                  ease: MOTION_TOKENS.hoverEase,
-                }}
               >
                 {vm.ctaLabel}
               </motion.button>

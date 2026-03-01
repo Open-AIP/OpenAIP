@@ -1,4 +1,4 @@
-import type { RoleType } from "@/lib/contracts/databasev2";
+import type { Json, RoleType } from "@/lib/contracts/databasev2";
 
 type ActivityScopeSnapshot =
   | {
@@ -33,13 +33,13 @@ type ActivityLogRow = {
   entityType: string;
   entityId: string;
   scope?: ActivityScopeSnapshot | null;
-  metadata?: unknown | null;
+  metadata?: Json | null;
   actorRole?: RoleType | null;
   createdAt: string;
 };
 
 // TODO(P1-next): centralize shared mock ids in `mocks/fixtures/shared/*` when migrating AIP/Projects/Feedback.
-export const ACTIVITY_LOG_FIXTURE = [
+export const ACTIVITY_LOG_FIXTURE: ActivityLogRow[] = [
   {
     id: "log_001",
     actorId: "user_001",
@@ -313,4 +313,4 @@ export const ACTIVITY_LOG_FIXTURE = [
     },
     createdAt: "2026-01-13T08:05:00.000Z",
   },
-] satisfies ActivityLogRow[];
+];

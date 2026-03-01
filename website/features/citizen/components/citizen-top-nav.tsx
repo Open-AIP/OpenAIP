@@ -3,17 +3,22 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Menu, ChevronDown, ChevronRight } from 'lucide-react';
+import { Menu, ChevronDown, ChevronRight, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useCitizenAccount } from '@/features/citizen/auth/hooks/use-citizen-account';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { buildCitizenAuthHref } from '@/features/citizen/auth/utils/auth-query';
+import CitizenAccountModal from '@/features/citizen/components/citizen-account-modal';
+import {
+  buildCitizenAuthHref,
+  setReturnToInSessionStorage,
+} from '@/features/citizen/auth/utils/auth-query';
 import { CITIZEN_NAV } from '@/features/citizen/constants/nav';
 import { cn } from '@/ui/utils';
 
@@ -32,11 +37,16 @@ export default function CitizenTopNav() {
   const searchParams = useSearchParams();
   const mobileSheetId = "citizen-mobile-nav-sheet";
   const [mobileProjectsOpen, setMobileProjectsOpen] = useState<boolean>(false);
+  const [accountModalOpen, setAccountModalOpen] = useState<boolean>(false);
+  const { isAuthenticated, profile, refresh } = useCitizenAccount();
 
   const sanitizedNext = (() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("auth");
+    params.delete("authStep");
+    params.delete("completeProfile");
     params.delete("next");
+    params.delete("returnTo");
     const query = params.toString();
     return query ? `${pathname}?${query}` : pathname;
   })();
@@ -48,9 +58,37 @@ export default function CitizenTopNav() {
     next: sanitizedNext,
   });
 
+  const handleSignInClick = () => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash ?? "";
+    const returnTo = `${sanitizedNext}${hash}`;
+    setReturnToInSessionStorage(returnTo);
+  };
+
   useEffect(() => {
     setMobileProjectsOpen(pathname === '/projects' || pathname.startsWith('/projects/'));
   }, [pathname]);
+
+  const isSignedIn = isAuthenticated && Boolean(profile);
+
+  const accountTrigger = profile ? (
+    <>
+      <div className="text-right leading-tight">
+        <div className="text-sm font-semibold text-slate-900">{profile.fullName}</div>
+        <div className="text-xs text-slate-500">{profile.barangay}</div>
+      </div>
+      <button
+        type="button"
+        className="grid h-10 w-10 place-items-center rounded-full bg-[#0B3440]"
+        aria-label="Open account"
+        aria-haspopup="dialog"
+        aria-expanded={accountModalOpen}
+        onClick={() => setAccountModalOpen(true)}
+      >
+        <User className="h-5 w-5 text-white" />
+      </button>
+    </>
+  ) : null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-[#D3DBE0]">
@@ -122,9 +160,15 @@ export default function CitizenTopNav() {
         </nav>
 
         <div className="hidden md:block">
-          <Button asChild className="bg-[#0E7490] text-white hover:bg-[#0C6078]">
-            <Link href={signInHref}>Sign In</Link>
-          </Button>
+          {isSignedIn ? (
+            <div className="flex items-center gap-3">{accountTrigger}</div>
+          ) : (
+            <Button asChild className="bg-[#0E7490] text-white hover:bg-[#0C6078]">
+              <Link href={signInHref} onClick={handleSignInClick}>
+                Sign In
+              </Link>
+            </Button>
+          )}
         </div>
 
         <Sheet>
@@ -196,13 +240,43 @@ export default function CitizenTopNav() {
               })}
             </div>
             <div className="mt-6 border-t border-slate-200 pt-6">
-              <Button asChild className="w-full bg-[#0E7490] text-white hover:bg-[#0C6078]">
-                <Link href={signInHref}>Sign In</Link>
-              </Button>
+              {isSignedIn ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">{profile?.fullName}</p>
+                    <p className="truncate text-xs text-slate-500">{profile?.barangay}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0B3440]"
+                    aria-label="Open account"
+                    aria-haspopup="dialog"
+                    aria-expanded={accountModalOpen}
+                    onClick={() => setAccountModalOpen(true)}
+                  >
+                    <User className="h-4 w-4 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <Button asChild className="w-full bg-[#0E7490] text-white hover:bg-[#0C6078]">
+                  <Link href={signInHref} onClick={handleSignInClick}>
+                    Sign In
+                  </Link>
+                </Button>
+              )}
             </div>
           </SheetContent>
         </Sheet>
       </div>
+      {profile ? (
+        <CitizenAccountModal
+          open={accountModalOpen}
+          onOpenChange={setAccountModalOpen}
+          profile={profile}
+          onSaved={refresh}
+          onLoggedOut={refresh}
+        />
+      ) : null}
     </header>
   );
 }

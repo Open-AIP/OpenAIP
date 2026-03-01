@@ -120,7 +120,7 @@ export function AipDetailsTableView({
           );
         }}
         canComment={canComment}
-        showCommentingNote={scope === "barangay"}
+        showCommentingNote={scope === "barangay" && aipStatus !== "published"}
         focusedRowId={focusedRowId}
         enablePagination={enablePagination}
       />

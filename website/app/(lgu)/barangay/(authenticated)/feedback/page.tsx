@@ -3,7 +3,7 @@ import { CommentsView } from "@/features/feedback";
 const BarangayComments = () => {
   return (
     <div>
-      <CommentsView />
+      <CommentsView scope="barangay" />
     </div>
   );
 }

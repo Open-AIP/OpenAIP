@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/select";
 
 type CitizenFiltersBarProps = {
-  yearOptions: string[];
+  yearOptions: Array<string | { value: string; label: string }>;
   yearValue: string;
   onYearChange: (value: string) => void;
-  lguOptions: string[];
+  lguOptions: Array<string | { value: string; label: string }>;
   lguValue: string;
   onLguChange: (value: string) => void;
   searchValue: string;
@@ -40,6 +40,13 @@ export default function CitizenFiltersBar({
   searchLabel = "Search",
   searchPlaceholder = "Search...",
 }: CitizenFiltersBarProps) {
+  const normalizedYearOptions = yearOptions.map((option) =>
+    typeof option === "string" ? { value: option, label: option } : option
+  );
+  const normalizedLguOptions = lguOptions.map((option) =>
+    typeof option === "string" ? { value: option, label: option } : option
+  );
+
   return (
     <Card className="border-slate-200">
       <CardContent className="space-y-4 p-4 md:p-6">
@@ -53,9 +60,9 @@ export default function CitizenFiltersBar({
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
-                {yearOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option === "all" ? "All Years" : option}
+                {normalizedYearOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label === "all" ? "All Years" : option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -69,9 +76,9 @@ export default function CitizenFiltersBar({
                 <SelectValue placeholder="Select LGU" />
               </SelectTrigger>
               <SelectContent>
-                {lguOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
+                {normalizedLguOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -4,6 +4,8 @@ import { AipDetailsTableView } from "./aip-details-table";
 import type { AipProjectRow } from "../types";
 
 const mockPush = vi.fn();
+let lastTableCardProps: { showCommentingNote?: boolean; canComment?: boolean } | null =
+  null;
 
 const mockRows: AipProjectRow[] = [
   {
@@ -50,13 +52,23 @@ vi.mock("../components/aip-details-table-card", () => ({
   AipDetailsTableCard: ({
     rows,
     onRowClick,
+    showCommentingNote,
+    canComment,
   }: {
     rows: AipProjectRow[];
     onRowClick: (row: AipProjectRow) => void;
+    showCommentingNote?: boolean;
+    canComment?: boolean;
   }) => (
-    <button type="button" onClick={() => onRowClick(rows[0])}>
-      Open Row
-    </button>
+    <>
+      {(() => {
+        lastTableCardProps = { showCommentingNote, canComment };
+        return null;
+      })()}
+      <button type="button" onClick={() => onRowClick(rows[0])}>
+        Open Row
+      </button>
+    </>
   ),
 }));
 
@@ -66,7 +78,31 @@ vi.mock("../components/budget-allocation-table", () => ({
 }));
 
 describe("AipDetailsTableView", () => {
+  it("hides commenting note for published barangay AIPs", async () => {
+    lastTableCardProps = null;
+
+    render(
+      <AipDetailsTableView
+        aipId="aip-001"
+        year={2026}
+        aipStatus="published"
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Open Row" })).toBeInTheDocument();
+    });
+
+    expect(lastTableCardProps).toEqual({
+      canComment: false,
+      showCommentingNote: false,
+    });
+  });
+
   it("routes city rows to dedicated city project pages", async () => {
+    lastTableCardProps = null;
+
     render(
       <AipDetailsTableView
         aipId="aip-001"

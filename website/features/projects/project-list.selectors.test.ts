@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterProjectsByScopeOption,
   filterProjectsByYearAndQuery,
+  getProjectLguOptions,
   getProjectYearsDescending,
   prefixProjectTitles,
 } from "@/lib/selectors/projects/project-list";
@@ -10,6 +11,7 @@ type TestProject = {
   id: string;
   year: number;
   title: string;
+  lguLabel: string;
   description?: string;
   implementingOffice?: string;
   contractorName?: string;
@@ -21,6 +23,7 @@ const PROJECTS: TestProject[] = [
     id: "p1",
     year: 2026,
     title: "Road Improvement",
+    lguLabel: "Brgy. Uno",
     description: "Drainage and pavement",
     implementingOffice: "Engineering Office",
     contractorName: "BuildRight",
@@ -30,6 +33,7 @@ const PROJECTS: TestProject[] = [
     id: "p2",
     year: 2025,
     title: "Community Health Program",
+    lguLabel: "Brgy. Dos",
     description: "Vaccination campaign",
     implementingOffice: "Health Office",
     fundingSource: "Health Fund",
@@ -48,9 +52,18 @@ describe("project list selectors", () => {
   });
 
   it("filters by scope option", () => {
-    expect(filterProjectsByScopeOption(PROJECTS, "All LGUs", "Brgy. Uno")).toHaveLength(2);
-    expect(filterProjectsByScopeOption(PROJECTS, "Brgy. Uno", "Brgy. Uno")).toHaveLength(2);
-    expect(filterProjectsByScopeOption(PROJECTS, "Brgy. Dos", "Brgy. Uno")).toHaveLength(0);
+    expect(filterProjectsByScopeOption(PROJECTS, "All LGUs")).toHaveLength(2);
+    expect(filterProjectsByScopeOption(PROJECTS, "Brgy. Uno")).toHaveLength(1);
+    expect(filterProjectsByScopeOption(PROJECTS, "Brgy. Dos")).toHaveLength(1);
+    expect(filterProjectsByScopeOption(PROJECTS, "Brgy. Tres")).toHaveLength(0);
+  });
+
+  it("derives sorted LGU options with all first", () => {
+    expect(getProjectLguOptions(PROJECTS)).toEqual([
+      "All LGUs",
+      "Brgy. Dos",
+      "Brgy. Uno",
+    ]);
   });
 
   it("filters by year and query across searchable fields", () => {

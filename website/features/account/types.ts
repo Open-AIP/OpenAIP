@@ -5,3 +5,9 @@ export type LguAccountProfile = {
   office: string;
   role: "barangay" | "city";
 };
+
+export type AdminAccountProfile = {
+  fullName: string;
+  email: string;
+  role: "admin";
+};

@@ -9,6 +9,8 @@ import type { FeedbackKind } from "@/lib/contracts/databasev2";
 
 export function CommentThreadListCard({
   authorName,
+  authorRoleLabel,
+  authorLguLabel,
   authorScopeLabel,
   updatedAt,
   kind,
@@ -20,6 +22,9 @@ export function CommentThreadListCard({
   className,
 }: {
   authorName: string;
+  authorRoleLabel?: string | null;
+  authorLguLabel?: string | null;
+  // Backward compatibility. Prefer authorLguLabel.
   authorScopeLabel?: string | null;
   updatedAt: string | Date;
   kind: FeedbackKind;
@@ -31,6 +36,8 @@ export function CommentThreadListCard({
   className?: string;
 }) {
   const safeAuthorName = authorName.trim() || "Citizen";
+  const safeRoleLabel = authorRoleLabel?.trim() || "Citizen";
+  const safeLguLabel = authorLguLabel?.trim() || authorScopeLabel?.trim() || "Brgy. Unknown";
   const initial = safeAuthorName.charAt(0).toUpperCase() || "C";
   const badge = getCommentStatusBadge(status);
   const kindBadge = getFeedbackKindBadge(kind);
@@ -47,12 +54,11 @@ export function CommentThreadListCard({
             <p className="truncate text-sm font-semibold text-slate-900">
               {safeAuthorName}
             </p>
-            {authorScopeLabel ? (
-              <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 ring-1 ring-slate-200">
-                {authorScopeLabel}
-              </span>
-            ) : null}
           </div>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {safeRoleLabel} | {safeLguLabel}
+          </p>
 
           <p className="mt-2 text-xs text-slate-500">
             <span className="font-semibold text-slate-600">Commented on:</span>{" "}

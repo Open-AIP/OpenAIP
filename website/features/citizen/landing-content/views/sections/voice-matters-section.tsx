@@ -89,15 +89,14 @@ function HaveAConcernCard() {
         </svg>
       </div>
       <div className="space-y-4">
-        <p className="text-[2rem] font-semibold leading-none text-white">Have a Concern?</p>
-        {/* TODO: Replace hash anchor with real citizen feedback submission route when available. */}
+        <p className="text-[2rem] font-semibold leading-none text-white">Want to Know More?</p>
         <MotionPressable className="inline-flex">
           <Button
             asChild
             className="h-10 rounded-full bg-[#22d3ee] px-6 text-base font-semibold text-[#001925] hover:bg-[#22d3ee]/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]"
           >
-            <a href="#voice-feedback" aria-label="Submit feedback">
-              Submit Feedback
+            <a href="/about-us" aria-label="See About Us">
+              See About Us
             </a>
           </Button>
         </MotionPressable>

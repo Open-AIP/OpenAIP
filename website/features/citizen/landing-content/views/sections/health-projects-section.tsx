@@ -259,6 +259,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
       <ProjectShowcaseCard
         project={item.project}
         budgetLabel={item.project.budgetLabel ?? formatCompactPeso(item.project.budget)}
+        ctaHref={`/projects/health/${item.project.id}`}
       />
     );
   };

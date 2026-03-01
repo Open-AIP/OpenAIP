@@ -2,6 +2,7 @@ import { randomUUID, createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { writeWorkflowActivityLog } from "@/lib/audit/activity-log";
+import { assertActorCanManageBarangayAipWorkflow } from "@/lib/repos/aip/workflow-permissions.server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -61,6 +62,24 @@ export async function POST(request: Request) {
         { message: "This fiscal year already has a non-editable AIP record." },
         { status: 409 }
       );
+    }
+    if (existing?.id) {
+      try {
+        await assertActorCanManageBarangayAipWorkflow({
+          aipId: existing.id,
+          actor,
+        });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            message:
+              error instanceof Error
+                ? error.message
+                : "Only the uploader of this AIP can modify this workflow.",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     if (!aipId) {

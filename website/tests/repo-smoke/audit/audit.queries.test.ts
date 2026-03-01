@@ -60,14 +60,71 @@ export async function runAuditServiceTests() {
     "Expected barangay feed to exclude other barangays"
   );
 
-  const cityFeed = await getAuditFeedForActor(cityOfficial);
-  const expectedCityOwn = ACTIVITY_LOG_FIXTURE.filter(
-    (row) => row.actorId === cityOfficial.userId
-  );
-  assert(
-    cityFeed.length === expectedCityOwn.length,
-    "Expected city official behavior to remain own-activity based"
-  );
+  type ActivityFixtureRow = (typeof ACTIVITY_LOG_FIXTURE)[number];
+  const cityVisibilityRows: ActivityFixtureRow[] = [
+    {
+      id: "city_visibility_same_city",
+      actorId: "user_city_peer",
+      actorRole: "city_official",
+      action: "published",
+      entityType: "aips",
+      entityId: "aip-city-same-1",
+      scope: {
+        scope_type: "city",
+        barangay_id: null,
+        city_id: "city_001",
+        municipality_id: null,
+      },
+      metadata: { source: "workflow" },
+      createdAt: "2026-02-28T03:00:00.000Z",
+    },
+    {
+      id: "city_visibility_other_city",
+      actorId: "user_city_other",
+      actorRole: "city_official",
+      action: "published",
+      entityType: "aips",
+      entityId: "aip-city-other-1",
+      scope: {
+        scope_type: "city",
+        barangay_id: null,
+        city_id: "city_002",
+        municipality_id: null,
+      },
+      metadata: { source: "workflow" },
+      createdAt: "2026-02-28T02:59:00.000Z",
+    },
+  ];
+
+  ACTIVITY_LOG_FIXTURE.push(...cityVisibilityRows);
+  try {
+    const cityFeed = await getAuditFeedForActor(cityOfficial);
+    const cityIds = new Set(cityFeed.map((row) => row.id));
+
+    assert(
+      cityIds.has("city_visibility_same_city"),
+      "Expected city official feed to include same-city co-official actions"
+    );
+    assert(
+      !cityIds.has("city_visibility_other_city"),
+      "Expected city official feed to exclude logs from other cities"
+    );
+    assert(
+      cityFeed.every(
+        (row) =>
+          row.actorRole === "city_official" &&
+          row.scope?.scope_type === "city" &&
+          row.scope.city_id === "city_001"
+      ),
+      "Expected city official feed to contain only city-official logs from the same city"
+    );
+  } finally {
+    for (let index = ACTIVITY_LOG_FIXTURE.length - 1; index >= 0; index -= 1) {
+      if (cityVisibilityRows.some((row) => row.id === ACTIVITY_LOG_FIXTURE[index].id)) {
+        ACTIVITY_LOG_FIXTURE.splice(index, 1);
+      }
+    }
+  }
 
   const citizenFeed = await getAuditFeedForActor(citizen);
   assert(citizenFeed.length === 0, "Expected citizen to receive no activity logs");

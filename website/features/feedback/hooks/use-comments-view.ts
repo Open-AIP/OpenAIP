@@ -36,6 +36,7 @@ export function useCommentsView({
       try {
         const threadList = await repo.listThreadsForInbox({
           lguId,
+          scope,
         });
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({
@@ -105,6 +106,8 @@ export function useCommentsView({
         item.contextTitle,
         item.contextSubtitle,
         thread?.preview.authorName,
+        thread?.preview.authorRoleLabel,
+        thread?.preview.authorLguLabel,
         thread?.preview.authorScopeLabel,
       ]
         .filter(Boolean)

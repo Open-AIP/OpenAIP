@@ -10,6 +10,7 @@ type CitizenVerifyOtpStepProps = {
   emailMasked: string;
   code: string;
   errorMessage: string | null;
+  infoMessage?: string | null;
   isLoading: boolean;
   onCodeChange: (value: string) => void;
   onSubmit: () => void;
@@ -22,6 +23,7 @@ export default function CitizenVerifyOtpStep({
   emailMasked,
   code,
   errorMessage,
+  infoMessage = null,
   isLoading,
   onCodeChange,
   onSubmit,
@@ -52,6 +54,12 @@ export default function CitizenVerifyOtpStep({
               className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
             >
               {errorMessage}
+            </p>
+          ) : null}
+
+          {!errorMessage && infoMessage ? (
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              {infoMessage}
             </p>
           ) : null}
 

@@ -614,6 +614,9 @@ export function createMockAipRepoImpl({
       });
       return visible.map((aip) => ({
         ...aip,
+        workflowPermissions: {
+          canManageBarangayWorkflow: true,
+        },
         feedback: latestRevisionNotes.get(aip.id) ?? aip.feedback,
         publishedBy: latestPublishedBy.get(aip.id),
         revisionReply: latestRevisionReplies.get(aip.id),
@@ -641,6 +644,9 @@ export function createMockAipRepoImpl({
         });
         return {
           ...found,
+          workflowPermissions: {
+            canManageBarangayWorkflow: true,
+          },
           feedback:
             buildLatestMockRevisionNotes(revisionRemarks).get(found.id) ?? found.feedback,
           publishedBy: latestPublishedBy.get(found.id),

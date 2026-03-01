@@ -209,5 +209,34 @@ describe("system-administration route contract", () => {
       message: "Banner end date must be later than the start date.",
     });
   });
-});
 
+  it("POST publish_system_banner blocks schedules that are already past", async () => {
+    const { POST } = await import("@/app/api/admin/system-administration/route");
+    const request = new Request("http://localhost/api/admin/system-administration", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "publish_system_banner",
+        payload: {
+          draft: {
+            title: "Past Schedule",
+            message: "Already ended",
+            severity: "Warning",
+            startAt: "2020-03-01T10:00:00.000Z",
+            endAt: "2020-03-01T11:00:00.000Z",
+          },
+        },
+      }),
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({
+      message: "Banner schedule is already in the past.",
+    });
+  });
+});

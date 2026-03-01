@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Info, ShieldAlert } from "lucide-react";
 import type { SystemBannerPublished } from "@/lib/repos/system-administration/types";
+import { subscribeSystemBannerChanged } from "@/components/system/system-banner-events";
 
 type BannerPayload = {
   banner?: SystemBannerPublished | null;
@@ -43,12 +44,18 @@ export default function GlobalSystemBanner() {
     };
 
     void loadBanner();
+    const unsubscribe = subscribeSystemBannerChanged(() => {
+      if (!active) return;
+      void loadBanner();
+    });
+
     const timer = window.setInterval(() => {
       void loadBanner();
     }, REFRESH_MS);
 
     return () => {
       active = false;
+      unsubscribe();
       window.clearInterval(timer);
     };
   }, []);
@@ -70,4 +77,3 @@ export default function GlobalSystemBanner() {
     </>
   );
 }
-

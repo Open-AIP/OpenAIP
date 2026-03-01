@@ -100,14 +100,12 @@ export default function SystemAdministrationView() {
       <SecurityNoticeBanner />
 
       <SecuritySettingsSection
-        key={`security-${JSON.stringify(securitySettings)}`}
         settings={securitySettings}
         loading={loading}
         onSave={handleSaveSecurity}
       />
 
       <SystemBannerSection
-        key={`banner-${JSON.stringify(bannerDraft)}-${JSON.stringify(bannerPublished)}`}
         draft={bannerDraft}
         published={bannerPublished}
         loading={loading}

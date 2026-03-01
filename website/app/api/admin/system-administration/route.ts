@@ -52,6 +52,7 @@ function validateBannerDraft(draft: SystemBannerDraft): string | null {
     return "Banner message is required.";
   }
 
+  const nowMs = Date.now();
   const startMs = parseScheduleDate(draft.startAt);
   const endMs = parseScheduleDate(draft.endAt);
 
@@ -63,6 +64,9 @@ function validateBannerDraft(draft: SystemBannerDraft): string | null {
   }
   if (startMs !== null && endMs !== null && endMs <= startMs) {
     return "Banner end date must be later than the start date.";
+  }
+  if (endMs !== null && endMs <= nowMs) {
+    return "Banner schedule is already in the past.";
   }
 
   return null;

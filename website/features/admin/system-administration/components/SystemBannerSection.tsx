@@ -6,16 +6,27 @@ import type {
   SystemBannerDraft,
   SystemBannerPublished,
 } from "@/lib/repos/system-administration/types";
+import { emitSystemBannerChanged } from "@/components/system/system-banner-events";
 import BannerComposerCard from "./BannerComposerCard";
 import BannerPreviewCard from "./BannerPreviewCard";
 import ConfirmPublishBannerModal from "./ConfirmPublishBannerModal";
 import ConfirmUnpublishBannerModal from "./ConfirmUnpublishBannerModal";
 
+const EMPTY_DRAFT: SystemBannerDraft = {
+  title: null,
+  message: "",
+  severity: "Info",
+  startAt: null,
+  endAt: null,
+};
+
 const isScheduleValid = (draft: SystemBannerDraft) => {
+  const nowMs = Date.now();
   const startMs = draft.startAt ? new Date(draft.startAt).getTime() : null;
   const endMs = draft.endAt ? new Date(draft.endAt).getTime() : null;
   if (draft.startAt && (!startMs || Number.isNaN(startMs))) return false;
   if (draft.endAt && (!endMs || Number.isNaN(endMs))) return false;
+  if (endMs !== null && endMs <= nowMs) return false;
   if (startMs !== null && endMs !== null) return endMs > startMs;
   return true;
 };
@@ -57,17 +68,21 @@ export default function SystemBannerSection({
 
   const handlePublish = async () => {
     await onPublish(localDraft);
+    setLocalDraft({ ...EMPTY_DRAFT });
     setSaved(true);
     setUnpublished(false);
     setConfirmOpen(false);
+    emitSystemBannerChanged();
     setTimeout(() => setSaved(false), 2000);
   };
 
   const handleUnpublish = async () => {
     await onUnpublish();
+    setLocalDraft({ ...EMPTY_DRAFT });
     setUnpublished(true);
     setSaved(false);
     setConfirmUnpublishOpen(false);
+    emitSystemBannerChanged();
     setTimeout(() => setUnpublished(false), 2000);
   };
 
@@ -82,24 +97,33 @@ export default function SystemBannerSection({
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-[12px] text-slate-600">
-        {published ? (
-          <div className="space-y-1">
-            <div>
-              <span className="font-semibold text-slate-900">Current Published Banner:</span>{" "}
-              {currentlyActive ? "Active now" : "Published, currently inactive (schedule window)"}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          {published ? (
+            <div className="space-y-1">
+              <div>
+                <span className="font-semibold text-slate-900">Current Published Banner:</span>{" "}
+                {currentlyActive ? "Active now" : "Published, currently inactive (schedule window)"}
+              </div>
+              <div>
+                Published at:{" "}
+                <span className="font-medium text-slate-700">
+                  {new Date(published.publishedAt).toLocaleString()}
+                </span>
+              </div>
             </div>
+          ) : (
             <div>
-              Published at:{" "}
-              <span className="font-medium text-slate-700">
-                {new Date(published.publishedAt).toLocaleString()}
-              </span>
+              <span className="font-semibold text-slate-900">Current Published Banner:</span> None
             </div>
-          </div>
-        ) : (
-          <div>
-            <span className="font-semibold text-slate-900">Current Published Banner:</span> None
-          </div>
-        )}
+          )}
+          <Button
+            variant="outline"
+            onClick={() => setConfirmUnpublishOpen(true)}
+            disabled={!published || loading}
+          >
+            Unpublish Banner
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -114,18 +138,16 @@ export default function SystemBannerSection({
             >
               Publish Banner
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmUnpublishOpen(true)}
-              disabled={!published || loading}
-            >
-              Unpublish Banner
-            </Button>
             {saved && (
               <span className="text-[12px] text-emerald-600">Banner published successfully.</span>
             )}
             {unpublished && (
               <span className="text-[12px] text-amber-700">Banner unpublished successfully.</span>
+            )}
+            {!isValid && localDraft.message.trim().length > 0 && (
+              <span className="text-[12px] text-rose-700">
+                Invalid banner schedule. Past schedule windows cannot be published.
+              </span>
             )}
           </div>
         </div>

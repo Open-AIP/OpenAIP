@@ -197,6 +197,33 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.queryByText("Cycle 1 of 1")).not.toBeInTheDocument();
   });
 
+  it("shows read-only notice and hides workflow actions for non-uploader barangay official", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("for_revision", {
+          revisionFeedbackCycles: [revisionCycle()],
+          workflowPermissions: {
+            canManageBarangayWorkflow: false,
+            lockReason: "Only the uploader of this AIP can modify this workflow.",
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(
+      screen.getAllByText("Only the uploader of this AIP can modify this workflow.")
+        .length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Resubmit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save Reply" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit for Review" })).not.toBeInTheDocument();
+  });
+
   it("paginates reviewer feedback history by revision cycle", async () => {
     render(
       <AipDetailView

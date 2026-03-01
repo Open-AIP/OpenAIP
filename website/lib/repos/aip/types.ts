@@ -53,6 +53,10 @@ export type AipHeader = {
     uploadDate: string;
     budgetAllocated: number;
   };
+  workflowPermissions?: {
+    canManageBarangayWorkflow: boolean;
+    lockReason?: string;
+  };
 
   feedback?: string;
   publishedBy?: {

@@ -713,6 +713,11 @@ export default function AipDetailView({
   }, [aip.status]);
 
   const isWorkflowBusy = workflowPendingAction !== null;
+  const canManageBarangayWorkflow =
+    !isBarangayScope || aip.workflowPermissions?.canManageBarangayWorkflow !== false;
+  const barangayWorkflowLockReason =
+    aip.workflowPermissions?.lockReason ??
+    "Only the uploader of this AIP can modify this workflow.";
   const trimmedRevisionReply = revisionReplyDraft.trim();
   const currentRevisionCycle = aip.revisionFeedbackCycles?.[0];
   const hasSavedCurrentCycleReply =
@@ -723,12 +728,14 @@ export default function AipDetailView({
   const requiresRevisionReply =
     isBarangayScope && aip.status === "for_revision" && !hasSavedCurrentCycleReply;
   const canSubmitForReview =
+    canManageBarangayWorkflow &&
     !projectsLoading &&
     !projectsError &&
     unresolvedAiCount === 0 &&
     (!requiresRevisionReply || trimmedRevisionReply.length > 0);
   const canSaveRevisionReply =
     isBarangayScope &&
+    canManageBarangayWorkflow &&
     (isForRevision || isDraftWithRevisionHistory) &&
     trimmedRevisionReply.length > 0 &&
     !isWorkflowBusy;
@@ -809,7 +816,14 @@ export default function AipDetailView({
   ]);
 
   const saveRevisionReply = useCallback(async () => {
-    if (!isBarangayScope || aip.status !== "for_revision" || isWorkflowBusy) return;
+    if (
+      !isBarangayScope ||
+      !canManageBarangayWorkflow ||
+      aip.status !== "for_revision" ||
+      isWorkflowBusy
+    ) {
+      return;
+    }
     if (!trimmedRevisionReply) return;
 
     try {
@@ -839,6 +853,7 @@ export default function AipDetailView({
   }, [
     aip.id,
     aip.status,
+    canManageBarangayWorkflow,
     isBarangayScope,
     isWorkflowBusy,
     router,
@@ -846,6 +861,10 @@ export default function AipDetailView({
   ]);
 
   const deleteDraft = useCallback(async () => {
+    if (isBarangayScope && !canManageBarangayWorkflow) {
+      setWorkflowError(barangayWorkflowLockReason);
+      return;
+    }
     if (isWorkflowBusy) return;
 
     try {
@@ -868,11 +887,23 @@ export default function AipDetailView({
     } finally {
       setWorkflowPendingAction(null);
     }
-  }, [aip.id, isWorkflowBusy, router, scope]);
+  }, [
+    aip.id,
+    barangayWorkflowLockReason,
+    canManageBarangayWorkflow,
+    isBarangayScope,
+    isWorkflowBusy,
+    router,
+    scope,
+  ]);
 
   const cancelSubmission = useCallback(async () => {
     if (!isBarangayScope) {
       (onCancelSubmission ?? onCancel)?.();
+      return;
+    }
+    if (!canManageBarangayWorkflow) {
+      setWorkflowError(barangayWorkflowLockReason);
       return;
     }
     if (isWorkflowBusy) return;
@@ -904,7 +935,16 @@ export default function AipDetailView({
     } finally {
       setWorkflowPendingAction(null);
     }
-  }, [aip.id, isBarangayScope, isWorkflowBusy, onCancel, onCancelSubmission, router]);
+  }, [
+    aip.id,
+    barangayWorkflowLockReason,
+    canManageBarangayWorkflow,
+    isBarangayScope,
+    isWorkflowBusy,
+    onCancel,
+    onCancelSubmission,
+    router,
+  ]);
 
   const openCityPublishConfirm = useCallback(() => {
     if (!isCityScope || isWorkflowBusy || !canSubmitForReview) return;
@@ -917,9 +957,10 @@ export default function AipDetailView({
   }, [submitForReview]);
 
   const openDeleteDraftConfirm = useCallback(() => {
+    if (isBarangayScope && !canManageBarangayWorkflow) return;
     if (aip.status !== "draft" || isWorkflowBusy) return;
     setDeleteDraftConfirmOpen(true);
-  }, [aip.status, isWorkflowBusy]);
+  }, [aip.status, canManageBarangayWorkflow, isBarangayScope, isWorkflowBusy]);
 
   const confirmDeleteDraft = useCallback(() => {
     setDeleteDraftConfirmOpen(false);
@@ -939,7 +980,7 @@ export default function AipDetailView({
       : onResubmit;
 
   const effectiveCancelSubmissionHandler = isBarangayScope
-    ? aip.status === "pending_review" && !isWorkflowBusy
+    ? aip.status === "pending_review" && canManageBarangayWorkflow && !isWorkflowBusy
       ? () => {
           void cancelSubmission();
         }
@@ -1068,6 +1109,18 @@ export default function AipDetailView({
             </Alert>
           ) : null}
 
+          {isBarangayScope &&
+          !canManageBarangayWorkflow &&
+          (aip.status === "draft" ||
+            aip.status === "for_revision" ||
+            aip.status === "pending_review") ? (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertDescription className="text-amber-800">
+                {barangayWorkflowLockReason}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <div
             className={
               showRightSidebar ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"
@@ -1187,17 +1240,19 @@ export default function AipDetailView({
               <div className="flex justify-end gap-3">
                 {aip.status === "draft" ? (
                   <>
-                    <Button
-                      variant="outline"
-                      onClick={openDeleteDraftConfirm}
-                      disabled={isWorkflowBusy}
-                    >
-                      <X className="h-4 w-4" />
-                      {workflowPendingAction === "delete_draft"
-                        ? "Deleting..."
-                        : "Delete Draft"}
-                    </Button>
-                    {isBarangayScope ? (
+                    {!isBarangayScope || canManageBarangayWorkflow ? (
+                      <Button
+                        variant="outline"
+                        onClick={openDeleteDraftConfirm}
+                        disabled={isWorkflowBusy}
+                      >
+                        <X className="h-4 w-4" />
+                        {workflowPendingAction === "delete_draft"
+                          ? "Deleting..."
+                          : "Delete Draft"}
+                      </Button>
+                    ) : null}
+                    {isBarangayScope && canManageBarangayWorkflow ? (
                       <Button
                         className="bg-[#022437] hover:bg-[#022437]/90"
                         onClick={() => {
@@ -1249,43 +1304,50 @@ export default function AipDetailView({
                               Reviewer feedback is available. Save your response, then
                               resubmit this AIP when ready.
                             </div>
+                            {canManageBarangayWorkflow ? (
+                              <>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Provide your justification before saving.
+                                </p>
 
-                            <p className="mt-1 text-xs text-slate-500">
-                              Provide your justification before saving.
-                            </p>
+                                <Textarea
+                                  value={revisionReplyDraft}
+                                  onChange={(event) => {
+                                    setRevisionReplyDraft(event.target.value);
+                                  }}
+                                  placeholder="Explain what changed (or your response to reviewer remarks)."
+                                  className="min-h-[130px]"
+                                  disabled={isWorkflowBusy}
+                                />
 
-                            <Textarea
-                              value={revisionReplyDraft}
-                              onChange={(event) => {
-                                setRevisionReplyDraft(event.target.value);
-                              }}
-                              placeholder="Explain what changed (or your response to reviewer remarks)."
-                              className="min-h-[130px]"
-                              disabled={isWorkflowBusy}
-                            />
+                                <Button
+                                  className="w-full bg-[#022437] hover:bg-[#022437]/90"
+                                  onClick={() => {
+                                    void saveRevisionReply();
+                                  }}
+                                  disabled={!canSaveRevisionReply}
+                                >
+                                  {workflowPendingAction === "save_reply"
+                                    ? "Saving..."
+                                    : "Save Reply"}
+                                </Button>
 
-                            <Button
-                              className="w-full bg-[#022437] hover:bg-[#022437]/90"
-                              onClick={() => {
-                                void saveRevisionReply();
-                              }}
-                              disabled={!canSaveRevisionReply}
-                            >
-                              {workflowPendingAction === "save_reply"
-                                ? "Saving..."
-                                : "Save Reply"}
-                            </Button>
-
-                            <Button
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              onClick={effectiveResubmitHandler}
-                              disabled={!effectiveResubmitHandler}
-                            >
-                              <RotateCw className="h-4 w-4" />
-                              {workflowPendingAction === "submit_review"
-                                ? "Submitting..."
-                                : "Resubmit"}
-                            </Button>
+                                <Button
+                                  className="w-full bg-teal-600 hover:bg-teal-700"
+                                  onClick={effectiveResubmitHandler}
+                                  disabled={!effectiveResubmitHandler}
+                                >
+                                  <RotateCw className="h-4 w-4" />
+                                  {workflowPendingAction === "submit_review"
+                                    ? "Submitting..."
+                                    : "Resubmit"}
+                                </Button>
+                              </>
+                            ) : (
+                              <p className="text-xs text-slate-600">
+                                {barangayWorkflowLockReason}
+                              </p>
+                            )}
                           </>
                         ) : null}
 
@@ -1296,16 +1358,22 @@ export default function AipDetailView({
                               Please wait for the review process to complete.
                             </div>
 
-                            <Button
-                              className="w-full bg-rose-600 hover:bg-rose-700"
-                              onClick={effectiveCancelSubmissionHandler}
-                              disabled={!effectiveCancelSubmissionHandler}
-                            >
-                              <X className="h-4 w-4" />
-                              {workflowPendingAction === "cancel_submission"
-                                ? "Canceling..."
-                                : "Cancel Submission"}
-                            </Button>
+                            {canManageBarangayWorkflow ? (
+                              <Button
+                                className="w-full bg-rose-600 hover:bg-rose-700"
+                                onClick={effectiveCancelSubmissionHandler}
+                                disabled={!effectiveCancelSubmissionHandler}
+                              >
+                                <X className="h-4 w-4" />
+                                {workflowPendingAction === "cancel_submission"
+                                  ? "Canceling..."
+                                  : "Cancel Submission"}
+                              </Button>
+                            ) : (
+                              <p className="text-xs text-slate-600">
+                                {barangayWorkflowLockReason}
+                              </p>
+                            )}
                           </>
                         ) : null}
 
@@ -1316,31 +1384,39 @@ export default function AipDetailView({
                               Feedback history remains available while you continue editing this draft.
                             </div>
 
-                            <p className="mt-1 text-xs text-slate-500">
-                              Provide your justification before saving.
-                            </p>
+                            {canManageBarangayWorkflow ? (
+                              <>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Provide your justification before saving.
+                                </p>
 
-                            <Textarea
-                              value={revisionReplyDraft}
-                              onChange={(event) => {
-                                setRevisionReplyDraft(event.target.value);
-                              }}
-                              placeholder="Explain what changed (or your response to reviewer remarks)."
-                              className="min-h-[130px]"
-                              disabled={isWorkflowBusy}
-                            />
+                                <Textarea
+                                  value={revisionReplyDraft}
+                                  onChange={(event) => {
+                                    setRevisionReplyDraft(event.target.value);
+                                  }}
+                                  placeholder="Explain what changed (or your response to reviewer remarks)."
+                                  className="min-h-[130px]"
+                                  disabled={isWorkflowBusy}
+                                />
 
-                            <Button
-                              className="w-full bg-[#022437] hover:bg-[#022437]/90"
-                              onClick={() => {
-                                void saveRevisionReply();
-                              }}
-                              disabled={!canSaveRevisionReply}
-                            >
-                              {workflowPendingAction === "save_reply"
-                                ? "Saving..."
-                                : "Save Reply"}
-                            </Button>
+                                <Button
+                                  className="w-full bg-[#022437] hover:bg-[#022437]/90"
+                                  onClick={() => {
+                                    void saveRevisionReply();
+                                  }}
+                                  disabled={!canSaveRevisionReply}
+                                >
+                                  {workflowPendingAction === "save_reply"
+                                    ? "Saving..."
+                                    : "Save Reply"}
+                                </Button>
+                              </>
+                            ) : (
+                              <p className="text-xs text-slate-600">
+                                {barangayWorkflowLockReason}
+                              </p>
+                            )}
                           </>
                         ) : null}
                       </CardContent>

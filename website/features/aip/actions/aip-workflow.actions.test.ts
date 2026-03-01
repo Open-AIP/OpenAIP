@@ -8,6 +8,7 @@ const mockSupabaseAdmin = vi.fn();
 const mockSupabaseServer = vi.fn();
 const mockWriteActivityLog = vi.fn();
 const mockWriteWorkflowActivityLog = vi.fn();
+const mockAssertActorCanManageBarangayAipWorkflow = vi.fn();
 
 type UploadedFileRefRow = {
   bucket_id: string | null;
@@ -81,7 +82,17 @@ vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: () => mockSupabaseServer(),
 }));
 
-import { deleteAipDraftAction } from "./aip-workflow.actions";
+vi.mock("@/lib/repos/aip/workflow-permissions.server", () => ({
+  assertActorCanManageBarangayAipWorkflow: (...args: unknown[]) =>
+    mockAssertActorCanManageBarangayAipWorkflow(...args),
+}));
+
+import {
+  cancelAipSubmissionAction,
+  deleteAipDraftAction,
+  saveAipRevisionReplyAction,
+  submitAipForReviewAction,
+} from "./aip-workflow.actions";
 
 function createSupabaseServerClient() {
   return {
@@ -194,6 +205,8 @@ describe("deleteAipDraftAction strict storage-first deletion", () => {
     mockWriteActivityLog.mockResolvedValue("log-001");
     mockWriteWorkflowActivityLog.mockReset();
     mockWriteWorkflowActivityLog.mockResolvedValue("log-002");
+    mockAssertActorCanManageBarangayAipWorkflow.mockReset();
+    mockAssertActorCanManageBarangayAipWorkflow.mockResolvedValue(undefined);
     mockGetAipDetail.mockResolvedValue({
       id: "aip-001",
       scope: "barangay",
@@ -340,5 +353,100 @@ describe("deleteAipDraftAction strict storage-first deletion", () => {
       })
     );
     expect(mockWriteWorkflowActivityLog).not.toHaveBeenCalled();
+  });
+
+  it("blocks submit for review when actor is not the uploader", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "barangay-official-002",
+      role: "barangay_official",
+      scope: { kind: "barangay", id: "barangay-001" },
+    });
+    mockGetAipDetail.mockResolvedValue({
+      id: "aip-001",
+      scope: "barangay",
+      status: "draft",
+    });
+    mockAssertActorCanManageBarangayAipWorkflow.mockRejectedValueOnce(
+      new Error("Only the uploader of this AIP can modify this workflow.")
+    );
+
+    const result = await submitAipForReviewAction({ aipId: "aip-001" });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Only the uploader of this AIP can modify this workflow.",
+    });
+  });
+
+  it("blocks save revision reply when actor is not the uploader", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "barangay-official-002",
+      role: "barangay_official",
+      scope: { kind: "barangay", id: "barangay-001" },
+    });
+    mockGetAipDetail.mockResolvedValue({
+      id: "aip-001",
+      scope: "barangay",
+      status: "for_revision",
+    });
+    mockAssertActorCanManageBarangayAipWorkflow.mockRejectedValueOnce(
+      new Error("Only the uploader of this AIP can modify this workflow.")
+    );
+
+    const result = await saveAipRevisionReplyAction({
+      aipId: "aip-001",
+      reply: "Updated per reviewer remarks.",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Only the uploader of this AIP can modify this workflow.",
+    });
+  });
+
+  it("blocks cancel submission when actor is not the uploader", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "barangay-official-002",
+      role: "barangay_official",
+      scope: { kind: "barangay", id: "barangay-001" },
+    });
+    mockGetAipDetail.mockResolvedValue({
+      id: "aip-001",
+      scope: "barangay",
+      status: "pending_review",
+    });
+    mockAssertActorCanManageBarangayAipWorkflow.mockRejectedValueOnce(
+      new Error("Only the uploader of this AIP can modify this workflow.")
+    );
+
+    const result = await cancelAipSubmissionAction({ aipId: "aip-001" });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Only the uploader of this AIP can modify this workflow.",
+    });
+  });
+
+  it("blocks draft deletion when barangay actor is not the uploader", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "barangay-official-002",
+      role: "barangay_official",
+      scope: { kind: "barangay", id: "barangay-001" },
+    });
+    mockGetAipDetail.mockResolvedValue({
+      id: "aip-001",
+      scope: "barangay",
+      status: "draft",
+    });
+    mockAssertActorCanManageBarangayAipWorkflow.mockRejectedValueOnce(
+      new Error("Only the uploader of this AIP can modify this workflow.")
+    );
+
+    const result = await deleteAipDraftAction({ aipId: "aip-001" });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Only the uploader of this AIP can modify this workflow.",
+    });
   });
 });

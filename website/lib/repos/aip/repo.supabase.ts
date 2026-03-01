@@ -5,6 +5,9 @@ import { supabaseServer } from "@/lib/supabase/server";
 import type { Json } from "@/lib/contracts/databasev2";
 import type { AipProjectRepo, AipRepo } from "./repo";
 import {
+  computeBarangayWorkflowPermission,
+} from "./workflow-permissions.server";
+import {
   applyProjectEditPatch,
   buildProjectReviewBody,
   deriveSectorFromRefCode,
@@ -31,6 +34,7 @@ type AipSelectRow = {
   id: string;
   fiscal_year: number;
   status: "draft" | "pending_review" | "under_review" | "for_revision" | "published";
+  created_by: string | null;
   created_at: string;
   published_at: string | null;
   barangay_id: string | null;
@@ -230,6 +234,11 @@ type AipStatusRow = {
 type AipScopeOwnerRow = {
   id: string;
   barangay_id: string | null;
+  created_by: string | null;
+};
+
+type UploadedFileOwnerRow = {
+  uploaded_by: string | null;
 };
 
 type ProfileBarangayScopeRow = {
@@ -825,6 +834,7 @@ function buildAipHeader(input: {
   revisionFeedbackCycles?: AipRevisionFeedbackCycle[];
   processing?: AipHeader["processing"];
   embedding?: AipHeader["embedding"];
+  workflowPermissions?: AipHeader["workflowPermissions"];
 }) {
   const {
     aip,
@@ -839,6 +849,7 @@ function buildAipHeader(input: {
     revisionFeedbackCycles,
     processing,
     embedding,
+    workflowPermissions,
   } = input;
 
   const budget = projects.reduce((acc, p) => acc + (p.total ?? 0), 0);
@@ -895,12 +906,13 @@ function buildAipHeader(input: {
     revisionFeedbackCycles,
     processing,
     embedding,
+    workflowPermissions,
   };
 }
 
 export function createSupabaseAipRepo(): AipRepo {
   return {
-    async listVisibleAips(input) {
+    async listVisibleAips(input, actor) {
       const scope = input.scope ?? "barangay";
       const visibility = input.visibility ?? "my";
       const client = await supabaseServer();
@@ -908,7 +920,7 @@ export function createSupabaseAipRepo(): AipRepo {
       let query = client
         .from("aips")
         .select(
-          "id,fiscal_year,status,created_at,published_at,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)"
+          "id,fiscal_year,status,created_by,created_at,published_at,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)"
         )
         .order("fiscal_year", { ascending: false })
         .order("created_at", { ascending: false });
@@ -981,14 +993,30 @@ export function createSupabaseAipRepo(): AipRepo {
           summary,
         });
         const embedding = buildAipEmbedding(latestEmbedRunsByAip.get(aip.id));
+        const file = filesByAip.get(aip.id);
+        const scopeKind = aip.barangay_id
+          ? "barangay"
+          : aip.city_id
+            ? "city"
+            : "municipality";
+        const ownerUserId = file?.uploaded_by ?? aip.created_by ?? null;
+        const permission = computeBarangayWorkflowPermission({
+          actor,
+          aipScopeKind: scopeKind,
+          aipBarangayId: aip.barangay_id,
+          ownerUserId,
+        });
+        const workflowPermissions: AipHeader["workflowPermissions"] = {
+          canManageBarangayWorkflow: permission.canManageBarangayWorkflow,
+          lockReason: permission.lockReason,
+        };
 
         return buildAipHeader({
           aip,
-          currentFile: filesByAip.get(aip.id),
+          currentFile: file,
           projects: projectsByAip.get(aip.id) ?? [],
           summary,
           uploader: (() => {
-            const file = filesByAip.get(aip.id);
             return file ? profilesById.get(file.uploaded_by) : undefined;
           })(),
           revisionNote: revisionNotes.get(aip.id),
@@ -997,16 +1025,17 @@ export function createSupabaseAipRepo(): AipRepo {
           revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aip.id),
           processing,
           embedding,
+          workflowPermissions,
         });
       });
     },
 
-    async getAipDetail(aipId) {
+    async getAipDetail(aipId, actor) {
       const client = await supabaseServer();
       const { data, error } = await client
         .from("aips")
         .select(
-          "id,fiscal_year,status,created_at,published_at,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)"
+          "id,fiscal_year,status,created_by,created_at,published_at,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)"
         )
         .eq("id", aipId)
         .maybeSingle();
@@ -1047,6 +1076,22 @@ export function createSupabaseAipRepo(): AipRepo {
         replies: revisionReplies,
       });
       const pdfUrl = await createSignedUrl(file);
+      const scopeKind = aip.barangay_id
+        ? "barangay"
+        : aip.city_id
+          ? "city"
+          : "municipality";
+      const ownerUserId = file?.uploaded_by ?? aip.created_by ?? null;
+      const permission = computeBarangayWorkflowPermission({
+        actor,
+        aipScopeKind: scopeKind,
+        aipBarangayId: aip.barangay_id,
+        ownerUserId,
+      });
+      const workflowPermissions: AipHeader["workflowPermissions"] = {
+        canManageBarangayWorkflow: permission.canManageBarangayWorkflow,
+        lockReason: permission.lockReason,
+      };
 
       return buildAipHeader({
         aip,
@@ -1060,6 +1105,7 @@ export function createSupabaseAipRepo(): AipRepo {
         revisionReply: latestRevisionReplies.get(aipId),
         revisionFeedbackCycles: revisionFeedbackCyclesByAip.get(aipId),
         embedding: buildAipEmbedding(latestEmbedRunsByAip.get(aipId)),
+        workflowPermissions,
       });
     },
 
@@ -1132,7 +1178,7 @@ async function assertBarangayProjectEditOwnership(
 ) {
   const { data: aipData, error: aipError } = await client
     .from("aips")
-    .select("id,barangay_id")
+    .select("id,barangay_id,created_by")
     .eq("id", aipId)
     .maybeSingle();
 
@@ -1152,14 +1198,32 @@ async function assertBarangayProjectEditOwnership(
   if (!profileData) throw new Error("Unauthorized");
 
   const profile = profileData as ProfileBarangayScopeRow;
-  const isOwningBarangayOfficial =
+  const isBarangayOfficialInOwningScope =
     profile.role === "barangay_official" &&
     !!profile.barangay_id &&
     profile.barangay_id === aip.barangay_id;
 
-  if (!isOwningBarangayOfficial) {
+  if (!isBarangayOfficialInOwningScope) {
+    throw new Error(BARANGAY_UPLOADER_WORKFLOW_LOCK_REASON);
+  }
+
+  const { data: currentFileData, error: currentFileError } = await client
+    .from("uploaded_files")
+    .select("uploaded_by")
+    .eq("aip_id", aipId)
+    .eq("is_current", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (currentFileError) throw new Error(currentFileError.message);
+
+  const currentFile = currentFileData as UploadedFileOwnerRow | null;
+  const ownerUserId = currentFile?.uploaded_by ?? aip.created_by ?? null;
+
+  if (!ownerUserId || ownerUserId !== userId) {
     throw new Error(
-      "Only the owning barangay official can edit projects for this AIP."
+      BARANGAY_UPLOADER_WORKFLOW_LOCK_REASON
     );
   }
 }

@@ -5,6 +5,7 @@ import {
   CitizenFeedbackApiError,
   hydrateProjectFeedbackItems,
   listPublicProjectFeedback,
+  resolveViewerUserId,
   requireCitizenActor,
   resolveProjectByIdOrRef,
   sanitizeCitizenFeedbackKind,
@@ -32,8 +33,9 @@ export async function GET(request: Request) {
     const client = await supabaseServer();
     const project = await resolveProjectByIdOrRef(client, rawProjectId);
     assertPublishedProjectAip(project.aipStatus);
+    const viewerUserId = await resolveViewerUserId(client);
 
-    const items = await listPublicProjectFeedback(client, project.id);
+    const items = await listPublicProjectFeedback(client, project.id, { viewerUserId });
     return NextResponse.json({ items }, { status: 200 });
   } catch (error) {
     return toErrorResponse(error, "Failed to load project feedback.");

@@ -38,6 +38,8 @@ export type ProjectFeedbackApiItem = {
   kind: ProjectFeedbackDisplayKind;
   isHidden: boolean;
   body: string;
+  hiddenReason?: string | null;
+  violationCategory?: string | null;
   createdAt: string;
   author: {
     id: string | null;
@@ -95,6 +97,11 @@ type FeedbackAuthorMeta = {
   role: ProjectFeedbackAuthorRole;
   roleLabel: string;
   lguLabel: string;
+};
+
+type HiddenModerationMeta = {
+  hiddenReason: string | null;
+  violationCategory: string | null;
 };
 
 export class CitizenFeedbackApiError extends Error {
@@ -257,18 +264,31 @@ async function loadAuthorMetaById(
 
 function mapFeedbackRowToApiItem(
   row: FeedbackSelectRow,
-  authorMetaById: Map<string, FeedbackAuthorMeta>
+  authorMetaById: Map<string, FeedbackAuthorMeta>,
+  input?: {
+    viewerUserId?: string | null;
+    hiddenMetaByFeedbackId?: Map<string, HiddenModerationMeta>;
+  }
 ): ProjectFeedbackApiItem {
   const author = row.author_id ? authorMetaById.get(row.author_id) : null;
   const fallbackRole: ProjectFeedbackAuthorRole = "citizen";
+  const isHidden = !row.is_public;
+  const isAuthorViewer =
+    isHidden &&
+    !!input?.viewerUserId &&
+    !!row.author_id &&
+    input.viewerUserId === row.author_id;
+  const hiddenMeta = isHidden ? input?.hiddenMetaByFeedbackId?.get(row.id) : undefined;
 
   return {
     id: row.id,
     projectId: row.project_id ?? "",
     parentFeedbackId: row.parent_feedback_id,
     kind: row.kind,
-    isHidden: !row.is_public,
-    body: row.is_public ? row.body : HIDDEN_FEEDBACK_PLACEHOLDER,
+    isHidden,
+    body: isHidden ? (isAuthorViewer ? row.body : HIDDEN_FEEDBACK_PLACEHOLDER) : row.body,
+    hiddenReason: isAuthorViewer ? hiddenMeta?.hiddenReason ?? null : null,
+    violationCategory: isAuthorViewer ? hiddenMeta?.violationCategory ?? null : null,
     createdAt: row.created_at,
     author: {
       id: author?.id ?? row.author_id,
@@ -280,16 +300,85 @@ function mapFeedbackRowToApiItem(
   };
 }
 
+function readHiddenMetaFromActivityRow(row: { metadata: unknown }): HiddenModerationMeta {
+  const metadata = row.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return { hiddenReason: null, violationCategory: null };
+  }
+  const record = metadata as Record<string, unknown>;
+  return {
+    hiddenReason: typeof record.reason === "string" ? record.reason : null,
+    violationCategory:
+      typeof record.violation_category === "string" ? record.violation_category : null,
+  };
+}
+
+async function loadHiddenModerationMetaByFeedbackId(
+  rows: FeedbackSelectRow[],
+  viewerUserId?: string | null
+): Promise<Map<string, HiddenModerationMeta>> {
+  if (!viewerUserId) {
+    return new Map<string, HiddenModerationMeta>();
+  }
+
+  const hiddenFeedbackIds = Array.from(
+    new Set(
+      rows
+        .filter((row) => !row.is_public && row.author_id === viewerUserId)
+        .map((row) => row.id)
+    )
+  );
+  const hiddenMetaByFeedbackId = new Map<string, HiddenModerationMeta>();
+  if (hiddenFeedbackIds.length === 0) {
+    return hiddenMetaByFeedbackId;
+  }
+
+  const admin = supabaseAdmin();
+  const { data, error } = await admin
+    .from("activity_log")
+    .select("entity_id,metadata,created_at")
+    .eq("entity_table", "feedback")
+    .eq("action", "feedback_hidden")
+    .in("entity_id", hiddenFeedbackIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new CitizenFeedbackApiError(500, error.message);
+  }
+
+  for (const row of data ?? []) {
+    const entityId = (row as { entity_id?: unknown }).entity_id;
+    if (typeof entityId !== "string" || hiddenMetaByFeedbackId.has(entityId)) continue;
+    hiddenMetaByFeedbackId.set(
+      entityId,
+      readHiddenMetaFromActivityRow(row as { metadata: unknown })
+    );
+  }
+
+  return hiddenMetaByFeedbackId;
+}
+
 export async function hydrateProjectFeedbackItems(
-  rows: FeedbackSelectRow[]
+  rows: FeedbackSelectRow[],
+  input?: { viewerUserId?: string | null }
 ): Promise<ProjectFeedbackApiItem[]> {
   const authorMetaById = await loadAuthorMetaById(rows);
-  return rows.map((row) => mapFeedbackRowToApiItem(row, authorMetaById));
+  const hiddenMetaByFeedbackId = await loadHiddenModerationMetaByFeedbackId(
+    rows,
+    input?.viewerUserId ?? null
+  );
+  return rows.map((row) =>
+    mapFeedbackRowToApiItem(row, authorMetaById, {
+      viewerUserId: input?.viewerUserId ?? null,
+      hiddenMetaByFeedbackId,
+    })
+  );
 }
 
 export async function listPublicProjectFeedback(
   client: SupabaseServerClient,
-  projectId: string
+  projectId: string,
+  input?: { viewerUserId?: string | null }
 ): Promise<ProjectFeedbackApiItem[]> {
   const { data, error } = await client
     .from("feedback")
@@ -304,7 +393,15 @@ export async function listPublicProjectFeedback(
     throw new CitizenFeedbackApiError(500, error.message);
   }
 
-  return hydrateProjectFeedbackItems((data ?? []) as FeedbackSelectRow[]);
+  return hydrateProjectFeedbackItems((data ?? []) as FeedbackSelectRow[], input);
+}
+
+export async function resolveViewerUserId(
+  client: SupabaseServerClient
+): Promise<string | null> {
+  const { data, error } = await client.auth.getUser();
+  if (error) return null;
+  return data.user?.id ?? null;
 }
 
 export function sanitizeFeedbackBody(value: unknown): string {

@@ -38,6 +38,8 @@ export type ProjectFeedbackItem = {
   kind: ProjectFeedbackDisplayKind;
   isHidden?: boolean;
   body: string;
+  hiddenReason?: string | null;
+  violationCategory?: string | null;
   createdAt: string;
   author: ProjectFeedbackAuthor;
 };

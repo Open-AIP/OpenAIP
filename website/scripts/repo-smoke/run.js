@@ -486,7 +486,7 @@ const tests = [
           {
             label: "FeedbackModerationProjectUpdatesRepo",
             repo: getFeedbackModerationProjectUpdatesRepo(),
-            methods: ["getSeedData", "flagUpdate", "removeUpdate"],
+            methods: ["getSeedData", "hideUpdate", "unhideUpdate"],
           },
           {
             label: "UsageControlsRepo",

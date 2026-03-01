@@ -21,6 +21,8 @@ export type AipFeedbackItem = {
   kind: AipFeedbackDisplayKind;
   isHidden?: boolean;
   body: string;
+  hiddenReason?: string | null;
+  violationCategory?: string | null;
   createdAt: string;
   author: {
     id: string | null;

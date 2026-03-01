@@ -5,6 +5,7 @@ import {
   CitizenAipFeedbackApiError,
   hydrateAipFeedbackItems,
   listPublicAipFeedback,
+  resolveViewerUserId,
   requireCitizenActor,
   resolveAipById,
   sanitizeCitizenFeedbackKind,
@@ -29,8 +30,9 @@ export async function GET(
     const client = await supabaseServer();
     const aip = await resolveAipById(client, aipId);
     assertPublishedAipStatus(aip.status);
+    const viewerUserId = await resolveViewerUserId(client);
 
-    const items = await listPublicAipFeedback(client, aip.id);
+    const items = await listPublicAipFeedback(client, aip.id, { viewerUserId });
     return NextResponse.json({ items }, { status: 200 });
   } catch (error) {
     return toErrorResponse(error, "Failed to load AIP feedback.");

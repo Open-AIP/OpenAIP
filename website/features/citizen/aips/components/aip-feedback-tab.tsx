@@ -164,6 +164,13 @@ function FeedbackCard({
         {item.body}
       </p>
 
+      {isHidden && (item.hiddenReason || item.violationCategory) ? (
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+          {item.hiddenReason ? <div>Reason: {item.hiddenReason}</div> : null}
+          {item.violationCategory ? <div>Violation Category: {item.violationCategory}</div> : null}
+        </div>
+      ) : null}
+
       {showReplyButton === false || isHidden || isNested ? null : (
         <div className="mt-3">
           <Button

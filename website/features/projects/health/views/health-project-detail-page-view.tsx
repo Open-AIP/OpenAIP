@@ -70,6 +70,10 @@ export default function HealthProjectDetailPageView({
     progressPercent: u.progressPercent ?? 0,
     photoUrls: u.photoUrls,
     attendanceCount: u.attendanceCount,
+    isHidden: u.isHidden,
+    isRedacted: u.isRedacted,
+    hiddenReason: u.hiddenReason ?? null,
+    violationCategory: u.violationCategory ?? null,
   }));
 
   return (

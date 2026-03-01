@@ -10,6 +10,7 @@ type FeedbackCardProps = {
   onReply: (item: ProjectFeedbackItem) => void;
   replyDisabled?: boolean;
   isReply?: boolean;
+  hideLguNoteBadge?: boolean;
 };
 
 const KIND_LABELS: Record<ProjectFeedbackDisplayKind, string> = {
@@ -53,8 +54,10 @@ export function FeedbackCard({
   onReply,
   replyDisabled = false,
   isReply = false,
+  hideLguNoteBadge = false,
 }: FeedbackCardProps) {
   const isLguNote = item.kind === "lgu_note";
+  const shouldShowKindBadge = !(hideLguNoteBadge && isLguNote);
 
   return (
     <article
@@ -74,11 +77,13 @@ export function FeedbackCard({
         <p className="text-xs text-slate-500">{formatFeedbackTimestamp(item.createdAt)}</p>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <Badge variant="outline" className={cn("rounded-full", KIND_BADGE_CLASSES[item.kind])}>
-          {KIND_LABELS[item.kind]}
-        </Badge>
-      </div>
+      {shouldShowKindBadge ? (
+        <div className="mt-3 flex items-center gap-2">
+          <Badge variant="outline" className={cn("rounded-full", KIND_BADGE_CLASSES[item.kind])}>
+            {KIND_LABELS[item.kind]}
+          </Badge>
+        </div>
+      ) : null}
 
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.body}</p>
 

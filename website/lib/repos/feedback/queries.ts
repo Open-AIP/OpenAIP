@@ -67,7 +67,7 @@ export async function resolveCommentSidebar({
           status: thread.preview.status,
           contextTitle,
           contextSubtitle,
-          href: `/${scope}/projects/${projectPath}/${thread.target.projectId}?tab=comments&thread=${thread.id}`,
+          href: `/${scope}/projects/${projectPath}/${thread.target.projectId}?tab=feedback&thread=${thread.id}`,
         } satisfies CommentSidebarItem;
       }
 

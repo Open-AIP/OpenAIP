@@ -1,4 +1,5 @@
 import type {
+  CreateProjectLguFeedbackReplyPayload,
   CreateProjectFeedbackPayload,
   CreateProjectFeedbackReplyPayload,
   CreateProjectFeedbackResponse,
@@ -83,5 +84,21 @@ export async function createProjectFeedbackReply(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function createProjectLguFeedbackReply(
+  payload: CreateProjectLguFeedbackReplyPayload
+): Promise<CreateProjectFeedbackResponse> {
+  const endpoint = `/api/${payload.scope}/projects/${encodeURIComponent(payload.projectId)}/feedback/reply`;
+  return requestJson<CreateProjectFeedbackResponse>(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      parentFeedbackId: payload.parentFeedbackId,
+      body: payload.body,
+    }),
   });
 }

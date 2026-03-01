@@ -17,8 +17,7 @@ import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import InfrastructureProjectInformationCard from "../components/project-information-card";
 import { ProjectUpdatesSection } from "../../shared/update-view";
-import { FeedbackThread } from "../../shared/feedback";
-import { CommentThreadsSplitView } from "@/features/feedback";
+import { FeedbackThread, LguProjectFeedbackThread } from "../../shared/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
@@ -151,9 +150,9 @@ export default function InfrastructureProjectDetailPageView({
           {scope === "citizen" ? (
             <FeedbackThread projectId={project.id} />
           ) : (
-            <CommentThreadsSplitView
+            <LguProjectFeedbackThread
+              projectId={project.id}
               scope={scope}
-              target={{ kind: "project", projectId: project.id }}
               selectedThreadId={threadId}
             />
           )}

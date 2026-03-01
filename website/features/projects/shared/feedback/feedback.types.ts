@@ -63,6 +63,13 @@ export type CreateProjectFeedbackReplyPayload = {
   body: string;
 };
 
+export type CreateProjectLguFeedbackReplyPayload = {
+  scope: "barangay" | "city";
+  projectId: string;
+  parentFeedbackId: string;
+  body: string;
+};
+
 export type CreateProjectFeedbackResponse = {
   item: ProjectFeedbackItem;
 };

@@ -18,8 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import { ProjectUpdatesSection } from "../../shared/update-view";
-import { FeedbackThread } from "../../shared/feedback";
-import { CommentThreadsSplitView } from "@/features/feedback";
+import { FeedbackThread, LguProjectFeedbackThread } from "../../shared/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
@@ -150,9 +149,9 @@ export default function HealthProjectDetailPageView({
           {scope === "citizen" ? (
             <FeedbackThread projectId={project.id} />
           ) : (
-            <CommentThreadsSplitView
+            <LguProjectFeedbackThread
+              projectId={project.id}
               scope={scope}
-              target={{ kind: "project", projectId: project.id }}
               selectedThreadId={threadId}
             />
           )}

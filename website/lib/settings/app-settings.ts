@@ -66,6 +66,37 @@ export type BlockedUserSetting = {
 
 export type BlockedUsersSetting = Record<string, BlockedUserSetting>;
 
+export type CitizenAboutUsReferenceDocStorageValue = {
+  id: string;
+  title: string;
+  source: string;
+  kind: "storage";
+  bucketId: string;
+  objectName: string;
+};
+
+export type CitizenAboutUsReferenceDocExternalValue = {
+  id: string;
+  title: string;
+  source: string;
+  kind: "external";
+  externalUrl: string;
+};
+
+export type CitizenAboutUsReferenceDocValue =
+  | CitizenAboutUsReferenceDocStorageValue
+  | CitizenAboutUsReferenceDocExternalValue;
+
+export type CitizenAboutUsQuickLinkValue = {
+  id: string;
+  href: string;
+};
+
+export type CitizenAboutUsContentValue = {
+  referenceDocs: CitizenAboutUsReferenceDocValue[];
+  quickLinks: CitizenAboutUsQuickLinkValue[];
+};
+
 export type AppSettingsMap = {
   "controls.comment_rate_limit": CommentRateLimitSetting;
   "controls.chatbot_rate_limit": ChatbotRateLimitSetting;
@@ -74,6 +105,7 @@ export type AppSettingsMap = {
   "system.security_settings": SecuritySettingsValue;
   "system.notification_settings": NotificationSettingsValue;
   "system.banner_draft": SystemBannerDraftValue;
+  "content.citizen_about_us": CitizenAboutUsContentValue;
 };
 
 const DEFAULT_SETTINGS: AppSettingsMap = {
@@ -121,6 +153,48 @@ const DEFAULT_SETTINGS: AppSettingsMap = {
     severity: "Info",
     startAt: null,
     endAt: null,
+  },
+  "content.citizen_about_us": {
+    referenceDocs: [
+      {
+        id: "dbm_primer_cover",
+        title: "DBM Primer Cover (Volume 1)",
+        source: "Source: DBM",
+        kind: "storage",
+        bucketId: "about-us-docs",
+        objectName: "reference/dbm-primer-cover-volume-1.pdf",
+      },
+      {
+        id: "dbm_primer_cover_volume_2",
+        title: "DBM Primer Cover (Volume 2)",
+        source: "Source: DBM",
+        kind: "storage",
+        bucketId: "about-us-docs",
+        objectName: "reference/dbm-primer-cover-volume-2.pdf",
+      },
+      {
+        id: "ra_7160",
+        title: "RA 7160",
+        source: "Source: Official Code",
+        kind: "storage",
+        bucketId: "about-us-docs",
+        objectName: "reference/ra-7160.pdf",
+      },
+      {
+        id: "lbm_92_fy_2026",
+        title: "LBM No. 92, FY 2026",
+        source: "Source: DBM",
+        kind: "storage",
+        bucketId: "about-us-docs",
+        objectName: "reference/lbm-no-92-fy-2026.pdf",
+      },
+    ],
+    quickLinks: [
+      { id: "dashboard", href: "/" },
+      { id: "budget_allocation", href: "/budget-allocation" },
+      { id: "aips", href: "/aips" },
+      { id: "projects", href: "/projects" },
+    ],
   },
 };
 

@@ -43,8 +43,10 @@ export function CommentThreadsSplitView({
       setError(null);
 
       try {
+        const inboxScope = scope === "city" || scope === "barangay" ? scope : undefined;
         const allThreads = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
+          scope: inboxScope,
         });
         const filtered = allThreads.filter((thread) => {
           if (targetKind === "aip") {

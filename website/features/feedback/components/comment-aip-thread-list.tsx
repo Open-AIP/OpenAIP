@@ -35,6 +35,7 @@ export function CommentAipThreadList({
       try {
         const allThreads = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
+          scope,
         });
         const aipThreads = allThreads.filter(
           (thread) =>

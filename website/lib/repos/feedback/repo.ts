@@ -20,6 +20,7 @@ export type { CreateReplyInput, CreateRootInput, FeedbackTarget, FeedbackThreadR
 
 export type ListThreadsForInboxParams = {
   lguId: string;
+  scope?: "barangay" | "city";
 };
 
 export type GetThreadParams = {

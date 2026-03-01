@@ -36,6 +36,7 @@ export function useCommentsView({
       try {
         const threadList = await repo.listThreadsForInbox({
           lguId,
+          scope,
         });
         const lookup = getCommentTargetLookup();
         const resolved = await resolveCommentSidebar({

@@ -85,6 +85,18 @@ type AipLookupRow = {
   municipality_id: string | null;
 };
 
+type InboxScope = "barangay" | "city";
+
+type ResolvedInboxAccess =
+  | { mode: "scoped"; scope: InboxScope; scopeId: string }
+  | { mode: "deny" }
+  | { mode: "unscoped" };
+
+type ScopedProjectLookupRow = {
+  id: string;
+  aip_id: string;
+};
+
 const FEEDBACK_SELECT_COLUMNS = [
   "id",
   "target_type",
@@ -405,6 +417,199 @@ async function getCurrentUserId(
   return data.user?.id ?? null;
 }
 
+function getScopeColumn(scope: InboxScope): "barangay_id" | "city_id" {
+  return scope === "city" ? "city_id" : "barangay_id";
+}
+
+function chunkArray<T>(values: T[], size = 200): T[][] {
+  if (values.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function resolveInboxAccess(
+  client: SupabaseClientLike,
+  params?: { scope?: InboxScope; lguId?: string }
+): Promise<ResolvedInboxAccess> {
+  const fallbackScope =
+    params?.scope && params.lguId ? { scope: params.scope, scopeId: params.lguId } : null;
+
+  // No auth context available in some local/mock tests; keep a fallback path.
+  if (!client.auth) {
+    return fallbackScope ? { mode: "scoped", ...fallbackScope } : { mode: "unscoped" };
+  }
+
+  const userId = await getCurrentUserId(client);
+  if (!userId) return { mode: "deny" };
+
+  const { data, error } = await client
+    .from("profiles")
+    .select("role,barangay_id,city_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return { mode: "deny" };
+
+  const profile = data as Pick<ProfileSelectRow, "role" | "barangay_id" | "city_id">;
+
+  if (profile.role === "barangay_official") {
+    return profile.barangay_id
+      ? { mode: "scoped", scope: "barangay", scopeId: profile.barangay_id }
+      : { mode: "deny" };
+  }
+
+  if (profile.role === "city_official") {
+    return profile.city_id
+      ? { mode: "scoped", scope: "city", scopeId: profile.city_id }
+      : { mode: "deny" };
+  }
+
+  return { mode: "unscoped" };
+}
+
+async function listScopedAipIds(
+  client: SupabaseClientLike,
+  input: { scope: InboxScope; scopeId: string }
+): Promise<string[]> {
+  const scopeColumn = getScopeColumn(input.scope);
+  const { data, error } = await client
+    .from("aips")
+    .select("id")
+    .eq(scopeColumn, input.scopeId);
+
+  if (error) throw new Error(error.message);
+
+  return Array.from(
+    new Set(
+      ((data ?? []) as Array<{ id: string }>)
+        .map((row) => row.id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  );
+}
+
+async function listScopedProjectIdsByAips(
+  client: SupabaseClientLike,
+  aipIds: string[]
+): Promise<string[]> {
+  if (aipIds.length === 0) return [];
+
+  const projectIds = new Set<string>();
+  for (const aipChunk of chunkArray(aipIds)) {
+    const { data, error } = await client
+      .from("projects")
+      .select("id,aip_id")
+      .in("aip_id", aipChunk);
+
+    if (error) throw new Error(error.message);
+
+    for (const row of (data ?? []) as ScopedProjectLookupRow[]) {
+      if (row.id) projectIds.add(row.id);
+    }
+  }
+
+  return Array.from(projectIds);
+}
+
+async function listScopedInboxRoots(
+  client: SupabaseClientLike,
+  input: { scope: InboxScope; scopeId: string }
+): Promise<FeedbackSelectRow[]> {
+  const aipIds = await listScopedAipIds(client, input);
+  if (aipIds.length === 0) return [];
+
+  const rootsById = new Map<string, FeedbackSelectRow>();
+
+  for (const aipChunk of chunkArray(aipIds)) {
+    const { data, error } = await client
+      .from("feedback")
+      .select(FEEDBACK_SELECT_COLUMNS)
+      .is("parent_feedback_id", null)
+      .eq("target_type", "aip")
+      .in("aip_id", aipChunk)
+      .in("kind", [...CITIZEN_INITIATED_FEEDBACK_KINDS]);
+
+    if (error) throw new Error(error.message);
+
+    for (const row of (data ?? []) as FeedbackSelectRow[]) {
+      if (isCitizenInitiatedFeedbackKind(row.kind)) {
+        rootsById.set(row.id, row);
+      }
+    }
+  }
+
+  const projectIds = await listScopedProjectIdsByAips(client, aipIds);
+  for (const projectChunk of chunkArray(projectIds)) {
+    const { data, error } = await client
+      .from("feedback")
+      .select(FEEDBACK_SELECT_COLUMNS)
+      .is("parent_feedback_id", null)
+      .eq("target_type", "project")
+      .in("project_id", projectChunk)
+      .in("kind", [...CITIZEN_INITIATED_FEEDBACK_KINDS]);
+
+    if (error) throw new Error(error.message);
+
+    for (const row of (data ?? []) as FeedbackSelectRow[]) {
+      if (isCitizenInitiatedFeedbackKind(row.kind)) {
+        rootsById.set(row.id, row);
+      }
+    }
+  }
+
+  return Array.from(rootsById.values()).sort(
+    (left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime()
+  );
+}
+
+async function isRowAccessibleInScope(
+  client: SupabaseClientLike,
+  row: FeedbackSelectRow,
+  input: { scope: InboxScope; scopeId: string }
+): Promise<boolean> {
+  const scopeColumn = getScopeColumn(input.scope);
+
+  if (row.target_type === "aip") {
+    if (!row.aip_id) return false;
+
+    const { data, error } = await client
+      .from("aips")
+      .select("id")
+      .eq("id", row.aip_id)
+      .eq(scopeColumn, input.scopeId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return !!data;
+  }
+
+  if (!row.project_id) return false;
+
+  const { data: projectData, error: projectError } = await client
+    .from("projects")
+    .select("id,aip_id")
+    .eq("id", row.project_id)
+    .maybeSingle();
+
+  if (projectError) throw new Error(projectError.message);
+  if (!projectData) return false;
+
+  const project = projectData as ScopedProjectLookupRow;
+  const { data: aipData, error: aipError } = await client
+    .from("aips")
+    .select("id")
+    .eq("id", project.aip_id)
+    .eq(scopeColumn, input.scopeId)
+    .maybeSingle();
+
+  if (aipError) throw new Error(aipError.message);
+  return !!aipData;
+}
+
 async function resolveAuthorId(
   client: SupabaseClientLike,
   preferredAuthorId?: string | null
@@ -677,22 +882,37 @@ async function getAipScopeName(
 
 export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
   return {
-    async listThreadsForInbox() {
+    async listThreadsForInbox(params) {
       const client = await getClient();
-      const { data, error } = await client
-        .from("feedback")
-        .select(FEEDBACK_SELECT_COLUMNS)
-        .is("parent_feedback_id", null)
-        .in("kind", [...CITIZEN_INITIATED_FEEDBACK_KINDS])
-        .order("updated_at", { ascending: false });
+      const access = await resolveInboxAccess(client, params);
 
-      if (error) {
-        throw new Error(error.message);
+      if (access.mode === "deny") {
+        return [];
       }
 
-      const roots = ((data ?? []) as FeedbackSelectRow[]).filter((row) =>
-        isCitizenInitiatedFeedbackKind(row.kind)
-      );
+      const roots =
+        access.mode === "scoped"
+          ? await listScopedInboxRoots(client, {
+              scope: access.scope,
+              scopeId: access.scopeId,
+            })
+          : await (async () => {
+              const { data, error } = await client
+                .from("feedback")
+                .select(FEEDBACK_SELECT_COLUMNS)
+                .is("parent_feedback_id", null)
+                .in("kind", [...CITIZEN_INITIATED_FEEDBACK_KINDS])
+                .order("updated_at", { ascending: false });
+
+              if (error) {
+                throw new Error(error.message);
+              }
+
+              return ((data ?? []) as FeedbackSelectRow[]).filter((row) =>
+                isCitizenInitiatedFeedbackKind(row.kind)
+              );
+            })();
+
       const replies = await listFeedbackRowsByParentIds(
         client,
         roots.map((row) => row.id)
@@ -728,8 +948,20 @@ export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
 
     async getThread({ threadId }) {
       const client = await getClient();
+      const access = await resolveInboxAccess(client);
+      if (access.mode === "deny") return null;
+
       const root = await getFeedbackRowById(client, threadId);
       if (!root || root.parent_feedback_id) return null;
+      if (
+        access.mode === "scoped" &&
+        !(await isRowAccessibleInScope(client, root, {
+          scope: access.scope,
+          scopeId: access.scopeId,
+        }))
+      ) {
+        return null;
+      }
 
       const replies = await listFeedbackRowsByParentIds(client, [threadId]);
       const profileById = await listProfilesByIds(
@@ -746,6 +978,21 @@ export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
 
     async listMessages({ threadId }) {
       const client = await getClient();
+      const access = await resolveInboxAccess(client);
+      if (access.mode === "deny") return [];
+
+      const root = await getFeedbackRowById(client, threadId);
+      if (!root || root.parent_feedback_id) return [];
+      if (
+        access.mode === "scoped" &&
+        !(await isRowAccessibleInScope(client, root, {
+          scope: access.scope,
+          scopeId: access.scopeId,
+        }))
+      ) {
+        return [];
+      }
+
       const rows = await listFeedbackRowsByThreadId(client, threadId);
       const profileById = await listProfilesByIds(
         client,
@@ -757,8 +1004,22 @@ export function createCommentRepoFromClient(getClient: GetClient): CommentRepo {
 
     async addReply({ threadId, text }) {
       const client = await getClient();
+      const access = await resolveInboxAccess(client);
+      if (access.mode === "deny") {
+        throw new Error("Thread not found.");
+      }
+
       const parent = await getFeedbackRowById(client, threadId);
       if (!parent || parent.parent_feedback_id) {
+        throw new Error("Thread not found.");
+      }
+      if (
+        access.mode === "scoped" &&
+        !(await isRowAccessibleInScope(client, parent, {
+          scope: access.scope,
+          scopeId: access.scopeId,
+        }))
+      ) {
         throw new Error("Thread not found.");
       }
 

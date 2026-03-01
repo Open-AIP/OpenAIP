@@ -4,6 +4,7 @@ import type { ChatMessage, ChatSession } from "@/lib/repos/chat/types";
 const mockGetActorContext = vi.fn();
 const mockResolveRetrievalScope = vi.fn();
 const mockRequestPipelineQueryEmbedding = vi.fn();
+const mockRequestPipelineIntentClassify = vi.fn();
 const mockRequestPipelineChatAnswer = vi.fn();
 const mockSupabaseServer = vi.fn();
 const mockSupabaseAdmin = vi.fn();
@@ -213,6 +214,8 @@ vi.mock("@/lib/chat/scope-resolver.server", () => ({
 vi.mock("@/lib/chat/pipeline-client", () => ({
   requestPipelineQueryEmbedding: (...args: unknown[]) =>
     mockRequestPipelineQueryEmbedding(...args),
+  requestPipelineIntentClassify: (...args: unknown[]) =>
+    mockRequestPipelineIntentClassify(...args),
   requestPipelineChatAnswer: (...args: unknown[]) => mockRequestPipelineChatAnswer(...args),
 }));
 
@@ -279,6 +282,7 @@ describe("chat messages clarification state machine", () => {
     mockConsumeQuotaRpc.mockReset();
     mockMatchLineItemsRpc.mockReset();
     mockRequestPipelineQueryEmbedding.mockReset();
+    mockRequestPipelineIntentClassify.mockReset();
     mockRequestPipelineChatAnswer.mockReset();
     mockGetSession.mockReset();
     mockCreateSession.mockReset();
@@ -289,6 +293,14 @@ describe("chat messages clarification state machine", () => {
     mockSupabaseAdmin.mockReset();
     mockRouteSqlFirstTotals.mockReset();
     routePostHandler = null;
+    mockRequestPipelineIntentClassify.mockResolvedValue({
+      intent: "UNKNOWN",
+      confidence: 0,
+      top2_intent: null,
+      top2_confidence: null,
+      margin: 0,
+      method: "none",
+    });
 
     lineItemsById = {
       "line-1": {
@@ -521,7 +533,7 @@ describe("chat messages clarification state machine", () => {
     expect(assistant.content).toContain("total allocation: PHP 45,000.00");
   });
 
-  it("returns clarification reminder for short unmatched reply while pending", async () => {
+  it("returns clarification reminder for short ambiguous retry while pending", async () => {
     await callMessagesRoute({
       sessionId: "session-1",
       content: "How much is the honoraria in FY 2026 and what's the schedule?",
@@ -529,12 +541,38 @@ describe("chat messages clarification state machine", () => {
 
     const { payload } = await callMessagesRoute({
       sessionId: "session-1",
-      content: "what?",
+      content: "hmm",
     });
 
     expect(payload.status).toBe("clarification");
     const assistant = payload.assistantMessage as { content: string };
     expect(assistant.content).toContain("Please reply with 1-3, or type the Ref code.");
+  });
+
+  it("does not trap complaint-like replies inside the clarification loop", async () => {
+    await callMessagesRoute({
+      sessionId: "session-1",
+      content: "How much is the honoraria in FY 2026 and what's the schedule?",
+    });
+
+    mockRequestPipelineIntentClassify.mockResolvedValueOnce({
+      intent: "COMPLAINT",
+      confidence: 0.98,
+      top2_intent: null,
+      top2_confidence: null,
+      margin: 0.98,
+      method: "semantic",
+    });
+
+    const { payload } = await callMessagesRoute({
+      sessionId: "session-1",
+      content: "this is not the answer",
+    });
+
+    expect(payload.status).not.toBe("clarification");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).not.toContain("Please reply with 1-3, or type the Ref code.");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
   it("exits clarification loop on explicit cancel phrase", async () => {

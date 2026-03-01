@@ -31,7 +31,11 @@ import {
   type LineItemFactField,
   type LineItemScopeReason,
 } from "@/lib/chat/line-item-routing";
-import { requestPipelineChatAnswer, requestPipelineQueryEmbedding } from "@/lib/chat/pipeline-client";
+import {
+  requestPipelineChatAnswer,
+  requestPipelineIntentClassify,
+  requestPipelineQueryEmbedding,
+} from "@/lib/chat/pipeline-client";
 import {
   detectBareBarangayScopeMention,
   detectExplicitBarangayMention,
@@ -42,7 +46,7 @@ import {
 } from "@/lib/chat/scope";
 import { resolveRetrievalScope } from "@/lib/chat/scope-resolver.server";
 import { routeSqlFirstTotals, buildTotalsMissingMessage } from "@/lib/chat/totals-sql-routing";
-import type { PipelineChatCitation } from "@/lib/chat/types";
+import type { PipelineChatCitation, PipelineIntentClassification } from "@/lib/chat/types";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getChatRepo } from "@/lib/repos/chat/repo.server";
@@ -302,6 +306,67 @@ function normalizeUserMessage(raw: unknown): string {
   return trimmed.slice(0, MAX_MESSAGE_LENGTH);
 }
 
+function containsDomainCues(text: string): boolean {
+  const normalized = text.toLowerCase();
+  if (/\b20\d{2}\b/.test(normalized)) {
+    return true;
+  }
+
+  const cues = [
+    "aip",
+    "budget",
+    "investment",
+    "total",
+    "sum",
+    "overall",
+    "ref",
+    "reference",
+    "project",
+    "program",
+    "activity",
+    "line item",
+    "barangay",
+    "city",
+    "municipality",
+    "fiscal",
+    "year",
+    "fy",
+  ];
+
+  return cues.some((cue) => normalized.includes(cue));
+}
+
+function isConversationalIntent(
+  intent?: string
+): intent is "GREETING" | "THANKS" | "COMPLAINT" | "CLARIFY" {
+  return (
+    intent === "GREETING" ||
+    intent === "THANKS" ||
+    intent === "COMPLAINT" ||
+    intent === "CLARIFY"
+  );
+}
+
+function conversationalReply(intent: string): string {
+  switch (intent) {
+    case "GREETING":
+      return "Hi! I can help with published AIP totals, line items, and project details. Tell me the barangay/city and year you want to check.";
+    case "THANKS":
+      return "You're welcome! If you'd like, tell me the barangay/city and year and what AIP detail you want to check.";
+    case "COMPLAINT":
+      return "Thanks for flagging that. Which part seems incorrect (barangay/city, year, or project/ref code) so I can re-check based on the published AIP data?";
+    case "CLARIFY":
+      return "Sure - tell me the barangay/city, year, and (if available) the ref code or project name you mean.";
+    default:
+      return "How can I help with the published AIP data?";
+  }
+}
+
+function isMissingConsumeQuotaRpcError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("consume_chat_quota") && normalized.includes("schema cache");
+}
+
 function toScopeResolution(input: {
   mode: ChatScopeResolution["mode"];
   requestedScopes: ChatScopeResolution["requestedScopes"];
@@ -452,6 +517,50 @@ function parseClarificationSelection(message: string): ClarificationSelection | 
 
 function isShortClarificationInput(message: string): boolean {
   return message.trim().length > 0 && message.trim().length <= 30;
+}
+
+function shouldRepromptClarification(input: {
+  message: string;
+  selection: ClarificationSelection | null;
+  frontendIntentClassification: PipelineIntentClassification | null;
+}): boolean {
+  if (!isShortClarificationInput(input.message)) {
+    return false;
+  }
+
+  const frontendIntent = input.frontendIntentClassification?.intent ?? null;
+  if (
+    frontendIntent === "GREETING" ||
+    frontendIntent === "THANKS" ||
+    frontendIntent === "COMPLAINT" ||
+    frontendIntent === "CLARIFY" ||
+    frontendIntent === "DOCUMENT_EXPLANATION" ||
+    frontendIntent === "OUT_OF_SCOPE"
+  ) {
+    return false;
+  }
+
+  if (input.selection?.kind === "numeric" || input.selection?.kind === "ref") {
+    return true;
+  }
+
+  if (input.selection?.kind !== "title") {
+    return false;
+  }
+
+  const normalized = normalizeSelectionText(input.message);
+  if (!normalized) {
+    return false;
+  }
+
+  const wordCount = normalized.split(" ").filter(Boolean).length;
+  const looksLikeFreshMessage =
+    input.message.includes("?") ||
+    /\b(?:this|that|not|wrong|answer|issue|problem|why|what|how|who|when|where|help)\b/i.test(
+      normalized
+    );
+
+  return wordCount <= 3 && !looksLikeFreshMessage;
 }
 
 function isClarificationCancelMessage(message: string): boolean {
@@ -1802,6 +1911,13 @@ async function consumeQuota(
   });
 
   if (error) {
+    if (isMissingConsumeQuotaRpcError(error.message)) {
+      console.warn(`consume_chat_quota RPC unavailable; skipping quota enforcement for ${route}.`);
+      return {
+        allowed: true,
+        reason: "quota_rpc_unavailable",
+      };
+    }
     throw new Error(error.message);
   }
 
@@ -2404,6 +2520,214 @@ async function resolveTotalsAssistantPayload(input: {
     };
   }
 
+  const multiBarangayTargets =
+    input.scopeResolution.mode === "named_scopes" &&
+    input.scopeResolution.resolvedTargets.length > 1 &&
+    input.scopeResolution.resolvedTargets.every((target) => target.scopeType === "barangay")
+      ? input.scopeResolution.resolvedTargets
+      : null;
+
+  if (multiBarangayTargets) {
+    if (requestedFiscalYear === null) {
+      logTotalsRouting(
+        makeTotalsLogPayload({
+          request_id: input.requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: "global",
+          barangay_id_used: null,
+          aip_id_selected: null,
+          totals_found: false,
+          vector_called: false,
+          status: "clarification",
+        })
+      );
+      return {
+        content:
+          "Please specify one fiscal year when asking for the combined budget of multiple barangays (for example, FY 2026).",
+        citations: [
+          makeSystemCitation("Multi-barangay totals require an explicit fiscal year.", {
+            reason: "clarification_needed",
+            scope_ids: multiBarangayTargets.map((target) => target.scopeId),
+          }),
+        ],
+        retrievalMeta: {
+          refused: false,
+          reason: "clarification_needed",
+          status: "clarification",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
+
+    const barangayIds = multiBarangayTargets.map((target) => target.scopeId);
+    const requestedBarangayNames = formatCoverageNames(
+      multiBarangayTargets.map((target) => normalizeBarangayLabel(target.scopeName))
+    );
+    const publishedBarangayAips = await fetchPublishedBarangayAips({
+      barangayIds,
+      fiscalYear: requestedFiscalYear,
+    });
+    const coveredBarangayIds = publishedBarangayAips.map((row) => row.barangay_id);
+    const coveredBarangayIdSet = new Set(coveredBarangayIds);
+    const coverageNames = formatCoverageNames(
+      multiBarangayTargets
+        .filter((target) => coveredBarangayIdSet.has(target.scopeId))
+        .map((target) => normalizeBarangayLabel(target.scopeName))
+    );
+    const missingNames = formatCoverageNames(
+      multiBarangayTargets
+        .filter((target) => !coveredBarangayIdSet.has(target.scopeId))
+        .map((target) => normalizeBarangayLabel(target.scopeName))
+    );
+    const selectedAipIds = publishedBarangayAips
+      .map((row) => row.id)
+      .filter((id, index, all) => id && all.indexOf(id) === index);
+
+    if (selectedAipIds.length === 0) {
+      logTotalsRouting(
+        makeTotalsLogPayload({
+          request_id: input.requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: "global",
+          barangay_id_used: null,
+          aip_id_selected: null,
+          totals_found: false,
+          vector_called: false,
+          aggregation_source: "aip_totals_total_investment_program",
+        })
+      );
+      return {
+        content:
+          `I couldn't find published AIPs for FY ${requestedFiscalYear} across the selected barangays (${requestedBarangayNames.join(", ")}).` +
+          (missingNames.length > 0 ? ` Missing: ${missingNames.join(", ")}.` : ""),
+        citations: [
+          makeAggregateCitation("No published AIPs found for the selected barangays.", {
+            aggregate_type: "multi_barangay_total_investment_program",
+            fiscal_year: requestedFiscalYear,
+            barangay_ids: barangayIds,
+            requested_barangays: requestedBarangayNames,
+            missing_barangays: missingNames,
+          }),
+        ],
+        retrievalMeta: {
+          refused: true,
+          reason: "insufficient_evidence",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
+
+    const admin = supabaseAdmin();
+    const { data: totalsRows, error: totalsError } = await admin
+      .from("aip_totals")
+      .select("aip_id,total_investment_program")
+      .eq("source_label", "total_investment_program")
+      .in("aip_id", selectedAipIds);
+    if (totalsError) {
+      throw new Error(totalsError.message);
+    }
+
+    let summedTotal = 0;
+    const contributingAipIds: string[] = [];
+    for (const row of totalsRows ?? []) {
+      const typed = row as { aip_id?: unknown; total_investment_program?: unknown };
+      const amount = parseAmount(typed.total_investment_program);
+      const aipId = typeof typed.aip_id === "string" ? typed.aip_id : null;
+      if (aipId && amount !== null) {
+        summedTotal += amount;
+        contributingAipIds.push(aipId);
+      }
+    }
+
+    const uniqueContributingAipIds = contributingAipIds.filter(
+      (id, index, all) => id && all.indexOf(id) === index
+    );
+    const coveredCount = coverageNames.length;
+    const totalCount = multiBarangayTargets.length;
+    const combinedScopeLabel = requestedBarangayNames.join(", ");
+
+    if (uniqueContributingAipIds.length === 0) {
+      logTotalsRouting(
+        makeTotalsLogPayload({
+          request_id: input.requestId,
+          intent: "total_investment_program",
+          route: "sql_totals",
+          fiscal_year_parsed: requestedFiscalYear,
+          scope_reason: "global",
+          barangay_id_used: null,
+          aip_id_selected: null,
+          totals_found: false,
+          vector_called: false,
+          aggregation_source: "aip_totals_total_investment_program",
+        })
+      );
+      return {
+        content:
+          `Published AIPs were found for FY ${requestedFiscalYear}, but I couldn't find extracted Total Investment Program totals for the selected barangays (${combinedScopeLabel}).`,
+        citations: [
+          makeAggregateCitation("Published AIPs found, but no aip_totals rows were usable.", {
+            aggregate_type: "multi_barangay_total_investment_program",
+            fiscal_year: requestedFiscalYear,
+            barangay_ids: barangayIds,
+            requested_barangays: requestedBarangayNames,
+            covered_barangays: coverageNames,
+            missing_barangays: missingNames,
+            selected_aip_ids: formatIdSample(selectedAipIds),
+          }),
+        ],
+        retrievalMeta: {
+          refused: true,
+          reason: "insufficient_evidence",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
+
+    logTotalsRouting(
+      makeTotalsLogPayload({
+        request_id: input.requestId,
+        intent: "total_investment_program",
+        route: "sql_totals",
+        fiscal_year_parsed: requestedFiscalYear,
+        scope_reason: "global",
+        barangay_id_used: null,
+        aip_id_selected: null,
+        totals_found: true,
+        vector_called: false,
+        aggregation_source: "aip_totals_total_investment_program",
+      })
+    );
+
+    return {
+      content:
+        `The combined Total Investment Program for FY ${requestedFiscalYear} (${combinedScopeLabel}) is ${formatPhp(summedTotal)}.\n` +
+        `Coverage: ${coveredCount} of ${totalCount} selected barangays have published AIPs.` +
+        (missingNames.length > 0 ? ` Missing: ${missingNames.join(", ")}.` : ""),
+      citations: [
+        makeAggregateCitation("Aggregated from aip_totals (Total Investment Program) across selected barangays.", {
+          aggregate_type: "multi_barangay_total_investment_program",
+          aggregation_source: "aip_totals_total_investment_program",
+          fiscal_year: requestedFiscalYear,
+          barangay_ids: barangayIds,
+          requested_barangays: requestedBarangayNames,
+          covered_barangays: coverageNames,
+          missing_barangays: missingNames,
+          contributing_aip_ids: formatIdSample(uniqueContributingAipIds),
+          contributing_aip_ids_count: uniqueContributingAipIds.length,
+        }),
+      ],
+      retrievalMeta: {
+        refused: false,
+        reason: "ok",
+        scopeResolution: input.scopeResolution,
+      },
+    };
+  }
+
   const scopeResult = await resolveTotalsScopeTarget({
     actor: input.actor,
     message: input.message,
@@ -2746,6 +3070,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Message cannot be empty." }, { status: 400 });
     }
 
+    let frontendIntentClassification: PipelineIntentClassification | null = null;
+    try {
+      frontendIntentClassification = await requestPipelineIntentClassify({
+        text: content,
+      });
+      if (isTotalsDebugEnabled()) {
+        console.info(
+          JSON.stringify({
+            request_id: requestId,
+            event: "frontend_intent_classified",
+            intent: frontendIntentClassification.intent,
+            confidence: frontendIntentClassification.confidence,
+            method: frontendIntentClassification.method,
+          })
+        );
+      }
+    } catch (error) {
+      if (isTotalsDebugEnabled()) {
+        const message =
+          error instanceof Error ? error.message : "Pipeline intent classification failed.";
+        console.warn(
+          JSON.stringify({
+            request_id: requestId,
+            event: "frontend_intent_classification_failed",
+            error: message,
+          })
+        );
+      }
+    }
+
     const repo = getChatRepo();
     let sessionId = body.sessionId ?? null;
 
@@ -2779,6 +3133,60 @@ export async function POST(request: Request) {
 
     const userMessage = await repo.appendUserMessage(session.id, content);
     const startedAt = Date.now();
+    const frontendIntent = frontendIntentClassification?.intent;
+    const confidence = frontendIntentClassification?.confidence ?? null;
+    const domainCues = containsDomainCues(content);
+
+    if (!domainCues && isConversationalIntent(frontendIntent)) {
+      const shortcutScopeResolution: ChatScopeResolution = {
+        mode: "global",
+        requestedScopes: [],
+        resolvedTargets: [],
+        unresolvedScopes: [],
+        ambiguousScopes: [],
+      };
+      const assistantMessage = await appendAssistantMessage({
+        sessionId: session.id,
+        content: conversationalReply(frontendIntent),
+        citations: [
+          makeSystemCitation("Conversational shortcut reply. No AIP retrieval was performed.", {
+            reason: "conversational_shortcut",
+            intent: frontendIntent,
+          }),
+        ],
+        retrievalMeta: {
+          refused: false,
+          reason: "conversational_shortcut" as ChatRetrievalMeta["reason"],
+          status: "answer",
+          scopeResolution: shortcutScopeResolution,
+          latencyMs: Date.now() - startedAt,
+          contextCount: 0,
+          intentClassification: frontendIntentClassification ?? undefined,
+        },
+      });
+
+      if (isTotalsDebugEnabled()) {
+        console.info(
+          JSON.stringify({
+            request_id: requestId,
+            event: "frontend_conversational_shortcut",
+            intent: frontendIntent,
+            confidence,
+            method: frontendIntentClassification?.method ?? null,
+          })
+        );
+      }
+
+      return NextResponse.json(
+        chatResponsePayload({
+          sessionId: session.id,
+          userMessage,
+          assistantMessage,
+        }),
+        { status: 200 }
+      );
+    }
+
     const requestedFiscalYear = extractFiscalYear(content);
     const earlyDocLimitField = detectDocLimitFieldFromQuery(content.toLowerCase());
     if (earlyDocLimitField === "contractor") {
@@ -2854,9 +3262,9 @@ export async function POST(request: Request) {
       unresolvedScopes: scope.scopeResolution.unresolvedScopes,
       ambiguousScopes: scope.scopeResolution.ambiguousScopes,
     });
-    const intent = detectIntent(content).intent;
+    const detectedIntent = detectIntent(content).intent;
 
-    if (!scope.retrievalScope && intent !== "total_investment_program") {
+    if (!scope.retrievalScope && detectedIntent !== "total_investment_program") {
       const explicitScopeRequested = scopeResolution.requestedScopes.length > 0;
       const scopeResolved = scopeResolution.resolvedTargets.length > 0;
       const refusal = buildRefusalMessage({
@@ -2906,7 +3314,7 @@ export async function POST(request: Request) {
     }
 
     const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
-      intent,
+      intent: detectedIntent,
       resolveTotals: async () =>
         resolveTotalsAssistantPayload({
           actor,
@@ -3721,7 +4129,14 @@ export async function POST(request: Request) {
           );
         }
 
-        if (!selectedCityOption && isShortClarificationInput(content)) {
+        if (
+          !selectedCityOption &&
+          shouldRepromptClarification({
+            message: content,
+            selection,
+            frontendIntentClassification,
+          })
+        ) {
           const reminderPayload: ChatClarificationPayload = {
             id: pendingClarification.payload.id,
             kind: "city_aip_missing_fallback",
@@ -3934,7 +4349,14 @@ export async function POST(request: Request) {
           }), { status: 200 });
         }
 
-        if (!selectedOption && isShortClarificationInput(content)) {
+        if (
+          !selectedOption &&
+          shouldRepromptClarification({
+            message: content,
+            selection,
+            frontendIntentClassification,
+          })
+        ) {
           const reminderPayload: ChatClarificationPayload = {
             id: pendingClarification.payload.id,
             kind: pendingClarification.payload.kind,
@@ -5806,6 +6228,7 @@ export async function POST(request: Request) {
         verifierPassed: pipeline.retrieval_meta?.verifier_passed,
         latencyMs: Date.now() - startedAt,
         scopeResolution,
+        intentClassification: frontendIntentClassification ?? undefined,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Pipeline chat request failed.";
@@ -5817,6 +6240,7 @@ export async function POST(request: Request) {
         reason: "pipeline_error",
         scopeResolution,
         latencyMs: Date.now() - startedAt,
+        intentClassification: frontendIntentClassification ?? undefined,
       };
     }
 

@@ -9,13 +9,18 @@ Requires-Dist: uvicorn>=0.30.0
 Requires-Dist: pydantic>=2.8.0
 Requires-Dist: python-dotenv>=1.0.1
 Requires-Dist: openai>=1.97.0
+Requires-Dist: numpy>=1.26.0
 Requires-Dist: pypdf>=5.0.1
 Requires-Dist: pdfplumber>=0.11.0
 Requires-Dist: supabase>=2.7.0
 Requires-Dist: langchain-core>=0.3.0
 Requires-Dist: langchain-openai>=0.2.0
+Requires-Dist: torch>=2.2.0
+Requires-Dist: sentence-transformers>=3.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.3.0; extra == "dev"
+Requires-Dist: jsonschema>=4.0.0; extra == "dev"
+Requires-Dist: httpx>=0.27.0; extra == "dev"
 Requires-Dist: ruff>=0.6.0; extra == "dev"
 Requires-Dist: pyright>=1.1.379; extra == "dev"
 
@@ -41,6 +46,7 @@ Required keys in `.env`:
 - `OPENAI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_KEY`
+- `PIPELINE_INTERNAL_TOKEN` (for `/v1/chat/answer` internal auth)
 
 ## Run
 
@@ -110,6 +116,7 @@ Common optional runtime vars:
 - `SUPABASE_STORAGE_ARTIFACT_BUCKET` (default `aip-artifacts`)
 - `PIPELINE_DEV_ROUTES` (default `false`)
 - `PIPELINE_ENABLE_RAG` (default `false`)
+- `PIPELINE_INTERNAL_TOKEN` (required by chat route)
 
 ## Validation resources
 

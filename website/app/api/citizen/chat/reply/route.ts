@@ -1,6 +1,9 @@
 import type { Json, RoleType } from "@/lib/contracts/databasev2";
 import type { RetrievalScopePayload, RetrievalScopeTarget } from "@/lib/chat/types";
-import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
+import {
+  requestPipelineChatAnswer,
+  requestPipelineIntentClassify,
+} from "@/lib/chat/pipeline-client";
 import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -46,6 +49,11 @@ const MESSAGE_CONTENT_LIMIT = 12000;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function isMissingConsumeQuotaRpcError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("consume_chat_quota") && normalized.includes("schema cache");
 }
 
 function buildFollowUps(userMessage: string): string[] {
@@ -202,6 +210,13 @@ async function consumeCitizenQuota(input: {
   });
 
   if (error) {
+    if (isMissingConsumeQuotaRpcError(error.message)) {
+      console.warn("consume_chat_quota RPC unavailable; skipping quota enforcement for citizen chat.");
+      return {
+        allowed: true,
+        reason: "quota_rpc_unavailable",
+      };
+    }
     throw new Error(error.message);
   }
 
@@ -315,6 +330,16 @@ export async function POST(request: Request) {
       profile,
       admin,
     });
+    let intentClassification: Awaited<ReturnType<typeof requestPipelineIntentClassify>> | null = null;
+    try {
+      intentClassification = await requestPipelineIntentClassify({
+        text: userMessage,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Pipeline intent classification failed.";
+      console.warn("[citizen-chat] intent classification failed:", message);
+    }
 
     const pipeline = await requestPipelineChatAnswer({
       question: userMessage,
@@ -339,6 +364,7 @@ export async function POST(request: Request) {
       sessionTitle: session.title,
       context: session.context,
       suggestedFollowUps,
+      ...(intentClassification ? { intentClassification } : {}),
     } as Json;
 
     const { data: insertedData, error: insertError } = await admin

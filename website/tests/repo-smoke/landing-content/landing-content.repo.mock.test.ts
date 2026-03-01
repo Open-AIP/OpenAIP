@@ -8,7 +8,8 @@ function assert(condition: boolean, message: string) {
 
 export async function runLandingContentRepoMockTests() {
   const repo = createMockLandingContentRepo();
-  const vm = await repo.getLandingContent();
+  const result = await repo.getLandingContent();
+  const vm = result.vm;
 
   assert(!!vm.hero?.title, "Expected hero title");
   assert(!!vm.manifesto?.lines?.length, "Expected manifesto lines");
@@ -50,4 +51,33 @@ export async function runLandingContentRepoMockTests() {
   assert(vm.finalCta.subtitle === "Stay informed. Stay engaged. Stay empowered.", "Expected final CTA subtitle");
   assert(vm.finalCta.ctaLabel === "View Full AIP", "Expected final CTA button label");
   assert(vm.finalCta.ctaHref === "/aips", "Expected final CTA route");
+  assert(!!result.meta.selection.resolvedScopeId, "Expected resolved scope id in metadata");
+  assert(Number.isInteger(result.meta.selection.resolvedFiscalYear), "Expected resolved fiscal year metadata");
+
+  const switched = await repo.getLandingContent({
+    scopeType: "barangay",
+    scopeId: "mock-barangay-mamatid",
+    fiscalYear: 2026,
+  });
+  assert(
+    switched.meta.selection.resolvedScopeType === "barangay",
+    "Expected valid barangay scope query to switch scope"
+  );
+
+  const normalized = await repo.getLandingContent({
+    scopeType: "barangay",
+    scopeId: "invalid-scope-id",
+    fiscalYear: 2026,
+  });
+  assert(
+    normalized.meta.selection.resolvedScopeId === "mock-city-cabuyao",
+    "Expected invalid scope query to normalize to default city scope"
+  );
+
+  const noData = await repo.getLandingContent({
+    scopeType: "barangay",
+    scopeId: "mock-barangay-pulo",
+    fiscalYear: 2024,
+  });
+  assert(noData.meta.hasData === false, "Expected no-data state for unsupported fiscal year");
 }

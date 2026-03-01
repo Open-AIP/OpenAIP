@@ -104,6 +104,12 @@ const {
   runSubmissionsReviewRepoTests,
 } = require("@/tests/repo-smoke/submissions/submissions.repo.mock.test");
 const {
+  runLandingContentRepoMockTests,
+} = require("@/tests/repo-smoke/landing-content/landing-content.repo.mock.test");
+const {
+  runLandingContentViewSmokeTests,
+} = require("@/tests/repo-smoke/landing-content/landing-content.view-smoke.test");
+const {
   getCitySubmissionsFeedForActor,
 } = require("@/lib/repos/submissions/queries");
 const {
@@ -649,6 +655,18 @@ const tests = [
     name: "submissionsReview.repo.mock tests",
     async run() {
       await runSubmissionsReviewRepoTests();
+    },
+  },
+  {
+    name: "landing-content repo.mock tests",
+    async run() {
+      await runLandingContentRepoMockTests();
+    },
+  },
+  {
+    name: "landing-content view smoke tests",
+    async run() {
+      await runLandingContentViewSmokeTests();
     },
   },
   {

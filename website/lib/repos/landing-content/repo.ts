@@ -1,10 +1,13 @@
 import { NotImplementedError } from "@/lib/core/errors";
-import type { LandingContentVM } from "@/lib/domain/landing-content";
+import type {
+  LandingContentQuery,
+  LandingContentResult,
+} from "@/lib/domain/landing-content";
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockLandingContentRepo } from "./repo.mock";
 
 export interface LandingContentRepo {
-  getLandingContent(): Promise<LandingContentVM>;
+  getLandingContent(input?: LandingContentQuery): Promise<LandingContentResult>;
 }
 
 export function getLandingContentRepo(): LandingContentRepo {
@@ -13,7 +16,7 @@ export function getLandingContentRepo(): LandingContentRepo {
     mock: () => createMockLandingContentRepo(),
     supabase: () => {
       throw new NotImplementedError(
-        "LandingContentRepo Supabase adapter is TODO. Map DBv2-backed landing dashboard projections before enabling."
+        "LandingContentRepo is server-only outside mock mode. Import from `@/lib/repos/landing-content/repo.server`."
       );
     },
   });

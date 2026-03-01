@@ -2,6 +2,8 @@ export type LandingCtaTarget =
   | { type: "href"; value: string }
   | { type: "action"; value: string };
 
+export type LandingScopeType = "city" | "barangay";
+
 export type LandingHeroVM = {
   title: string;
   subtitle: string;
@@ -22,11 +24,17 @@ export type LguOverviewMapMarkerVM = {
   lng: number;
   kind?: string;
   valueLabel?: string;
+  scopeType?: LandingScopeType;
+  scopeId?: string;
+  scopePsgc?: string;
+  isSelectable?: boolean;
+  isSelected?: boolean;
 };
 
 export type LguOverviewMapVM = {
   center: { lat: number; lng: number };
   zoom: number;
+  selectedFiscalYear?: number;
   markers: LguOverviewMapMarkerVM[];
 };
 
@@ -125,4 +133,32 @@ export type LandingContentVM = {
   feedback: FeedbackSnapshotVM;
   chatPreview: ChatPreviewVM;
   finalCta: FinalCtaVM;
+};
+
+export type LandingContentQuery = {
+  scopeType?: LandingScopeType | null;
+  scopeId?: string | null;
+  fiscalYear?: number | null;
+};
+
+export type LandingContentSelectionMeta = {
+  requestedScopeType: LandingScopeType | null;
+  requestedScopeId: string | null;
+  requestedFiscalYear: number | null;
+  resolvedScopeType: LandingScopeType;
+  resolvedScopeId: string;
+  resolvedScopePsgc: string;
+  resolvedFiscalYear: number;
+  fallbackApplied: boolean;
+};
+
+export type LandingContentResultMeta = {
+  hasData: boolean;
+  selection: LandingContentSelectionMeta;
+  availableFiscalYears: number[];
+};
+
+export type LandingContentResult = {
+  vm: LandingContentVM;
+  meta: LandingContentResultMeta;
 };

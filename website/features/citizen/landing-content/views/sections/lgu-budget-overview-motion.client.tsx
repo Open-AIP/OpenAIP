@@ -94,18 +94,6 @@ export default function LguBudgetOverviewMotion({
     },
   };
 
-  const chipsVariant: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: reducedMotion ? 0.24 : 0.45,
-        delay: reducedMotion ? 0.16 : 0.34,
-        ease: MOTION_TOKENS.enterEase,
-      },
-    },
-  };
-
   return (
     <motion.div
       className="relative mx-auto w-full max-w-5xl rounded-[28px] border border-slate-200 bg-white/60 p-6 shadow-sm backdrop-blur-sm md:p-8"
@@ -146,33 +134,33 @@ export default function LguBudgetOverviewMotion({
                 <CardContent className="space-y-3 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Total Budget</p>
                   <p className="text-4xl font-bold leading-none text-[#0C2C3A]">{formatPeso(vm.totalBudget)}</p>
-                  <div className="inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
-                    {vm.budgetDeltaLabel ?? "No change"}
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-200">
-                    <div className="h-full w-[42%] rounded-full bg-slate-400" />
-                  </div>
-                  <p className="text-xs text-slate-500">42% of regional allocation</p>
+                  {vm.budgetDeltaLabel ? (
+                    <div className="inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
+                      {vm.budgetDeltaLabel}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </motion.div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <motion.div variants={kpiItemVariant}>
-                <Card className="rounded-2xl border-slate-200 bg-white py-0">
-                  <CardContent className="space-y-2 p-4">
+            <div className="grid grid-cols-2 items-stretch gap-3">
+              <motion.div className="h-full" variants={kpiItemVariant}>
+                <Card className="h-full rounded-2xl border-slate-200 bg-white py-0">
+                  <CardContent className="flex h-full min-h-[126px] flex-col justify-between p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Total Projects</p>
                     <p className="text-4xl font-semibold leading-none text-[#0C2C3A]">{formatNumber(vm.projectCount)}</p>
-                    <span className="inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
-                      {vm.projectDeltaLabel ?? "No change"}
-                    </span>
+                    {vm.projectDeltaLabel ? (
+                      <span className="inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
+                        {vm.projectDeltaLabel}
+                      </span>
+                    ) : null}
                   </CardContent>
                 </Card>
               </motion.div>
 
-              <motion.div variants={kpiItemVariant}>
-                <Card className="rounded-2xl border-slate-200 bg-white py-0">
-                  <CardContent className="space-y-3 p-4">
+              <motion.div className="h-full" variants={kpiItemVariant}>
+                <Card className="h-full rounded-2xl border-slate-200 bg-white py-0">
+                  <CardContent className="flex h-full min-h-[126px] flex-col justify-between p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">AIP Status</p>
                     <div className="inline-flex items-center gap-2 text-3xl font-semibold leading-none text-[#0C2C3A]">
                       <span className="h-2.5 w-2.5 rounded-full bg-[#0EA97B]" />
@@ -185,38 +173,19 @@ export default function LguBudgetOverviewMotion({
 
             <motion.div variants={kpiItemVariant}>
               <Card className="rounded-2xl border-slate-200 bg-white py-0">
-                <CardContent className="flex items-end justify-between p-4">
+                <CardContent className="p-4">
                   <div className="space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Active Users</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">OpenAIP Users</p>
                     <p className="text-4xl font-semibold leading-none text-[#0C2C3A]">{formatNumber(vm.activeUsers)}</p>
                   </div>
-                  <svg viewBox="0 0 80 24" className="h-6 w-20 text-slate-400" aria-label="Active users trend placeholder">
-                    <path
-                      d="M2 18C8 17 10 14 16 15C22 16 25 12 31 11C38 10 40 6 47 7C55 8 57 4 64 3C69 2 73 1.5 78 1"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                  </svg>
                 </CardContent>
               </Card>
             </motion.div>
           </motion.div>
         </div>
 
-        <motion.div className="col-span-12 lg:col-span-7" variants={mapPanelVariant}>
+        <motion.div className="col-span-12 h-full lg:col-span-7" variants={mapPanelVariant}>
           <LguMapPanel map={vm.map} heightClass={mapPanelHeightClass} />
-          <motion.div className="mt-3 flex flex-wrap gap-2" variants={chipsVariant}>
-            {vm.map.markers.slice(0, 4).map((marker) => (
-              <span
-                key={marker.id}
-                className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700"
-              >
-                {marker.label}
-              </span>
-            ))}
-          </motion.div>
         </motion.div>
       </div>
     </motion.div>

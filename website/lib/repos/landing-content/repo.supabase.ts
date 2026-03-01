@@ -29,6 +29,12 @@ type FiscalYearRow = {
   fiscal_year: number;
 };
 
+type AipPickRow = {
+  id: string;
+  published_at: string | null;
+  updated_at: string;
+};
+
 type ScopeProjectRow = {
   id: string;
   aip_id: string;
@@ -89,6 +95,7 @@ type FeedbackMetrics = {
 };
 
 const FALLBACK_PROJECT_IMAGE = "/brand/logo3.svg";
+const SUPABASE_PAGE_SIZE = 1_000;
 
 const FEEDBACK_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"] as const;
 
@@ -538,6 +545,28 @@ async function listAvailableFiscalYears(
   return Array.from(seen).sort((left, right) => right - left);
 }
 
+async function getPublishedAipIdByScopeYear(input: {
+  scopeType: LandingScopeType;
+  scopeId: string;
+  fiscalYear: number;
+}): Promise<string | null> {
+  const client = await supabaseServer();
+  const scopeColumn = scopeColumnOf(input.scopeType);
+  const { data, error } = await client
+    .from("aips")
+    .select("id,published_at,updated_at")
+    .eq("status", "published")
+    .eq(scopeColumn, input.scopeId)
+    .eq("fiscal_year", input.fiscalYear)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+  const row = ((data ?? []) as AipPickRow[])[0] ?? null;
+  return row?.id ?? null;
+}
+
 function resolveFiscalYear(input: {
   requestedFiscalYear: number;
   availableFiscalYears: number[];
@@ -592,17 +621,31 @@ async function listScopeProjectsByFiscalYear(input: {
 }): Promise<ScopeProjectRow[]> {
   const client = await supabaseServer();
   const scopeColumn = scopeColumnOf(input.scopeType);
-  const { data, error } = await client
-    .from("projects")
-    .select(
-      "id,aip_id,aip_ref_code,program_project_description,category,sector_code,total,implementing_agency,expected_output,source_of_funds,image_url,aips!inner(id)"
-    )
-    .eq("aips.status", "published")
-    .eq("aips.fiscal_year", input.fiscalYear)
-    .eq(`aips.${scopeColumn}`, input.scopeId);
+  const rows: ScopeProjectRow[] = [];
+  let from = 0;
 
-  if (error) throw new Error(error.message);
-  return (data ?? []) as ScopeProjectRow[];
+  while (true) {
+    const to = from + SUPABASE_PAGE_SIZE - 1;
+    const { data, error } = await client
+      .from("projects")
+      .select(
+        "id,aip_id,aip_ref_code,program_project_description,category,sector_code,total,implementing_agency,expected_output,source_of_funds,image_url,aips!inner(id)"
+      )
+      .eq("aips.status", "published")
+      .eq("aips.fiscal_year", input.fiscalYear)
+      .eq(`aips.${scopeColumn}`, input.scopeId)
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (error) throw new Error(error.message);
+
+    const batch = (data ?? []) as ScopeProjectRow[];
+    rows.push(...batch);
+    if (batch.length < SUPABASE_PAGE_SIZE) break;
+    from += SUPABASE_PAGE_SIZE;
+  }
+
+  return rows;
 }
 
 function summarizeScopeYearMetrics(projects: ScopeProjectRow[]): ScopeYearMetrics {
@@ -675,6 +718,9 @@ function buildProjectDeltaLabel(input: {
   previousFiscalYear: number;
 }): string | undefined {
   const delta = input.currentValue - input.previousValue;
+  if (delta === 0) {
+    return `Same with FY ${input.previousFiscalYear}`;
+  }
   const sign = delta > 0 ? "+" : "";
   return `${sign}${delta} vs FY ${input.previousFiscalYear}`;
 }
@@ -971,6 +1017,7 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
       const resolvedScopeType = selectedPin?.scopeType ?? "city";
       const resolvedScopeId = selectedPin?.scopeId ?? "";
       const resolvedScopePsgc = selectedPin?.scopePsgc ?? content.defaultCityPsgc;
+      const currentFiscalYear = new Date().getFullYear();
 
       const availableFiscalYears =
         selectedPin && selectedPin.scopeId
@@ -988,6 +1035,14 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
       const previousPublishedFiscalYear = availableFiscalYears.find(
         (year) => year < resolvedFiscalYear
       );
+      const currentYearAipId =
+        selectedPin?.scopeId
+          ? await getPublishedAipIdByScopeYear({
+              scopeType: selectedPin.scopeType,
+              scopeId: selectedPin.scopeId,
+              fiscalYear: currentFiscalYear,
+            })
+          : null;
 
       const currentMetrics =
         hasData && selectedPin?.scopeId
@@ -1217,7 +1272,7 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
           title: content.finalCta.title,
           subtitle: content.finalCta.subtitle,
           ctaLabel: content.finalCta.ctaLabel,
-          ctaHref: content.finalCta.ctaHref,
+          ctaHref: currentYearAipId ? `/aips/${encodeURIComponent(currentYearAipId)}` : undefined,
         },
       };
 

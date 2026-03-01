@@ -22,9 +22,18 @@ export default function SecuritySettingsSection({
   const [loginAttemptLimits, setLoginAttemptLimits] = useState(settings.loginAttemptLimits);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const timeoutMinutes =
+    sessionTimeout.timeUnit === "minutes"
+      ? sessionTimeout.timeoutValue
+      : sessionTimeout.timeUnit === "hours"
+        ? sessionTimeout.timeoutValue * 60
+        : sessionTimeout.timeoutValue * 24 * 60;
+
   const isValid =
     passwordPolicy.minLength >= 6 &&
     sessionTimeout.timeoutValue >= 1 &&
+    sessionTimeout.warningMinutes >= 0 &&
+    sessionTimeout.warningMinutes < timeoutMinutes &&
     loginAttemptLimits.maxAttempts >= 1 &&
     loginAttemptLimits.lockoutDuration >= 1;
 

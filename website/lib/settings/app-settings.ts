@@ -36,11 +36,6 @@ export type SecuritySettingsValue = {
   };
 };
 
-export type NotificationSettingsValue = {
-  reviewNotificationsEnabled: boolean;
-  submissionAlertsEnabled: boolean;
-};
-
 export type SystemBannerDraftValue = {
   title?: string | null;
   message: string;
@@ -48,6 +43,20 @@ export type SystemBannerDraftValue = {
   startAt?: string | null;
   endAt?: string | null;
 };
+
+export type SystemBannerPublishedValue = SystemBannerDraftValue & {
+  publishedAt: string;
+};
+
+export type LoginAttemptStateEntryValue = {
+  failedCount: number;
+  firstFailedAt: string | null;
+  lastFailedAt: string | null;
+  lockedUntil: string | null;
+  updatedAt: string;
+};
+
+export type LoginAttemptStateValue = Record<string, LoginAttemptStateEntryValue>;
 
 export type BlockedUserSetting = {
   blockedUntil: string;
@@ -144,8 +153,9 @@ export type AppSettingsMap = {
   "controls.chatbot_rate_limit": ChatbotRateLimitSetting;
   "controls.blocked_users": BlockedUsersSetting;
   "system.security_settings": SecuritySettingsValue;
-  "system.notification_settings": NotificationSettingsValue;
   "system.banner_draft": SystemBannerDraftValue;
+  "system.banner_published": SystemBannerPublishedValue | null;
+  "system.login_attempt_state": LoginAttemptStateValue;
   "content.citizen_about_us": CitizenAboutUsContentValue;
   "content.citizen_dashboard": CitizenDashboardContentValue;
 };
@@ -179,10 +189,6 @@ const DEFAULT_SETTINGS: AppSettingsMap = {
       lockoutUnit: "minutes",
     },
   },
-  "system.notification_settings": {
-    reviewNotificationsEnabled: true,
-    submissionAlertsEnabled: true,
-  },
   "system.banner_draft": {
     title: null,
     message: "",
@@ -190,6 +196,8 @@ const DEFAULT_SETTINGS: AppSettingsMap = {
     startAt: null,
     endAt: null,
   },
+  "system.banner_published": null,
+  "system.login_attempt_state": {},
   "content.citizen_about_us": {
     referenceDocs: [
       {

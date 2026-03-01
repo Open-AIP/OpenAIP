@@ -513,10 +513,10 @@ const tests = [
             methods: [
               "getSecuritySettings",
               "updateSecuritySettings",
-              "getNotificationSettings",
-              "updateNotificationSettings",
               "getSystemBannerDraft",
+              "getSystemBannerPublished",
               "publishSystemBanner",
+              "unpublishSystemBanner",
               "listAuditLogs",
             ],
           },

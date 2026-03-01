@@ -44,7 +44,10 @@ export async function runLandingContentRepoMockTests() {
   assert(!!vm.chatPreview.assistantStatus, "Expected chat preview assistant status");
   assert(!!vm.chatPreview.userPrompt, "Expected chat preview user prompt");
   assert(!!vm.chatPreview.assistantIntro, "Expected chat preview assistant intro");
-  assert(vm.chatPreview.assistantBullets.length >= 3, "Expected at least 3 assistant bullet points");
+  assert(
+    vm.chatPreview.assistantBullets.length === 0,
+    "Expected assistant bullets to be empty for paragraph-style assistant response"
+  );
   assert(vm.chatPreview.suggestedPrompts.length >= 3, "Expected at least 3 suggested prompts");
   assert(!!vm.chatPreview.ctaLabel, "Expected chat preview CTA label");
   assert(vm.finalCta.title === "Governance Made Visible.", "Expected final CTA title");

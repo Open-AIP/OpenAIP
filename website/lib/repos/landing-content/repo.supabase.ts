@@ -176,17 +176,15 @@ const DEFAULT_CITIZEN_DASHBOARD_CONTENT: CitizenDashboardContentValue = {
       "Don't understand something? Just ask. Our AI chatbot can answer questions about budgets, projects, and programs. It's like having a budget expert available 24/7.",
     assistantName: "Budget Assistant",
     assistantStatus: "Always ready to help",
-    userPrompt: "How much budget went to road projects?",
-    assistantIntro: "Road projects received PHP 12M in total. This covers:",
-    assistantBullets: [
-      "12 ongoing projects",
-      "8 completed projects",
-      "Includes repairs and new construction",
-    ],
+    userPrompt:
+      "Where is our barangay/city budget going this year? What are the biggest projects?",
+    assistantIntro:
+      "Based on the published AIP, here is the summary of where the budget is going this year, including the total AIP budget, and the biggest projects with their amounts, fund source, timeline, and implementing office:",
+    assistantBullets: [],
     suggestedPrompts: [
-      "Where did health funds go?",
-      "Show completed projects",
-      "Which sector got most budget?",
+      "Which health projects have the highest budgets?",
+      "Show infrastructure projects and their source of funds.",
+      "Compare this year's budget with the previous published year.",
     ],
     ctaLabel: "Open Chatbot",
     ctaHref: "/chatbot",

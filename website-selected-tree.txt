@@ -1,0 +1,1199 @@
+website
++---app
+|   +---(citizen)
+|   |   +---(auth)
+|   |   |   +---confirm
+|   |   |   |   \---route.ts
+|   |   |   +---error
+|   |   |   |   \---page.tsx
+|   |   |   +---forgot-password
+|   |   |   |   \---page.tsx
+|   |   |   +---sign-in
+|   |   |   |   \---page.tsx
+|   |   |   +---sign-up
+|   |   |   |   \---page.tsx
+|   |   |   +---sign-up-success
+|   |   |   |   \---page.tsx
+|   |   |   \---update-password
+|   |   |       \---page.tsx
+|   |   +---(dashboard)
+|   |   |   \---page.tsx
+|   |   +---about-us
+|   |   |   \---page.tsx
+|   |   +---account
+|   |   |   \---page.tsx
+|   |   +---ai-assistant
+|   |   |   \---page.tsx
+|   |   +---aips
+|   |   |   +---[aipId]
+|   |   |   |   \---page.tsx
+|   |   |   \---page.tsx
+|   |   +---budget-allocation
+|   |   |   \---page.tsx
+|   |   +---chatbot
+|   |   |   \---page.tsx
+|   |   +---projects
+|   |   |   +---health
+|   |   |   |   +---[projectId]
+|   |   |   |   |   \---page.tsx
+|   |   |   |   \---page.tsx
+|   |   |   +---infrastructure
+|   |   |   |   +---[projectId]
+|   |   |   |   |   \---page.tsx
+|   |   |   |   \---page.tsx
+|   |   |   \---page.tsx
+|   |   +---error.tsx
+|   |   \---layout.tsx
+|   +---(lgu)
+|   |   +---barangay
+|   |   |   +---(auth)
+|   |   |   |   +---confirm
+|   |   |   |   |   \---route.ts
+|   |   |   |   +---error
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---forgot-password
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---sign-in
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---sign-up
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---sign-up-success
+|   |   |   |   |   \---page.tsx
+|   |   |   |   \---update-password
+|   |   |   |       \---page.tsx
+|   |   |   +---(authenticated)
+|   |   |   |   +---(dashboard)
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---account
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---aips
+|   |   |   |   |   +---[aipId]
+|   |   |   |   |   |   +---[projectId]
+|   |   |   |   |   |   |   \---page.tsx
+|   |   |   |   |   |   \---page.tsx
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---audit
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---chatbot
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---feedback
+|   |   |   |   |   \---page.tsx
+|   |   |   |   +---projects
+|   |   |   |   |   +---health
+|   |   |   |   |   |   +---[projectId]
+|   |   |   |   |   |   |   +---add-information
+|   |   |   |   |   |   |   |   \---page.tsx
+|   |   |   |   |   |   |   \---page.tsx
+|   |   |   |   |   |   \---page.tsx
+|   |   |   |   |   \---infrastructure
+|   |   |   |   |       +---[projectId]
+|   |   |   |   |       |   +---add-information
+|   |   |   |   |       |   |   \---page.tsx
+|   |   |   |   |       |   \---page.tsx
+|   |   |   |   |       \---page.tsx
+|   |   |   |   +---error.tsx
+|   |   |   |   \---layout.tsx
+|   |   |   \---unauthorized
+|   |   |       \---page.tsx
+|   |   \---city
+|   |       +---(auth)
+|   |       |   +---confirm
+|   |       |   |   \---route.ts
+|   |       |   +---error
+|   |       |   |   \---page.tsx
+|   |       |   +---forgot-password
+|   |       |   |   \---page.tsx
+|   |       |   +---sign-in
+|   |       |   |   \---page.tsx
+|   |       |   +---sign-up
+|   |       |   |   \---page.tsx
+|   |       |   +---sign-up-success
+|   |       |   |   \---page.tsx
+|   |       |   \---update-password
+|   |       |       \---page.tsx
+|   |       +---(authenticated)
+|   |       |   +---(dashboard)
+|   |       |   |   \---page.tsx
+|   |       |   +---account
+|   |       |   |   \---page.tsx
+|   |       |   +---aips
+|   |       |   |   +---[aipId]
+|   |       |   |   |   +---[projectId]
+|   |       |   |   |   |   \---page.tsx
+|   |       |   |   |   \---page.tsx
+|   |       |   |   +---submittals
+|   |       |   |   |   \---page.tsx
+|   |       |   |   \---page.tsx
+|   |       |   +---audit
+|   |       |   |   \---page.tsx
+|   |       |   +---chatbot
+|   |       |   |   \---page.tsx
+|   |       |   +---feedback
+|   |       |   |   \---page.tsx
+|   |       |   +---projects
+|   |       |   |   +---health
+|   |       |   |   |   +---[projectId]
+|   |       |   |   |   |   +---add-information
+|   |       |   |   |   |   |   \---page.tsx
+|   |       |   |   |   |   \---page.tsx
+|   |       |   |   |   \---page.tsx
+|   |       |   |   +---infrastructure
+|   |       |   |   |   +---[projectId]
+|   |       |   |   |   |   +---add-information
+|   |       |   |   |   |   |   \---page.tsx
+|   |       |   |   |   |   \---page.tsx
+|   |       |   |   |   \---page.tsx
+|   |       |   |   \---page.tsx
+|   |       |   +---submissions
+|   |       |   |   +---aip
+|   |       |   |   |   +---[aipId]
+|   |       |   |   |   |   +---[projectId]
+|   |       |   |   |   |   |   \---page.tsx
+|   |       |   |   |   |   \---page.tsx
+|   |       |   |   |   \---page.tsx
+|   |       |   |   \---page.tsx
+|   |       |   +---error.tsx
+|   |       |   \---layout.tsx
+|   |       \---unauthorized
+|   |           \---page.tsx
+|   +---admin
+|   |   +---(auth)
+|   |   |   +---confirm
+|   |   |   |   \---route.ts
+|   |   |   +---error
+|   |   |   |   \---page.tsx
+|   |   |   +---forgot-password
+|   |   |   |   \---page.tsx
+|   |   |   +---sign-in
+|   |   |   |   \---page.tsx
+|   |   |   +---sign-up
+|   |   |   |   \---page.tsx
+|   |   |   +---sign-up-success
+|   |   |   |   \---page.tsx
+|   |   |   \---update-password
+|   |   |       \---page.tsx
+|   |   +---(authenticated)
+|   |   |   +---(dashboard)
+|   |   |   |   \---page.tsx
+|   |   |   +---account-administration
+|   |   |   |   \---page.tsx
+|   |   |   +---aip-monitoring
+|   |   |   |   \---page.tsx
+|   |   |   +---audit-logs
+|   |   |   |   \---page.tsx
+|   |   |   +---chatbot-controls
+|   |   |   |   \---page.tsx
+|   |   |   +---feedback-moderation
+|   |   |   |   \---page.tsx
+|   |   |   +---lgu-management
+|   |   |   |   \---page.tsx
+|   |   |   +---system-administration
+|   |   |   |   \---page.tsx
+|   |   |   +---usage-controls
+|   |   |   |   \---page.tsx
+|   |   |   +---workflow-oversight
+|   |   |   |   \---page.tsx
+|   |   |   +---error.tsx
+|   |   |   \---layout.tsx
+|   |   \---unauthorized
+|   |       \---page.tsx
+|   +---api
+|   |   +---admin
+|   |   |   +---system-administration
+|   |   |   |   \---route.ts
+|   |   |   \---usage-controls
+|   |   |       \---route.ts
+|   |   +---barangay
+|   |   |   +---aips
+|   |   |   |   +---[aipId]
+|   |   |   |   |   +---embed
+|   |   |   |   |   |   \---retry
+|   |   |   |   |   |       \---route.ts
+|   |   |   |   |   \---runs
+|   |   |   |   |       \---active
+|   |   |   |   |           \---route.ts
+|   |   |   |   +---runs
+|   |   |   |   |   \---[runId]
+|   |   |   |   |       +---retry
+|   |   |   |   |       |   \---route.ts
+|   |   |   |   |       \---route.ts
+|   |   |   |   \---upload
+|   |   |   |       \---route.ts
+|   |   |   +---chat
+|   |   |   |   +---messages
+|   |   |   |   |   \---route.ts
+|   |   |   |   \---sessions
+|   |   |   |       +---[sessionId]
+|   |   |   |       |   +---messages
+|   |   |   |       |   |   \---route.ts
+|   |   |   |       |   \---route.ts
+|   |   |   |       \---route.ts
+|   |   |   \---projects
+|   |   |       \---[projectId]
+|   |   |           +---add-information
+|   |   |           |   \---route.ts
+|   |   |           \---updates
+|   |   |               \---route.ts
+|   |   +---chat
+|   |   |   \---reply
+|   |   |       \---route.ts
+|   |   +---citizen
+|   |   |   \---chat
+|   |   |       \---reply
+|   |   |           \---route.ts
+|   |   +---city
+|   |   |   +---aips
+|   |   |   |   +---[aipId]
+|   |   |   |   |   +---embed
+|   |   |   |   |   |   \---retry
+|   |   |   |   |   |       \---route.ts
+|   |   |   |   |   \---runs
+|   |   |   |   |       \---active
+|   |   |   |   |           \---route.ts
+|   |   |   |   +---runs
+|   |   |   |   |   \---[runId]
+|   |   |   |   |       +---retry
+|   |   |   |   |       |   \---route.ts
+|   |   |   |   |       \---route.ts
+|   |   |   |   \---upload
+|   |   |   |       \---route.ts
+|   |   |   +---chat
+|   |   |   |   +---messages
+|   |   |   |   |   \---route.ts
+|   |   |   |   \---sessions
+|   |   |   |       +---[sessionId]
+|   |   |   |       |   +---messages
+|   |   |   |       |   |   \---route.ts
+|   |   |   |       |   \---route.ts
+|   |   |   |       \---route.ts
+|   |   |   \---projects
+|   |   |       \---[projectId]
+|   |   |           +---add-information
+|   |   |           |   \---route.ts
+|   |   |           \---updates
+|   |   |               \---route.ts
+|   |   \---projects
+|   |       +---_shared
+|   |       |   +---attendance-normalization.ts
+|   |       |   +---image-response.ts
+|   |       |   +---progress-guardrails.ts
+|   |       |   \---write-handlers.ts
+|   |       +---cover
+|   |       |   \---[projectId]
+|   |       |       \---route.ts
+|   |       \---media
+|   |           \---[mediaId]
+|   |               \---route.ts
+|   +---favicon.ico
+|   +---globals.css
+|   \---layout.tsx
++---components
+|   +---chart
+|   |   +---donut-chart.tsx
+|   |   +---index.ts
+|   |   \---line-graph-card.tsx
+|   +---layout
+|   |   +---admin-shell.tsx
+|   |   +---admin-sidebar.tsx
+|   |   +---breadcrumb-nav.tsx
+|   |   +---lgu-footer.tsx
+|   |   +---lgu-shell.tsx
+|   |   +---lgu-sidebar.tsx
+|   |   +---lgu-topbar.tsx
+|   |   \---placeholder.tsx
+|   +---ui
+|   |   +---alert.tsx
+|   |   +---badge.tsx
+|   |   +---breadcrumb.tsx
+|   |   +---button.tsx
+|   |   +---card.tsx
+|   |   +---dialog.tsx
+|   |   +---dropdown-menu.tsx
+|   |   +---input.tsx
+|   |   +---label.tsx
+|   |   +---progress.tsx
+|   |   +---select.tsx
+|   |   +---separator.tsx
+|   |   +---sheet.tsx
+|   |   +---switch.tsx
+|   |   +---table.tsx
+|   |   +---tabs.tsx
+|   |   \---textarea.tsx
+|   +---forgot-password-form.tsx
+|   +---kpi-card.tsx
+|   +---login-form.tsx
+|   +---logout-button.tsx
+|   +---sign-up-form.tsx
+|   \---update-password-form.tsx
++---constants
+|   +---index.ts
+|   +---lgu-nav.ts
+|   \---theme.ts
++---docs
+|   +---cleanup
+|   |   \---phase-0
+|   +---sql
+|   |   +---2026-02-13_account_admin_hardening.sql
+|   |   +---2026-02-15-projects-financial-expenses.sql
+|   |   +---2026-02-19_extraction_run_progress.sql
+|   |   +---2026-02-20_submissions_claim_review.sql
+|   |   +---2026-02-21_city_aip_project_column_and_publish.sql
+|   |   +---2026-02-21_extraction_runs_realtime.sql
+|   |   +---2026-02-22_aip_publish_embed_categorize_logging_status.sql
+|   |   +---2026-02-22_aip_publish_embed_categorize_logging_status_v2.sql
+|   |   +---2026-02-22_aip_publish_embed_categorize_trigger.sql
+|   |   +---2026-02-22_aip_publish_embed_categorize_trigger_v2.sql
+|   |   +---2026-02-22_aip_storage_cascade_cleanup.sql
+|   |   +---2026-02-22_aip_storage_cascade_cleanup_hosted_supabase_fix.sql
+|   |   +---2026-02-22_set_config_app_embed.sql
+|   |   +---2026-02-22_set_config_app_embed_call.sql
+|   |   +---2026-02-24_chatbot_rag_global_scope.sql
+|   |   +---2026-02-24_create_aip_totals.sql
+|   |   +---2026-02-26_add_information_published_rls_fix.sql
+|   |   +---2026-02-26_app_settings_schema_and_grants.sql
+|   |   +---2026-02-26_projects_status_proposed_rename.sql
+|   |   +---2026-02-26_projects_updates_and_media.sql
+|   |   +---2026-02-27_barangay_audit_crud_workflow.sql
+|   |   \---database-v2.sql
+|   +---CHATBOT_PRODUCTION_CHECKLIST.md
+|   +---databasev2.txt
+|   \---SUPABASE_MIGRATION.md
++---features
+|   +---account
+|   |   +---AccountModal.test.tsx
+|   |   +---AccountModal.tsx
+|   |   +---account-route-redirects.test.ts
+|   |   +---account-view.tsx
+|   |   +---lgu-topbar-account-modal.test.tsx
+|   |   +---README.md
+|   |   +---types.ts
+|   |   \---update-password-form.tsx
+|   +---admin
+|   |   +---account-administration
+|   |   |   +---actions
+|   |   |   |   \---account-administration.actions.ts
+|   |   |   +---components
+|   |   |   |   +---modals
+|   |   |   |   |   +---account-details-modal.tsx
+|   |   |   |   |   +---activate-account-modal.tsx
+|   |   |   |   |   +---create-official-modal.tsx
+|   |   |   |   |   +---deactivate-account-modal.tsx
+|   |   |   |   |   +---delete-account-modal.tsx
+|   |   |   |   |   +---edit-account-modal.tsx
+|   |   |   |   |   +---resend-invite-modal.tsx
+|   |   |   |   |   \---reset-password-modal.tsx
+|   |   |   |   +---account-admin-header.tsx
+|   |   |   |   +---account-filters.tsx
+|   |   |   |   +---account-row-actions.tsx
+|   |   |   |   +---accounts-table.tsx
+|   |   |   |   \---account-tabs.tsx
+|   |   |   +---hooks
+|   |   |   |   \---use-account-administration.ts
+|   |   |   +---views
+|   |   |   |   \---account-administration-view.tsx
+|   |   |   +---index.ts
+|   |   |   \---README.md
+|   |   +---aip-monitoring
+|   |   |   +---components
+|   |   |   |   +---AipDetailsModal.tsx
+|   |   |   |   +---AipFiltersRow.tsx
+|   |   |   |   +---AipMonitoringTabs.tsx
+|   |   |   |   +---AipsTable.tsx
+|   |   |   |   +---CasesTable.tsx
+|   |   |   |   \---WorkflowActionModal.tsx
+|   |   |   +---types
+|   |   |   |   \---monitoring.types.ts
+|   |   |   \---views
+|   |   |       \---aip-monitoring-view.tsx
+|   |   +---dashboard
+|   |   |   +---components
+|   |   |   |   +---AipStatusDonutCard.tsx
+|   |   |   |   +---ChatbotUsageLineChart.tsx
+|   |   |   |   +---DashboardFiltersRow.tsx
+|   |   |   |   +---ErrorRateBarChart.tsx
+|   |   |   |   +---KpiCard.tsx
+|   |   |   |   +---MiniKpiStack.tsx
+|   |   |   |   +---RecentActivityList.tsx
+|   |   |   |   \---ReviewBacklogCard.tsx
+|   |   |   +---data
+|   |   |   +---hooks
+|   |   |   |   +---useAdminDashboard.ts
+|   |   |   |   \---useAdminDashboardData.ts
+|   |   |   +---types
+|   |   |   |   \---dashboard-actions.ts
+|   |   |   +---views
+|   |   |   |   \---admin-dashboard-view.tsx
+|   |   |   \---DASHBOARD_FIX_NOTES.md
+|   |   +---feedback-moderation
+|   |   |   +---components
+|   |   |   |   +---FeedbackDetailsModal.tsx
+|   |   |   |   +---FeedbackFiltersRow.tsx
+|   |   |   |   +---FeedbackModerationTabs.tsx
+|   |   |   |   +---HideFeedbackModal.tsx
+|   |   |   |   +---PublicFeedbackTable.tsx
+|   |   |   |   \---UnhideFeedbackModal.tsx
+|   |   |   \---views
+|   |   |       \---feedback-moderation-view.tsx
+|   |   +---feedback-moderation-project-updates
+|   |   |   \---components
+|   |   |       +---modals
+|   |   |       |   +---FlagForReviewModal.tsx
+|   |   |       |   +---ProjectUpdateDetailsModal.tsx
+|   |   |       |   \---RemoveUpdateModal.tsx
+|   |   |       +---ProjectUpdatesFiltersRow.tsx
+|   |   |       +---ProjectUpdatesPage.tsx
+|   |   |       +---ProjectUpdatesTable.tsx
+|   |   |       \---SensitiveGuidelinesPanel.tsx
+|   |   +---lgu-management
+|   |   |   +---actions
+|   |   |   |   \---lgu-management.actions.ts
+|   |   |   +---components
+|   |   |   |   +---modals
+|   |   |   |   |   +---add-lgu-modal.tsx
+|   |   |   |   |   +---deactivate-lgu-modal.tsx
+|   |   |   |   |   \---edit-lgu-modal.tsx
+|   |   |   |   +---budget-categories-panel.tsx
+|   |   |   |   +---lgu-management-header.tsx
+|   |   |   |   +---lgu-master-list.tsx
+|   |   |   |   +---lgu-row-actions.tsx
+|   |   |   |   \---lgu-table.tsx
+|   |   |   +---hooks
+|   |   |   |   \---use-lgu-management.ts
+|   |   |   +---views
+|   |   |   |   \---lgu-management-view.tsx
+|   |   |   \---index.ts
+|   |   +---system-administration
+|   |   |   +---components
+|   |   |   |   +---BannerComposerCard.tsx
+|   |   |   |   +---BannerPreviewCard.tsx
+|   |   |   |   +---ConfirmNotificationSettingsModal.tsx
+|   |   |   |   +---ConfirmPublishBannerModal.tsx
+|   |   |   |   +---ConfirmSecuritySettingsModal.tsx
+|   |   |   |   +---LoginAttemptLimitsCard.tsx
+|   |   |   |   +---NotificationControlsCard.tsx
+|   |   |   |   +---NotificationSettingsSection.tsx
+|   |   |   |   +---PasswordPolicyCard.tsx
+|   |   |   |   +---SecurityNoticeBanner.tsx
+|   |   |   |   +---SecuritySettingsSection.tsx
+|   |   |   |   +---SessionTimeoutCard.tsx
+|   |   |   |   \---SystemBannerSection.tsx
+|   |   |   \---views
+|   |   |       \---system-administration-view.tsx
+|   |   +---usage-controls
+|   |   |   +---components
+|   |   |   |   +---BlockUserDialog.tsx
+|   |   |   |   +---ChatbotMetricsRow.tsx
+|   |   |   |   +---ChatbotPolicyCard.tsx
+|   |   |   |   +---ChatbotRateLimitsCard.tsx
+|   |   |   |   +---CommentRateLimitsCard.tsx
+|   |   |   |   +---FlaggedUsersTable.tsx
+|   |   |   |   +---PlatformControlsTabs.tsx
+|   |   |   |   +---UnblockUserDialog.tsx
+|   |   |   |   \---UserAuditHistoryDialog.tsx
+|   |   |   \---views
+|   |   |       \---platform-controls-view.tsx
+|   |   +---index.ts
+|   |   \---settings-store-unavailable-routes.test.ts
+|   +---aip
+|   |   +---actions
+|   |   |   +---aip-projects.actions.ts
+|   |   |   +---aip-workflow.actions.test.ts
+|   |   |   \---aip-workflow.actions.ts
+|   |   +---components
+|   |   |   +---aip-card.tsx
+|   |   |   +---aip-details-summary.tsx
+|   |   |   +---aip-details-table-card.test.tsx
+|   |   |   +---aip-details-table-card.tsx
+|   |   |   +---aip-pdf-container.tsx
+|   |   |   +---aip-processing-inline-status.tsx
+|   |   |   +---aip-processing-status-content.tsx
+|   |   |   +---aip-published-by-card.tsx
+|   |   |   +---aip-status-info-card.tsx
+|   |   |   +---aip-uploader-info.tsx
+|   |   |   +---budget-allocation-table.tsx
+|   |   |   \---revision-feedback-history-card.tsx
+|   |   +---dialogs
+|   |   |   +---project-review-modal.tsx
+|   |   |   +---upload-aip-dialog.test.ts
+|   |   |   \---upload-aip-dialog.tsx
+|   |   +---hooks
+|   |   |   +---use-extraction-runs-realtime.test.ts
+|   |   |   \---use-extraction-runs-realtime.ts
+|   |   +---lib
+|   |   |   \---project-review-diff.test.ts
+|   |   +---types
+|   |   |   +---aip.types.ts
+|   |   |   +---aip-row.types.ts
+|   |   |   \---index.ts
+|   |   +---views
+|   |   |   +---aip-details-table.test.tsx
+|   |   |   +---aip-details-table.tsx
+|   |   |   +---aip-detail-view.test.tsx
+|   |   |   +---aip-detail-view.tsx
+|   |   |   +---aip-management-view.test.tsx
+|   |   |   +---aip-management-view.tsx
+|   |   |   \---aip-project-detail-view.tsx
+|   |   +---index.ts
+|   |   +---README.md
+|   |   \---utils.ts
+|   +---audit
+|   |   +---types
+|   |   |   \---audit.ts
+|   |   +---views
+|   |   |   \---AuditView.tsx
+|   |   +---index.ts
+|   |   \---README.md
+|   +---chat
+|   |   +---components
+|   |   |   +---ChatAssistantLoadingState.tsx
+|   |   |   +---chat-message-bubble.test.tsx
+|   |   |   +---ChatMessageBubble.tsx
+|   |   |   +---chat-sessions-panel.test.tsx
+|   |   |   +---ChatSessionsPanel.tsx
+|   |   |   \---ChatThreadPanel.tsx
+|   |   +---hooks
+|   |   |   +---request-assistant-reply.ts
+|   |   |   \---use-lgu-chatbot.ts
+|   |   +---types
+|   |   |   \---chat.types.ts
+|   |   +---views
+|   |   |   \---lgu-chatbot-view.tsx
+|   |   +---aggregation-routing.test.ts
+|   |   +---chat-messages-route-clarification.test.ts
+|   |   +---city-scope-routing.test.ts
+|   |   +---evidence.test.ts
+|   |   +---index.ts
+|   |   +---intent.test.ts
+|   |   +---line-item-routing.test.ts
+|   |   +---README.md
+|   |   +---refusal.test.ts
+|   |   +---scope.test.ts
+|   |   +---scope-parser.test.ts
+|   |   \---totals-sql-routing.test.ts
+|   +---citizen
+|   |   +---aips
+|   |   |   +---components
+|   |   |   |   +---aip-accountability-card.tsx
+|   |   |   |   +---aip-comments-tab.tsx
+|   |   |   |   +---aip-details-header.tsx
+|   |   |   |   +---aip-details-tabs.tsx
+|   |   |   |   +---aip-list-card.tsx
+|   |   |   |   +---aip-overview-document-card.tsx
+|   |   |   |   +---aip-projects-table.tsx
+|   |   |   |   \---aip-summary-card.tsx
+|   |   |   +---data
+|   |   |   |   \---aips.data.ts
+|   |   |   \---types.ts
+|   |   +---auth
+|   |   |   +---components
+|   |   |   |   +---steps
+|   |   |   |   |   +---citizen-complete-profile-step.tsx
+|   |   |   |   |   +---citizen-login-step.tsx
+|   |   |   |   |   +---citizen-signup-email-step.tsx
+|   |   |   |   |   \---citizen-verify-otp-step.tsx
+|   |   |   |   +---citizen-auth-brand-panel.tsx
+|   |   |   |   +---citizen-auth-header.tsx
+|   |   |   |   +---citizen-auth-modal.tsx
+|   |   |   |   +---citizen-auth-modal-host.tsx
+|   |   |   |   +---citizen-auth-split-shell.tsx
+|   |   |   |   \---citizen-otp-input.tsx
+|   |   |   +---constants
+|   |   |   |   \---geo-options.ts
+|   |   |   +---utils
+|   |   |   |   +---auth-query.ts
+|   |   |   |   \---mask-email.ts
+|   |   |   +---index.ts
+|   |   |   \---types.ts
+|   |   +---budget-allocation
+|   |   |   +---components
+|   |   |   |   +---aip-details-section.tsx
+|   |   |   |   +---charts-grid.tsx
+|   |   |   |   +---donut-card.tsx
+|   |   |   |   +---filters-section.tsx
+|   |   |   |   +---index.ts
+|   |   |   |   \---line-trends-card.tsx
+|   |   |   +---views
+|   |   |   |   \---budget-allocation-view.tsx
+|   |   |   +---data.ts
+|   |   |   +---index.ts
+|   |   |   +---types.ts
+|   |   |   \---utils.ts
+|   |   +---chatbot
+|   |   |   +---components
+|   |   |   |   +---citizen-chat-composer.tsx
+|   |   |   |   +---citizen-chat-empty-conversations.tsx
+|   |   |   |   +---citizen-chat-error-state.tsx
+|   |   |   |   +---citizen-chat-evidence.tsx
+|   |   |   |   +---citizen-chat-followups.tsx
+|   |   |   |   +---citizen-chat-header.tsx
+|   |   |   |   +---citizen-chat-loading-message.tsx
+|   |   |   |   +---citizen-chat-message-bubble.tsx
+|   |   |   |   +---citizen-chat-message-list.tsx
+|   |   |   |   +---citizen-chat-session-item.tsx
+|   |   |   |   +---citizen-chat-shell.tsx
+|   |   |   |   +---citizen-chat-sidebar.tsx
+|   |   |   |   \---citizen-chat-welcome.tsx
+|   |   |   +---constants
+|   |   |   |   \---ui.ts
+|   |   |   +---hooks
+|   |   |   |   +---use-citizen-chatbot.ts
+|   |   |   |   \---use-citizen-chat-scope.ts
+|   |   |   +---mappers
+|   |   |   |   \---chat-message-presenter.ts
+|   |   |   +---types
+|   |   |   |   \---citizen-chatbot.types.ts
+|   |   |   +---views
+|   |   |   |   \---citizen-chatbot-view.tsx
+|   |   |   \---index.ts
+|   |   +---components
+|   |   |   +---citizen-explainer-card.tsx
+|   |   |   +---citizen-filters-bar.tsx
+|   |   |   +---citizen-footer.tsx
+|   |   |   +---citizen-page-hero.tsx
+|   |   |   +---citizen-top-nav.tsx
+|   |   |   \---floating-chat-button.tsx
+|   |   +---constants
+|   |   |   \---nav.ts
+|   |   +---landing-content
+|   |   |   +---components
+|   |   |   |   +---atoms
+|   |   |   |   |   +---card-shell.tsx
+|   |   |   |   |   +---primary-button.tsx
+|   |   |   |   |   \---section-header.tsx
+|   |   |   |   +---chart
+|   |   |   |   |   \---donut-chart-citizen-dashboard.tsx
+|   |   |   |   +---layout
+|   |   |   |   |   +---full-screen-section.tsx
+|   |   |   |   |   +---landing-content-canvas.tsx
+|   |   |   |   |   \---landing-footer.tsx
+|   |   |   |   +---map
+|   |   |   |   |   +---lgu-map-panel.tsx
+|   |   |   |   |   +---lgu-map-panel-leaflet.tsx
+|   |   |   |   |   \---lgu-map-panel-placeholder.tsx
+|   |   |   |   \---motion
+|   |   |   |       \---motion-primitives.tsx
+|   |   |   +---views
+|   |   |   |   +---sections
+|   |   |   |   |   +---ai-assistant-preview-section.tsx
+|   |   |   |   |   +---ai-preview-motion.client.tsx
+|   |   |   |   |   +---chat-preview-card.tsx
+|   |   |   |   |   +---final-cta-motion.client.tsx
+|   |   |   |   |   +---final-cta-section.tsx
+|   |   |   |   |   +---funds-distribution-motion.client.tsx
+|   |   |   |   |   +---funds-distribution-section.tsx
+|   |   |   |   |   +---health-projects-section.tsx
+|   |   |   |   |   +---hero-motion.client.tsx
+|   |   |   |   |   +---hero-section.tsx
+|   |   |   |   |   +---index.ts
+|   |   |   |   |   +---infrastructure-projects-section.tsx
+|   |   |   |   |   +---lgu-budget-overview-motion.client.tsx
+|   |   |   |   |   +---lgu-budget-overview-section.tsx
+|   |   |   |   |   +---manifesto-motion.client.tsx
+|   |   |   |   |   +---manifesto-section.tsx
+|   |   |   |   |   +---project-showcase-card.tsx
+|   |   |   |   |   +---view-all-projects-card.tsx
+|   |   |   |   |   +---voice-matters-section.tsx
+|   |   |   |   |   \---voice-matters-trends-chart.client.tsx
+|   |   |   |   \---landing-content-view.tsx
+|   |   |   \---index.ts
+|   |   \---projects
+|   |       +---components
+|   |       |   \---project-filters.tsx
+|   |       +---views
+|   |       |   +---health-projects-view.tsx
+|   |       |   \---infrastructure-projects-view.tsx
+|   |       \---index.ts
+|   +---dashboard
+|   |   +---actions
+|   |   |   +---barangay-dashboard-actions.test.ts
+|   |   |   +---barangay-dashboard-actions.ts
+|   |   |   \---city-dashboard-actions.ts
+|   |   +---components
+|   |   |   +---dashboard-activity-updates.tsx
+|   |   |   +---dashboard-aip-publication-status.tsx
+|   |   |   +---dashboard-budget-allocation.tsx
+|   |   |   +---dashboard-feedback-insights.tsx
+|   |   |   +---dashboard-header-widgets.tsx
+|   |   |   +---dashboard-interactions.test.tsx
+|   |   |   +---dashboard-metric-cards.tsx
+|   |   |   \---dashboard-projects-overview.tsx
+|   |   +---hooks
+|   |   |   +---use-barangay-dashboard-data.ts
+|   |   |   \---use-city-dashboard-data.ts
+|   |   +---types
+|   |   |   \---dashboard-types.ts
+|   |   +---utils
+|   |   |   +---dashboard-query.ts
+|   |   |   \---dashboard-selectors.ts
+|   |   +---views
+|   |   |   +---barangay-dashboard-page.tsx
+|   |   |   +---barangay-dashboard-view.tsx
+|   |   |   +---city-dashboard-page.tsx
+|   |   |   \---city-dashboard-view.tsx
+|   |   \---index.ts
+|   +---feedback
+|   |   +---components
+|   |   |   +---comment-aip-thread-list.tsx
+|   |   |   +---comment-thread-accordion-list.tsx
+|   |   |   +---comment-thread-highlight.ts
+|   |   |   +---comment-thread-list-card.tsx
+|   |   |   +---comment-thread-panel.tsx
+|   |   |   \---comment-threads-split-view.tsx
+|   |   +---constants
+|   |   |   \---index.ts
+|   |   +---hooks
+|   |   |   +---index.ts
+|   |   |   \---use-comments-view.ts
+|   |   +---lib
+|   |   |   +---debug.ts
+|   |   |   +---format.ts
+|   |   |   \---status.ts
+|   |   +---types
+|   |   |   +---comment-message.ts
+|   |   |   +---comments.ts
+|   |   |   +---comment-sidebar-item.ts
+|   |   |   +---comment-target.ts
+|   |   |   +---comment-thread.ts
+|   |   |   \---index.ts
+|   |   +---views
+|   |   |   \---comments-view.tsx
+|   |   +---index.ts
+|   |   \---README.md
+|   +---projects
+|   |   +---health
+|   |   |   +---components
+|   |   |   |   +---health-project-card.test.tsx
+|   |   |   |   +---health-project-card.tsx
+|   |   |   |   +---project-information-card.test.tsx
+|   |   |   |   \---project-information-card.tsx
+|   |   |   \---views
+|   |   |       +---health-project-detail-page-view.tsx
+|   |   |       \---health-projects-view.tsx
+|   |   +---infrastructure
+|   |   |   +---components
+|   |   |   |   +---infrastructure-project-card.test.tsx
+|   |   |   |   +---infrastructure-project-card.tsx
+|   |   |   |   +---project-information-card.test.tsx
+|   |   |   |   \---project-information-card.tsx
+|   |   |   \---views
+|   |   |       +---infrastructure-project-detail-page-view.tsx
+|   |   |       \---infrastructure-projects-view.tsx
+|   |   +---shared
+|   |   |   +---add-information
+|   |   |   |   +---add-information-page.test.tsx
+|   |   |   |   +---add-information-page.tsx
+|   |   |   |   +---date-normalization.test.ts
+|   |   |   |   +---date-normalization.ts
+|   |   |   |   +---field-config.ts
+|   |   |   |   +---FormField.tsx
+|   |   |   |   \---schemas.ts
+|   |   |   +---update-view
+|   |   |   |   +---attendance-normalization.test.ts
+|   |   |   |   +---index.ts
+|   |   |   |   +---post-update-form.test.tsx
+|   |   |   |   +---post-update-form.tsx
+|   |   |   |   +---progress-guardrails.test.ts
+|   |   |   |   +---project-information-shell.tsx
+|   |   |   |   +---project-updates-section.test.tsx
+|   |   |   |   +---project-updates-section.tsx
+|   |   |   |   +---updates-timeline-view.test.tsx
+|   |   |   |   \---updates-timeline-view.tsx
+|   |   |   +---project-date.ts
+|   |   |   \---project-image.ts
+|   |   +---types
+|   |   |   +---health-types.ts
+|   |   |   +---index.ts
+|   |   |   +---infrastructure-types.ts
+|   |   |   +---project-types.ts
+|   |   |   +---ui-types.ts
+|   |   |   +---update-types.ts
+|   |   |   \---update-ui-types.ts
+|   |   +---utils
+|   |   |   \---status-badges.ts
+|   |   +---GUIDE.md
+|   |   +---IMPLEMENTATION_STATUS.md
+|   |   +---index.ts
+|   |   +---project-list.selectors.test.ts
+|   |   +---README.md
+|   |   \---utils.ts
+|   +---settings
+|   |   \---app-settings.test.ts
+|   \---submissions
+|       +---actions
+|       |   \---submissionsReview.actions.ts
+|       +---components
+|       |   +---city-revision-feedback-history-card.test.tsx
+|       |   +---city-revision-feedback-history-card.tsx
+|       |   +---PublishSuccessCard.tsx
+|       |   +---SubmissionFilters.tsx
+|       |   +---SubmissionStats.tsx
+|       |   +---SubmissionTable.test.tsx
+|       |   \---SubmissionTable.tsx
+|       +---presentation
+|       |   \---submissions.presentation.ts
+|       +---views
+|       |   +---city-submission-review-detail.test.tsx
+|       |   +---city-submission-review-detail.tsx
+|       |   \---SubmissionsView.tsx
+|       +---index.ts
+|       \---README.md
++---lib
+|   +---actions
+|   |   +---auth.actions.ts
+|   |   \---signup.actions.ts
+|   +---audit
+|   |   +---activity-log.ts
+|   |   \---workflow-metadata.ts
+|   +---auth
+|   |   +---actor-scope-guards.ts
+|   |   +---dev-bypass.ts
+|   |   \---roles.ts
+|   +---chat
+|   |   +---aggregation-intent.ts
+|   |   +---city-scope.ts
+|   |   +---evidence.ts
+|   |   +---intent.ts
+|   |   +---line-item-routing.ts
+|   |   +---match-metric.ts
+|   |   +---pipeline-client.ts
+|   |   +---refusal.ts
+|   |   +---scope.ts
+|   |   +---scope-parser.ts
+|   |   +---scope-resolver.server.ts
+|   |   +---totals-sql-routing.ts
+|   |   \---types.ts
+|   +---config
+|   |   \---appEnv.ts
+|   +---constants
+|   |   +---budget-categories.ts
+|   |   +---chat.ts
+|   |   +---dashboard.ts
+|   |   +---embedding.ts
+|   |   +---feedback-comment-status.ts
+|   |   +---feedback-kind.ts
+|   |   +---mock-scope.ts
+|   |   \---project-years.ts
+|   +---contracts
+|   |   \---databasev2
+|   |       +---rows
+|   |       |   +---activity_log.ts
+|   |       |   +---aip_reviews.ts
+|   |       |   +---aips.ts
+|   |       |   +---chat.ts
+|   |       |   +---extraction_artifacts.ts
+|   |       |   +---extraction_runs.ts
+|   |       |   +---feedback.ts
+|   |       |   +---profiles.ts
+|   |       |   +---project_updates.ts
+|   |       |   +---projects.ts
+|   |       |   \---uploaded_files.ts
+|   |       +---enums.ts
+|   |       +---index.ts
+|   |       +---primitives.ts
+|   |       \---scopes.ts
+|   +---core
+|   |   \---errors.ts
+|   +---date
+|   |   \---localDate.ts
+|   +---domain
+|   |   +---actor-context.ts
+|   |   +---citizen-budget-allocation.ts
+|   |   +---get-actor-context.ts
+|   |   \---landing-content.ts
+|   +---formatting
+|   |   \---index.ts
+|   +---mappers
+|   |   +---aip-monitoring
+|   |   |   +---index.ts
+|   |   |   \---mapAipMonitoringToVM.ts
+|   |   +---audit
+|   |   |   +---index.ts
+|   |   |   \---mapAuditToVM.ts
+|   |   +---dashboard
+|   |   |   \---admin
+|   |   |       +---index.ts
+|   |   |       \---mapAdminDashboardToVM.ts
+|   |   +---feedback-moderation
+|   |   |   \---index.ts
+|   |   \---feedback-moderation-project-updates
+|   |       \---index.ts
+|   +---projects
+|   |   \---media.ts
+|   +---repos
+|   |   +---_shared
+|   |   |   \---selector.ts
+|   |   +---accounts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---admin-dashboard
+|   |   |   +---mappers
+|   |   |   |   \---admin-dashboard.mapper.ts
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---aip
+|   |   |   +---mock-aip-generator.ts
+|   |   |   +---project-review.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---aip-monitoring
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   \---repo.ts
+|   |   +---audit
+|   |   |   +---queries.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---chat
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---citizen-aips
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---citizen-chat
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---dashboard
+|   |   |   +---index.ts
+|   |   |   +---mappers.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---feedback
+|   |   |   +---db.types.ts
+|   |   |   +---debug.ts
+|   |   |   +---legacy.ts
+|   |   |   +---mappers.ts
+|   |   |   +---queries.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.base.ts
+|   |   |   +---repo.supabase.client.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---feedback-moderation
+|   |   |   +---mappers
+|   |   |   |   \---feedback.mapper.ts
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---feedback-moderation-project-updates
+|   |   |   +---mappers
+|   |   |   |   \---project-updates.mapper.ts
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---landing-content
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   \---repo.ts
+|   |   +---lgu
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---projects
+|   |   |   +---db.types.ts
+|   |   |   +---mappers.ts
+|   |   |   +---queries.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---submissions
+|   |   |   +---queries.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.server.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   +---system-administration
+|   |   |   +---index.ts
+|   |   |   +---repo.mock.ts
+|   |   |   +---repo.supabase.ts
+|   |   |   +---repo.ts
+|   |   |   \---types.ts
+|   |   \---usage-controls
+|   |       +---mappers
+|   |       |   \---usage-controls.mapper.ts
+|   |       +---index.ts
+|   |       +---repo.mock.ts
+|   |       +---repo.supabase.ts
+|   |       +---repo.ts
+|   |       \---types.ts
+|   +---selectors
+|   |   \---projects
+|   |       \---project-list.ts
+|   +---settings
+|   |   \---app-settings.ts
+|   +---supabase
+|   |   +---admin.ts
+|   |   +---client.ts
+|   |   +---proxy.ts
+|   |   \---server.ts
+|   +---types
+|   |   +---domain
+|   |   |   +---audit.domain.ts
+|   |   |   \---feedback.domain.ts
+|   |   \---viewmodels
+|   |       +---dashboard
+|   |       |   \---admin-dashboard.vm.ts
+|   |       +---aip-monitoring.vm.ts
+|   |       \---citizen-budget-allocation.vm.ts
+|   \---ui
+|       +---auth-helpers.ts
+|       +---feedback-status.ts
+|       +---project-status.ts
+|       +---README.md
+|       +---sector.ts
+|       +---status.ts
+|       +---tokens.ts
+|       \---utils.ts
++---mocks
+|   +---dashboard
+|   |   \---dashboard-mock-payload.ts
+|   \---fixtures
+|       +---accounts
+|       |   \---accounts.table.fixture.ts
+|       +---admin
+|       |   +---admin-dashboard
+|       |   |   \---adminDashboard.mock.ts
+|       |   +---aip-monitoring
+|       |   |   \---aipMonitoring.mock.ts
+|       |   +---feedback-moderation
+|       |   |   +---feedbackModeration.mock.ts
+|       |   |   \---projectUpdatesMedia.mock.ts
+|       |   +---system-administration
+|       |   |   \---systemAdministration.mock.ts
+|       |   \---usage-controls
+|       |       \---platformControls.mock.ts
+|       +---aip
+|       |   +---aip-accountability.fixture.ts
+|       |   +---aip-comments.fixture.ts
+|       |   +---aip-project-rows.table.fixture.ts
+|       |   \---aips.table.fixture.ts
+|       +---audit
+|       |   +---activity-log.fixture.ts
+|       |   \---audit-logs.fixture.ts
+|       +---budget-allocation
+|       |   +---allocation.fixture.ts
+|       |   +---citizen-budget-allocation.fixture.ts
+|       |   \---index.ts
+|       +---chat
+|       |   \---chat.fixture.ts
+|       +---feedback
+|       |   +---comment-messages.fixture.ts
+|       |   \---comment-threads.fixture.ts
+|       +---lgu
+|       |   +---budget-categories.fixture.ts
+|       |   \---lgus.table.fixture.ts
+|       +---projects
+|       |   +---health-details-table.fixture.ts
+|       |   +---infrastructure-details-table.fixture.ts
+|       |   +---projects.mock.fixture.ts
+|       |   +---projects-table.fixture.ts
+|       |   \---project-updates-table.fixture.ts
+|       \---shared
+|           +---id-contract.fixture.ts
+|           \---validate-mock-ids.ts
++---public
+|   +---about-us
+|   |   +---1.jpg
+|   |   +---2.jpg
+|   |   +---3.jpg
+|   |   +---4.jpg
+|   |   +---5a89559c0ddc11d2145ce1f28f11edb663614a14.png
+|   |   +---e3bdeae1124318c5908ccdad702d8fc303ed17ce.png
+|   |   \---fa842eef0acdf280fa6f54f57b7507b0b0970a33.jpg
+|   +---brand
+|   |   +---logo.svg
+|   |   +---logo1.svg
+|   |   +---logo2.svg
+|   |   \---logo3.svg
+|   +---citizen-dashboard
+|   |   +---blue-rectangle.png
+|   |   +---city.png
+|   |   +---flag.jpg
+|   |   +---gradient.png
+|   |   +---navy-rectangle.png
+|   |   \---school.png
+|   +---default
+|   |   \---default-no-image.jpg
+|   +---login
+|   |   +---building.png
+|   |   +---faded-logo.png
+|   |   \---with-bg-logo.png
+|   \---mock
+|       \---health
+|           +---health1.jpg
+|           +---health2.jpg
+|           +---health3.jpg
+|           \---health4.jpg
++---scripts
+|   \---repo-smoke
+|       \---run.js
++---tests
+|   +---repo-smoke
+|   |   +---aip
+|   |   |   \---project-review.utils.test.ts
+|   |   +---audit
+|   |   |   +---audit.dedupe.test.ts
+|   |   |   \---audit.queries.test.ts
+|   |   +---chat
+|   |   |   \---chat.repo.mock.test.ts
+|   |   +---dashboard
+|   |   |   +---dashboard.mappers.test.ts
+|   |   |   +---dashboard.project-update-logs.test.ts
+|   |   |   \---dashboard.repo.selector.test.ts
+|   |   +---feedback
+|   |   |   +---comment-reply-activity-log.test.ts
+|   |   |   +---commentRepo.selector.test.ts
+|   |   |   +---commentThread.highlight.test.ts
+|   |   |   +---commentThreadAccordionList.test.tsx
+|   |   |   +---dedupe.test.ts
+|   |   |   +---feedback-route-targets.test.ts
+|   |   |   \---inbox-filter.test.ts
+|   |   +---landing-content
+|   |   |   +---landing-content.repo.mock.test.ts
+|   |   |   \---landing-content.view-smoke.test.tsx
+|   |   +---projects
+|   |   |   +---projects.mappers.test.ts
+|   |   |   \---projects.repo.mock.test.ts
+|   |   +---shared
+|   |   |   \---selector.override.test.ts
+|   |   \---submissions
+|   |       +---submissions.queries.test.ts
+|   |       \---submissions.repo.mock.test.ts
+|   \---typechecks
+|       \---feedback-enums.typecheck.ts
+\---types
+    +---index.d.ts
+    \---navigation.ts

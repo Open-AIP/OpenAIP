@@ -19,6 +19,7 @@ export type AipFeedbackItem = {
   aipId: string;
   parentFeedbackId: string | null;
   kind: AipFeedbackDisplayKind;
+  isHidden?: boolean;
   body: string;
   createdAt: string;
   author: {

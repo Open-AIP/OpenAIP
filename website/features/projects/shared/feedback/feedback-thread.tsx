@@ -293,6 +293,7 @@ export function FeedbackThread({
         projectId,
         parentFeedbackId: null,
         kind: input.kind,
+        isHidden: false,
         body: input.body,
         createdAt: new Date().toISOString(),
         author: {
@@ -351,6 +352,7 @@ export function FeedbackThread({
         projectId,
         parentFeedbackId: replyComposer.rootId,
         kind: input.kind,
+        isHidden: false,
         body: input.body,
         createdAt: new Date().toISOString(),
         author: {

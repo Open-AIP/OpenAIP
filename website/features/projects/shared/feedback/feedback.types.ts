@@ -36,6 +36,7 @@ export type ProjectFeedbackItem = {
   projectId: string;
   parentFeedbackId: string | null;
   kind: ProjectFeedbackDisplayKind;
+  isHidden?: boolean;
   body: string;
   createdAt: string;
   author: ProjectFeedbackAuthor;

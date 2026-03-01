@@ -22,6 +22,8 @@ export const AIP_FEEDBACK_DISPLAY_KINDS = [
 ] as const;
 
 export const AIP_FEEDBACK_MAX_LENGTH = 1000;
+export const HIDDEN_FEEDBACK_PLACEHOLDER =
+  "This comment has been hidden due to policy violation.";
 
 export type CitizenAipFeedbackKind = (typeof CITIZEN_AIP_FEEDBACK_KINDS)[number];
 export type AipFeedbackDisplayKind = (typeof AIP_FEEDBACK_DISPLAY_KINDS)[number];
@@ -33,6 +35,7 @@ export type AipFeedbackApiItem = {
   aipId: string;
   parentFeedbackId: string | null;
   kind: AipFeedbackDisplayKind;
+  isHidden: boolean;
   body: string;
   createdAt: string;
   author: {
@@ -249,7 +252,8 @@ function mapFeedbackRowToApiItem(
     aipId: row.aip_id ?? "",
     parentFeedbackId: row.parent_feedback_id,
     kind: row.kind,
-    body: row.body,
+    isHidden: !row.is_public,
+    body: row.is_public ? row.body : HIDDEN_FEEDBACK_PLACEHOLDER,
     createdAt: row.created_at,
     author: {
       id: author?.id ?? row.author_id,
@@ -277,7 +281,6 @@ export async function listPublicAipFeedback(
     .select("id,target_type,aip_id,parent_feedback_id,kind,body,author_id,is_public,created_at")
     .eq("target_type", "aip")
     .eq("aip_id", aipId)
-    .eq("is_public", true)
     .in("kind", [...AIP_FEEDBACK_DISPLAY_KINDS])
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });

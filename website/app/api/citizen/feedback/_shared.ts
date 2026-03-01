@@ -23,6 +23,8 @@ export const PROJECT_FEEDBACK_DISPLAY_KINDS = [
 ] as const;
 
 export const PROJECT_FEEDBACK_MAX_LENGTH = 1000;
+export const HIDDEN_FEEDBACK_PLACEHOLDER =
+  "This comment has been hidden due to policy violation.";
 
 export type CitizenProjectFeedbackKind = (typeof CITIZEN_PROJECT_FEEDBACK_KINDS)[number];
 export type ProjectFeedbackDisplayKind = (typeof PROJECT_FEEDBACK_DISPLAY_KINDS)[number];
@@ -34,6 +36,7 @@ export type ProjectFeedbackApiItem = {
   projectId: string;
   parentFeedbackId: string | null;
   kind: ProjectFeedbackDisplayKind;
+  isHidden: boolean;
   body: string;
   createdAt: string;
   author: {
@@ -264,7 +267,8 @@ function mapFeedbackRowToApiItem(
     projectId: row.project_id ?? "",
     parentFeedbackId: row.parent_feedback_id,
     kind: row.kind,
-    body: row.body,
+    isHidden: !row.is_public,
+    body: row.is_public ? row.body : HIDDEN_FEEDBACK_PLACEHOLDER,
     createdAt: row.created_at,
     author: {
       id: author?.id ?? row.author_id,
@@ -292,7 +296,6 @@ export async function listPublicProjectFeedback(
     .select("id,target_type,project_id,parent_feedback_id,kind,body,author_id,is_public,created_at")
     .eq("target_type", "project")
     .eq("project_id", projectId)
-    .eq("is_public", true)
     .in("kind", [...PROJECT_FEEDBACK_DISPLAY_KINDS])
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });

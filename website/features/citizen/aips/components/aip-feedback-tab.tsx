@@ -121,8 +121,17 @@ function FeedbackCard({
   replyDisabled: boolean;
   showReplyButton?: boolean;
 }) {
+  const isHidden = item.isHidden === true;
+  const isNested = item.parentFeedbackId !== null;
+  const shouldShowKindBadge = item.kind !== "lgu_note";
+
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article
+      data-hidden-comment={isHidden ? "true" : "false"}
+      className={`rounded-xl border bg-white p-4 shadow-sm ${
+        isHidden ? "border-slate-300 bg-slate-50/80" : "border-slate-200"
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-900">{item.author.fullName}</p>
@@ -133,15 +142,29 @@ function FeedbackCard({
         <p className="text-xs text-slate-500">{formatFeedbackTimestamp(item.createdAt)}</p>
       </div>
 
-      <div className="mt-3">
-        <Badge variant="outline" className={`rounded-full ${KIND_BADGE_CLASSES[item.kind]}`}>
-          {KIND_LABELS[item.kind]}
-        </Badge>
-      </div>
+      {shouldShowKindBadge ? (
+        <div className="mt-3">
+          <Badge variant="outline" className={`rounded-full ${KIND_BADGE_CLASSES[item.kind]}`}>
+            {KIND_LABELS[item.kind]}
+          </Badge>
+        </div>
+      ) : null}
 
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.body}</p>
+      {isHidden ? (
+        <p className="mt-3 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          Hidden comment
+        </p>
+      ) : null}
 
-      {showReplyButton === false ? null : (
+      <p
+        className={`mt-3 whitespace-pre-wrap text-sm leading-6 ${
+          isHidden ? "text-slate-500 italic" : "text-slate-700"
+        }`}
+      >
+        {item.body}
+      </p>
+
+      {showReplyButton === false || isHidden || isNested ? null : (
         <div className="mt-3">
           <Button
             type="button"
@@ -347,6 +370,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
         aipId,
         parentFeedbackId: null,
         kind: input.kind,
+        isHidden: false,
         body: input.body,
         createdAt: new Date().toISOString(),
         author: {
@@ -394,6 +418,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
         aipId,
         parentFeedbackId: replyComposer.rootId,
         kind: input.kind,
+        isHidden: false,
         body: input.body,
         createdAt: new Date().toISOString(),
         author: {

@@ -65,6 +65,43 @@ export function createMockCitizenChatRepo(): CitizenChatRepo {
       return session;
     },
 
+    async renameSession(sessionId: string, title: string): Promise<CitizenChatSession | null> {
+      const normalized = title.trim();
+      if (!normalized.length || normalized.length > 200) {
+        throw new Error(CitizenChatRepoErrors.INVALID_CONTENT);
+      }
+
+      const sessionIndex = sessionsStore.findIndex((session) => session.id === sessionId);
+      if (sessionIndex < 0) {
+        return null;
+      }
+
+      const nextSession: CitizenChatSession = {
+        ...sessionsStore[sessionIndex],
+        title: normalized,
+        updatedAt: new Date().toISOString(),
+      };
+
+      sessionsStore = [
+        ...sessionsStore.slice(0, sessionIndex),
+        nextSession,
+        ...sessionsStore.slice(sessionIndex + 1),
+      ].sort(sortSessionsDesc);
+
+      return nextSession;
+    },
+
+    async deleteSession(sessionId: string): Promise<boolean> {
+      const found = sessionsStore.some((session) => session.id === sessionId);
+      if (!found) {
+        return false;
+      }
+
+      sessionsStore = sessionsStore.filter((session) => session.id !== sessionId);
+      messagesStore = messagesStore.filter((message) => message.sessionId !== sessionId);
+      return true;
+    },
+
     async listMessages(sessionId: string): Promise<CitizenChatMessage[]> {
       return messagesStore
         .filter((message) => message.sessionId === sessionId)

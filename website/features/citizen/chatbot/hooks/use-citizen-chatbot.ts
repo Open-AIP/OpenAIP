@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { getCitizenChatRepo } from "@/lib/repos/citizen-chat/repo";
 import type { CitizenChatMessage, CitizenChatSession } from "@/lib/repos/citizen-chat/repo";
+import { buildCitizenAuthHref, setReturnToInSessionStorage } from "@/features/citizen/auth/utils/auth-query";
 import { CITIZEN_CHAT_LIMITS } from "../constants/ui";
 import { mapEvidenceFromCitations, mapFollowUpsFromRetrievalMeta } from "../mappers/chat-message-presenter";
 import type {
+  CitizenChatComposerMode,
   CitizenChatErrorState,
   CitizenChatMessageVM,
   CitizenChatReplyResult,
@@ -26,6 +29,12 @@ function formatTimeLabel(value: string | null | undefined) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function sortSessionsByUpdatedAt(sessions: CitizenChatSession[]) {
+  return [...sessions].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+}
+
 function toSessionItem(params: {
   session: CitizenChatSession;
   messages: CitizenChatMessage[];
@@ -37,9 +46,7 @@ function toSessionItem(params: {
   return {
     id: session.id,
     title: session.title?.trim() || "New chat",
-    snippet: lastMessage?.content?.trim() || "No messages yet.",
     timeLabel: formatTimeLabel(lastMessage?.createdAt ?? session.lastMessageAt ?? session.updatedAt),
-    scopeBadge: "Scope: Citizen",
     isActive,
   };
 }
@@ -86,11 +93,22 @@ async function requestAssistantReply(params: {
   return payload as CitizenChatReplyResult;
 }
 
+type ProfileStatusPayload = {
+  ok?: boolean;
+  isComplete?: boolean;
+};
+
 export function useCitizenChatbot() {
   const repo = useMemo(() => getCitizenChatRepo(), []);
   const supabase = useMemo(() => supabaseBrowser(), []);
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthResolved, setIsAuthResolved] = useState(false);
+  const [isProfileResolved, setIsProfileResolved] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [sessions, setSessions] = useState<CitizenChatSession[]>([]);
   const [messagesBySession, setMessagesBySession] = useState<Record<string, CitizenChatMessage[]>>({});
   const [loadedSessionIds, setLoadedSessionIds] = useState<Record<string, true>>({});
@@ -102,6 +120,30 @@ export function useCitizenChatbot() {
   const [errorState, setErrorState] = useState<CitizenChatErrorState>("none");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const sanitizedNext = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("auth");
+    params.delete("authStep");
+    params.delete("completeProfile");
+    params.delete("next");
+    params.delete("returnTo");
+    const queryValue = params.toString();
+    return queryValue ? `${pathname}?${queryValue}` : pathname;
+  }, [pathname, searchParams]);
+
+  const openAuthModal = useCallback((forceCompleteProfile: boolean) => {
+    setReturnToInSessionStorage(sanitizedNext);
+    const href = buildCitizenAuthHref({
+      pathname,
+      searchParams,
+      mode: forceCompleteProfile ? null : "login",
+      launchStep: "email",
+      completeProfile: forceCompleteProfile,
+      next: sanitizedNext,
+    });
+    router.replace(href, { scroll: false });
+  }, [pathname, router, sanitizedNext, searchParams]);
+
   useEffect(() => {
     let active = true;
 
@@ -111,46 +153,92 @@ export function useCitizenChatbot() {
 
       if (error || !data.user?.id) {
         setUserId(null);
-        setErrorState("auth_required");
-        setErrorMessage("Sign in to use the Citizen AI Assistant.");
-        setIsBootstrapping(false);
+        setSessions([]);
+        setMessagesBySession({});
+        setLoadedSessionIds({});
+        setActiveSessionId(null);
+        setIsProfileComplete(false);
+        setErrorState("none");
+        setErrorMessage(null);
+        setIsAuthResolved(true);
         return;
       }
 
       setUserId(data.user.id);
       setErrorState("none");
       setErrorMessage(null);
+      setIsAuthResolved(true);
     }
 
     resolveUser();
 
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (!active || event === "INITIAL_SESSION") return;
+      void resolveUser();
+    });
+
     return () => {
       active = false;
+      authListener.subscription.unsubscribe();
     };
   }, [supabase]);
 
   useEffect(() => {
     let active = true;
-    if (!userId) return;
+
+    async function resolveProfileStatus() {
+      if (!userId) {
+        setIsProfileComplete(false);
+        setIsProfileResolved(true);
+        return;
+      }
+
+      setIsProfileResolved(false);
+      try {
+        const response = await fetch("/profile/status", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as ProfileStatusPayload | null;
+        if (!active) return;
+
+        if (!response.ok || !payload?.ok) {
+          setIsProfileComplete(false);
+          return;
+        }
+
+        setIsProfileComplete(payload.isComplete === true);
+      } catch {
+        if (!active) return;
+        setIsProfileComplete(false);
+      } finally {
+        if (active) setIsProfileResolved(true);
+      }
+    }
+
+    resolveProfileStatus();
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!userId) {
+      setIsBootstrapping(false);
+      return;
+    }
 
     async function bootstrapSessions() {
       setIsBootstrapping(true);
+      setActiveSessionId(null);
+      setMessagesBySession({});
+      setLoadedSessionIds({});
       try {
         const list = await repo.listSessions(userId);
         if (!active) return;
-
-        if (list.length === 0) {
-          const created = await repo.createSession(userId, { context: {} });
-          if (!active) return;
-
-          setSessions([created]);
-          setActiveSessionId(created.id);
-          setMessagesBySession((prev) => ({ ...prev, [created.id]: [] }));
-          setLoadedSessionIds((prev) => ({ ...prev, [created.id]: true }));
-        } else {
-          setSessions(list);
-          setActiveSessionId((current) => current ?? list[0]?.id ?? null);
-        }
+        setSessions(sortSessionsByUpdatedAt(list));
         setErrorState("none");
         setErrorMessage(null);
       } catch (error) {
@@ -203,6 +291,8 @@ export function useCitizenChatbot() {
   }, [activeSessionId, loadedSessionIds, repo]);
 
   const sessionItems = useMemo(() => {
+    if (!userId) return [] as CitizenChatSessionVM[];
+
     const lowered = query.trim().toLowerCase();
 
     return sessions
@@ -217,11 +307,10 @@ export function useCitizenChatbot() {
         if (!lowered) return true;
         return (
           session.title.toLowerCase().includes(lowered) ||
-          session.snippet.toLowerCase().includes(lowered) ||
-          session.scopeBadge.toLowerCase().includes(lowered)
+          session.timeLabel.toLowerCase().includes(lowered)
         );
       });
-  }, [activeSessionId, messagesBySession, query, sessions]);
+  }, [activeSessionId, messagesBySession, query, sessions, userId]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
 
@@ -230,16 +319,36 @@ export function useCitizenChatbot() {
     return activeMessages.map(toMessageVm);
   }, [activeSessionId, messagesBySession]);
 
+  const composerMode: CitizenChatComposerMode = !userId
+    ? "sign_in"
+    : !isProfileComplete
+      ? "complete_profile"
+      : "send";
+
+  const composerPlaceholder = composerMode === "sign_in"
+    ? "Sign in to use the AI Assistant."
+    : composerMode === "complete_profile"
+      ? "Complete your profile to use the AI Assistant."
+      : "Ask about budgets, sectors, or projects...";
+
   const handleSelectSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
   }, []);
 
   const handleNewChat = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      openAuthModal(false);
+      return;
+    }
+
+    if (!isProfileComplete) {
+      openAuthModal(true);
+      return;
+    }
 
     try {
       const session = await repo.createSession(userId, { context: {} });
-      setSessions((prev) => [session, ...prev]);
+      setSessions((prev) => sortSessionsByUpdatedAt([session, ...prev.filter((item) => item.id !== session.id)]));
       setActiveSessionId(session.id);
       setMessagesBySession((prev) => ({ ...prev, [session.id]: [] }));
       setLoadedSessionIds((prev) => ({ ...prev, [session.id]: true }));
@@ -249,7 +358,52 @@ export function useCitizenChatbot() {
       setErrorState("retrieval_failed");
       setErrorMessage(error instanceof Error ? error.message : "Failed to start a new chat.");
     }
-  }, [repo, userId]);
+  }, [isProfileComplete, openAuthModal, repo, userId]);
+
+  const handleRenameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      const nextTitle = title.trim();
+      if (!nextTitle.length || nextTitle.length > 200) {
+        throw new Error("Title must be 1 to 200 characters.");
+      }
+
+      const renamed = await repo.renameSession(sessionId, nextTitle);
+      if (!renamed) {
+        throw new Error("Conversation not found.");
+      }
+
+      setSessions((prev) => sortSessionsByUpdatedAt(prev.map((session) => (
+        session.id === sessionId ? renamed : session
+      ))));
+    },
+    [repo]
+  );
+
+  const handleDeleteSession = useCallback(
+    async (sessionId: string) => {
+      const deleted = await repo.deleteSession(sessionId);
+      if (!deleted) {
+        throw new Error("Conversation not found.");
+      }
+
+      setSessions((prev) => prev.filter((session) => session.id !== sessionId));
+      setMessagesBySession((prev) => {
+        const next = { ...prev };
+        delete next[sessionId];
+        return next;
+      });
+      setLoadedSessionIds((prev) => {
+        const next = { ...prev };
+        delete next[sessionId];
+        return next;
+      });
+
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
+      }
+    },
+    [activeSessionId, repo]
+  );
 
   const handleUseExample = useCallback((value: string) => {
     setMessageInput(value);
@@ -260,8 +414,18 @@ export function useCitizenChatbot() {
   }, []);
 
   const handleSend = useCallback(async () => {
+    if (!userId) {
+      openAuthModal(false);
+      return;
+    }
+
+    if (!isProfileComplete) {
+      openAuthModal(true);
+      return;
+    }
+
     const content = messageInput.trim();
-    if (!content || !userId) return;
+    if (!content) return;
     if (content.length > CITIZEN_CHAT_LIMITS.contentMaxLength) {
       setErrorState("retrieval_failed");
       setErrorMessage(`Message must be ${CITIZEN_CHAT_LIMITS.contentMaxLength} characters or less.`);
@@ -273,33 +437,38 @@ export function useCitizenChatbot() {
     setErrorMessage(null);
 
     let sessionId = activeSessionId;
-    if (!sessionId) {
-      const created = await repo.createSession(userId, { context: {} });
-      setSessions((prev) => [created, ...prev]);
-      setActiveSessionId(created.id);
-      setMessagesBySession((prev) => ({ ...prev, [created.id]: [] }));
-      setLoadedSessionIds((prev) => ({ ...prev, [created.id]: true }));
-      sessionId = created.id;
-    }
-
-    const optimisticId = `temp_user_${Date.now()}`;
-    const optimisticMessage: CitizenChatMessage = {
-      id: optimisticId,
-      sessionId,
-      role: "user",
-      content,
-      citations: null,
-      retrievalMeta: null,
-      createdAt: new Date().toISOString(),
-    };
-
-    setMessageInput("");
-    setMessagesBySession((prev) => ({
-      ...prev,
-      [sessionId]: [...(prev[sessionId] ?? []), optimisticMessage],
-    }));
+    let optimisticId: string | null = null;
 
     try {
+      if (!sessionId) {
+        const created = await repo.createSession(userId, { context: {} });
+        setSessions((prev) => sortSessionsByUpdatedAt([created, ...prev.filter((item) => item.id !== created.id)]));
+        setActiveSessionId(created.id);
+        setMessagesBySession((prev) => ({ ...prev, [created.id]: [] }));
+        setLoadedSessionIds((prev) => ({ ...prev, [created.id]: true }));
+        sessionId = created.id;
+      }
+      if (!sessionId) {
+        throw new Error("Failed to create chat session.");
+      }
+
+      optimisticId = `temp_user_${Date.now()}`;
+      const optimisticMessage: CitizenChatMessage = {
+        id: optimisticId,
+        sessionId,
+        role: "user",
+        content,
+        citations: null,
+        retrievalMeta: null,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessageInput("");
+      setMessagesBySession((prev) => ({
+        ...prev,
+        [sessionId]: [...(prev[sessionId] ?? []), optimisticMessage],
+      }));
+
       const persistedUser = await repo.appendUserMessage(sessionId, content);
 
       setMessagesBySession((prev) => ({
@@ -310,14 +479,16 @@ export function useCitizenChatbot() {
       }));
 
       setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                lastMessageAt: persistedUser.createdAt,
-                updatedAt: persistedUser.createdAt,
-              }
-            : session
+        sortSessionsByUpdatedAt(
+          prev.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  lastMessageAt: persistedUser.createdAt,
+                  updatedAt: persistedUser.createdAt,
+                }
+              : session
+          )
         )
       );
 
@@ -347,21 +518,25 @@ export function useCitizenChatbot() {
       }));
 
       setSessions((prev) =>
-        prev.map((session) =>
-          session.id === sessionId
-            ? {
-                ...session,
-                lastMessageAt: assistantMessage.createdAt,
-                updatedAt: assistantMessage.createdAt,
-              }
-            : session
+        sortSessionsByUpdatedAt(
+          prev.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  lastMessageAt: assistantMessage.createdAt,
+                  updatedAt: assistantMessage.createdAt,
+                }
+              : session
+          )
         )
       );
     } catch (error) {
-      setMessagesBySession((prev) => ({
-        ...prev,
-        [sessionId]: (prev[sessionId] ?? []).filter((msg) => msg.id !== optimisticId),
-      }));
+      if (sessionId && optimisticId) {
+        setMessagesBySession((prev) => ({
+          ...prev,
+          [sessionId]: (prev[sessionId] ?? []).filter((msg) => msg.id !== optimisticId),
+        }));
+      }
 
       const message = error instanceof Error ? error.message : "Failed to retrieve assistant response.";
       if (message.toLowerCase().includes("published aip")) {
@@ -373,15 +548,31 @@ export function useCitizenChatbot() {
     } finally {
       setIsSending(false);
     }
-  }, [activeSessionId, messageInput, repo, userId]);
+  }, [activeSessionId, isProfileComplete, messageInput, openAuthModal, repo, userId]);
+
+  const handleComposerPrimaryAction = useCallback(() => {
+    if (composerMode === "sign_in") {
+      openAuthModal(false);
+      return;
+    }
+    if (composerMode === "complete_profile") {
+      openAuthModal(true);
+      return;
+    }
+    void handleSend();
+  }, [composerMode, handleSend, openAuthModal]);
 
   return {
     activeSession,
     activeSessionId,
+    canManageConversations: Boolean(userId),
+    composerMode,
+    composerPlaceholder,
     errorMessage,
     errorState,
     exampleQueries: EXAMPLE_QUERIES,
-    isBootstrapping,
+    isBootstrapping: !isAuthResolved || !isProfileResolved || isBootstrapping,
+    isComposerDisabled: composerMode === "send" ? isSending : false,
     isSending,
     messageInput,
     messages,
@@ -389,7 +580,10 @@ export function useCitizenChatbot() {
     sessionItems,
     setMessageInput,
     setQuery,
+    handleComposerPrimaryAction,
+    handleDeleteSession,
     handleNewChat,
+    handleRenameSession,
     handleSelectSession,
     handleSend,
     handleUseExample,

@@ -24,6 +24,7 @@ type ChatMessageRow = {
 };
 
 const MESSAGE_CONTENT_LIMIT = 12000;
+const SESSION_TITLE_LIMIT = 200;
 
 function toSession(row: ChatSessionRow): CitizenChatSession {
   return {
@@ -101,6 +102,44 @@ export function createSupabaseCitizenChatRepo(): CitizenChatRepo {
       }
 
       return toSession(data as ChatSessionRow);
+    },
+
+    async renameSession(sessionId: string, title: string): Promise<CitizenChatSession | null> {
+      const normalizedTitle = title.trim();
+      if (!normalizedTitle.length || normalizedTitle.length > SESSION_TITLE_LIMIT) {
+        throw new Error(CitizenChatRepoErrors.INVALID_CONTENT);
+      }
+
+      const { data, error } = await client
+        .from("chat_sessions")
+        .update({
+          title: normalizedTitle,
+        })
+        .eq("id", sessionId)
+        .select("id,user_id,title,context,last_message_at,created_at,updated_at")
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data) return null;
+      return toSession(data as ChatSessionRow);
+    },
+
+    async deleteSession(sessionId: string): Promise<boolean> {
+      const { error, count } = await client
+        .from("chat_sessions")
+        .delete({
+          count: "exact",
+        })
+        .eq("id", sessionId);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return (count ?? 0) > 0;
     },
 
     async listMessages(sessionId: string): Promise<CitizenChatMessage[]> {

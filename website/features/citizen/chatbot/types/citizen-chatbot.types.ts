@@ -21,9 +21,7 @@ export type CitizenChatEvidenceItem = {
 export type CitizenChatSessionVM = {
   id: string;
   title: string;
-  snippet: string;
   timeLabel: string;
-  scopeBadge: string;
   isActive: boolean;
 };
 
@@ -51,4 +49,6 @@ export type CitizenChatReplyResult = {
   suggestedFollowUps: string[];
 };
 
-export type CitizenChatErrorState = "none" | "no_published_aip" | "retrieval_failed" | "auth_required";
+export type CitizenChatErrorState = "none" | "no_published_aip" | "retrieval_failed";
+
+export type CitizenChatComposerMode = "send" | "sign_in" | "complete_profile";

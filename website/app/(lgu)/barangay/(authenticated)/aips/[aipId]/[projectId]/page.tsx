@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AipProjectDetailView } from "@/features/aip";
+import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getAipProjectRepo, getAipRepo } from "@/lib/repos/aip/repo.server";
 
 export default async function BarangayAipProjectReviewPage({
@@ -8,11 +9,12 @@ export default async function BarangayAipProjectReviewPage({
   params: Promise<{ aipId: string; projectId: string }>;
 }) {
   const { aipId, projectId } = await params;
+  const actor = await getActorContext();
   const aipRepo = getAipRepo({ defaultScope: "barangay" });
   const projectRepo = getAipProjectRepo("barangay");
 
   const [aip, detail] = await Promise.all([
-    aipRepo.getAipDetail(aipId),
+    aipRepo.getAipDetail(aipId, actor),
     projectRepo.getReviewDetail(aipId, projectId),
   ]);
 
@@ -20,5 +22,19 @@ export default async function BarangayAipProjectReviewPage({
     return notFound();
   }
 
-  return <AipProjectDetailView scope="barangay" aip={aip} detail={detail} />;
+  const forceReadOnly =
+    aip.workflowPermissions?.canManageBarangayWorkflow === false;
+
+  return (
+    <AipProjectDetailView
+      scope="barangay"
+      aip={aip}
+      detail={detail}
+      forceReadOnly={forceReadOnly}
+      readOnlyMessage={
+        aip.workflowPermissions?.lockReason ??
+        "Only the uploader of this AIP can modify this workflow."
+      }
+    />
+  );
 }

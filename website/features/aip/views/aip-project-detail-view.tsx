@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   deriveSectorFromRefCode,
   diffProjectEditableFields,
@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitAipProjectReviewAction } from "../actions/aip-projects.actions";
 import { getAipStatusBadgeClass } from "../utils";
+import { LguProjectFeedbackThread } from "@/features/projects/shared/feedback";
 
 type ReviewSubmitPayload = {
   reason: string;
@@ -165,9 +166,12 @@ export default function AipProjectDetailView({
   showOfficialCommentPanel?: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const canComment =
     !forceReadOnly && (aip.status === "draft" || aip.status === "for_revision");
   const isCityOwnedAip = aip.scope === "city";
+  const isPublished = aip.status === "published";
+  const selectedThreadId = searchParams.get("thread");
 
   const [project, setProject] = React.useState(detail.project);
   const [draft, setDraft] = React.useState<AipProjectEditableFields>(
@@ -224,6 +228,11 @@ export default function AipProjectDetailView({
       ? (readOnlyMessage ??
         "Project editing is disabled because this AIP is owned by a barangay.")
       : "Feedback can only be added when the AIP status is Draft or For Revision.";
+  const shouldShowOfficialCommentPanel = showOfficialCommentPanel && !isPublished;
+  const workflowFeedbackThreads = React.useMemo(
+    () => feedbackThreads.filter((thread) => thread.root.authorRole !== "citizen"),
+    [feedbackThreads]
+  );
 
   async function handleSubmit(payload: ReviewSubmitPayload) {
     if (!canComment) return;
@@ -617,7 +626,7 @@ export default function AipProjectDetailView({
         </div>
 
         <div className="space-y-4">
-          {showOfficialCommentPanel ? (
+          {shouldShowOfficialCommentPanel ? (
             <div className="rounded-lg border border-slate-200 p-4">
               <div className="text-sm font-semibold text-slate-900">
                 Official Comment / Justification
@@ -686,23 +695,40 @@ export default function AipProjectDetailView({
           ) : null}
 
           <div className="rounded-lg border border-slate-200 p-4">
-            <div className="text-sm font-semibold text-slate-900">Feedback History</div>
+            <div className="text-sm font-semibold text-slate-900">Workflow Feedback</div>
             <p className="mt-1 text-xs text-slate-500">
-              All project feedback grouped by thread.
+              Official and reviewer feedback from the AIP submission workflow.
             </p>
 
             <div className="mt-3 space-y-3">
-              {feedbackThreads.length ? (
-                feedbackThreads.map((thread) => (
+              {workflowFeedbackThreads.length ? (
+                workflowFeedbackThreads.map((thread) => (
                   <FeedbackThreadCard key={thread.root.id} thread={thread} />
                 ))
               ) : (
                 <div className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                  No feedback for this project yet.
+                  No workflow feedback for this project yet.
                 </div>
               )}
             </div>
           </div>
+
+          {isPublished ? (
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="text-sm font-semibold text-slate-900">Citizen Feedback</div>
+              <p className="mt-1 text-xs text-slate-500">
+                Citizen feedback threads for this published project. Officials can reply.
+              </p>
+
+              <div className="mt-3">
+                <LguProjectFeedbackThread
+                  projectId={project.id}
+                  scope={scope}
+                  selectedThreadId={selectedThreadId}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

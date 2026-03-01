@@ -13,7 +13,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { InfrastructureProject } from "@/features/projects/types";
-import { CalendarDays, Building2, User, PhilippinePeso, Landmark } from "lucide-react";
+import {
+  CalendarDays,
+  Building2,
+  User,
+  PhilippinePeso,
+  Landmark,
+  MapPin,
+} from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import {
@@ -109,28 +116,36 @@ export default function InfrastructureProjectCard({
                 <span className="font-medium">{dateRange}</span>
               </div>
 
+              <div className="flex items-center gap-2 sm:col-span-2">
+                <MapPin className="h-4 w-4 text-slate-400" />
+                <span className="text-slate-500">LGU:</span>
+                <span className="font-medium">{project.lguLabel ?? "N/A"}</span>
+              </div>
+
               <div className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Office:</span>
-                <span className="font-medium">{project.implementingOffice}</span>
+                <span className="font-medium">{project.implementingOffice || "N/A"}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Contractor:</span>
-                <span className="font-medium">{project.contractorName}</span>
+                <span className="font-medium">{project.contractorName || "N/A"}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <PhilippinePeso className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Contract Cost:</span>
-                <span className="font-semibold text-[#022437]">{formatPeso(project.contractCost)}</span>
+                <span className="font-semibold text-[#022437]">
+                  {project.contractCost > 0 ? formatPeso(project.contractCost) : "N/A"}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Landmark className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Funding:</span>
-                <span className="font-medium">{project.fundingSource}</span>
+                <span className="font-medium">{project.fundingSource || "N/A"}</span>
               </div>
             </div>
 

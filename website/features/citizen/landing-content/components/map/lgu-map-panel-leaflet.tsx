@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
-import { cn } from "@/lib/ui/utils";
+import { cn } from "@/ui/utils";
+import { buildDashboardScopeHref } from "./map-scope-query";
 
 const DEFAULT_MARKER_ICON = {
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -54,6 +56,9 @@ export default function LguMapPanelLeaflet({
   className,
   onReady,
 }: LguMapPanelLeafletProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const mainMarkerId = useMemo(
     () => map.markers.find((marker) => marker.kind === "main")?.id ?? null,
     [map.markers]
@@ -79,7 +84,26 @@ export default function LguMapPanelLeaflet({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {map.markers.map((marker) => (
-          <Marker key={marker.id} position={[marker.lat, marker.lng]}>
+          <Marker
+            key={marker.id}
+            position={[marker.lat, marker.lng]}
+            eventHandlers={{
+              click: () => {
+                if (!marker.isSelectable) return;
+
+                const href = buildDashboardScopeHref({
+                  pathname,
+                  searchParams: new URLSearchParams(searchParams.toString()),
+                  scopeType: marker.scopeType,
+                  scopeId: marker.scopeId,
+                  fiscalYear: map.selectedFiscalYear,
+                });
+
+                if (!href) return;
+                router.push(href, { scroll: false });
+              },
+            }}
+          >
             <Tooltip
               direction="top"
               offset={[0, -10]}

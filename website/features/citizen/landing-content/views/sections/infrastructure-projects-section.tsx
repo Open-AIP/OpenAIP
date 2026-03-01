@@ -262,7 +262,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
         tagChipClassName="bg-[#0E5D6F]/90"
         budgetChipClassName="text-[#0E5D6F]"
         ctaClassName="border-[#2D6F8F] text-[#1F5D79]"
-        ctaHref="/projects/infrastructure"
+        ctaHref={`/projects/infrastructure/${item.project.id}`}
       />
     );
   };

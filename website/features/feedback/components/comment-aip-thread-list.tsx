@@ -35,6 +35,7 @@ export function CommentAipThreadList({
       try {
         const allThreads = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
+          scope,
         });
         const aipThreads = allThreads.filter(
           (thread) =>
@@ -100,6 +101,10 @@ export function CommentAipThreadList({
           <Link key={item.threadId} href={item.href} className="block">
             <CommentThreadListCard
               authorName={thread?.preview.authorName ?? "Citizen"}
+              authorRoleLabel={thread?.preview.authorRoleLabel ?? null}
+              authorLguLabel={
+                thread?.preview.authorLguLabel ?? thread?.preview.authorScopeLabel ?? null
+              }
               authorScopeLabel={thread?.preview.authorScopeLabel ?? null}
               updatedAt={item.updatedAt}
               kind={thread?.preview.kind ?? "question"}

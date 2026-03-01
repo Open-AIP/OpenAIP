@@ -20,6 +20,8 @@ export interface CitizenChatRepo {
     userId: string,
     payload?: { title?: string; context?: Record<string, unknown> }
   ): Promise<CitizenChatSession>;
+  renameSession(sessionId: string, title: string): Promise<CitizenChatSession | null>;
+  deleteSession(sessionId: string): Promise<boolean>;
   listMessages(sessionId: string): Promise<CitizenChatMessage[]>;
   appendUserMessage(sessionId: string, content: string): Promise<CitizenChatMessage>;
 }

@@ -1,31 +1,60 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CircleHelp, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { AipDetails, AipProjectSector } from '@/features/citizen/aips/types';
+import { formatCurrency } from '@/features/citizen/aips/data/aips.data';
 
 const SECTOR_TABS: AipProjectSector[] = ['General Sector', 'Social Sector', 'Economic Sector', 'Other Services'];
+const PAGE_SIZE = 10;
 
 export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
+  const router = useRouter();
   const [activeSector, setActiveSector] = useState<AipProjectSector>('General Sector');
   const [query, setQuery] = useState('');
+  const [offset, setOffset] = useState(0);
 
-  const rows = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase();
     return aip.projectRows
       .filter((row) => row.sector === activeSector)
       .filter((row) => {
         if (!loweredQuery) return true;
         return (
-          row.aipReferenceCode.toLowerCase().includes(loweredQuery) ||
+          row.projectRefCode.toLowerCase().includes(loweredQuery) ||
           row.programDescription.toLowerCase().includes(loweredQuery)
         );
       });
   }, [aip.projectRows, activeSector, query]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [activeSector, query]);
+
+  const maxOffset = useMemo(() => {
+    if (filteredRows.length <= PAGE_SIZE) return 0;
+    return Math.floor((filteredRows.length - 1) / PAGE_SIZE) * PAGE_SIZE;
+  }, [filteredRows.length]);
+
+  useEffect(() => {
+    setOffset((current) => Math.min(current, maxOffset));
+  }, [maxOffset]);
+
+  const visibleRows = useMemo(
+    () => filteredRows.slice(offset, offset + PAGE_SIZE),
+    [filteredRows, offset]
+  );
+
+  const showingStart = filteredRows.length === 0 ? 0 : offset + 1;
+  const showingEnd = filteredRows.length === 0 ? 0 : Math.min(offset + PAGE_SIZE, filteredRows.length);
+  const canGoPrev = offset > 0;
+  const canGoNext = offset + PAGE_SIZE < filteredRows.length;
 
   return (
     <Card className="border-slate-200">
@@ -78,14 +107,20 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="text-sm text-slate-700">{row.aipReferenceCode}</TableCell>
+              {visibleRows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className={`cursor-pointer ${row.hasLguNote ? "bg-amber-50 hover:bg-amber-100" : ""}`}
+                  onClick={() => {
+                    router.push(`/aips/${encodeURIComponent(aip.id)}/${encodeURIComponent(row.id)}`);
+                  }}
+                >
+                  <TableCell className="text-sm text-slate-700">{row.projectRefCode}</TableCell>
                   <TableCell className="text-sm text-slate-700">{row.programDescription}</TableCell>
-                  <TableCell className="text-right text-sm text-slate-700">{row.totalAmount}</TableCell>
+                  <TableCell className="text-right text-sm text-slate-700">{formatCurrency(row.totalAmount)}</TableCell>
                 </TableRow>
               ))}
-              {rows.length === 0 && (
+              {visibleRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
                     No projects found for the selected filters.
@@ -96,10 +131,36 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
           </Table>
         </div>
 
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-600">
+            Showing {showingStart}-{showingEnd} of {filteredRows.length} projects
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+              disabled={!canGoPrev}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOffset((current) => Math.min(maxOffset, current + PAGE_SIZE))}
+              disabled={!canGoNext}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap justify-end gap-5 pt-2 text-xs text-slate-600">
           <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked readOnly className="h-3.5 w-3.5 accent-blue-500" />
-            Error reviewed and commented by official
+            <input type="checkbox" checked readOnly className="h-3.5 w-3.5 accent-amber-500" />
+            Has LGU feedback note
           </label>
           <label className="inline-flex items-center gap-2">
             <input type="checkbox" readOnly className="h-3.5 w-3.5 accent-slate-400" />

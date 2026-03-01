@@ -62,6 +62,36 @@ describe("app settings fallback behavior", () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("returns default citizen about-us content when app schema is unavailable", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockSupabaseAdmin.mockReturnValue(
+      createAdminClient({ readErrorMessage: "Invalid schema: app" })
+    );
+
+    const { getTypedAppSetting } = await import("@/lib/settings/app-settings");
+    const aboutUs = await getTypedAppSetting("content.citizen_about_us");
+
+    expect(aboutUs.referenceDocs).toHaveLength(4);
+    expect(aboutUs.referenceDocs[0]).toMatchObject({
+      id: "dbm_primer_cover",
+      kind: "storage",
+      bucketId: "about-us-docs",
+    });
+    expect(aboutUs.referenceDocs[1]).toMatchObject({
+      id: "dbm_primer_cover_volume_2",
+      kind: "storage",
+      bucketId: "about-us-docs",
+    });
+    expect(aboutUs.quickLinks).toEqual(
+      expect.arrayContaining([
+        { id: "dashboard", href: "/" },
+        { id: "budget_allocation", href: "/budget-allocation" },
+        { id: "aips", href: "/aips" },
+        { id: "projects", href: "/projects" },
+      ])
+    );
+  });
+
   it("treats user as not blocked when settings store read is unavailable", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     mockSupabaseAdmin.mockReturnValue(

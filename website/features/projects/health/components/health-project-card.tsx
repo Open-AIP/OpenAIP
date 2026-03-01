@@ -13,7 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { HealthProject } from "@/features/projects/types";
-import { CalendarDays, Building2, Users, PhilippinePeso } from "lucide-react";
+import { CalendarDays, Building2, Users, PhilippinePeso, MapPin } from "lucide-react";
 import { formatPeso } from "@/lib/formatting";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import {
@@ -115,6 +115,12 @@ export default function HealthProjectCard({
                 <Building2 className="h-4 w-4 text-slate-400" />
                 <span className="text-slate-500">Office:</span>
                 <span className="font-medium">{project.implementingOffice ?? 'N/A'}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-slate-400" />
+                <span className="text-slate-500">LGU:</span>
+                <span className="font-medium">{project.lguLabel ?? "N/A"}</span>
               </div>
 
               <div className="flex items-center gap-2">

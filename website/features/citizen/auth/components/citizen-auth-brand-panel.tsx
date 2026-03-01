@@ -7,6 +7,7 @@ import type { CitizenAuthVariant } from "@/features/citizen/auth/types";
 type CitizenAuthBrandPanelProps = {
   variant: CitizenAuthVariant;
   onToggleAuth: () => void;
+  disableToggle?: boolean;
 };
 
 const COPY = {
@@ -27,6 +28,7 @@ const COPY = {
 export default function CitizenAuthBrandPanel({
   variant,
   onToggleAuth,
+  disableToggle = false,
 }: CitizenAuthBrandPanelProps) {
   const copy = COPY[variant];
 
@@ -67,6 +69,7 @@ export default function CitizenAuthBrandPanel({
         <Button
           type="button"
           onClick={onToggleAuth}
+          disabled={disableToggle}
           className="h-12 w-full rounded-xl border border-cyan-400 bg-transparent text-base font-semibold text-cyan-300 hover:bg-cyan-500/10 focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
         >
           {copy.buttonLabel}

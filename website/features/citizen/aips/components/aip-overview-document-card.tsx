@@ -17,8 +17,18 @@ export default function AipOverviewDocumentCard({ aip }: { aip: AipDetails }) {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-10">
           <div className="flex min-h-[170px] flex-col items-center justify-center gap-3 text-center">
             <FileText className="h-12 w-12 text-slate-400" />
-            <p className="text-base text-slate-600">{aip.pdfFilename}</p>
-            <Button variant="outline">View PDF</Button>
+            <p className="text-base text-slate-600">{aip.fileName}</p>
+            {aip.pdfUrl ? (
+              <Button variant="outline" asChild>
+                <a href={aip.pdfUrl} target="_blank" rel="noreferrer">
+                  View PDF
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" disabled>
+                View PDF
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

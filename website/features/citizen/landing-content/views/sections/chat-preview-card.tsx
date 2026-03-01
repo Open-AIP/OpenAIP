@@ -19,15 +19,28 @@ type LegacyChatPreviewShape = Partial<{
   sampleAnswerLines: string[];
 }>;
 
+const FALLBACK_ASSISTANT_BULLETS = [
+  "Total budget and sector allocations (General, Social, Economic, Other)",
+  "Project details by category, including health and infrastructure",
+  "Implementing agency, source of funds, and expected output per project",
+];
+
 export default function ChatPreviewCard({ vm, className, isActive = true }: ChatPreviewCardProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const legacyVm = vm as ChatPreviewVM & LegacyChatPreviewShape;
-  const assistantBullets = Array.isArray(vm.assistantBullets)
-    ? vm.assistantBullets
-    : Array.isArray(legacyVm.sampleAnswerLines)
-      ? legacyVm.sampleAnswerLines
-      : [];
-  const suggestedPrompts = Array.isArray(vm.suggestedPrompts) ? vm.suggestedPrompts : [];
+  const assistantBullets = useMemo(
+    () =>
+      Array.isArray(vm.assistantBullets)
+        ? vm.assistantBullets
+        : Array.isArray(legacyVm.sampleAnswerLines)
+          ? legacyVm.sampleAnswerLines
+          : [],
+    [legacyVm.sampleAnswerLines, vm.assistantBullets]
+  );
+  const suggestedPrompts = useMemo(
+    () => (Array.isArray(vm.suggestedPrompts) ? vm.suggestedPrompts : []),
+    [vm.suggestedPrompts]
+  );
   const userPrompt =
     typeof vm.userPrompt === "string" && vm.userPrompt.trim().length > 0
       ? vm.userPrompt
@@ -35,14 +48,10 @@ export default function ChatPreviewCard({ vm, className, isActive = true }: Chat
   const assistantIntro =
     typeof vm.assistantIntro === "string" && vm.assistantIntro.trim().length > 0
       ? vm.assistantIntro
-      : "Road projects received \u20B112M in total. This covers:";
-  const fallbackBullets = [
-    "12 ongoing projects",
-    "8 completed projects",
-    "Includes repairs and new construction",
-  ];
+      : "From the published AIP file, I can answer questions such as:";
   const assistantScript = useMemo(() => {
-    const effectiveBullets = assistantBullets.length > 0 ? assistantBullets : fallbackBullets;
+    const shouldUseFallbackBullets = assistantBullets.length === 0 && assistantIntro.trim().length === 0;
+    const effectiveBullets = shouldUseFallbackBullets ? FALLBACK_ASSISTANT_BULLETS : assistantBullets;
     const bulletText = effectiveBullets.join("\n");
     return bulletText ? `${assistantIntro}\n\n${bulletText}` : assistantIntro;
   }, [assistantBullets, assistantIntro]);

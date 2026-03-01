@@ -43,8 +43,10 @@ export function CommentThreadsSplitView({
       setError(null);
 
       try {
+        const inboxScope = scope === "city" || scope === "barangay" ? scope : undefined;
         const allThreads = await repo.listThreadsForInbox({
           lguId: "lgu_barangay_001",
+          scope: inboxScope,
         });
         const filtered = allThreads.filter((thread) => {
           if (targetKind === "aip") {
@@ -98,14 +100,17 @@ export function CommentThreadsSplitView({
   const accordionItems = React.useMemo(() => {
     return items.map((item) => {
       const thread = threadMap.get(item.threadId);
-      return {
-        threadId: item.threadId,
-        href: item.href,
-        card: {
-          authorName: thread?.preview.authorName ?? "Citizen",
-          authorScopeLabel: thread?.preview.authorScopeLabel ?? null,
-          updatedAt: item.updatedAt,
-          kind: thread?.preview.kind ?? "question",
+        return {
+          threadId: item.threadId,
+          href: item.href,
+          card: {
+            authorName: thread?.preview.authorName ?? "Citizen",
+            authorRoleLabel: thread?.preview.authorRoleLabel ?? null,
+            authorLguLabel:
+              thread?.preview.authorLguLabel ?? thread?.preview.authorScopeLabel ?? null,
+            authorScopeLabel: thread?.preview.authorScopeLabel ?? null,
+            updatedAt: item.updatedAt,
+            kind: thread?.preview.kind ?? "question",
           status: item.status,
           contextTitle: item.contextTitle,
           contextSubtitle: item.contextSubtitle,

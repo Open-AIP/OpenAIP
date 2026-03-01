@@ -5,6 +5,7 @@ import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { writeActivityLog, writeWorkflowActivityLog } from "@/lib/audit/activity-log";
 import { getAipProjectRepo, getAipRepo } from "@/lib/repos/aip/repo.server";
+import { assertActorCanManageBarangayAipWorkflow } from "@/lib/repos/aip/workflow-permissions.server";
 import { getFeedbackRepo } from "@/lib/repos/feedback/repo.server";
 import {
   __appendMockAipReviewAction,
@@ -159,7 +160,12 @@ async function logBarangayAipDeleteCrudEvent(input: {
   details: string;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
-  if (!input.actor || input.actor.role !== "barangay_official") return;
+  if (
+    !input.actor ||
+    (input.actor.role !== "barangay_official" && input.actor.role !== "city_official")
+  ) {
+    return;
+  }
 
   const actorName = await resolveActorName(input.actor);
   const actorPosition = toRoleLabel(input.actor.role);
@@ -248,6 +254,23 @@ async function loadBarangayAip(aipId: string) {
   const aip = await aipRepo.getAipDetail(trimmed);
   if (!aip || aip.scope !== "barangay") return null;
   return aip;
+}
+
+async function assertBarangayAipWorkflowOwnership(
+  aipId: string,
+  actor: ActorContext | null
+): Promise<AipWorkflowActionResult | null> {
+  if (!actor) return null;
+  try {
+    await assertActorCanManageBarangayAipWorkflow({ aipId, actor });
+    return null;
+  } catch (error) {
+    return failure(
+      error instanceof Error
+        ? error.message
+        : "Only the uploader of this AIP can modify this workflow."
+    );
+  }
 }
 
 async function loadCityAip(aipId: string) {
@@ -642,6 +665,8 @@ export async function submitAipForReviewAction(input: {
   try {
     const aip = await loadBarangayAip(input.aipId);
     if (!aip) return failure("AIP not found.");
+    const ownershipError = await assertBarangayAipWorkflowOwnership(aip.id, actor);
+    if (ownershipError) return ownershipError;
 
     if (aip.status !== "draft" && aip.status !== "for_revision") {
       return failure(
@@ -766,6 +791,8 @@ export async function saveAipRevisionReplyAction(input: {
   try {
     const aip = await loadBarangayAip(input.aipId);
     if (!aip) return failure("AIP not found.");
+    const ownershipError = await assertBarangayAipWorkflowOwnership(aip.id, actor);
+    if (ownershipError) return ownershipError;
 
     const canSaveForRevision = aip.status === "for_revision";
     const canSaveDraftWithRevisionHistory =
@@ -805,6 +832,8 @@ export async function cancelAipSubmissionAction(input: {
   try {
     const aip = await loadBarangayAip(input.aipId);
     if (!aip) return failure("AIP not found.");
+    const ownershipError = await assertBarangayAipWorkflowOwnership(aip.id, actor);
+    if (ownershipError) return ownershipError;
 
     if (aip.status !== "pending_review") {
       return failure(
@@ -859,6 +888,10 @@ export async function deleteAipDraftAction(input: {
     if (actor) {
       const owned = await isAipOwnedByActor(aip.id, actor);
       if (!owned) return failure("AIP not found.");
+      if (actor.scope.kind === "barangay") {
+        const ownershipError = await assertBarangayAipWorkflowOwnership(aip.id, actor);
+        if (ownershipError) return ownershipError;
+      }
     }
 
     if (aip.status !== "draft") {

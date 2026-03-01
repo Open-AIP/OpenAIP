@@ -17,7 +17,7 @@ import { BreadcrumbNav } from "@/components/layout/breadcrumb-nav";
 import { getProjectStatusBadgeClass } from "@/features/projects/utils/status-badges";
 import InfrastructureProjectInformationCard from "../components/project-information-card";
 import { ProjectUpdatesSection } from "../../shared/update-view";
-import { CommentThreadsSplitView } from "@/features/feedback";
+import { FeedbackThread, LguProjectFeedbackThread } from "../../shared/feedback";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
@@ -51,7 +51,7 @@ export default function InfrastructureProjectDetailPageView({
   const pathname = usePathname();
   const tab = searchParams.get("tab");
   const threadId = searchParams.get("thread");
-  const activeTab = tab === "comments" ? "comments" : "updates";
+  const activeTab = tab === "feedback" || tab === "comments" ? "feedback" : "updates";
   const projectsListHref =
     scope === "citizen"
       ? "/projects/infrastructure"
@@ -103,8 +103,8 @@ export default function InfrastructureProjectDetailPageView({
           value={activeTab}
           onValueChange={(value) => {
             const params = new URLSearchParams(searchParams.toString());
-            if (value === "comments") {
-              params.set("tab", "comments");
+            if (value === "feedback") {
+              params.set("tab", "feedback");
               params.delete("thread");
             } else {
               params.delete("tab");
@@ -124,18 +124,8 @@ export default function InfrastructureProjectDetailPageView({
               Updates Timeline
             </TabsTrigger>
             <TabsTrigger
-              value="comments"
+              value="feedback"
               className="h-9 rounded-lg px-4 text-sm font-medium text-slate-500 data-[state=active]:border data-[state=active]:border-slate-200 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-              onClick={() => {
-                if (activeTab !== "comments") return;
-                const params = new URLSearchParams(searchParams.toString());
-                params.set("tab", "comments");
-                params.delete("thread");
-                const query = params.toString();
-                router.replace(query ? `${pathname}?${query}` : pathname, {
-                  scroll: false,
-                });
-              }}
             >
               Feedback
             </TabsTrigger>
@@ -156,11 +146,17 @@ export default function InfrastructureProjectDetailPageView({
           />
         )
       ) : (
-        <CommentThreadsSplitView
-          scope={scope}
-          target={{ kind: "project", projectId: project.id }}
-          selectedThreadId={threadId}
-        />
+        <div id="feedback" className="scroll-mt-24">
+          {scope === "citizen" ? (
+            <FeedbackThread projectId={project.id} />
+          ) : (
+            <LguProjectFeedbackThread
+              projectId={project.id}
+              scope={scope}
+              selectedThreadId={threadId}
+            />
+          )}
+        </div>
       )}
 
     </div>

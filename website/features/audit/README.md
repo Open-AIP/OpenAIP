@@ -30,7 +30,9 @@ Rules to preserve:
 - Writes are server-only/service-role.
 - Read visibility is RLS-gated:
   - admin: all rows
-  - officials: own rows
+  - barangay officials: barangay-official rows from their barangay
+  - city officials: city-official rows from their city
+  - municipal officials: own rows
   - citizen/anon: no read access
 
 ## E. Current Implementation Status

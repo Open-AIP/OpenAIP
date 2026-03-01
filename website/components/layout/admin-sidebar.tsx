@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/ui/utils";
 import { ADMIN_NAV } from "@/constants/lgu-nav";
-import { LogoutButton } from "@/components/logout-button";
 
 function isActive(pathname: string, href: string) {
   if (pathname === href) return true;
@@ -69,12 +68,6 @@ export default function AdminSidebar() {
           })}
         </ul>
       </nav>
-
-      <div className="mt-auto px-4 pb-4 pt-2">
-        <div className="p-2">
-          <LogoutButton role="admin" baseURL={process.env.NEXT_PUBLIC_API_BASE_URL || ""} />
-        </div>
-      </div>
     </aside>
   );
 }

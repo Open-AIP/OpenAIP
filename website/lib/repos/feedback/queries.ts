@@ -26,6 +26,28 @@ export async function resolveCommentSidebar({
     dedupeByKey(threads, (thread) => thread.id).map(async (thread) => {
       if (thread.target.targetKind === "project") {
         const project = await getProject(thread.target.projectId);
+        const resolvedProjectId = project?.id ?? thread.target.projectId;
+
+        const buildProjectFeedbackHref = (kind: "health" | "infrastructure") =>
+          `/${scope}/projects/${kind}/${resolvedProjectId}?tab=feedback&thread=${thread.id}`;
+
+        const buildAipProjectHref = (aipId: string) =>
+          `/${scope}/aips/${aipId}/${resolvedProjectId}?thread=${thread.id}`;
+
+        const buildAipRootHref = (input?: { aipId?: string; focus?: string }) => {
+          if (input?.aipId) {
+            const params = new URLSearchParams();
+            if (input.focus) params.set("focus", input.focus);
+            params.set("tab", "comments");
+            params.set("thread", thread.id);
+            const query = params.toString();
+            return `/${scope}/aips/${input.aipId}?${query}`;
+          }
+
+          const params = new URLSearchParams({ thread: thread.id });
+          return `/${scope}/aips?${params.toString()}`;
+        };
+
         if (!project?.kind) {
           const aipItem = await findAipItemByProjectRefCode?.(thread.target.projectId);
 
@@ -40,7 +62,7 @@ export async function resolveCommentSidebar({
             ].filter(Boolean) as string[];
             const contextSubtitle =
               contextSubtitleParts.length > 0
-                ? contextSubtitleParts.join(" • ")
+                ? contextSubtitleParts.join(" | ")
                 : `${aipItem.aipId} / ${aipItem.id}`;
 
             return {
@@ -50,15 +72,74 @@ export async function resolveCommentSidebar({
               status: thread.preview.status,
               contextTitle,
               contextSubtitle,
-              href: `/${scope}/aips/${aipItem.aipId}?focus=${aipItem.id}&tab=comments&thread=${thread.id}`,
+              href: buildAipRootHref({ aipId: aipItem.aipId, focus: aipItem.id }),
             } satisfies CommentSidebarItem;
           }
         }
 
         const contextTitle = project?.title ?? "Project";
         const contextSubtitle = project?.year ? `AIP ${project.year}` : thread.target.projectId;
-        const projectKind = project?.kind ?? "infrastructure";
-        const projectPath = projectKind === "health" ? "health" : "infrastructure";
+
+        if (project?.kind === "health") {
+          return {
+            threadId: thread.id,
+            snippet: thread.preview.text,
+            updatedAt: thread.preview.updatedAt,
+            status: thread.preview.status,
+            contextTitle,
+            contextSubtitle,
+            href: buildProjectFeedbackHref("health"),
+          } satisfies CommentSidebarItem;
+        }
+
+        if (project?.kind === "infrastructure" || !project?.kind) {
+          return {
+            threadId: thread.id,
+            snippet: thread.preview.text,
+            updatedAt: thread.preview.updatedAt,
+            status: thread.preview.status,
+            contextTitle,
+            contextSubtitle,
+            href: buildProjectFeedbackHref("infrastructure"),
+          } satisfies CommentSidebarItem;
+        }
+
+        if (project?.kind === "other") {
+          if (project.aipId) {
+            return {
+              threadId: thread.id,
+              snippet: thread.preview.text,
+              updatedAt: thread.preview.updatedAt,
+              status: thread.preview.status,
+              contextTitle,
+              contextSubtitle,
+              href: buildAipProjectHref(project.aipId),
+            } satisfies CommentSidebarItem;
+          }
+
+          const aipItem = await findAipItemByProjectRefCode?.(thread.target.projectId);
+          if (aipItem) {
+            return {
+              threadId: thread.id,
+              snippet: thread.preview.text,
+              updatedAt: thread.preview.updatedAt,
+              status: thread.preview.status,
+              contextTitle,
+              contextSubtitle,
+              href: `/${scope}/aips/${aipItem.aipId}/${resolvedProjectId}?thread=${thread.id}`,
+            } satisfies CommentSidebarItem;
+          }
+
+          return {
+            threadId: thread.id,
+            snippet: thread.preview.text,
+            updatedAt: thread.preview.updatedAt,
+            status: thread.preview.status,
+            contextTitle,
+            contextSubtitle,
+            href: buildAipRootHref({ aipId: project.aipId }),
+          } satisfies CommentSidebarItem;
+        }
 
         return {
           threadId: thread.id,
@@ -67,7 +148,7 @@ export async function resolveCommentSidebar({
           status: thread.preview.status,
           contextTitle,
           contextSubtitle,
-          href: `/${scope}/projects/${projectPath}/${thread.target.projectId}?tab=comments&thread=${thread.id}`,
+          href: buildProjectFeedbackHref("infrastructure"),
         } satisfies CommentSidebarItem;
       }
 
@@ -82,7 +163,7 @@ export async function resolveCommentSidebar({
       ].filter(Boolean) as string[];
       const contextSubtitle =
         contextSubtitleParts.length > 0
-          ? contextSubtitleParts.join(" • ")
+          ? contextSubtitleParts.join(" | ")
           : `${thread.target.aipId} / ${thread.target.aipItemId}`;
 
       return {
@@ -99,4 +180,3 @@ export async function resolveCommentSidebar({
 
   return items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
-

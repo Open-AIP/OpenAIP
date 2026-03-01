@@ -3,11 +3,6 @@ import { Button } from "@/components/ui/button";
 import type { CitizenChatErrorState } from "../types/citizen-chatbot.types";
 
 const COPY: Record<Exclude<CitizenChatErrorState, "none">, { title: string; body: string; icon: "alert" | "file" }> = {
-  auth_required: {
-    title: "Sign in required",
-    body: "Please sign in to access your citizen chat sessions.",
-    icon: "alert",
-  },
   no_published_aip: {
     title: "No published AIP found",
     body: "I could not find published AIP records for your scope. Try changing fiscal year or ask a broader question.",

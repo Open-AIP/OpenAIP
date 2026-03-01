@@ -1,0 +1,481 @@
+import type { RoleType } from "@/lib/contracts/databasev2";
+import { isCitizenProfileComplete } from "@/lib/auth/citizen-profile-completion";
+import {
+  buildFeedbackLguLabel,
+  toFeedbackAuthorDisplayRole,
+  toFeedbackRoleLabel,
+  type FeedbackAuthorDisplayRole,
+} from "@/lib/feedback/author-labels";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseServer } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+
+export const CITIZEN_PROJECT_FEEDBACK_KINDS = [
+  "commend",
+  "suggestion",
+  "concern",
+  "question",
+] as const;
+
+export const PROJECT_FEEDBACK_DISPLAY_KINDS = [
+  ...CITIZEN_PROJECT_FEEDBACK_KINDS,
+  "lgu_note",
+] as const;
+
+export const PROJECT_FEEDBACK_MAX_LENGTH = 1000;
+
+export type CitizenProjectFeedbackKind = (typeof CITIZEN_PROJECT_FEEDBACK_KINDS)[number];
+export type ProjectFeedbackDisplayKind = (typeof PROJECT_FEEDBACK_DISPLAY_KINDS)[number];
+
+export type ProjectFeedbackAuthorRole = FeedbackAuthorDisplayRole;
+
+export type ProjectFeedbackApiItem = {
+  id: string;
+  projectId: string;
+  parentFeedbackId: string | null;
+  kind: ProjectFeedbackDisplayKind;
+  body: string;
+  createdAt: string;
+  author: {
+    id: string | null;
+    fullName: string;
+    role: ProjectFeedbackAuthorRole;
+    roleLabel: string;
+    lguLabel: string;
+  };
+};
+
+type SupabaseServerClient = Awaited<ReturnType<typeof supabaseServer>>;
+
+type ProjectLookupRow = {
+  id: string;
+  aip_id: string;
+  aip_ref_code: string;
+  category: "health" | "infrastructure" | "other";
+  created_at: string;
+};
+
+type AipLookupRow = {
+  id: string;
+  status: "draft" | "pending_review" | "under_review" | "for_revision" | "published";
+};
+
+type FeedbackSelectRow = {
+  id: string;
+  target_type: "aip" | "project";
+  project_id: string | null;
+  parent_feedback_id: string | null;
+  kind: ProjectFeedbackDisplayKind;
+  body: string;
+  author_id: string | null;
+  is_public: boolean;
+  created_at: string;
+};
+
+type ProfileLookupRow = {
+  id: string;
+  full_name: string | null;
+  role: RoleType | null;
+  barangay_id: string | null;
+  city_id: string | null;
+  municipality_id: string | null;
+};
+
+type NameLookupRow = {
+  id: string;
+  name: string;
+};
+
+type FeedbackAuthorMeta = {
+  id: string;
+  fullName: string;
+  role: ProjectFeedbackAuthorRole;
+  roleLabel: string;
+  lguLabel: string;
+};
+
+export class CitizenFeedbackApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function buildLguLabel(params: {
+  role: RoleType | null | undefined;
+  barangayId: string | null;
+  cityId: string | null;
+  municipalityId: string | null;
+  barangayNameById: Map<string, string>;
+  cityNameById: Map<string, string>;
+  municipalityNameById: Map<string, string>;
+}): string {
+  const barangayName = params.barangayId
+    ? params.barangayNameById.get(params.barangayId)
+    : null;
+  const cityName = params.cityId ? params.cityNameById.get(params.cityId) : null;
+  const municipalityName = params.municipalityId
+    ? params.municipalityNameById.get(params.municipalityId)
+    : null;
+  return buildFeedbackLguLabel({
+    role: params.role,
+    barangayName,
+    cityName,
+    municipalityName,
+  });
+}
+
+function toAuthorMeta(
+  profile: ProfileLookupRow,
+  barangayNameById: Map<string, string>,
+  cityNameById: Map<string, string>,
+  municipalityNameById: Map<string, string>
+): FeedbackAuthorMeta {
+  const normalizedRole = toFeedbackAuthorDisplayRole(profile.role);
+  const roleLabel = toFeedbackRoleLabel(normalizedRole);
+  const fullName = profile.full_name?.trim() || roleLabel;
+  const lguLabel = buildLguLabel({
+    role: profile.role,
+    barangayId: profile.barangay_id,
+    cityId: profile.city_id,
+    municipalityId: profile.municipality_id,
+    barangayNameById,
+    cityNameById,
+    municipalityNameById,
+  });
+
+  return {
+    id: profile.id,
+    fullName,
+    role: normalizedRole,
+    roleLabel,
+    lguLabel,
+  };
+}
+
+async function loadAuthorMetaById(
+  rows: FeedbackSelectRow[]
+): Promise<Map<string, FeedbackAuthorMeta>> {
+  const authorIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.author_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+
+  const authorMetaById = new Map<string, FeedbackAuthorMeta>();
+  if (authorIds.length === 0) {
+    return authorMetaById;
+  }
+
+  const admin = supabaseAdmin();
+  const { data: profileData, error: profileError } = await admin
+    .from("profiles")
+    .select("id,full_name,role,barangay_id,city_id,municipality_id")
+    .in("id", authorIds);
+
+  if (profileError) {
+    throw new CitizenFeedbackApiError(500, profileError.message);
+  }
+
+  const profiles = (profileData ?? []) as ProfileLookupRow[];
+  const barangayIds = Array.from(
+    new Set(
+      profiles
+        .map((profile) => profile.barangay_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const cityIds = Array.from(
+    new Set(
+      profiles
+        .map((profile) => profile.city_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+  const municipalityIds = Array.from(
+    new Set(
+      profiles
+        .map((profile) => profile.municipality_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    )
+  );
+
+  const [barangayResult, cityResult, municipalityResult] = await Promise.all([
+    barangayIds.length
+      ? admin.from("barangays").select("id,name").in("id", barangayIds)
+      : Promise.resolve({ data: [], error: null }),
+    cityIds.length
+      ? admin.from("cities").select("id,name").in("id", cityIds)
+      : Promise.resolve({ data: [], error: null }),
+    municipalityIds.length
+      ? admin.from("municipalities").select("id,name").in("id", municipalityIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (barangayResult.error) {
+    throw new CitizenFeedbackApiError(500, barangayResult.error.message);
+  }
+  if (cityResult.error) {
+    throw new CitizenFeedbackApiError(500, cityResult.error.message);
+  }
+  if (municipalityResult.error) {
+    throw new CitizenFeedbackApiError(500, municipalityResult.error.message);
+  }
+
+  const barangayNameById = new Map(
+    ((barangayResult.data ?? []) as NameLookupRow[]).map((row) => [row.id, row.name])
+  );
+  const cityNameById = new Map(
+    ((cityResult.data ?? []) as NameLookupRow[]).map((row) => [row.id, row.name])
+  );
+  const municipalityNameById = new Map(
+    ((municipalityResult.data ?? []) as NameLookupRow[]).map((row) => [row.id, row.name])
+  );
+
+  for (const profile of profiles) {
+    authorMetaById.set(
+      profile.id,
+      toAuthorMeta(profile, barangayNameById, cityNameById, municipalityNameById)
+    );
+  }
+
+  return authorMetaById;
+}
+
+function mapFeedbackRowToApiItem(
+  row: FeedbackSelectRow,
+  authorMetaById: Map<string, FeedbackAuthorMeta>
+): ProjectFeedbackApiItem {
+  const author = row.author_id ? authorMetaById.get(row.author_id) : null;
+  const fallbackRole: ProjectFeedbackAuthorRole = "citizen";
+
+  return {
+    id: row.id,
+    projectId: row.project_id ?? "",
+    parentFeedbackId: row.parent_feedback_id,
+    kind: row.kind,
+    body: row.body,
+    createdAt: row.created_at,
+    author: {
+      id: author?.id ?? row.author_id,
+      fullName: author?.fullName ?? "Citizen",
+      role: author?.role ?? fallbackRole,
+      roleLabel: author?.roleLabel ?? toFeedbackRoleLabel(fallbackRole),
+      lguLabel: author?.lguLabel ?? "Brgy. Unknown",
+    },
+  };
+}
+
+export async function hydrateProjectFeedbackItems(
+  rows: FeedbackSelectRow[]
+): Promise<ProjectFeedbackApiItem[]> {
+  const authorMetaById = await loadAuthorMetaById(rows);
+  return rows.map((row) => mapFeedbackRowToApiItem(row, authorMetaById));
+}
+
+export async function listPublicProjectFeedback(
+  client: SupabaseServerClient,
+  projectId: string
+): Promise<ProjectFeedbackApiItem[]> {
+  const { data, error } = await client
+    .from("feedback")
+    .select("id,target_type,project_id,parent_feedback_id,kind,body,author_id,is_public,created_at")
+    .eq("target_type", "project")
+    .eq("project_id", projectId)
+    .eq("is_public", true)
+    .in("kind", [...PROJECT_FEEDBACK_DISPLAY_KINDS])
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) {
+    throw new CitizenFeedbackApiError(500, error.message);
+  }
+
+  return hydrateProjectFeedbackItems((data ?? []) as FeedbackSelectRow[]);
+}
+
+export function sanitizeFeedbackBody(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new CitizenFeedbackApiError(400, "Feedback content is required.");
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new CitizenFeedbackApiError(400, "Feedback content is required.");
+  }
+
+  if (trimmed.length > PROJECT_FEEDBACK_MAX_LENGTH) {
+    throw new CitizenFeedbackApiError(
+      400,
+      `Feedback content must be at most ${PROJECT_FEEDBACK_MAX_LENGTH} characters.`
+    );
+  }
+
+  return trimmed;
+}
+
+export function sanitizeCitizenFeedbackKind(value: unknown): CitizenProjectFeedbackKind {
+  if (typeof value !== "string") {
+    throw new CitizenFeedbackApiError(400, "Feedback kind is required.");
+  }
+
+  if (!(CITIZEN_PROJECT_FEEDBACK_KINDS as readonly string[]).includes(value)) {
+    throw new CitizenFeedbackApiError(400, "Invalid feedback kind.");
+  }
+
+  return value as CitizenProjectFeedbackKind;
+}
+
+export async function requireCitizenActor(
+  client: SupabaseServerClient
+): Promise<{ userId: string }> {
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user?.id) {
+    throw new CitizenFeedbackApiError(401, "Please sign in to post feedback.");
+  }
+
+  const userId = authData.user.id;
+  const { data: profileData, error: profileError } = await client
+    .from("profiles")
+    .select("id,role,full_name,barangay_id,city_id,municipality_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) {
+    throw new CitizenFeedbackApiError(500, profileError.message);
+  }
+
+  if (!profileData || profileData.role !== "citizen") {
+    throw new CitizenFeedbackApiError(403, "Only citizens can post project feedback.");
+  }
+
+  if (!isCitizenProfileComplete(profileData)) {
+    throw new CitizenFeedbackApiError(
+      403,
+      "Complete your profile before posting feedback."
+    );
+  }
+
+  return { userId };
+}
+
+export async function resolveProjectByIdOrRef(
+  client: SupabaseServerClient,
+  projectIdOrRef: string
+): Promise<{
+  id: string;
+  aipId: string;
+  aipRefCode: string;
+  category: "health" | "infrastructure" | "other";
+  aipStatus: AipLookupRow["status"];
+}> {
+  const normalized = projectIdOrRef.trim();
+  if (!normalized) {
+    throw new CitizenFeedbackApiError(400, "Project ID is required.");
+  }
+
+  let row: ProjectLookupRow | null = null;
+  if (isUuid(normalized)) {
+    const { data: byId, error: byIdError } = await client
+      .from("projects")
+      .select("id,aip_id,aip_ref_code,category,created_at")
+      .eq("id", normalized)
+      .maybeSingle();
+
+    if (byIdError) {
+      throw new CitizenFeedbackApiError(500, byIdError.message);
+    }
+
+    row = (byId as ProjectLookupRow | null) ?? null;
+  }
+
+  if (!row) {
+    const { data: byRef, error: byRefError } = await client
+      .from("projects")
+      .select("id,aip_id,aip_ref_code,category,created_at")
+      .eq("aip_ref_code", normalized)
+      .order("created_at", { ascending: false })
+      .limit(2);
+
+    if (byRefError) {
+      throw new CitizenFeedbackApiError(500, byRefError.message);
+    }
+
+    const rows = (byRef ?? []) as ProjectLookupRow[];
+    if (rows.length > 1) {
+      throw new CitizenFeedbackApiError(409, "Project reference is ambiguous.");
+    }
+
+    row = rows[0] ?? null;
+  }
+
+  if (!row) {
+    throw new CitizenFeedbackApiError(404, "Project not found.");
+  }
+
+  const { data: aipData, error: aipError } = await client
+    .from("aips")
+    .select("id,status")
+    .eq("id", row.aip_id)
+    .maybeSingle();
+
+  if (aipError) {
+    throw new CitizenFeedbackApiError(500, aipError.message);
+  }
+
+  if (!aipData) {
+    throw new CitizenFeedbackApiError(404, "Project parent AIP not found.");
+  }
+
+  const aip = aipData as AipLookupRow;
+
+  return {
+    id: row.id,
+    aipId: row.aip_id,
+    aipRefCode: row.aip_ref_code,
+    category: row.category,
+    aipStatus: aip.status,
+  };
+}
+
+export function assertPublishedProjectAip(aipStatus: AipLookupRow["status"]): void {
+  if (aipStatus !== "published") {
+    throw new CitizenFeedbackApiError(403, "Feedback is only available for published projects.");
+  }
+}
+
+export async function loadProjectFeedbackRowById(
+  client: SupabaseServerClient,
+  feedbackId: string
+): Promise<FeedbackSelectRow | null> {
+  const { data, error } = await client
+    .from("feedback")
+    .select("id,target_type,project_id,parent_feedback_id,kind,body,author_id,is_public,created_at")
+    .eq("id", feedbackId)
+    .maybeSingle();
+
+  if (error) {
+    throw new CitizenFeedbackApiError(500, error.message);
+  }
+
+  return (data as FeedbackSelectRow | null) ?? null;
+}
+
+export function toErrorResponse(error: unknown, fallback: string): Response {
+  if (error instanceof CitizenFeedbackApiError) {
+    return NextResponse.json({ error: error.message }, { status: error.status });
+  }
+
+  const message = error instanceof Error ? error.message : fallback;
+  return NextResponse.json({ error: message }, { status: 500 });
+}

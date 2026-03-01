@@ -3,6 +3,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { Json } from "@/lib/contracts/databasev2";
+import { assertFeedbackUsageAllowed } from "@/lib/feedback/usage-guards";
 import type { AipProjectRepo, AipRepo } from "./repo";
 import {
   computeBarangayWorkflowPermission,
@@ -1457,6 +1458,11 @@ export function createSupabaseAipProjectRepo(): AipProjectRepo {
       const commentBody = buildProjectReviewBody({
         reason,
         diff,
+      });
+
+      await assertFeedbackUsageAllowed({
+        client: client as any,
+        userId: authData.user.id,
       });
 
       const { error } = await client.from("feedback").insert({

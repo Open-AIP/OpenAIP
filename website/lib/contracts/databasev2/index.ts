@@ -21,6 +21,7 @@ export type {
   AiFeedbackRow,
 } from "./rows/feedback";
 export type { ChatSessionRow, ChatMessageRow } from "./rows/chat";
+export type { ChatRateEventRow, ChatRateEventStatus } from "./rows/chat_rate_events";
 
 export type { ProfileRow } from "./rows/profiles";
 export type { AipRow } from "./rows/aips";

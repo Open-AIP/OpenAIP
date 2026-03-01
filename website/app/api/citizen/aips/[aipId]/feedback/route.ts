@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  assertFeedbackUsageAllowed,
+  isFeedbackUsageError,
+} from "@/lib/feedback/usage-guards";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   assertPublishedAipStatus,
@@ -54,6 +58,7 @@ export async function POST(
     const { aipId } = await context.params;
     const client = await supabaseServer();
     const { userId } = await requireCitizenActor(client);
+    await assertFeedbackUsageAllowed({ client: client as any, userId });
     const aip = await resolveAipById(client, aipId);
     assertPublishedAipStatus(aip.status);
 
@@ -88,6 +93,12 @@ export async function POST(
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
+    if (isFeedbackUsageError(error)) {
+      return toErrorResponse(
+        new CitizenAipFeedbackApiError(error.status, error.message),
+        "Failed to create AIP feedback."
+      );
+    }
     return toErrorResponse(error, "Failed to create AIP feedback.");
   }
 }

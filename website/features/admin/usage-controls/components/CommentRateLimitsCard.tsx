@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,15 @@ export default function CommentRateLimitsCard({
     settings?.timeWindow ?? "hour"
   );
   const [saved, setSaved] = useState(false);
+  const isValid = Number.isFinite(maxComments) && maxComments >= 1;
+  const hasChanges = useMemo(() => {
+    if (!settings) return false;
+    return settings.maxComments !== maxComments || settings.timeWindow !== timeWindow;
+  }, [maxComments, settings, timeWindow]);
+  const canSave = !loading && isValid && hasChanges;
 
   const handleSave = async () => {
+    if (!canSave) return;
     await onSave({ maxComments, timeWindow });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -58,7 +65,10 @@ export default function CommentRateLimitsCard({
               type="number"
               min={1}
               value={maxComments}
-              onChange={(e) => setMaxComments(Number(e.target.value))}
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10);
+                setMaxComments(Number.isFinite(parsed) ? parsed : 0);
+              }}
               className="h-10"
               disabled={loading}
             />
@@ -92,7 +102,7 @@ export default function CommentRateLimitsCard({
           <Button
             className="bg-[#0E5D6F] text-white hover:bg-[#0E5D6F]/90"
             onClick={handleSave}
-            disabled={loading}
+            disabled={!canSave}
           >
             Save Comment Rate Limits
           </Button>

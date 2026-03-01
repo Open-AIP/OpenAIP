@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
+import {
+  assertFeedbackUsageAllowed,
+  isFeedbackUsageError,
+} from "@/lib/feedback/usage-guards";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   CITIZEN_PROJECT_FEEDBACK_KINDS,
@@ -170,6 +174,7 @@ export async function handleProjectFeedbackReplyRequest(input: {
     }
 
     const client = await supabaseServer();
+    await assertFeedbackUsageAllowed({ client: client as any, userId: actor.userId });
     const project = await resolveScopedProject({
       client,
       scope: input.scope,
@@ -249,6 +254,12 @@ export async function handleProjectFeedbackReplyRequest(input: {
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
+    if (isFeedbackUsageError(error)) {
+      return toErrorResponse(
+        new CitizenFeedbackApiError(error.status, error.message),
+        "Failed to create project feedback reply."
+      );
+    }
     return toErrorResponse(error, "Failed to create project feedback reply.");
   }
 }

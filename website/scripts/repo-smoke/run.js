@@ -497,8 +497,6 @@ const tests = [
               "getChatbotMetrics",
               "getChatbotRateLimitPolicy",
               "updateChatbotRateLimitPolicy",
-              "getChatbotSystemPolicy",
-              "updateChatbotSystemPolicy",
               "listFlaggedUsers",
               "getUserAuditHistory",
               "temporarilyBlockUser",

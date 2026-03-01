@@ -98,6 +98,9 @@ type ProfileStatusPayload = {
   ok?: boolean;
   isComplete?: boolean;
   userId?: string;
+  isBlocked?: boolean;
+  blockedUntil?: string | null;
+  blockedReason?: string | null;
 };
 
 export function useCitizenChatbot() {
@@ -111,6 +114,9 @@ export function useCitizenChatbot() {
   const [isAuthResolved, setIsAuthResolved] = useState(false);
   const [isProfileResolved, setIsProfileResolved] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockedUntil, setBlockedUntil] = useState<string | null>(null);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [sessions, setSessions] = useState<CitizenChatSession[]>([]);
   const [messagesBySession, setMessagesBySession] = useState<Record<string, CitizenChatMessage[]>>({});
   const [loadedSessionIds, setLoadedSessionIds] = useState<Record<string, true>>({});
@@ -149,6 +155,9 @@ export function useCitizenChatbot() {
   const clearAuthDependentState = useCallback(() => {
     setUserId(null);
     setIsProfileComplete(false);
+    setIsBlocked(false);
+    setBlockedUntil(null);
+    setBlockedReason(null);
     setSessions([]);
     setMessagesBySession({});
     setLoadedSessionIds({});
@@ -184,6 +193,13 @@ export function useCitizenChatbot() {
 
       setUserId(payload.userId);
       setIsProfileComplete(payload.isComplete === true);
+      setIsBlocked(payload.isBlocked === true);
+      setBlockedUntil(typeof payload.blockedUntil === "string" ? payload.blockedUntil : null);
+      setBlockedReason(
+        typeof payload.blockedReason === "string" && payload.blockedReason.trim().length > 0
+          ? payload.blockedReason.trim()
+          : null
+      );
       setErrorState("none");
       setErrorMessage(null);
     } catch {
@@ -330,7 +346,9 @@ export function useCitizenChatbot() {
     ? "Sign in to use the AI Assistant."
     : composerMode === "complete_profile"
       ? "Complete your profile to use the AI Assistant."
-      : "Ask about budgets, sectors, or projects...";
+      : isBlocked
+        ? "You are temporarily blocked from using the AI Assistant."
+        : "Ask about budgets, sectors, or projects...";
 
   const handleSelectSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
@@ -422,6 +440,13 @@ export function useCitizenChatbot() {
 
     if (!isProfileComplete) {
       openAuthModal(true);
+      return;
+    }
+    if (isBlocked) {
+      const reasonSuffix = blockedReason ? ` Reason: ${blockedReason}.` : "";
+      const untilSuffix = blockedUntil ? ` Blocked until ${blockedUntil}.` : "";
+      setErrorState("retrieval_failed");
+      setErrorMessage(`Your account is currently blocked from chatbot usage.${untilSuffix}${reasonSuffix}`);
       return;
     }
 
@@ -549,7 +574,17 @@ export function useCitizenChatbot() {
     } finally {
       setIsSending(false);
     }
-  }, [activeSessionId, isProfileComplete, messageInput, openAuthModal, repo, userId]);
+  }, [
+    activeSessionId,
+    blockedReason,
+    blockedUntil,
+    isBlocked,
+    isProfileComplete,
+    messageInput,
+    openAuthModal,
+    repo,
+    userId,
+  ]);
 
   const handleComposerPrimaryAction = useCallback(() => {
     if (composerMode === "sign_in") {
@@ -573,7 +608,7 @@ export function useCitizenChatbot() {
     errorState,
     exampleQueries: EXAMPLE_QUERIES,
     isBootstrapping: !isAuthResolved || !isProfileResolved || isBootstrapping,
-    isComposerDisabled: composerMode === "send" ? isSending : false,
+    isComposerDisabled: composerMode === "send" ? isSending || isBlocked : false,
     isSending,
     messageInput,
     messages,

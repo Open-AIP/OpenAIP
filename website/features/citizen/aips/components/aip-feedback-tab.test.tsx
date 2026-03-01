@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AipFeedbackTab from "./aip-feedback-tab";
 
 const mockListAipFeedback = vi.fn();
@@ -42,6 +42,19 @@ vi.mock("./aip-feedback.api", async () => {
 describe("AipFeedbackTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/profile/status") {
+          return {
+            ok: false,
+            status: 401,
+            json: async () => ({ ok: false, error: { message: "Authentication required." } }),
+          } as Response;
+        }
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      })
+    );
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
     mockOnAuthStateChange.mockImplementation(
       () => ({
@@ -68,6 +81,10 @@ describe("AipFeedbackTab", () => {
         },
       ],
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("hides LGU Note badge and applies hidden comment styling", async () => {
@@ -136,5 +153,38 @@ describe("AipFeedbackTab", () => {
     expect(
       screen.queryByRole("button", { name: /Reply to feedback from Nested User/i })
     ).not.toBeInTheDocument();
+  });
+
+  it("shows blocked notice and hides feedback composer for blocked citizens", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "/profile/status") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              ok: true,
+              isComplete: true,
+              userId: "citizen-1",
+              isBlocked: true,
+              blockedUntil: "2026-03-12",
+              blockedReason: "Abusive language",
+            }),
+          } as Response;
+        }
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      })
+    );
+
+    render(<AipFeedbackTab aipId="aip-1" feedbackCount={1} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Your account is temporarily blocked from posting feedback.")
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Post feedback/i })).not.toBeInTheDocument();
   });
 });

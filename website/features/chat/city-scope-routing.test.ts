@@ -14,6 +14,8 @@ const mockAppendUserMessage = vi.fn();
 const mockConsumeQuotaRpc = vi.fn();
 const mockServerRpc = vi.fn();
 const mockConsoleInfo = vi.spyOn(console, "info").mockImplementation(() => {});
+const mockGetTypedAppSetting = vi.fn();
+const mockIsUserBlocked = vi.fn();
 
 const session: ChatSession = {
   id: "session-city-1",
@@ -388,6 +390,11 @@ vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => mockSupabaseAdmin(),
 }));
 
+vi.mock("@/lib/settings/app-settings", () => ({
+  getTypedAppSetting: (...args: unknown[]) => mockGetTypedAppSetting(...args),
+  isUserBlocked: (...args: unknown[]) => mockIsUserBlocked(...args),
+}));
+
 vi.mock("@/lib/chat/totals-sql-routing", () => ({
   routeSqlFirstTotals: (...args: unknown[]) => mockRouteSqlFirstTotals(...args),
   buildTotalsMissingMessage: () => "Totals missing.",
@@ -432,6 +439,8 @@ describe("city scope routing", () => {
     mockGetActorContext.mockReset();
     mockSupabaseServer.mockReset();
     mockSupabaseAdmin.mockReset();
+    mockGetTypedAppSetting.mockReset();
+    mockIsUserBlocked.mockReset();
     mockRequestPipelineChatAnswer.mockReset();
     mockRequestPipelineQueryEmbedding.mockReset();
     mockRouteSqlFirstTotals.mockReset();
@@ -595,6 +604,11 @@ describe("city scope routing", () => {
 
     mockSupabaseServer.mockResolvedValue(createServerClient());
     mockSupabaseAdmin.mockImplementation(() => createAdminClient());
+    mockGetTypedAppSetting.mockResolvedValue({
+      maxRequests: 20,
+      timeWindow: "per_hour",
+    });
+    mockIsUserBlocked.mockResolvedValue(false);
 
     mockRequestPipelineQueryEmbedding.mockResolvedValue({
       embedding: [0.1, 0.2, 0.3],

@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CitizenAccountProfile } from "@/features/citizen/auth/types";
+import { emitCitizenAuthChanged } from "@/features/citizen/auth/utils/auth-sync";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 type Props = {
@@ -410,6 +411,7 @@ export default function CitizenAccountModal({
         throw new Error(payload?.error?.message ?? "Unable to log out.");
       }
 
+      emitCitizenAuthChanged();
       onOpenChange(false);
       await onLoggedOut();
     } catch (logoutError) {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CitizenAccountProfile } from "@/features/citizen/auth/types";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { addCitizenAuthChangedListener } from "@/features/citizen/auth/utils/auth-sync";
 
 type ProfileApiResponse = {
   ok?: boolean;
@@ -10,6 +11,15 @@ type ProfileApiResponse = {
     message?: string;
   };
 } & Partial<CitizenAccountProfile>;
+
+type ProfileStatusResponse = {
+  ok?: boolean;
+  isComplete?: boolean;
+  userId?: string;
+  error?: {
+    message?: string;
+  };
+};
 
 type UseCitizenAccountResult = {
   isLoading: boolean;
@@ -66,13 +76,30 @@ export function useCitizenAccount(): UseCitizenAccountResult {
         setIsLoading(true);
       }
 
-      const { data, error: authError } = await supabase.auth.getUser();
+      const statusResponse = await fetch("/profile/status", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const statusPayload = (await statusResponse.json().catch(() => null)) as ProfileStatusResponse | null;
       if (!mountedRef.current) return;
 
-      if (authError || !data.user?.id) {
+      if (statusResponse.status === 401) {
         setIsAuthenticated(false);
         setProfile(null);
         setError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (
+        !statusResponse.ok ||
+        !statusPayload?.ok ||
+        typeof statusPayload.userId !== "string" ||
+        !statusPayload.userId.trim().length
+      ) {
+        setIsAuthenticated(false);
+        setProfile(null);
+        setError(toErrorMessage(statusPayload as ProfileApiResponse | null, "Unable to load account status."));
         setIsLoading(false);
         return;
       }
@@ -96,7 +123,7 @@ export function useCitizenAccount(): UseCitizenAccountResult {
 
       if (!response.ok || !isCompleteProfilePayload(payload)) {
         setProfile(null);
-        setError(toErrorMessage(payload, "Unable to load account profile."));
+        setError(null);
         setIsLoading(false);
         return;
       }
@@ -119,6 +146,20 @@ export function useCitizenAccount(): UseCitizenAccountResult {
   useEffect(() => {
     void refresh();
 
+    const cleanupAuthChanged = addCitizenAuthChangedListener(() => {
+      void refresh();
+    });
+    const handleFocus = () => {
+      void refresh();
+    };
+    const handleVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      void refresh();
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
         return;
@@ -136,6 +177,9 @@ export function useCitizenAccount(): UseCitizenAccountResult {
     });
 
     return () => {
+      cleanupAuthChanged();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       listener.subscription.unsubscribe();
     };
   }, [refresh, supabase.auth]);

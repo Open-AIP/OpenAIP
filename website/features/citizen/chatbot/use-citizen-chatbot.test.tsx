@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCitizenChatbot } from "./hooks/use-citizen-chatbot";
 
 const mockReplace = vi.fn();
-const mockGetUser = vi.fn();
 const mockOnAuthStateChange = vi.fn();
 
 const mockRepo = {
@@ -27,7 +26,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase/client", () => ({
   supabaseBrowser: () => ({
     auth: {
-      getUser: (...args: unknown[]) => mockGetUser(...args),
       onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
     },
   }),
@@ -57,10 +55,6 @@ describe("useCitizenChatbot", () => {
 
   it("lands authenticated users in a new-chat state even when sessions exist", async () => {
     const fetchMock = vi.fn<typeof fetch>();
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: "citizen-1" } },
-      error: null,
-    });
     mockRepo.listSessions.mockResolvedValue([
       {
         id: "session-1",
@@ -75,7 +69,7 @@ describe("useCitizenChatbot", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ok: true, isComplete: true }),
+      json: async () => ({ ok: true, isComplete: true, userId: "citizen-1" }),
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -92,10 +86,13 @@ describe("useCitizenChatbot", () => {
   });
 
   it("uses sign-in composer mode for anonymous users and opens auth modal query", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: null,
-    });
+    const fetchMock = vi.fn<typeof fetch>();
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ ok: false, error: { message: "Authentication required." } }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
 
     const { result } = renderHook(() => useCitizenChatbot());
 
@@ -116,14 +113,10 @@ describe("useCitizenChatbot", () => {
 
   it("uses complete-profile composer mode for signed-in incomplete profiles", async () => {
     const fetchMock = vi.fn<typeof fetch>();
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: "citizen-2" } },
-      error: null,
-    });
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ok: true, isComplete: false }),
+      json: async () => ({ ok: true, isComplete: false, userId: "citizen-2" }),
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -142,5 +135,91 @@ describe("useCitizenChatbot", () => {
     const href = String(mockReplace.mock.calls.at(-1)?.[0] ?? "");
     expect(href).toContain("completeProfile=1");
     expect(href).not.toContain("auth=login");
+  });
+
+  it("reacts to auth-sync event from authenticated to anonymous", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, isComplete: true, userId: "citizen-4" }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ ok: false, error: { message: "Authentication required." } }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    mockRepo.listSessions.mockResolvedValue([
+      {
+        id: "session-4",
+        userId: "citizen-4",
+        title: "Existing Session",
+        context: {},
+        lastMessageAt: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ]);
+
+    const { result } = renderHook(() => useCitizenChatbot());
+
+    await waitFor(() => {
+      expect(result.current.composerMode).toBe("send");
+    });
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("openaip:citizen-auth-changed"));
+    });
+
+    await waitFor(() => {
+      expect(result.current.composerMode).toBe("sign_in");
+    });
+    expect(result.current.sessionItems).toHaveLength(0);
+  });
+
+  it("reacts to auth-sync event from anonymous to authenticated", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ ok: false, error: { message: "Authentication required." } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, isComplete: true, userId: "citizen-5" }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    mockRepo.listSessions.mockResolvedValue([
+      {
+        id: "session-5",
+        userId: "citizen-5",
+        title: "Recovered Session",
+        context: {},
+        lastMessageAt: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ]);
+
+    const { result } = renderHook(() => useCitizenChatbot());
+
+    await waitFor(() => {
+      expect(result.current.composerMode).toBe("sign_in");
+    });
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("openaip:citizen-auth-changed"));
+    });
+
+    await waitFor(() => {
+      expect(result.current.composerMode).toBe("send");
+    });
+    expect(result.current.sessionItems).toHaveLength(1);
   });
 });

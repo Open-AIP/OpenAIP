@@ -17,6 +17,7 @@ import {
   readReturnToFromSessionStorage,
   setReturnToInSessionStorage,
 } from "@/features/citizen/auth/utils/auth-query";
+import { emitCitizenAuthChanged } from "@/features/citizen/auth/utils/auth-sync";
 import { maskEmail } from "@/features/citizen/auth/utils/mask-email";
 
 type CitizenAuthModalProps = {
@@ -421,9 +422,13 @@ export default function CitizenAuthModal({
     return readReturnToFromSessionStorage();
   };
 
-  const closeAndRedirect = () => {
+  const closeAndRedirect = (input?: { authChanged?: boolean }) => {
     const target = resolveReturnTo();
     clearReturnToFromSessionStorage();
+    if (input?.authChanged) {
+      emitCitizenAuthChanged();
+      router.refresh();
+    }
 
     if (target) {
       router.replace(target);
@@ -512,7 +517,7 @@ export default function CitizenAuthModal({
         return;
       }
 
-      closeAndRedirect();
+      closeAndRedirect({ authChanged: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to continue.");
     } finally {
@@ -546,7 +551,7 @@ export default function CitizenAuthModal({
         return;
       }
 
-      closeAndRedirect();
+      closeAndRedirect({ authChanged: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to verify OTP code.");
     } finally {
@@ -606,7 +611,7 @@ export default function CitizenAuthModal({
         province: normalizedProvince,
       });
 
-      closeAndRedirect();
+      closeAndRedirect({ authChanged: true });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to save profile.");
     } finally {

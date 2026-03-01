@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CitizenAccountModal from "@/features/citizen/components/citizen-account-modal";
 
 const mockFrom = vi.fn();
+const mockEmitCitizenAuthChanged = vi.fn();
 
 vi.mock("@/lib/supabase/client", () => ({
   supabaseBrowser: () => ({
     from: mockFrom,
   }),
+}));
+
+vi.mock("@/features/citizen/auth/utils/auth-sync", () => ({
+  emitCitizenAuthChanged: () => mockEmitCitizenAuthChanged(),
 }));
 
 const baseProfile = {
@@ -239,6 +244,7 @@ describe("CitizenAccountModal", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onLoggedOut).toHaveBeenCalledTimes(1);
+    expect(mockEmitCitizenAuthChanged).toHaveBeenCalledTimes(1);
   });
 
   it("shows an inline error when logout fails", async () => {

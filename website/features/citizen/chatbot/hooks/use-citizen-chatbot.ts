@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { getCitizenChatRepo } from "@/lib/repos/citizen-chat/repo";
 import type { CitizenChatMessage, CitizenChatSession } from "@/lib/repos/citizen-chat/repo";
 import { buildCitizenAuthHref, setReturnToInSessionStorage } from "@/features/citizen/auth/utils/auth-query";
+import { addCitizenAuthChangedListener } from "@/features/citizen/auth/utils/auth-sync";
 import { CITIZEN_CHAT_LIMITS } from "../constants/ui";
 import { mapEvidenceFromCitations, mapFollowUpsFromRetrievalMeta } from "../mappers/chat-message-presenter";
 import type {
@@ -96,6 +97,7 @@ async function requestAssistantReply(params: {
 type ProfileStatusPayload = {
   ok?: boolean;
   isComplete?: boolean;
+  userId?: string;
 };
 
 export function useCitizenChatbot() {
@@ -144,84 +146,83 @@ export function useCitizenChatbot() {
     router.replace(href, { scroll: false });
   }, [pathname, router, sanitizedNext, searchParams]);
 
-  useEffect(() => {
-    let active = true;
+  const clearAuthDependentState = useCallback(() => {
+    setUserId(null);
+    setIsProfileComplete(false);
+    setSessions([]);
+    setMessagesBySession({});
+    setLoadedSessionIds({});
+    setActiveSessionId(null);
+    setErrorState("none");
+    setErrorMessage(null);
+  }, []);
 
-    async function resolveUser() {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
+  const refreshAuthStatus = useCallback(async () => {
+    setIsAuthResolved(false);
+    setIsProfileResolved(false);
+    try {
+      const response = await fetch("/profile/status", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as ProfileStatusPayload | null;
 
-      if (error || !data.user?.id) {
-        setUserId(null);
-        setSessions([]);
-        setMessagesBySession({});
-        setLoadedSessionIds({});
-        setActiveSessionId(null);
-        setIsProfileComplete(false);
-        setErrorState("none");
-        setErrorMessage(null);
-        setIsAuthResolved(true);
+      if (response.status === 401) {
+        clearAuthDependentState();
         return;
       }
 
-      setUserId(data.user.id);
+      if (
+        !response.ok ||
+        !payload?.ok ||
+        typeof payload.userId !== "string" ||
+        !payload.userId.trim().length
+      ) {
+        clearAuthDependentState();
+        return;
+      }
+
+      setUserId(payload.userId);
+      setIsProfileComplete(payload.isComplete === true);
       setErrorState("none");
       setErrorMessage(null);
+    } catch {
+      clearAuthDependentState();
+    } finally {
       setIsAuthResolved(true);
+      setIsProfileResolved(true);
     }
+  }, [clearAuthDependentState]);
 
-    resolveUser();
+  useEffect(() => {
+    void refreshAuthStatus();
+
+    const cleanupAuthChanged = addCitizenAuthChangedListener(() => {
+      void refreshAuthStatus();
+    });
+    const handleFocus = () => {
+      void refreshAuthStatus();
+    };
+    const handleVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      void refreshAuthStatus();
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (!active || event === "INITIAL_SESSION") return;
-      void resolveUser();
+      if (event === "INITIAL_SESSION") return;
+      void refreshAuthStatus();
     });
 
     return () => {
-      active = false;
+      cleanupAuthChanged();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [supabase]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function resolveProfileStatus() {
-      if (!userId) {
-        setIsProfileComplete(false);
-        setIsProfileResolved(true);
-        return;
-      }
-
-      setIsProfileResolved(false);
-      try {
-        const response = await fetch("/profile/status", {
-          method: "GET",
-          cache: "no-store",
-        });
-        const payload = (await response.json().catch(() => null)) as ProfileStatusPayload | null;
-        if (!active) return;
-
-        if (!response.ok || !payload?.ok) {
-          setIsProfileComplete(false);
-          return;
-        }
-
-        setIsProfileComplete(payload.isComplete === true);
-      } catch {
-        if (!active) return;
-        setIsProfileComplete(false);
-      } finally {
-        if (active) setIsProfileResolved(true);
-      }
-    }
-
-    resolveProfileStatus();
-
-    return () => {
-      active = false;
-    };
-  }, [userId]);
+  }, [refreshAuthStatus, supabase.auth]);
 
   useEffect(() => {
     let active = true;

@@ -20,6 +20,7 @@ export async function GET() {
 
     return ok({
       isComplete: isCitizenProfileComplete(profile),
+      userId: authData.user.id,
     });
   } catch (error) {
     return fail(

@@ -96,6 +96,8 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
   const [isPostingRoot, setIsPostingRoot] = React.useState(false);
   const [postingReplyRootId, setPostingReplyRootId] = React.useState<string | null>(null);
   const [replyComposer, setReplyComposer] = React.useState<ReplyComposerState | null>(null);
+  const profileStatusRequestRef = React.useRef<Promise<void> | null>(null);
+  const resolvedProfileStatusUserIdRef = React.useRef<string | null>(null);
 
   const currentDetailPath = React.useMemo(() => {
     const query = searchParams.toString();
@@ -133,22 +135,41 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
     return true;
   }, [isAuthenticated, isProfileComplete, openAuthModal]);
 
-  const loadProfileStatus = React.useCallback(async () => {
-    const response = await fetch("/profile/status", {
-      method: "GET",
-      cache: "no-store",
-    });
-    const payload = (await response.json().catch(() => null)) as
-      | { ok?: boolean; isComplete?: boolean }
-      | null;
+  const loadProfileStatus = React.useCallback(
+    async (userId: string) => {
+      if (profileStatusRequestRef.current) {
+        return profileStatusRequestRef.current;
+      }
 
-    if (!response.ok || !payload?.ok) {
-      setIsProfileComplete(false);
-      return;
-    }
+      const request = (async () => {
+        const response = await fetch("/profile/status", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; isComplete?: boolean }
+          | null;
 
-    setIsProfileComplete(payload.isComplete === true);
-  }, []);
+        if (!response.ok || !payload?.ok) {
+          setIsProfileComplete(false);
+          return;
+        }
+
+        setIsProfileComplete(payload.isComplete === true);
+        resolvedProfileStatusUserIdRef.current = userId;
+      })();
+
+      profileStatusRequestRef.current = request;
+      try {
+        await request;
+      } finally {
+        if (profileStatusRequestRef.current === request) {
+          profileStatusRequestRef.current = null;
+        }
+      }
+    },
+    []
+  );
 
   const loadFeedback = React.useCallback(async () => {
     setLoading(true);
@@ -178,24 +199,33 @@ export function FeedbackThread({ projectId }: FeedbackThreadProps) {
       if (error || !data.user?.id) {
         setIsAuthenticated(false);
         setIsProfileComplete(false);
+        resolvedProfileStatusUserIdRef.current = null;
         setIsAuthLoading(false);
         return;
       }
 
       setIsAuthenticated(true);
-      await loadProfileStatus();
+      if (resolvedProfileStatusUserIdRef.current !== data.user.id) {
+        await loadProfileStatus(data.user.id);
+      }
       setIsAuthLoading(false);
     }
 
     resolveAuthState();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      if (event === "INITIAL_SESSION") return;
+
+      const userId = session?.user?.id ?? null;
       setIsAuthenticated(Boolean(session?.user?.id));
-      if (session?.user?.id) {
-        void loadProfileStatus();
+      if (userId) {
+        if (resolvedProfileStatusUserIdRef.current !== userId) {
+          void loadProfileStatus(userId);
+        }
       } else {
         setIsProfileComplete(false);
+        resolvedProfileStatusUserIdRef.current = null;
       }
       setIsAuthLoading(false);
     });

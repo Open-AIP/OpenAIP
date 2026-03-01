@@ -35,7 +35,6 @@ function getNavTriggerId(href: string) {
 export default function CitizenTopNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const searchParamKey = searchParams.toString();
   const mobileSheetId = "citizen-mobile-nav-sheet";
   const [mobileProjectsOpen, setMobileProjectsOpen] = useState<boolean>(false);
   const [accountModalOpen, setAccountModalOpen] = useState<boolean>(false);
@@ -69,10 +68,6 @@ export default function CitizenTopNav() {
   useEffect(() => {
     setMobileProjectsOpen(pathname === '/projects' || pathname.startsWith('/projects/'));
   }, [pathname]);
-
-  useEffect(() => {
-    void refresh();
-  }, [pathname, refresh, searchParamKey]);
 
   const isSignedIn = isAuthenticated && Boolean(profile);
 

@@ -60,6 +60,22 @@ describe("CitizenTopNav", () => {
     expect(screen.queryByLabelText("Open account")).not.toBeInTheDocument();
   });
 
+  it("does not invoke refresh on initial render", async () => {
+    const refresh = vi.fn();
+    mockUseCitizenAccount.mockReturnValue({
+      isLoading: false,
+      isAuthenticated: false,
+      profile: null,
+      error: null,
+      refresh,
+    });
+
+    render(<CitizenTopNav />);
+    await Promise.resolve();
+
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("shows name/barangay and opens account modal when authenticated", () => {
     mockUseCitizenAccount.mockReturnValue({
       isLoading: false,

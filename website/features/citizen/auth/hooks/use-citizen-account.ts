@@ -47,6 +47,7 @@ export function useCitizenAccount(): UseCitizenAccountResult {
   const [profile, setProfile] = useState<CitizenAccountProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const inFlightRefreshRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -56,54 +57,81 @@ export function useCitizenAccount(): UseCitizenAccountResult {
   }, []);
 
   const refresh = useCallback(async () => {
-    if (mountedRef.current) {
-      setIsLoading(true);
+    if (inFlightRefreshRef.current) {
+      return inFlightRefreshRef.current;
     }
 
-    const { data, error: authError } = await supabase.auth.getUser();
-    if (!mountedRef.current) return;
+    const request = (async () => {
+      if (mountedRef.current) {
+        setIsLoading(true);
+      }
 
-    if (authError || !data.user?.id) {
-      setIsAuthenticated(false);
-      setProfile(null);
+      const { data, error: authError } = await supabase.auth.getUser();
+      if (!mountedRef.current) return;
+
+      if (authError || !data.user?.id) {
+        setIsAuthenticated(false);
+        setProfile(null);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsAuthenticated(true);
+
+      const response = await fetch("/profile/me", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as ProfileApiResponse | null;
+      if (!mountedRef.current) return;
+
+      if (response.status === 401) {
+        setIsAuthenticated(false);
+        setProfile(null);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!response.ok || !isCompleteProfilePayload(payload)) {
+        setProfile(null);
+        setError(toErrorMessage(payload, "Unable to load account profile."));
+        setIsLoading(false);
+        return;
+      }
+
+      setProfile(payload);
       setError(null);
       setIsLoading(false);
-      return;
+    })();
+
+    inFlightRefreshRef.current = request;
+    try {
+      await request;
+    } finally {
+      if (inFlightRefreshRef.current === request) {
+        inFlightRefreshRef.current = null;
+      }
     }
-
-    setIsAuthenticated(true);
-
-    const response = await fetch("/profile/me", {
-      method: "GET",
-      cache: "no-store",
-    });
-    const payload = (await response.json().catch(() => null)) as ProfileApiResponse | null;
-    if (!mountedRef.current) return;
-
-    if (response.status === 401) {
-      setIsAuthenticated(false);
-      setProfile(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!response.ok || !isCompleteProfilePayload(payload)) {
-      setProfile(null);
-      setError(toErrorMessage(payload, "Unable to load account profile."));
-      setIsLoading(false);
-      return;
-    }
-
-    setProfile(payload);
-    setError(null);
-    setIsLoading(false);
   }, [supabase]);
 
   useEffect(() => {
     void refresh();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
+        return;
+      }
+
+      if (!session?.user?.id) {
+        setIsAuthenticated(false);
+        setProfile(null);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
       void refresh();
     });
 

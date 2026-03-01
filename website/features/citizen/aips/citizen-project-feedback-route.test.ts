@@ -3,6 +3,7 @@ import { resolveProjectByIdOrRef } from "@/app/api/citizen/feedback/_shared";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const AIP_ID = "22222222-2222-4222-8222-222222222222";
+type ProjectLookupClient = Parameters<typeof resolveProjectByIdOrRef>[0];
 
 type MockProjectRow = {
   id: string;
@@ -84,7 +85,7 @@ describe("Citizen project feedback lookup", () => {
       },
     });
 
-    const resolved = await resolveProjectByIdOrRef(client as any, PROJECT_ID);
+    const resolved = await resolveProjectByIdOrRef(client as ProjectLookupClient, PROJECT_ID);
 
     expect(resolved.id).toBe(PROJECT_ID);
     expect(resolved.aipId).toBe(AIP_ID);

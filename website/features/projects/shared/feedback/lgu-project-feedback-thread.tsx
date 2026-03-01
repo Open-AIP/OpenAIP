@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import {
   CITIZEN_PROJECT_FEEDBACK_KINDS,
   type ProjectFeedbackItem,

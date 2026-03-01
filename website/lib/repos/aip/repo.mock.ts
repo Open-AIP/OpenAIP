@@ -591,7 +591,7 @@ export function createMockAipRepoImpl({
   return {
     async listVisibleAips(
       { visibility = "my", scope }: { visibility?: "public" | "my"; scope?: LguScope } = {},
-      _actor?: import("@/lib/domain/actor-context").ActorContext
+      _actor?: import("@/lib/domain/actor-context").ActorContext | null
     ) {
       const effectiveScope = scope ?? defaultScope;
       const filtered = AIPS_TABLE.filter((aip) => aip.scope === effectiveScope);
@@ -625,7 +625,7 @@ export function createMockAipRepoImpl({
     },
     async getAipDetail(
       aipId: string,
-      _actor?: import("@/lib/domain/actor-context").ActorContext
+      _actor?: import("@/lib/domain/actor-context").ActorContext | null
     ) {
       if (!aipId) return null;
 
@@ -667,7 +667,7 @@ export function createMockAipRepoImpl({
     async updateAipStatus(
       aipId: string,
       next: AipStatus,
-      _actor?: import("@/lib/domain/actor-context").ActorContext
+      _actor?: import("@/lib/domain/actor-context").ActorContext | null
     ) {
       const index = AIPS_TABLE.findIndex((aip) => aip.id === aipId);
       if (index === -1) return;

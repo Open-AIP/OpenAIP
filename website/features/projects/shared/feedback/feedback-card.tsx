@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { ProjectFeedbackDisplayKind, ProjectFeedbackItem } from "./feedback.types";
 
 type FeedbackCardProps = {

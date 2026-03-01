@@ -43,16 +43,16 @@ export type {
 export interface AipRepo {
   listVisibleAips(
     input: ListVisibleAipsInput,
-    actor?: import("@/lib/domain/actor-context").ActorContext
+    actor?: import("@/lib/domain/actor-context").ActorContext | null
   ): Promise<AipListItem[]>;
   getAipDetail(
     aipId: string,
-    actor?: import("@/lib/domain/actor-context").ActorContext
+    actor?: import("@/lib/domain/actor-context").ActorContext | null
   ): Promise<AipDetail | null>;
   updateAipStatus(
     aipId: string,
     next: AipStatus,
-    actor?: import("@/lib/domain/actor-context").ActorContext
+    actor?: import("@/lib/domain/actor-context").ActorContext | null
   ): Promise<void>;
 }
 

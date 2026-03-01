@@ -85,7 +85,7 @@ export function createSupabaseCitizenChatRepo(): CitizenChatRepo {
 
     async createSession(
       userId: string,
-      payload?: { title?: string; context?: Record<string, unknown> }
+      payload?: { title?: string; context?: { [key: string]: Json } }
     ): Promise<CitizenChatSession> {
       const { data, error } = await client
         .from("chat_sessions")

@@ -189,7 +189,7 @@ export function createMockCommentTargetLookup(): CommentTargetLookup {
         kind: project.kind,
         aipId:
           AIP_PROJECT_ROWS_TABLE.find(
-            (row) => row.projectRefCode === project.projectRefCode || row.id === id
+            (row) => row.projectRefCode === id || row.id === project.id
           )?.aipId ?? undefined,
       };
     },

@@ -12,6 +12,7 @@ function assert(condition: boolean, message: string) {
 }
 
 type QueryResult<T> = Promise<{ data: T[] | null; error: { message: string } | null }>;
+type CommentRepoClient = Awaited<ReturnType<Parameters<typeof createCommentRepoFromClient>[0]>>;
 
 export async function runFeedbackInboxFilterTests() {
   const mockRepo = createMockCommentRepo();
@@ -85,7 +86,7 @@ export async function runFeedbackInboxFilterTests() {
   };
 
   const supabaseRepo = createCommentRepoFromClient(
-    async () => fakeClient as unknown as { from: (table: string) => any }
+    async () => fakeClient as CommentRepoClient
   );
   await supabaseRepo.listThreadsForInbox({ lguId: "lgu_001" });
 

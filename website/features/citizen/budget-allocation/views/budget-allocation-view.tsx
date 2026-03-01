@@ -13,6 +13,7 @@ import {
   AipDetailsSection,
   ChartsGrid,
   FiltersSection,
+  OverviewHeader,
 } from '../components';
 import { CITIZEN_BUDGET_ALLOCATION_MOCK } from '@/mocks/fixtures/budget-allocation';
 

@@ -12,6 +12,8 @@ type RpcCall = {
   args: Record<string, unknown>;
 };
 
+type FeedbackRepoClient = Awaited<ReturnType<Parameters<typeof createFeedbackRepoFromClient>[0]>>;
+
 function createFakeClient(input: {
   profileRole: RoleType;
   rpcCalls: RpcCall[];
@@ -158,7 +160,7 @@ export async function runFeedbackCommentReplyAuditLogTests() {
   });
 
   const barangayRepo = createFeedbackRepoFromClient(
-    async () => barangayClient as unknown as { from: (table: string) => any }
+    async () => barangayClient as FeedbackRepoClient
   );
 
   await barangayRepo.reply("thread-root", {
@@ -187,7 +189,7 @@ export async function runFeedbackCommentReplyAuditLogTests() {
     rpcCalls: cityRpcCalls,
   });
   const cityRepo = createFeedbackRepoFromClient(
-    async () => cityClient as unknown as { from: (table: string) => any }
+    async () => cityClient as FeedbackRepoClient
   );
 
   await cityRepo.reply("thread-root", {

@@ -10,6 +10,10 @@ import {
   SESSION_WARNING_COOKIE,
 } from "@/lib/security/session-timeout";
 
+type UpdateSessionOptions = {
+  extraHeaders?: Headers;
+};
+
 function isRoleType(value: unknown): value is RoleType {
   return (
     value === "citizen" ||
@@ -42,7 +46,23 @@ function isApiRoute(pathname: string): boolean {
   return pathname.startsWith("/api/");
 }
 
-export async function updateSession(request: NextRequest) {
+function buildForwardedHeaders(request: NextRequest, extraHeaders?: Headers): Headers {
+  const headers = new Headers(request.headers);
+  if (extraHeaders) {
+    extraHeaders.forEach((value, key) => headers.set(key, value));
+  }
+  return headers;
+}
+
+function nextPassThroughResponse(request: NextRequest, extraHeaders?: Headers) {
+  return NextResponse.next({
+    request: {
+      headers: buildForwardedHeaders(request, extraHeaders),
+    },
+  });
+}
+
+export async function updateSession(request: NextRequest, options?: UpdateSessionOptions) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableOrAnonKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
@@ -54,9 +74,7 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  let supabaseResponse = nextPassThroughResponse(request, options?.extraHeaders);
 
   const supabase = createServerClient(url, publishableOrAnonKey, {
     cookies: {
@@ -65,9 +83,7 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({
-          request,
-        });
+        supabaseResponse = nextPassThroughResponse(request, options?.extraHeaders);
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options)
         );

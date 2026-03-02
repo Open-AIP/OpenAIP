@@ -110,7 +110,11 @@ export default function ManifestoMotion({
       </motion.div>
 
       <motion.p
-        className="mt-6 text-center text-7xl font-bold text-steelblue drop-shadow-[0px_3px_10px_rgba(0,0,0,0.25)]"
+        className="mt-6 text-center text-8xl font-bold text-steelblue"
+        style={{
+          textShadow:
+            "0 0 12px rgba(255,255,255,0.9), 0 0 24px rgba(125,211,252,0.85), 0 0 40px rgba(96,165,250,0.65), 0 0 56px rgba(196,181,253,0.45)",
+        }}
         variants={itemScaleIn}
       >
         {emphasis}

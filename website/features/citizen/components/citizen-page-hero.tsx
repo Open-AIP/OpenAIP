@@ -54,7 +54,7 @@ export default function CitizenPageHero({
           )}
 
           {/* ✅ Align hero content with your page width (6xl) */}
-          <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 md:py-14 text-center">
+          <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-0 md:py-5 text-center">
             {eyebrow ? (
               <p className="text-xs uppercase tracking-[0.2em] text-slate-100/80">
                 {eyebrow}

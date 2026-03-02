@@ -105,6 +105,7 @@ describe("AdminDashboardPageClient URL sync", () => {
       />
     );
 
+    expect(replaceStateSpy).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Sync Filters" }));
 
     expect(replaceStateSpy).toHaveBeenCalledWith(

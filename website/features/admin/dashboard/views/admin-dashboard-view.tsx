@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import KpiCard from "../components/KpiCard";
 import DashboardFiltersRow from "../components/DashboardFiltersRow";
@@ -31,12 +30,19 @@ export default function AdminDashboardView({
   onFiltersChange,
   initialData,
 }: AdminDashboardViewProps) {
-  const { filters, setFilters, viewModel, loading, error, handleReset } =
+  const { filters, setFilters, viewModel, loading, error, createDefaultFilters } =
     useAdminDashboard(initialData);
 
-  useEffect(() => {
-    onFiltersChange?.(filters);
-  }, [filters, onFiltersChange]);
+  const handleFilterChange = (nextFilters: AdminDashboardFilters) => {
+    setFilters(nextFilters);
+    onFiltersChange?.(nextFilters);
+  };
+
+  const handleReset = () => {
+    const nextFilters = createDefaultFilters();
+    setFilters(nextFilters);
+    onFiltersChange?.(nextFilters);
+  };
 
   const handleStatusClick = (status: string) => {
     actions.onOpenAipMonitoring?.({ filters, status });
@@ -63,7 +69,7 @@ export default function AdminDashboardView({
         <DashboardFiltersRow
           filters={filters}
           lguOptions={viewModel.lguOptions}
-          onChange={setFilters}
+          onChange={handleFilterChange}
           onReset={handleReset}
         />
       </div>

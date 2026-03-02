@@ -63,7 +63,13 @@ describe("AdminDashboardView", () => {
       },
       loading: false,
       error: null,
-      handleReset: vi.fn(),
+      createDefaultFilters: vi.fn(() => ({
+        dateFrom: "2026-03-01",
+        dateTo: "2026-03-14",
+        lguScope: "all",
+        lguId: null,
+        aipStatus: "all",
+      })),
     });
   });
 

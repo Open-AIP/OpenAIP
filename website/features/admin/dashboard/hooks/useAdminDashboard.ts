@@ -53,5 +53,6 @@ export function useAdminDashboard(initial?: AdminDashboardInitialData) {
     loading,
     error,
     handleReset,
+    createDefaultFilters,
   };
 }

@@ -46,9 +46,9 @@ function areFiltersEqual(left: AdminDashboardFilters, right: AdminDashboardFilte
 
 export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
   const repo = useMemo(() => getAdminDashboardRepo(), []);
-  const hasInitialSnapshot = Boolean(initial);
+  const hasInitialSnapshotRef = useRef(Boolean(initial));
+  const hasUserInteractedRef = useRef(false);
   const initialFiltersRef = useRef(initial?.filters ?? null);
-  const skipInitialReactiveFetchRef = useRef(hasInitialSnapshot);
   const [filters, setFilters] = useState<AdminDashboardFilters>(() =>
     initial?.filters ?? createDefaultFilters()
   );
@@ -70,11 +70,16 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
   const [lguOptions, setLguOptions] = useState<LguOptionVM[]>(
     () => initial?.snapshot.lguOptions ?? []
   );
-  const [staticLoading, setStaticLoading] = useState(() => !hasInitialSnapshot);
-  const [reactiveLoading, setReactiveLoading] = useState(() => !hasInitialSnapshot);
+  const [staticLoading, setStaticLoading] = useState(() => !hasInitialSnapshotRef.current);
+  const [reactiveLoading, setReactiveLoading] = useState(() => !hasInitialSnapshotRef.current);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const isMountedRef = useRef(true);
+
+  const setFiltersWithInteraction = (next: AdminDashboardFilters) => {
+    hasUserInteractedRef.current = true;
+    setFilters(next);
+  };
 
   useEffect(() => {
     return () => {
@@ -86,7 +91,7 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
     let isActive = true;
 
     async function loadStaticData() {
-      if (hasInitialSnapshot) {
+      if (hasInitialSnapshotRef.current) {
         setStaticLoading(false);
         return;
       }
@@ -111,7 +116,7 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
     return () => {
       isActive = false;
     };
-  }, [hasInitialSnapshot, repo]);
+  }, [repo]);
 
   useEffect(() => {
     const currentRequestId = requestIdRef.current + 1;
@@ -121,17 +126,17 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
 
     async function loadReactiveData() {
       if (
-        skipInitialReactiveFetchRef.current &&
+        hasInitialSnapshotRef.current &&
+        !hasUserInteractedRef.current &&
         initialFiltersRef.current &&
         areFiltersEqual(filters, initialFiltersRef.current)
       ) {
-        skipInitialReactiveFetchRef.current = false;
-        initialFiltersRef.current = null;
         setReactiveLoading(false);
         setError(null);
         return;
       }
-      skipInitialReactiveFetchRef.current = false;
+
+      initialFiltersRef.current = null;
 
       setReactiveLoading(true);
       setError(null);
@@ -172,7 +177,7 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
 
   return {
     filters,
-    setFilters,
+    setFilters: setFiltersWithInteraction,
     summary,
     distribution,
     reviewBacklog,

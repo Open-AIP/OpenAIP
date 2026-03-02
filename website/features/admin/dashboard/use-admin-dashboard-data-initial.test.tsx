@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AdminDashboardFilters,
@@ -76,8 +77,9 @@ describe("useAdminDashboardData initial snapshot hydration", () => {
 
   it("uses SSR snapshot immediately without initial empty-state fetches", async () => {
     const repo = mockGetAdminDashboardRepo();
-    const { result } = renderHook(() =>
-      useAdminDashboardData({ filters: initialFilters, snapshot: initialSnapshot })
+    const { result } = renderHook(
+      () => useAdminDashboardData({ filters: initialFilters, snapshot: initialSnapshot }),
+      { wrapper: StrictMode }
     );
 
     expect(result.current.summary).toEqual(initialSnapshot.summary);
@@ -111,6 +113,20 @@ describe("useAdminDashboardData initial snapshot hydration", () => {
       expect(repo.getAipStatusDistribution).toHaveBeenCalledTimes(1);
       expect(repo.getReviewBacklog).toHaveBeenCalledTimes(1);
       expect(repo.getUsageMetrics).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setFilters(initialFilters);
+    });
+
+    await waitFor(() => {
+      expect(repo.getSummary).toHaveBeenCalledTimes(2);
+      expect(repo.getAipStatusDistribution).toHaveBeenCalledTimes(2);
+      expect(repo.getReviewBacklog).toHaveBeenCalledTimes(2);
+      expect(repo.getUsageMetrics).toHaveBeenCalledTimes(2);
     });
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

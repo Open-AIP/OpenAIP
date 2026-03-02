@@ -361,6 +361,7 @@ Files added for this flow:
 - SQL patch: `website/docs/sql/2026-02-22_aip_publish_embed_categorize_trigger_v2.sql`
 - SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status.sql`
 - SQL patch (logging/status + retry RPC): `website/docs/sql/2026-02-22_aip_publish_embed_categorize_logging_status_v2.sql`
+- SQL patch (signed dispatch headers + request_id payload): `website/docs/sql/2026-03-03_embed_categorize_signed_dispatch.sql`
 - Edge Function: `supabase/functions/embed_categorize_artifact/index.ts`
 
 Required configuration:
@@ -369,25 +370,33 @@ Required configuration:
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `OPENAI_API_KEY`
    - `EMBED_CATEGORIZE_JOB_SECRET`
+   - `EMBED_CATEGORIZE_JOB_AUDIENCE` (recommended; default in function is `embed-categorize-dispatcher`)
+   - `EMBED_CATEGORIZE_NONCE_TTL_SECONDS` (optional; default `120`)
+   - `EMBED_CATEGORIZE_DEDUPE_TTL_SECONDS` (optional; default `300`)
 2. DB setting (required):
    - `app.embed_categorize_url` = full Edge Function invoke URL (for example: `https://<project-ref>.supabase.co/functions/v1/embed_categorize_artifact`)
 3. Trigger secret (recommended):
-   - Store in Vault with name `embed_categorize_job_secret` (the trigger reads `vault.decrypted_secrets` first)
+   - Store in Vault with name `embed_categorize_job_secret` (dispatcher reads `vault.decrypted_secrets` first)
    - Use the same value as `EMBED_CATEGORIZE_JOB_SECRET`
-4. Local/dev fallback secret (optional):
+4. Dispatcher audience (optional):
+   - DB setting `app.embed_categorize_audience` or `app.settings.key = 'embed_categorize_audience'`
+   - Must match `EMBED_CATEGORIZE_JOB_AUDIENCE` when set
+5. Local/dev fallback secret (optional):
    - `app.embed_categorize_secret` if Vault is unavailable
 
 Example SQL config:
 ```sql
 alter database postgres set app.embed_categorize_url = 'https://<project-ref>.supabase.co/functions/v1/embed_categorize_artifact';
 alter database postgres set app.embed_categorize_secret = 'dev-only-secret';
+alter database postgres set app.embed_categorize_audience = 'embed-categorize-dispatcher';
 ```
 
 Local/hosted test flow:
 1. Deploy or serve the Edge Function with JWT verification disabled for trigger-origin calls.
-2. Ensure `app.embed_categorize_url` and secret config are set.
-3. Publish an AIP (`under_review` -> `published`).
-4. Verify output rows in:
+2. Apply SQL migration `website/docs/sql/2026-03-03_embed_categorize_signed_dispatch.sql`.
+3. Ensure `app.embed_categorize_url`, secret config, and optional audience config are set.
+4. Publish an AIP (`under_review` -> `published`).
+5. Verify output rows in:
    - `public.aip_chunks` with `metadata.source = 'categorize_artifact'`
    - `public.aip_chunk_embeddings` with `embedding_model = 'text-embedding-3-large'`
 
@@ -423,6 +432,7 @@ Manual/retry indexing:
   - Dispatch allowed when latest embed state is `missing`, `failed`, or `succeeded` with skip message (`No categorize artifact; skipping.`)
   - Returns `409` when indexing is already running or already ready
   - Returns `503` when dispatch config is missing (`app.embed_categorize_url` / job secret)
+  - Returns `401` in edge logs when signed header verification fails (bad timestamp/signature/replay/audience mismatch)
 
 Edge-function unit-ish tests:
 ```bash

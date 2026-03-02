@@ -82,7 +82,12 @@ export function detectAggregationIntent(message: string): AggregationIntentResul
     normalized.includes("by sector") ||
     normalized.includes("per sector") ||
     normalized.includes("sector totals") ||
-    normalized.includes("total by sector");
+    normalized.includes("total by sector") ||
+    normalized.includes("what are the sectors") ||
+    normalized.includes("what is the sectors") ||
+    normalized.includes("sectors in the projects") ||
+    normalized.includes("list sectors") ||
+    normalized.includes("sector list");
   if (hasSectorCue) {
     return { intent: "totals_by_sector" };
   }

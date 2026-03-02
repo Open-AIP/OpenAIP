@@ -39,9 +39,11 @@ INTENT_PROTOTYPES: dict[IntentType, list[str]] = {
         "overall cost",
     ],
     IntentType.CATEGORY_AGGREGATION: [
-        "total by sector",
-        "budget breakdown by category",
+        "budget totals by sector",
+        "what are the sectors in the projects",
         "show totals per fund source",
+        "what fund sources exist",
+        "list available funding sources",
         "how much per sector",
         "compare budget by category",
     ],
@@ -58,6 +60,8 @@ INTENT_PROTOTYPES: dict[IntentType, list[str]] = {
         "what is the timeline for this project",
         "who is implementing this project",
         "what is the expected output of the project",
+        "what is sk funding and who implements it",
+        "who implements the road projects in pulo",
     ],
     IntentType.DOCUMENT_EXPLANATION: [
         "explain this AIP document",
@@ -72,13 +76,15 @@ INTENT_PROTOTYPES: dict[IntentType, list[str]] = {
         "who won the bidding",
         "what did you eat",
         "who is the mayor",
+        "are you gay",
+        "tell me a joke",
     ],
     IntentType.SCOPE_NEEDS_CLARIFICATION: [
-        "use our barangay",
-        "for that city",
-        "check this municipality",
-        "show me the budget there",
-        "compare that place to ours",
+        "which barangay is this for",
+        "which city should i check",
+        "saan ito",
+        "which barangay has this project",
+        "what city do you mean",
     ],
 }
 

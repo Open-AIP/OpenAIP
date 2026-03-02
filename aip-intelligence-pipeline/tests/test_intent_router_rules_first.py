@@ -45,6 +45,17 @@ def test_rule_overrides_semantic_for_totals() -> None:
     assert fake.called is False
 
 
+def test_rule_overrides_semantic_for_category_aggregation() -> None:
+    fake = FakeSemantic()
+    router = IntentRouter(semantic=fake)  # type: ignore[arg-type]
+
+    result = router.route("What fund sources exist in FY 2026 across all barangays?")
+
+    assert result.intent is IntentType.CATEGORY_AGGREGATION
+    assert result.method == "rule"
+    assert fake.called is False
+
+
 def test_rules_do_not_match_uses_semantic() -> None:
     fake = FakeSemantic()
     router = IntentRouter(semantic=fake)  # type: ignore[arg-type]
@@ -89,6 +100,17 @@ def test_scope_clarification_rule_fires() -> None:
     assert result.intent is IntentType.SCOPE_NEEDS_CLARIFICATION
     assert result.method == "rule"
     assert fake.called is False
+
+
+def test_generic_which_barangay_query_does_not_trigger_scope_clarification_rule() -> None:
+    fake = FakeSemantic()
+    router = IntentRouter(semantic=fake)  # type: ignore[arg-type]
+
+    result = router.route("Which barangay have road projects?")
+
+    assert result.intent is IntentType.GREETING
+    assert result.method == "semantic"
+    assert fake.called is True
 
 
 def test_bare_poblacion_is_treated_as_ambiguous_scope() -> None:

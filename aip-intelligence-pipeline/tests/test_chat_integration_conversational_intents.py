@@ -186,6 +186,23 @@ def test_feature_flag_on_clarify_uses_shortcut(monkeypatch) -> None:
     assert rag_calls == []
 
 
+def test_feature_flag_on_out_of_scope_uses_shortcut(monkeypatch) -> None:
+    monkeypatch.setenv("INTENT_ROUTER_ENABLED", "true")
+    fake_router = FakeRouter(_fake_intent(IntentType.OUT_OF_SCOPE))
+    rag_calls = _patch_chat_deps(monkeypatch, router=fake_router)
+    client = TestClient(create_app())
+
+    response = _post_chat(client, "are you gay")
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == (
+        "I can help with published AIP questions only. Ask about barangay/city budgets, "
+        "fund sources, totals, or project details."
+    )
+    assert fake_router.calls == ["are you gay"]
+    assert rag_calls == []
+
+
 def test_contains_domain_cues_catches_year_tokens() -> None:
     assert contains_domain_cues("show me 2025 budget") is True
 

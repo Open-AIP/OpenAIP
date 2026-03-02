@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { formatTotalsEvidence } from "@/lib/chat/evidence";
 import { buildRefusalMessage } from "@/lib/chat/refusal";
-import { detectAggregationIntent } from "@/lib/chat/aggregation-intent";
+import {
+  detectAggregationIntent,
+  type AggregationIntentResult,
+} from "@/lib/chat/aggregation-intent";
 import {
   detectExplicitCityMention,
   listBarangayIdsInCity,
@@ -338,12 +341,13 @@ function containsDomainCues(text: string): boolean {
 
 function isConversationalIntent(
   intent?: string
-): intent is "GREETING" | "THANKS" | "COMPLAINT" | "CLARIFY" {
+): intent is "GREETING" | "THANKS" | "COMPLAINT" | "CLARIFY" | "OUT_OF_SCOPE" {
   return (
     intent === "GREETING" ||
     intent === "THANKS" ||
     intent === "COMPLAINT" ||
-    intent === "CLARIFY"
+    intent === "CLARIFY" ||
+    intent === "OUT_OF_SCOPE"
   );
 }
 
@@ -357,9 +361,53 @@ function conversationalReply(intent: string): string {
       return "Thanks for flagging that. Which part seems incorrect (barangay/city, year, or project/ref code) so I can re-check based on the published AIP data?";
     case "CLARIFY":
       return "Sure - tell me the barangay/city, year, and (if available) the ref code or project name you mean.";
+    case "OUT_OF_SCOPE":
+      return "I can help with published AIP questions only. Ask about barangay/city budgets, fund sources, totals, or project details.";
     default:
       return "How can I help with the published AIP data?";
   }
+}
+
+function inferAggregationIntentFromPipelineClassification(input: {
+  message: string;
+  detected: AggregationIntentResult;
+  frontendIntentClassification: PipelineIntentClassification | null;
+}): AggregationIntentResult {
+  if (input.detected.intent !== "none") {
+    return input.detected;
+  }
+
+  const classification = input.frontendIntentClassification;
+  if (!classification) {
+    return input.detected;
+  }
+
+  const canUseClassification =
+    classification.method === "rule" ||
+    classification.confidence >= 0.6;
+  if (!canUseClassification || classification.intent !== "CATEGORY_AGGREGATION") {
+    return input.detected;
+  }
+
+  const normalized = input.message.toLowerCase();
+  const hasSectorCue = normalized.includes("sector");
+  const hasFundCue =
+    normalized.includes("fund source") ||
+    normalized.includes("fund sources") ||
+    normalized.includes("funding source") ||
+    normalized.includes("funding sources") ||
+    normalized.includes("source of funds") ||
+    normalized.includes("sources of funds");
+
+  if (hasSectorCue) {
+    return { intent: "totals_by_sector" };
+  }
+
+  if (hasFundCue) {
+    return { intent: "totals_by_fund_source" };
+  }
+
+  return input.detected;
 }
 
 function isMissingConsumeQuotaRpcError(message: string): boolean {
@@ -3378,7 +3426,11 @@ export async function POST(request: Request) {
     }
 
     const parsedLineItemQuestion = parseLineItemQuestion(content);
-    const aggregationIntent = detectAggregationIntent(content);
+    const aggregationIntent = inferAggregationIntentFromPipelineClassification({
+      message: content,
+      detected: detectAggregationIntent(content),
+      frontendIntentClassification,
+    });
     const shouldDeferAggregation =
       aggregationIntent.intent === "totals_by_fund_source" && isLineItemSpecificQuery(content);
     const userBarangay = await resolveUserBarangay(actor);

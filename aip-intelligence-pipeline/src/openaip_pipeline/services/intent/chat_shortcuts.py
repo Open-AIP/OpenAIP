@@ -75,4 +75,12 @@ def maybe_handle_conversational_intent(
             )
         }
 
+    if intent_result.intent is IntentType.OUT_OF_SCOPE and not contains_domain_cues(text):
+        return {
+            "message": (
+                "I can help with published AIP questions only. Ask about barangay/city budgets, "
+                "fund sources, totals, or project details."
+            )
+        }
+
     return None

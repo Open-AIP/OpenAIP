@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .rules import (
+    match_category_aggregation,
     match_line_item_ref,
     match_scope_needs_clarification,
     match_total_aggregation,
@@ -59,6 +60,9 @@ class IntentRouter:
 
         if match_line_item_ref(normalized):
             return self._rule_result(IntentType.LINE_ITEM_LOOKUP)
+
+        if match_category_aggregation(normalized):
+            return self._rule_result(IntentType.CATEGORY_AGGREGATION)
 
         if match_total_aggregation(normalized):
             return self._rule_result(IntentType.TOTAL_AGGREGATION)

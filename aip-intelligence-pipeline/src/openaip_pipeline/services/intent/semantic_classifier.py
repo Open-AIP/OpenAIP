@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import re
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,37 @@ from .types import IntentResult, IntentType
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-MiniLM-L3-v2"
 _BUILTIN_DEFAULT_MIN_TOP1 = DEFAULT_MIN_TOP1
 _BUILTIN_DEFAULT_MIN_MARGIN = DEFAULT_MIN_MARGIN
+_KEYWORD_PATTERN = re.compile(r"[a-z0-9]+")
+_KEYWORD_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "by",
+        "for",
+        "from",
+        "how",
+        "i",
+        "in",
+        "is",
+        "it",
+        "me",
+        "of",
+        "our",
+        "please",
+        "show",
+        "tell",
+        "that",
+        "the",
+        "this",
+        "to",
+        "what",
+        "which",
+        "who",
+    }
+)
+_MAX_KEYWORD_BONUS = 0.12
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -51,6 +83,7 @@ class SemanticIntentClassifier:
         try:
             self._model = SentenceTransformer(model_name)
             self._prototype_embeddings = self._build_prototype_embeddings()
+            self._prototype_keywords = self._build_prototype_keywords()
         except Exception as exc:  # pragma: no cover - depends on local model/runtime failures
             raise RuntimeError(
                 f"Failed to initialize semantic intent classifier with model '{model_name}': {exc}"
@@ -78,6 +111,39 @@ class SemanticIntentClassifier:
             embeddings = self._coerce_embeddings(self._model.encode(normalized_phrases))
             grouped[intent] = self._normalize_rows(embeddings)
         return grouped
+
+    @staticmethod
+    def _keyword_tokens(text: str) -> frozenset[str]:
+        return frozenset(
+            token
+            for token in _KEYWORD_PATTERN.findall(text)
+            if token and token not in _KEYWORD_STOP_WORDS and not token.isdigit()
+        )
+
+    def _build_prototype_keywords(self) -> dict[IntentType, list[frozenset[str]]]:
+        grouped: dict[IntentType, list[frozenset[str]]] = {}
+        for intent, phrases in INTENT_PROTOTYPES.items():
+            if intent is IntentType.UNKNOWN:
+                continue
+            grouped[intent] = [self._keyword_tokens(normalize_text(phrase)) for phrase in phrases]
+        return grouped
+
+    @staticmethod
+    def _keyword_overlap_score(
+        query_keywords: frozenset[str],
+        prototype_keywords: list[frozenset[str]],
+    ) -> float:
+        if not query_keywords:
+            return 0.0
+
+        best = 0.0
+        for tokens in prototype_keywords:
+            if not tokens:
+                continue
+            overlap = len(query_keywords & tokens) / len(tokens)
+            if overlap > best:
+                best = overlap
+        return best
 
     @staticmethod
     def _coerce_embeddings(raw: Any) -> np.ndarray:
@@ -111,14 +177,19 @@ class SemanticIntentClassifier:
 
     def _score_intents(self, normalized_text: str) -> list[tuple[IntentType, float]]:
         query_vector = self._normalize_vector(self._embed_normalized_text(normalized_text))
+        query_keywords = self._keyword_tokens(normalized_text)
         scores: list[tuple[IntentType, float]] = []
 
         for intent, prototype_matrix in self._prototype_embeddings.items():
             if prototype_matrix.size == 0:
-                score = 0.0
+                semantic_score = 0.0
             else:
                 similarities = prototype_matrix @ query_vector
-                score = float(np.max(similarities))
+                semantic_score = float(np.max(similarities))
+            keyword_score = self._keyword_overlap_score(
+                query_keywords, self._prototype_keywords.get(intent, [])
+            )
+            score = min(1.0, semantic_score + (keyword_score * _MAX_KEYWORD_BONUS))
             scores.append((intent, score))
 
         scores.sort(key=lambda item: (-item[1], item[0].value))

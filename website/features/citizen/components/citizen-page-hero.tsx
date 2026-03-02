@@ -1,8 +1,7 @@
 import Image from "next/image";
 import { cn } from "@/lib/ui/utils";
 
-const CITY_SRC = "/citizen-dashboard/city.png";
-const FLAG_SRC = "/citizen-dashboard/flag.jpg";
+const HERO_BG_SRC = "/citizen-dashboard/hero.svg";
 
 type CitizenPageHeroProps = {
   title: string;
@@ -32,11 +31,7 @@ export default function CitizenPageHero({
         {/* ✅ Actual hero box (background + border + shadow) */}
         <div
           className={cn(
-            "relative h-[255px] overflow-hidden border border-[#063d7c] text-white shadow-sm",
-            imageSrc
-              ? "bg-slate-900"
-              : "bg-gradient-to-r from-[#083a8c] via-[#0c4da5] to-[#0a3f8a]"
-          )}
+            "relative h-[255px] overflow-hidden border border-[#063d7c] text-white shadow-sm"          )}
         >
           {imageSrc ? (
             <div className="absolute inset-0">
@@ -44,32 +39,20 @@ export default function CitizenPageHero({
                 src={imageSrc}
                 alt={title}
                 fill
-                className="object-cover"
+                className="object-cover object-center"
                 priority
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/65 to-slate-900/25" />
             </div>
           ) : (
             <div className="pointer-events-none absolute inset-0">
-              <div className="absolute inset-0 bg-[#3888f1]" />
               <Image
-                src={CITY_SRC}
+                src={HERO_BG_SRC}
                 alt=""
                 fill
-                className="object-cover object-[center_88%] opacity-92"
+                className="object-fill"
                 sizes="100vw"
                 priority
               />
-              <Image
-                src={FLAG_SRC}
-                alt=""
-                fill
-                className="object-cover object-center opacity-24"
-                sizes="100vw"
-              />
-              <div className="absolute inset-0 bg-[#3888f1]/50" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,47,111,0.12)_0%,rgba(10,47,111,0.35)_55%,rgba(10,47,111,0.55)_100%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.35)_75%,rgba(0,0,0,0.55)_100%)]" />
             </div>
           )}
 

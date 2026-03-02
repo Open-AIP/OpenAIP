@@ -313,9 +313,16 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
   };
 
   return (
-    <FullScreenSection id="health-projects" className="bg-[#EFF4F7]">
+    <FullScreenSection
+      id="health-projects"
+      className="relative bg-[#EFF4F7]"
+    >
+      <div
+        className="pointer-events-none absolute inset-0 bg-[url('/citizen-dashboard/health-bg.svg')] bg-cover bg-center opacity-5"
+        aria-hidden="true"
+      />
       <motion.div
-        className="grid grid-cols-12 items-start gap-10 lg:gap-16"
+        className="relative z-10 grid grid-cols-12 items-start gap-10 lg:gap-16"
         initial="hidden"
         whileInView="visible"
         viewport={VIEWPORT_ONCE}

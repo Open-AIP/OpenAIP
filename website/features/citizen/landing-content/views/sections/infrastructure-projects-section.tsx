@@ -259,9 +259,10 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
       <ProjectShowcaseCard
         project={item.project}
         budgetLabel={item.project.budgetLabel ?? formatCompactPeso(item.project.budget)}
+        className="border-[#B7D7EA] bg-[#F4FBFF] shadow-[0_12px_30px_rgba(14,93,111,0.14)]"
         tagChipClassName="bg-[#0E5D6F]/90"
-        budgetChipClassName="text-[#0E5D6F]"
-        ctaClassName="border-[#2D6F8F] text-[#1F5D79]"
+        budgetChipClassName="bg-[#E8F6FE] text-[#0E5D6F]"
+        ctaClassName="border-[#2D6F8F] bg-[#EAF7FF] text-[#1F5D79] hover:bg-[#DDF1FE]"
         ctaHref={`/projects/infrastructure/${item.project.id}`}
       />
     );
@@ -317,9 +318,16 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
   };
 
   return (
-    <FullScreenSection id="infrastructure-projects" className="bg-[#F2ECE5]">
+    <FullScreenSection
+      id="infrastructure-projects"
+      className="relative"
+    >
+      <div
+        className="pointer-events-none absolute inset-0 bg-[url('/citizen-dashboard/infrastrucutre-bg.svg')] bg-cover bg-center opacity-10"
+        aria-hidden="true"
+      />
       <motion.div
-        className="grid grid-cols-12 items-center gap-10 lg:gap-24 xl:gap-28"
+        className="relative z-10 grid grid-cols-12 items-center gap-6 lg:gap-8 xl:gap-10"
         initial="hidden"
         whileInView="visible"
         viewport={VIEWPORT_ONCE}
@@ -440,7 +448,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
             <motion.div className="h-full" variants={kpiItemVariants}>
               <CardShell className="flex h-full min-h-[152px] py-0">
                 <div className="flex h-full flex-col justify-between space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                  <p className="text-3xl font-bold leading-none text-[#1F2937] sm:text-3xl">{formatCompactPeso(primaryValue)}</p>
+                  <p className="text-3xl font-bold leading-none text-[#0B4E7B] sm:text-3xl">{formatCompactPeso(primaryValue)}</p>
                   <p className="text-sm font-medium text-slate-500">{vm.primaryKpiLabel}</p>
                 </div>
               </CardShell>
@@ -448,7 +456,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
             <motion.div className="h-full" variants={kpiItemVariants}>
               <CardShell className="flex h-full min-h-[152px] py-0">
                 <div className="flex h-full flex-col justify-between space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                  <p className="text-3xl font-bold leading-none text-[#1F2937] sm:text-3xl">
+                  <p className="text-3xl font-bold leading-none text-[#0B4E7B] sm:text-3xl">
                     {formatCompactCount(vm.secondaryKpiValue)}
                   </p>
                   <p className="text-sm font-medium text-slate-500">{vm.secondaryKpiLabel}</p>

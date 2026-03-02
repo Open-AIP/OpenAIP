@@ -163,8 +163,8 @@ export default function LguBudgetOverviewMotion({
                 <Card className="h-full rounded-2xl border-slate-200 bg-white py-0">
                   <CardContent className="flex h-full min-h-[126px] flex-col p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">AIP Status</p>
-                    <div className="mt-5 inline-flex items-center gap-2 text-xl font-semibold leading-none text-[#0C2C3A]">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#0EA97B]" />
+                    <div className="mt-5 inline-flex items-start gap-2 text-xl font-semibold leading-none text-[#0C2C3A]">
+                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#0EA97B]" />
                       {vm.aipStatus}
                     </div>
                   </CardContent>

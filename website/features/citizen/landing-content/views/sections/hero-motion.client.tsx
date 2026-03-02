@@ -92,7 +92,7 @@ export default function HeroMotion({ title, subtitle, cta }: HeroMotionProps) {
           <div className="col-span-12 lg:col-span-7">
             <div className="py-6 sm:py-8 lg:py-10">
               <motion.h1
-                className="max-w-[720px] text-[clamp(3.4rem,8.4vw,6.2rem)] font-semibold leading-[1] tracking-tight text-linen"
+                className="max-w-[680px] text-[clamp(2.8rem,7vw,5.2rem)] font-semibold leading-[1] tracking-tight text-linen"
                 variants={headlineContainerVariants}
               >
                 {titleLines.map((line, index) => (
@@ -110,7 +110,7 @@ export default function HeroMotion({ title, subtitle, cta }: HeroMotionProps) {
               </motion.p>
 
               <motion.div
-                className="mt-8 inline-flex"
+                className="mt-20 inline-flex"
                 variants={ctaVariants}
                 whileHover={reducedMotion ? undefined : { scale: 1.02 }}
                 whileTap={reducedMotion ? undefined : { scale: 0.98 }}

@@ -55,7 +55,7 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
         viewport={VIEWPORT_ONCE}
       >
         <div className="mx-auto w-full max-w-4xl text-center">
-          <h2 className="text-5xl font-bold tracking-tight text-white md:text-6xl">
+          <h2 className="text-6xl font-bold tracking-tight text-[#F2ECE5] md:text-7xl">
             <motion.span
               className="inline"
               initial={{ opacity: 0, y: reducedMotion ? 0 : 14 }}
@@ -88,7 +88,7 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
             ) : null}
           </h2>
           <motion.p
-            className="mt-3 text-base text-white/70 md:text-2xl"
+            className="mt-4 text-2xl text-[#F2ECE5]/85 md:text-4xl"
             initial={{ opacity: 0 }}
             animate={hasStarted ? { opacity: 1 } : { opacity: 0 }}
             transition={{
@@ -101,7 +101,7 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
           </motion.p>
 
           <motion.div
-            className="mt-10 flex justify-center"
+            className="mt-25 flex justify-center"
             initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.985 }}
             animate={
               subtitleDone

@@ -37,7 +37,7 @@ export default function HealthProjectsView({ projects }: HealthProjectsViewProps
       <CitizenPageHero
         title="Health Projects"
         subtitle="View projects focused on public health, including medical services, health facilities, and community wellness programs."
-        imageSrc="/mock/health/health2.jpg"
+        imageSrc="/citizen-dashboard/hero2.svg"
         eyebrow="OpenAIP"
       />
 

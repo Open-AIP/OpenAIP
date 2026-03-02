@@ -13,7 +13,7 @@ export default function AiAssistantPreviewSection({ vm }: AiAssistantPreviewSect
     subtitle:
       vm?.subtitle ??
       "Don't understand something? Just ask. Our AI chatbot can answer questions about budgets, projects, and programs.",
-    assistantName: vm?.assistantName ?? "Budget Assistant",
+    assistantName: "Open AI Assistant",
     assistantStatus: vm?.assistantStatus ?? "Always ready to help",
     userPrompt:
       vm?.userPrompt ??
@@ -23,7 +23,7 @@ export default function AiAssistantPreviewSection({ vm }: AiAssistantPreviewSect
       "Based on the published AIP, here is the summary of where the budget is going this year, including the total AIP budget, and the biggest projects with their amounts, fund source, timeline, and implementing office:",
     assistantBullets: Array.isArray(vm?.assistantBullets) ? vm.assistantBullets : [],
     suggestedPrompts: Array.isArray(vm?.suggestedPrompts) ? vm.suggestedPrompts : [],
-    ctaLabel: vm?.ctaLabel ?? "Open Chatbot",
+    ctaLabel: "OpenAIP AI Assistant",
     ctaHref: vm?.ctaHref,
   };
 

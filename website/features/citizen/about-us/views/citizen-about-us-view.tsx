@@ -95,22 +95,22 @@ const legalBasis = [
 const citizenQuestions = [
   {
     title: "What projects will be implemented this year?",
-    image: "/mock/health/health1.jpg",
+    image: "/citizen-dashboard/health.jpg",
     icon: ScrollText,
   },
   {
     title: "How much is allocated to each sector?",
-    image: "/mock/health/health2.jpg",
+    image: "/citizen-dashboard/farm.jpg",
     icon: Clock3,
   },
   {
     title: "Which office is responsible?",
-    image: "/mock/health/health3.jpg",
+    image: "/citizen-dashboard/people.jpg",
     icon: Building2,
   },
   {
     title: "What outputs are expected? How are mandatory funds being used?",
-    image: "/mock/health/health4.jpg",
+    image: "/citizen-dashboard/kids.jpg",
     icon: BarChart3,
   },
 ];
@@ -207,7 +207,7 @@ export default function CitizenAboutUsView({
           <CitizenPageHero
             title="ABOUT US"
             subtitle="Explore how your city or barangay plans to use public funds for programs, projects, and community development throughout the year."
-            imageSrc="/default/default-no-image.jpg"
+            imageSrc="/citizen-dashboard/hero2.svg"
           />
         </motion.div>
 
@@ -392,8 +392,8 @@ export default function CitizenAboutUsView({
                 >
                   <Image src={question.image} alt={question.title} fill className="object-cover object-center" />
 
-                  <div className="absolute inset-0 bg-[#022437]/30 transition-colors duration-200 group-hover:bg-[#022437]/25" />
-                  <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(2,36,55,0.90)_0%,rgba(2,36,55,0.60)_50%,rgba(2,36,55,0.20)_100%)]" />
+                  <div className="absolute inset-0 bg-[#0B4EA5]/20 transition-colors duration-200 group-hover:bg-[#0B4EA5]/15" />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,78,165,0.14)_0%,rgba(11,78,165,0.28)_42%,rgba(2,36,55,0.82)_100%)]" />
 
                   <div className="relative flex h-full flex-col items-center justify-end gap-3 px-6 pb-6 text-center sm:pb-7">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/20 text-white backdrop-blur-sm">

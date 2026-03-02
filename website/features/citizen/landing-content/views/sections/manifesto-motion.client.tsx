@@ -110,7 +110,7 @@ export default function ManifestoMotion({
       </motion.div>
 
       <motion.p
-        className="mt-6 text-center text-8xl font-bold text-steelblue"
+        className="mt-6 text-center text-8xl font-bold text-[#0B4E7B]"
         style={{
           textShadow:
             "0 0 8px rgba(255,255,255,0.8), 0 0 18px rgba(186,230,253,0.7), 0 0 30px rgba(125,211,252,0.45)",

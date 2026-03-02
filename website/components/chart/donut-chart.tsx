@@ -56,6 +56,50 @@ function formatPercent(value: number): string {
   return Number.isInteger(rounded) ? `${rounded.toFixed(0)}%` : `${rounded}%`;
 }
 
+function wrapLabelText(text: string, maxCharsPerLine = 18, maxLines = 2): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [""];
+
+  const words = trimmed.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length <= maxCharsPerLine) {
+      currentLine = nextLine;
+      continue;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      lines.push(word);
+      currentLine = "";
+    }
+
+    if (lines.length === maxLines - 1) {
+      break;
+    }
+  }
+
+  const remainingWords = words.slice(
+    lines.join(" ").split(/\s+/).filter(Boolean).length
+  );
+  const finalLine = currentLine || remainingWords.join(" ");
+
+  if (finalLine) {
+    const clipped =
+      finalLine.length > maxCharsPerLine
+        ? `${finalLine.slice(0, Math.max(0, maxCharsPerLine - 1)).trimEnd()}…`
+        : finalLine;
+    lines.push(clipped);
+  }
+
+  return lines.slice(0, maxLines);
+}
+
 export function DonutChart({
   data,
   title,
@@ -193,6 +237,9 @@ export function DonutChart({
       maxX
     );
     const labelText = `${name ?? ""}`.trim();
+    const labelLines = wrapLabelText(labelText);
+    const lineHeight = 13;
+    const firstLineY = clampedEdgeY - ((labelLines.length - 1) * lineHeight) / 2;
 
     return (
       <g>
@@ -216,13 +263,16 @@ export function DonutChart({
         />
         <text
           x={textX}
-          y={clampedEdgeY}
+          y={firstLineY}
           fill={strokeColor}
-          fontSize={12}
+          fontSize={11}
           textAnchor={isRightSide ? "start" : "end"}
-          dominantBaseline="central"
         >
-          {labelText}
+          {labelLines.map((line, index) => (
+            <tspan key={`${labelText}-${index}`} x={textX} dy={index === 0 ? 0 : lineHeight}>
+              {line}
+            </tspan>
+          ))}
         </text>
       </g>
     );

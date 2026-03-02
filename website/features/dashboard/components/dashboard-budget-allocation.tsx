@@ -23,8 +23,8 @@ export function BudgetBreakdownSection({
 
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
-      <CardHeader className="border-b border-border px-5 py-4"><CardTitle className="text-sm font-medium text-foreground">Budget Breakdown</CardTitle></CardHeader>
-      <CardContent className="p-5 space-y-4">
+      <CardHeader className="border-b border-border px-5 pt-5"><CardTitle className="text-lg font-medium text-foreground">Budget Breakdown</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.15fr]">
           <DonutChart
             data={chartData}

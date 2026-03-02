@@ -60,7 +60,7 @@ export default function ProjectShowcaseCard({
           <Button
             asChild
             variant="outline"
-            className={cn("w-full rounded-full border-[#3A80A6] text-[#25647E]", ctaClassName)}
+            className={cn("w-full rounded-full border-[#E54B9B] bg-[#FFF1F8] text-[#C93F87] hover:bg-[#FFE4F2]", ctaClassName)}
           >
             <Link href={ctaHref}>View Project</Link>
           </Button>

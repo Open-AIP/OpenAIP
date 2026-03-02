@@ -140,6 +140,7 @@ export default function CitizenAipsListView({ items }: Props) {
       <CitizenPageHero
         title="Annual Investment Plans"
         subtitle="Explore how your city or barangay plans to use public funds for programs, projects, and community development throughout the year."
+        imageSrc="/citizen-dashboard/hero2.svg"
       />
 
       <CitizenExplainerCard title="What is an Annual Investment Plan?">

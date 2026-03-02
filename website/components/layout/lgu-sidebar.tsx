@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/ui/utils";
 import type { LguVariant } from "@/types/navigation";
 import { BARANGAY_NAV, CITY_NAV } from "@/constants/lgu-nav";
@@ -40,12 +40,27 @@ function formatHeaderLabel(variant: LguVariant, scopeDisplayName?: string): stri
   return `${trimmedName} City`;
 }
 
+function formatHeaderSubtext(variant: LguVariant, scopeDisplayName?: string): string {
+  const trimmedName = typeof scopeDisplayName === "string" ? scopeDisplayName.trim() : "";
+
+  if (variant === "barangay") {
+    return "Cabuyao, Laguna";
+  }
+
+  if (trimmedName) {
+    return "Laguna, Philippines";
+  }
+
+  return "Local Government";
+}
+
 export default function LguSidebar({ variant, scopeDisplayName }: Props) {
   const pathname = usePathname();
   const nav = variant === "barangay" ? BARANGAY_NAV : CITY_NAV;
 
   const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
   const headerLabel = formatHeaderLabel(variant, scopeDisplayName);
+  const headerSubtext = formatHeaderSubtext(variant, scopeDisplayName);
 
   const toggleDropdown = (href: string) => {
     setOpenDropdowns((prev) =>
@@ -80,14 +95,24 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
         </div>
 
         {/* ✅ Hide the big header card on small screens (it causes overflow) */}
-        <div className="hidden md:flex mt-6 h-21 rounded-[9px] border-2 border-[#1B6272] bg-[#114B59] shadow-[0_4px_4px_rgba(0,0,0,0.25)] items-center justify-center px-4 text-lg font-semibold text-center">
-          {headerLabel}
+        <div className="hidden md:flex mt-5 items-center gap-3 rounded-3xl border border-white/10 bg-[#0A5A6C33] px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+            <Building2 className="h-7 w-7 text-white/90" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-semibold leading-tight text-white">
+              {headerLabel}
+            </div>
+            <div className="mt-1 truncate text-sm text-white/65">
+              {headerSubtext}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-1 md:px-4 pb-3 md:py-6">
-        <ul className="space-y-1 md:space-y-2">
+      <nav className="flex-1 px-1 md:px-4 pb-3 md:py-5">
+        <ul className="space-y-1 md:space-y-1.5">
           {nav.map((item) => {
             const Icon = item.icon;
             const hasChildren = Boolean(item.children && item.children.length > 0);
@@ -100,9 +125,9 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
               "hover:bg-white/10",
               active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]",
               // sizing
-              "h-10 md:h-11",
+              "h-9 md:h-10",
               // padding
-              "px-2 md:px-4",
+              "px-2 md:px-3",
               // text
               "text-[11px] md:text-xs"
             );
@@ -117,7 +142,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                       onClick={() => toggleDropdown(item.href)}
                       className={cn(baseRowClass, "gap-0 md:gap-3")}
                     >
-                      <Icon className="h-5 w-5 md:h-5 md:w-5 mx-auto md:mx-0" />
+                      <Icon className="h-4.5 w-4.5 md:h-4 md:w-4 mx-auto md:mx-0" />
 
                       {/* ✅ Label only on md+ */}
                       <span className="hidden md:block font-medium flex-1 text-left">
@@ -147,12 +172,12 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                                 <Link
                                   href={child.href}
                                   className={cn(
-                                    "flex items-center gap-3 rounded-xl px-4 py-2 text-xs transition-colors",
+                                    "flex items-center gap-3 rounded-xl px-3 py-1.5 text-xs transition-colors",
                                     "hover:bg-white/10",
                                     childActive && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
                                   )}
                                 >
-                                  <ChildIcon className="h-4 w-4" />
+                                  <ChildIcon className="h-3.5 w-3.5" />
                                   <span className="font-medium">{child.label}</span>
                                 </Link>
                               </li>
@@ -164,7 +189,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                   </div>
                 ) : (
                   <Link href={item.href} className={cn(baseRowClass, "gap-0 md:gap-3")}>
-                    <Icon className="h-5 w-5 mx-auto md:mx-0" />
+                    <Icon className="h-4.5 w-4.5 md:h-4 md:w-4 mx-auto md:mx-0" />
                     <span className="hidden md:block font-medium">{item.label}</span>
                   </Link>
                 )}

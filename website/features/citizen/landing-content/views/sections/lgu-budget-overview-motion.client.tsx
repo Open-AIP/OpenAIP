@@ -160,9 +160,9 @@ export default function LguBudgetOverviewMotion({
 
               <motion.div className="h-full" variants={kpiItemVariant}>
                 <Card className="h-full rounded-2xl border-slate-200 bg-white py-0">
-                  <CardContent className="flex h-full min-h-[126px] flex-col justify-between p-4">
+                  <CardContent className="flex h-full min-h-[126px] flex-col p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">AIP Status</p>
-                    <div className="inline-flex items-center gap-2 text-xl font-semibold leading-none text-[#0C2C3A]">
+                    <div className="mt-5 inline-flex items-center gap-2 text-xl font-semibold leading-none text-[#0C2C3A]">
                       <span className="h-2.5 w-2.5 rounded-full bg-[#0EA97B]" />
                       {vm.aipStatus}
                     </div>

@@ -1,3 +1,4 @@
+import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { FeedbackSnapshotVM } from "@/lib/domain/landing-content";
 import FullScreenSection from "../../components/layout/full-screen-section";
@@ -67,9 +68,9 @@ function FeedbackTrendsCard({ vm }: { vm: FeedbackSnapshotVM }) {
 
 function ResponseRateCard({ vm }: { vm: FeedbackSnapshotVM }) {
   return (
-    <div className="flex min-h-[185px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#0b2f3a] px-6 py-8 text-center">
-      <p className="text-[2rem] font-semibold leading-none text-white">Response Rate</p>
-      <p className="mt-2 text-6xl font-bold leading-none text-powderblue">{vm.responseRate}%</p>
+    <div className="flex min-h-[165px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#0b2f3a] px-2 py-5 text-center">
+      <p className="text-3xl font-semibold leading-none text-white">Response Rate</p>
+      <p className="mt-2 text-6xl font-bold leading-none text-[#05C7F2]">{vm.responseRate}%</p>
       <p className="mt-3 text-sm text-white/70">Average response time: {vm.avgResponseTimeDays} days</p>
     </div>
   );
@@ -77,23 +78,16 @@ function ResponseRateCard({ vm }: { vm: FeedbackSnapshotVM }) {
 
 function HaveAConcernCard() {
   return (
-    <div id="voice-feedback" className="flex min-h-[185px] items-center rounded-2xl border border-white/10 bg-[#0b2f3a] px-6 py-8">
-      <div className="mr-5 shrink-0">
-        <svg width="82" height="68" viewBox="0 0 82 68" fill="none" aria-hidden="true">
-          <path
-            d="M22.2 56.4L6.5 62.5L12 46.6C8.3 42.5 6 37.2 6 31.4C6 17.9 19 7 35 7C51 7 64 17.9 64 31.4C64 45 51 55.8 35 55.8C30.5 55.8 26.3 54.9 22.2 56.4Z"
-            stroke="rgba(255,255,255,0.74)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </svg>
+    <div id="voice-feedback" className="flex min-h-[165px] items-center rounded-2xl border border-white/10 bg-[#0b2f3a] px-2 py-5">
+      <div className="shrink-0">
+        <MessageCircle className="h-25 w-33 text-white/70" aria-hidden="true" strokeWidth={1} />
       </div>
       <div className="space-y-4">
-        <p className="text-[2rem] font-semibold leading-none text-white">Want to Know More?</p>
+        <p className="text-3xl font-semibold leading-none text-white">Want to Know More?</p>
         <MotionPressable className="inline-flex">
           <Button
             asChild
-            className="h-10 rounded-full bg-[#22d3ee] px-6 text-base font-semibold text-[#001925] hover:bg-[#22d3ee]/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]"
+            className="h-10 rounded-xl bg-[#05C7F2] px-6 text-base font-semibold text-[#001925] hover:bg-[#22d3ee]/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]"
           >
             <a href="/about-us" aria-label="See About Us">
               See About Us
@@ -132,7 +126,7 @@ export default function VoiceMattersSection({ vm }: VoiceMattersSectionProps) {
             </MotionInView>
           </div>
 
-          <MotionStagger className="col-span-12 flex flex-col gap-6 lg:col-span-5" delayChildren={0.08}>
+          <MotionStagger className="col-span-12 flex flex-col gap-6 lg:col-span-5 lg:pt-14" delayChildren={0.08}>
             <MotionItem>
               <ResponseRateCard vm={vm} />
             </MotionItem>

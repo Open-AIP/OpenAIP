@@ -500,7 +500,8 @@ function resolveLineItemClarificationOptionFromSelection(input: {
   options: ChatClarificationOption[];
 }): ChatClarificationOption | null {
   if (input.selection.kind === "numeric") {
-    const option = input.options.find((item) => item.optionIndex === input.selection.optionIndex);
+    const selectedIndex = input.selection.optionIndex;
+    const option = input.options.find((item) => item.optionIndex === selectedIndex);
     return option ?? null;
   }
 
@@ -526,7 +527,8 @@ function resolveCityFallbackClarificationOptionFromSelection(input: {
   if (input.selection.kind !== "numeric") {
     return null;
   }
-  const option = input.options.find((item) => item.optionIndex === input.selection.optionIndex);
+  const selectedIndex = input.selection.optionIndex;
+  const option = input.options.find((item) => item.optionIndex === selectedIndex);
   return option ?? null;
 }
 
@@ -1666,6 +1668,28 @@ function logClarificationLifecycle(payload: ClarificationLifecycleLogPayload): v
   console.info(JSON.stringify(payload));
 }
 
+function toPublicClarificationPayload(
+  clarification: ChatRetrievalMeta["clarification"]
+): ChatClarificationPayload | undefined {
+  if (!clarification) return undefined;
+
+  if (clarification.kind === "line_item_disambiguation") {
+    return {
+      id: clarification.id,
+      kind: "line_item_disambiguation",
+      prompt: clarification.prompt,
+      options: clarification.options,
+    };
+  }
+
+  return {
+    id: clarification.id,
+    kind: "city_aip_missing_fallback",
+    prompt: clarification.prompt,
+    options: clarification.options,
+  };
+}
+
 function toResponseStatus(
   retrievalMeta: ChatRetrievalMeta | null | undefined
 ): { status: ChatResponseStatus; clarification?: ChatClarificationPayload } {
@@ -1676,14 +1700,7 @@ function toResponseStatus(
   if (retrievalMeta.status === "clarification" || retrievalMeta.kind === "clarification") {
     return {
       status: "clarification",
-      clarification: retrievalMeta.clarification
-        ? {
-            id: retrievalMeta.clarification.id,
-            kind: retrievalMeta.clarification.kind,
-            prompt: retrievalMeta.clarification.prompt,
-            options: retrievalMeta.clarification.options,
-          }
-        : undefined,
+      clarification: toPublicClarificationPayload(retrievalMeta.clarification),
     };
   }
 
@@ -2444,7 +2461,7 @@ async function resolveTotalsAssistantPayload(input: {
         reason: mapRefusalReasonToMetaReason(scopeRefusal.status, scopeRefusal.reason),
         status: scopeRefusal.status,
         refusalReason: scopeRefusal.reason,
-        refusalDetail: scopeResult.errorMessage ?? null,
+        refusalDetail: scopeResult.errorMessage ?? undefined,
         suggestions: scopeRefusal.suggestions,
         scopeResolution: input.scopeResolution,
       },

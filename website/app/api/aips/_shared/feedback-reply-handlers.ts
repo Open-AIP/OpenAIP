@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
+import {
+  assertFeedbackUsageAllowed,
+  isFeedbackUsageError,
+} from "@/lib/feedback/usage-guards";
 import { supabaseServer } from "@/lib/supabase/server";
 import {
   CitizenAipFeedbackApiError,
@@ -114,6 +118,7 @@ export async function handleScopedAipFeedbackReplyRequest(input: {
     assertScopedActor(actor, input.scope);
 
     const client = await supabaseServer();
+    await assertFeedbackUsageAllowed({ client: client as any, userId: actor.userId });
     const aip = await resolveScopedAip({
       client,
       scope: input.scope,
@@ -200,6 +205,12 @@ export async function handleScopedAipFeedbackReplyRequest(input: {
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
+    if (isFeedbackUsageError(error)) {
+      return toErrorResponse(
+        new CitizenAipFeedbackApiError(error.status, error.message),
+        "Failed to create AIP feedback reply."
+      );
+    }
     return toErrorResponse(error, "Failed to create AIP feedback reply.");
   }
 }

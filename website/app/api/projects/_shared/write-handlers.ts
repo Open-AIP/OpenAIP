@@ -685,7 +685,7 @@ export async function handlePostUpdateRequest(input: {
       .from("project_updates")
       .select("progress_percent")
       .eq("project_id", project.id)
-      .eq("status", "active")
+      .in("status", ["active", "hidden"])
       .order("progress_percent", { ascending: false })
       .limit(1);
     if (currentProgressError) {

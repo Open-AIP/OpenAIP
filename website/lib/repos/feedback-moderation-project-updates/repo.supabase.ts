@@ -9,6 +9,7 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
   const client = supabaseBrowser();
   const [
     updatesResult,
+    updateMediaResult,
     actionsResult,
     projectsResult,
     aipsResult,
@@ -18,20 +19,22 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
     municipalitiesResult,
   ] = await Promise.all([
     client
-      .from("activity_log")
+      .from("project_updates")
       .select(
-        "id,actor_id,actor_role,action,entity_table,entity_id,region_id,province_id,city_id,municipality_id,barangay_id,metadata,created_at"
+        "id,project_id,aip_id,title,description,progress_percent,attendance_count,posted_by,status,hidden_reason,hidden_violation_category,hidden_at,hidden_by,created_at,updated_at"
       )
-      .eq("action", "project_updated")
-      .eq("entity_table", "projects")
       .order("created_at", { ascending: false }),
+    client
+      .from("project_update_media")
+      .select("id,update_id,project_id,bucket_id,object_name,mime_type,size_bytes,created_at")
+      .order("created_at", { ascending: true }),
     client
       .from("activity_log")
       .select(
         "id,actor_id,actor_role,action,entity_table,entity_id,region_id,province_id,city_id,municipality_id,barangay_id,metadata,created_at"
       )
-      .in("action", ["project_update_flagged", "project_update_removed"])
-      .eq("entity_table", "activity_log")
+      .in("action", ["project_update_hidden", "project_update_unhidden"])
+      .eq("entity_table", "project_updates")
       .order("created_at", { ascending: false }),
     client
       .from("projects")
@@ -45,7 +48,9 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
       ),
     client
       .from("profiles")
-      .select("id,role,full_name,email,barangay_id,city_id,municipality_id,is_active,created_at,updated_at"),
+      .select(
+        "id,role,full_name,email,barangay_id,city_id,municipality_id,is_active,created_at,updated_at"
+      ),
     client
       .from("cities")
       .select("id,region_id,province_id,psgc_code,name,is_independent,is_active,created_at"),
@@ -59,6 +64,7 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
 
   const firstError = [
     updatesResult,
+    updateMediaResult,
     actionsResult,
     projectsResult,
     aipsResult,
@@ -73,6 +79,7 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
 
   return {
     updates: (updatesResult.data ?? []) as FeedbackModerationProjectUpdatesSeed["updates"],
+    media: (updateMediaResult.data ?? []) as FeedbackModerationProjectUpdatesSeed["media"],
     actions: (actionsResult.data ?? []) as FeedbackModerationProjectUpdatesSeed["actions"],
     lguMap: {
       projects:
@@ -91,14 +98,21 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
   };
 }
 
+async function resolveActorId(): Promise<string | null> {
+  const client = supabaseBrowser();
+  const { data, error } = await client.auth.getUser();
+  if (error) return null;
+  return data.user?.id ?? null;
+}
+
 async function logProjectUpdateAction(
   input: ProjectUpdateModerationInput,
-  action: "project_update_flagged" | "project_update_removed"
+  action: "project_update_hidden" | "project_update_unhidden"
 ): Promise<void> {
   const client = supabaseBrowser();
   const { error } = await client.rpc("log_activity", {
     p_action: action,
-    p_entity_table: "activity_log",
+    p_entity_table: "project_updates",
     p_entity_id: input.updateId,
     p_region_id: input.scope?.region_id ?? null,
     p_province_id: input.scope?.province_id ?? null,
@@ -116,17 +130,60 @@ async function logProjectUpdateAction(
   }
 }
 
+async function setProjectUpdateVisibility(input: {
+  updateId: string;
+  hidden: boolean;
+  reason: string;
+  violationCategory?: string | null;
+}): Promise<void> {
+  const client = supabaseBrowser();
+  const actorId = await resolveActorId();
+
+  const payload = input.hidden
+    ? {
+        status: "hidden",
+        hidden_reason: input.reason,
+        hidden_violation_category: input.violationCategory ?? null,
+        hidden_at: new Date().toISOString(),
+        hidden_by: actorId,
+      }
+    : {
+        status: "active",
+        hidden_reason: null,
+        hidden_violation_category: null,
+        hidden_at: null,
+        hidden_by: null,
+      };
+
+  const { error } = await client.from("project_updates").update(payload).eq("id", input.updateId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export function createSupabaseFeedbackModerationProjectUpdatesRepo(): FeedbackModerationProjectUpdatesRepo {
   return {
     async getSeedData() {
       return loadSeedData();
     },
-    async flagUpdate(input) {
-      await logProjectUpdateAction(input, "project_update_flagged");
+    async hideUpdate(input) {
+      await setProjectUpdateVisibility({
+        updateId: input.updateId,
+        hidden: true,
+        reason: input.reason,
+        violationCategory: input.violationCategory ?? null,
+      });
+      await logProjectUpdateAction(input, "project_update_hidden");
       return loadSeedData();
     },
-    async removeUpdate(input) {
-      await logProjectUpdateAction(input, "project_update_removed");
+    async unhideUpdate(input) {
+      await setProjectUpdateVisibility({
+        updateId: input.updateId,
+        hidden: false,
+        reason: input.reason,
+        violationCategory: null,
+      });
+      await logProjectUpdateAction(input, "project_update_unhidden");
       return loadSeedData();
     },
   };

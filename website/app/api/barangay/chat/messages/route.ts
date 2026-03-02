@@ -65,6 +65,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const MAX_MESSAGE_LENGTH = 12000;
+const NEUTRAL_HOURLY_QUOTA = 100000;
 
 type ScopeType = "barangay" | "city" | "municipality";
 
@@ -1789,19 +1790,23 @@ async function consumeQuota(
   route: "barangay_chat_message" | "city_chat_message"
 ): Promise<{ allowed: boolean; reason: string }> {
   const rateLimit = await getTypedAppSetting("controls.chatbot_rate_limit");
-  const perMinute =
-    rateLimit.timeWindow === "per_hour"
-      ? Math.min(120, Math.max(1, Math.ceil(rateLimit.maxRequests / 60)))
-      : 120;
+  const perHour = Math.max(
+    1,
+    Math.floor(
+      rateLimit.timeWindow === "per_hour"
+        ? rateLimit.maxRequests
+        : NEUTRAL_HOURLY_QUOTA
+    )
+  );
   const perDay =
     rateLimit.timeWindow === "per_day"
-      ? Math.min(10000, Math.max(1, rateLimit.maxRequests))
-      : Math.min(10000, Math.max(1, rateLimit.maxRequests * 24));
+      ? Math.max(1, Math.floor(rateLimit.maxRequests))
+      : Math.max(1, Math.floor(rateLimit.maxRequests * 24));
 
   const admin = supabaseAdmin();
   const { data, error } = await admin.rpc("consume_chat_quota", {
     p_user_id: userId,
-    p_per_minute: perMinute,
+    p_per_hour: perHour,
     p_per_day: perDay,
     p_route: route,
   });
@@ -2730,14 +2735,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { message: "Your account is currently blocked from chatbot usage." },
         { status: 403 }
-      );
-    }
-
-    const chatbotPolicy = await getTypedAppSetting("controls.chatbot_policy");
-    if (!chatbotPolicy.isEnabled) {
-      return NextResponse.json(
-        { message: "Chatbot is currently disabled by platform policy." },
-        { status: 503 }
       );
     }
 

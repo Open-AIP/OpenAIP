@@ -43,10 +43,7 @@ type ChatQuotaResult = {
 };
 
 const MESSAGE_CONTENT_LIMIT = 12000;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+const NEUTRAL_HOURLY_QUOTA = 100000;
 
 function buildFollowUps(userMessage: string): string[] {
   const lowered = userMessage.toLowerCase();
@@ -184,19 +181,19 @@ async function consumeCitizenQuota(input: {
   maxRequests: number;
   timeWindow: "per_hour" | "per_day";
 }): Promise<ChatQuotaResult> {
-  const perMinute =
-    input.timeWindow === "per_hour"
-      ? clamp(Math.ceil(input.maxRequests / 60), 1, 120)
-      : 120;
+  const perHour = Math.max(
+    1,
+    Math.floor(input.timeWindow === "per_hour" ? input.maxRequests : NEUTRAL_HOURLY_QUOTA)
+  );
   const perDay =
     input.timeWindow === "per_day"
-      ? clamp(input.maxRequests, 1, 10000)
-      : clamp(input.maxRequests * 24, 1, 10000);
+      ? Math.max(1, Math.floor(input.maxRequests))
+      : Math.max(1, Math.floor(input.maxRequests * 24));
 
   const admin = supabaseAdmin();
   const { data, error } = await admin.rpc("consume_chat_quota", {
     p_user_id: input.userId,
-    p_per_minute: perMinute,
+    p_per_hour: perHour,
     p_per_day: perDay,
     p_route: "citizen_chat_reply",
   });
@@ -286,14 +283,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Complete your profile before using the AI Assistant." },
         { status: 403 }
-      );
-    }
-
-    const chatbotPolicy = await getTypedAppSetting("controls.chatbot_policy");
-    if (!chatbotPolicy.isEnabled) {
-      return NextResponse.json(
-        { error: "Citizen chatbot is currently disabled by platform policy." },
-        { status: 503 }
       );
     }
 

@@ -5,6 +5,7 @@ const mockSupabaseServer = vi.fn();
 const mockLoadProjectFeedbackRowById = vi.fn();
 const mockHydrateProjectFeedbackItems = vi.fn();
 const mockSanitizeFeedbackBody = vi.fn();
+const mockAssertFeedbackUsageAllowed = vi.fn();
 
 vi.mock("@/lib/domain/get-actor-context", () => ({
   getActorContext: () => mockGetActorContext(),
@@ -12,6 +13,20 @@ vi.mock("@/lib/domain/get-actor-context", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   supabaseServer: () => mockSupabaseServer(),
+}));
+
+class MockFeedbackUsageError extends Error {
+  status: 403 | 429;
+
+  constructor(status: 403 | 429, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+vi.mock("@/lib/feedback/usage-guards", () => ({
+  assertFeedbackUsageAllowed: (...args: unknown[]) => mockAssertFeedbackUsageAllowed(...args),
+  isFeedbackUsageError: (error: unknown) => error instanceof MockFeedbackUsageError,
 }));
 
 class MockCitizenFeedbackApiError extends Error {
@@ -160,6 +175,7 @@ describe("handleProjectFeedbackReplyRequest", () => {
         },
       },
     ]);
+    mockAssertFeedbackUsageAllowed.mockResolvedValue(undefined);
   });
 
   it("rejects unauthorized role for scoped route", async () => {
@@ -393,5 +409,33 @@ describe("handleProjectFeedbackReplyRequest", () => {
       project_id: "project-1",
       kind: "lgu_note",
     });
+  });
+
+  it("returns 429 when scoped project reply guard reports rate limit", async () => {
+    mockGetActorContext.mockResolvedValue({
+      userId: "official-1",
+      role: "barangay_official",
+      scope: { kind: "barangay", id: "brgy-1" },
+    });
+    mockSupabaseServer.mockResolvedValue(createScopedProjectClient());
+    mockAssertFeedbackUsageAllowed.mockRejectedValueOnce(
+      new MockFeedbackUsageError(429, "Comment rate limit exceeded. Please try again later.")
+    );
+
+    const { handleProjectFeedbackReplyRequest } = await import(
+      "@/app/api/projects/_shared/feedback-reply-handlers"
+    );
+
+    const response = await handleProjectFeedbackReplyRequest({
+      request: new Request("http://localhost", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parentFeedbackId: "root-1", body: "Noted." }),
+      }),
+      scope: "barangay",
+      projectIdOrRef: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(response.status).toBe(429);
   });
 });

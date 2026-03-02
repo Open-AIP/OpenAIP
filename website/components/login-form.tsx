@@ -1,6 +1,5 @@
 'use client'
 
-import { supabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import type { AuthParameters } from '@/types'
 import {
@@ -17,7 +16,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
-import { toRouteRole } from '@/lib/supabase/proxy'
 
 export function LoginForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -28,38 +26,38 @@ export function LoginForm({role, baseURL}:AuthParameters) {
   const router = useRouter()
 
   const rolePath = getRolePath(baseURL, role);
-  const isStaffRole = role !== 'citizen'
+  const isStaffRole = role === "admin" || role === "city" || role === "barangay"
   const roleBadgeLabel =
     role === 'city' ? 'City Official' : role === 'barangay' ? 'Barangay Official' : 'Admin'
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = supabaseBrowser()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) throw error
+      const endpoint = isStaffRole ? "/auth/staff-sign-in" : "/auth/sign-in";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          ...(isStaffRole ? { role } : {}),
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: { message?: string } }
+        | null;
 
-      // check if user role matches the referrer role
-      const {data: signedInRole, error: roleError} = await supabase.rpc('current_role');
-      if (roleError) throw roleError
-
-      console.log(role, signedInRole)
-
-      const routeRole = toRouteRole(signedInRole);
-
-      if(routeRole !== role) {
-        await supabase.auth.signOut();
-        throw new Error('Role Validation Failed.')
-      }; 
+      if (!response.ok || payload?.ok === false) {
+        throw new Error(payload?.error?.message ?? "An error occurred");
+      }
 
       // route to redirect to an authenticated route. The user already has an active session.
-      router.push(`/${role ===  'citizen' ? '' : role}`);
+      router.push(`/${isStaffRole ? role : ""}`);
 
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')
@@ -243,14 +241,12 @@ export function LoginForm({role, baseURL}:AuthParameters) {
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  {role !== 'admin' && 
-                    <Link
-                      href={`${rolePath}/forgot-password`}
-                      className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                    >
-                      Forgot your password?
-                    </Link>
-                  }
+                  <Link
+                    href={`${rolePath}/forgot-password`}
+                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
                 </div>
                 <Input
                   id="password"
@@ -266,14 +262,12 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                 {isLoading ? 'Logging in...' : 'Login'}
               </Button>
             </div>
-            {role !== 'admin' && 
-              <div className="mt-4 text-center text-sm">
-                Don&apos;t have an account?{' '}
-                <Link href={`${rolePath}/sign-up`} className="underline underline-offset-4">
-                  Sign up
-                </Link>
-              </div>
-            }
+            <div className="mt-4 text-center text-sm">
+              Don&apos;t have an account?{' '}
+              <Link href={`${rolePath}/sign-up`} className="underline underline-offset-4">
+                Sign up
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

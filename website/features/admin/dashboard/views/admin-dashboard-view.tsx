@@ -12,13 +12,22 @@ import RecentActivityList from "../components/RecentActivityList";
 import { Users, Building2, MessageSquare, FileText } from "lucide-react";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
 import type { AdminDashboardActions } from "../types/dashboard-actions";
+import type {
+  AdminDashboardFilters,
+  AdminDashboardSnapshot,
+} from "@/lib/repos/admin-dashboard/types";
 
 type AdminDashboardViewProps = {
   actions: AdminDashboardActions;
+  initialData?: {
+    filters: AdminDashboardFilters;
+    snapshot: AdminDashboardSnapshot;
+  };
 };
 
-export default function AdminDashboardView({ actions }: AdminDashboardViewProps) {
-  const { filters, setFilters, viewModel, loading, error, handleReset } = useAdminDashboard();
+export default function AdminDashboardView({ actions, initialData }: AdminDashboardViewProps) {
+  const { filters, setFilters, viewModel, loading, error, handleReset } =
+    useAdminDashboard(initialData);
 
   const handleStatusClick = (status: string) => {
     actions.onOpenAipMonitoring?.({ filters, status });

@@ -7,6 +7,7 @@ import {
   getTodayInTimeZoneYmd,
 } from "@/lib/date/localDate";
 import type {
+  AdminDashboardSnapshot,
   AdminDashboardFilters,
   AipStatusDistributionVM,
   DashboardSummaryVM,
@@ -28,17 +29,47 @@ const createDefaultFilters = (): AdminDashboardFilters => {
   };
 };
 
-export function useAdminDashboardData() {
+export type AdminDashboardInitialData = {
+  filters: AdminDashboardFilters;
+  snapshot: AdminDashboardSnapshot;
+};
+
+function areFiltersEqual(left: AdminDashboardFilters, right: AdminDashboardFilters): boolean {
+  return (
+    left.dateFrom === right.dateFrom &&
+    left.dateTo === right.dateTo &&
+    left.lguScope === right.lguScope &&
+    left.lguId === right.lguId &&
+    left.aipStatus === right.aipStatus
+  );
+}
+
+export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
   const repo = useMemo(() => getAdminDashboardRepo(), []);
-  const [filters, setFilters] = useState<AdminDashboardFilters>(() => createDefaultFilters());
-  const [summary, setSummary] = useState<DashboardSummaryVM | null>(null);
-  const [distribution, setDistribution] = useState<AipStatusDistributionVM[]>([]);
-  const [reviewBacklog, setReviewBacklog] = useState<ReviewBacklogVM | null>(null);
-  const [usageMetrics, setUsageMetrics] = useState<UsageMetricsVM | null>(null);
-  const [recentActivity, setRecentActivity] = useState<RecentActivityItemVM[]>([]);
-  const [lguOptions, setLguOptions] = useState<LguOptionVM[]>([]);
-  const [staticLoading, setStaticLoading] = useState(true);
-  const [reactiveLoading, setReactiveLoading] = useState(true);
+  const initialDataRef = useRef(initial ?? null);
+  const [filters, setFilters] = useState<AdminDashboardFilters>(() =>
+    initialDataRef.current?.filters ?? createDefaultFilters()
+  );
+  const [summary, setSummary] = useState<DashboardSummaryVM | null>(
+    () => initialDataRef.current?.snapshot.summary ?? null
+  );
+  const [distribution, setDistribution] = useState<AipStatusDistributionVM[]>(
+    () => initialDataRef.current?.snapshot.distribution ?? []
+  );
+  const [reviewBacklog, setReviewBacklog] = useState<ReviewBacklogVM | null>(
+    () => initialDataRef.current?.snapshot.reviewBacklog ?? null
+  );
+  const [usageMetrics, setUsageMetrics] = useState<UsageMetricsVM | null>(
+    () => initialDataRef.current?.snapshot.usageMetrics ?? null
+  );
+  const [recentActivity, setRecentActivity] = useState<RecentActivityItemVM[]>(
+    () => initialDataRef.current?.snapshot.recentActivity ?? []
+  );
+  const [lguOptions, setLguOptions] = useState<LguOptionVM[]>(
+    () => initialDataRef.current?.snapshot.lguOptions ?? []
+  );
+  const [staticLoading, setStaticLoading] = useState(() => !initialDataRef.current);
+  const [reactiveLoading, setReactiveLoading] = useState(() => !initialDataRef.current);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const isMountedRef = useRef(true);
@@ -53,6 +84,11 @@ export function useAdminDashboardData() {
     let isActive = true;
 
     async function loadStaticData() {
+      if (initialDataRef.current) {
+        setStaticLoading(false);
+        return;
+      }
+
       setStaticLoading(true);
       try {
         const lguList = await repo.listLguOptions();
@@ -82,6 +118,14 @@ export function useAdminDashboardData() {
     let isActive = true;
 
     async function loadReactiveData() {
+      const initialData = initialDataRef.current;
+      if (initialData && areFiltersEqual(filters, initialData.filters)) {
+        initialDataRef.current = null;
+        setReactiveLoading(false);
+        setError(null);
+        return;
+      }
+
       setReactiveLoading(true);
       setError(null);
 

@@ -46,30 +46,32 @@ function areFiltersEqual(left: AdminDashboardFilters, right: AdminDashboardFilte
 
 export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
   const repo = useMemo(() => getAdminDashboardRepo(), []);
-  const initialDataRef = useRef(initial ?? null);
+  const hasInitialSnapshot = Boolean(initial);
+  const initialFiltersRef = useRef(initial?.filters ?? null);
+  const skipInitialReactiveFetchRef = useRef(hasInitialSnapshot);
   const [filters, setFilters] = useState<AdminDashboardFilters>(() =>
-    initialDataRef.current?.filters ?? createDefaultFilters()
+    initial?.filters ?? createDefaultFilters()
   );
   const [summary, setSummary] = useState<DashboardSummaryVM | null>(
-    () => initialDataRef.current?.snapshot.summary ?? null
+    () => initial?.snapshot.summary ?? null
   );
   const [distribution, setDistribution] = useState<AipStatusDistributionVM[]>(
-    () => initialDataRef.current?.snapshot.distribution ?? []
+    () => initial?.snapshot.distribution ?? []
   );
   const [reviewBacklog, setReviewBacklog] = useState<ReviewBacklogVM | null>(
-    () => initialDataRef.current?.snapshot.reviewBacklog ?? null
+    () => initial?.snapshot.reviewBacklog ?? null
   );
   const [usageMetrics, setUsageMetrics] = useState<UsageMetricsVM | null>(
-    () => initialDataRef.current?.snapshot.usageMetrics ?? null
+    () => initial?.snapshot.usageMetrics ?? null
   );
   const [recentActivity, setRecentActivity] = useState<RecentActivityItemVM[]>(
-    () => initialDataRef.current?.snapshot.recentActivity ?? []
+    () => initial?.snapshot.recentActivity ?? []
   );
   const [lguOptions, setLguOptions] = useState<LguOptionVM[]>(
-    () => initialDataRef.current?.snapshot.lguOptions ?? []
+    () => initial?.snapshot.lguOptions ?? []
   );
-  const [staticLoading, setStaticLoading] = useState(() => !initialDataRef.current);
-  const [reactiveLoading, setReactiveLoading] = useState(() => !initialDataRef.current);
+  const [staticLoading, setStaticLoading] = useState(() => !hasInitialSnapshot);
+  const [reactiveLoading, setReactiveLoading] = useState(() => !hasInitialSnapshot);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const isMountedRef = useRef(true);
@@ -84,7 +86,7 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
     let isActive = true;
 
     async function loadStaticData() {
-      if (initialDataRef.current) {
+      if (hasInitialSnapshot) {
         setStaticLoading(false);
         return;
       }
@@ -109,7 +111,7 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
     return () => {
       isActive = false;
     };
-  }, [repo]);
+  }, [hasInitialSnapshot, repo]);
 
   useEffect(() => {
     const currentRequestId = requestIdRef.current + 1;
@@ -118,24 +120,28 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
     let isActive = true;
 
     async function loadReactiveData() {
-      const initialData = initialDataRef.current;
-      if (initialData && areFiltersEqual(filters, initialData.filters)) {
-        initialDataRef.current = null;
+      if (
+        skipInitialReactiveFetchRef.current &&
+        initialFiltersRef.current &&
+        areFiltersEqual(filters, initialFiltersRef.current)
+      ) {
+        skipInitialReactiveFetchRef.current = false;
+        initialFiltersRef.current = null;
         setReactiveLoading(false);
         setError(null);
         return;
       }
+      skipInitialReactiveFetchRef.current = false;
 
       setReactiveLoading(true);
       setError(null);
 
       try {
-        const [summaryData, statusDistribution, backlogData, metricsData, activityData] = await Promise.all([
+        const [summaryData, statusDistribution, backlogData, metricsData] = await Promise.all([
           repo.getSummary(filters),
           repo.getAipStatusDistribution(filters),
           repo.getReviewBacklog(filters),
           repo.getUsageMetrics(filters),
-          repo.getRecentActivity(filters),
         ]);
 
         if (!isActive || !isMountedRef.current || requestIdRef.current !== currentRequestId) return;
@@ -144,7 +150,7 @@ export function useAdminDashboardData(initial?: AdminDashboardInitialData) {
         setDistribution(statusDistribution);
         setReviewBacklog(backlogData);
         setUsageMetrics(metricsData);
-        setRecentActivity(activityData);
+        setRecentActivity([]);
       } catch (err) {
         if (!isActive || !isMountedRef.current || requestIdRef.current !== currentRequestId) return;
         setError(err instanceof Error ? err.message : "Failed to load dashboard data.");

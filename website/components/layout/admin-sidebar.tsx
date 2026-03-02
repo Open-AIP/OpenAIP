@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/ui/utils";
 import { ADMIN_NAV } from "@/constants/lgu-nav";
 
@@ -15,6 +15,9 @@ function isActive(pathname: string, href: string) {
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
   return (
     <aside className="h-screen w-68.75 shrink-0 sticky top-0 overflow-y-auto bg-sidebar text-sidebar-foreground flex flex-col">
@@ -45,11 +48,17 @@ export default function AdminSidebar() {
           {ADMIN_NAV.map((item) => {
             const Icon = item.icon;
             const active = isActive(pathname, item.href);
+            const params = new URLSearchParams();
+            if (item.href === "/admin/usage-controls") {
+              if (from) params.set("from", from);
+              if (to) params.set("to", to);
+            }
+            const href = params.size > 0 ? `${item.href}?${params.toString()}` : item.href;
 
             return (
               <li key={item.href}>
                 <Link
-                  href={item.href}
+                  href={href}
                   className={cn(
                     "flex h-11 items-center gap-3 rounded-[10px] px-4 text-[12px] transition-colors text-sidebar-foreground/80",
                     "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

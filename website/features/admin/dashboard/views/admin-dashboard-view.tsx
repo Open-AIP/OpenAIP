@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import KpiCard from "../components/KpiCard";
 import DashboardFiltersRow from "../components/DashboardFiltersRow";
@@ -8,7 +9,6 @@ import ReviewBacklogCard from "../components/ReviewBacklogCard";
 import ErrorRateBarChart from "../components/ErrorRateBarChart";
 import ChatbotUsageLineChart from "../components/ChatbotUsageLineChart";
 import MiniKpiStack from "../components/MiniKpiStack";
-import RecentActivityList from "../components/RecentActivityList";
 import { Users, Building2, MessageSquare, FileText } from "lucide-react";
 import { useAdminDashboard } from "../hooks/useAdminDashboard";
 import type { AdminDashboardActions } from "../types/dashboard-actions";
@@ -19,15 +19,24 @@ import type {
 
 type AdminDashboardViewProps = {
   actions: AdminDashboardActions;
+  onFiltersChange?: (filters: AdminDashboardFilters) => void;
   initialData?: {
     filters: AdminDashboardFilters;
     snapshot: AdminDashboardSnapshot;
   };
 };
 
-export default function AdminDashboardView({ actions, initialData }: AdminDashboardViewProps) {
+export default function AdminDashboardView({
+  actions,
+  onFiltersChange,
+  initialData,
+}: AdminDashboardViewProps) {
   const { filters, setFilters, viewModel, loading, error, handleReset } =
     useAdminDashboard(initialData);
+
+  useEffect(() => {
+    onFiltersChange?.(filters);
+  }, [filters, onFiltersChange]);
 
   const handleStatusClick = (status: string) => {
     actions.onOpenAipMonitoring?.({ filters, status });
@@ -113,10 +122,7 @@ export default function AdminDashboardView({ actions, initialData }: AdminDashbo
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[2.1fr_1fr]">
-        <AipStatusDonutCard
-          data={viewModel.distribution}
-          onStatusClick={handleStatusClick}
-        />
+        <AipStatusDonutCard data={viewModel.distribution} onStatusClick={handleStatusClick} />
         {viewModel.reviewBacklog && (
           <ReviewBacklogCard
             backlog={viewModel.reviewBacklog}
@@ -135,14 +141,7 @@ export default function AdminDashboardView({ actions, initialData }: AdminDashbo
         </div>
       )}
 
-      <RecentActivityList
-        items={viewModel.recentActivity}
-        onViewAudit={() => actions.onOpenAuditLogs?.({ filters })}
-      />
-
-      {loading && (
-        <div className="text-[12px] text-slate-500">Refreshing dashboard metrics…</div>
-      )}
+      {loading && <div className="text-[12px] text-slate-500">Refreshing dashboard metrics...</div>}
     </div>
   );
 }

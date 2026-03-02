@@ -151,7 +151,7 @@ const getAuditTitle = (action: string) => {
     case "user_unblocked":
       return "Account Unblocked";
     case "comment_rate_limit_updated":
-      return "Comment Rate Limit Updated";
+      return "Feedback Rate Limit Updated";
     default:
       return action;
   }

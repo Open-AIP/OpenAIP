@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import AdminDashboardView from "@/features/admin/dashboard/views/admin-dashboard-view";
 import type { AdminDashboardActions } from "@/features/admin/dashboard/types/dashboard-actions";
@@ -14,7 +14,7 @@ type AdminDashboardPageClientProps = {
   initialSnapshot: AdminDashboardSnapshot;
 };
 
-function buildQuery(filters: AdminDashboardFilters, extra?: Record<string, string>) {
+function buildDashboardQuery(filters: AdminDashboardFilters, extra?: Record<string, string>) {
   const params = new URLSearchParams();
   if (filters.dateFrom) params.set("from", filters.dateFrom);
   if (filters.dateTo) params.set("to", filters.dateTo);
@@ -33,23 +33,31 @@ export default function AdminDashboardPageClient({
 }: AdminDashboardPageClientProps) {
   const router = useRouter();
 
+  const handleFiltersChange = useCallback((filters: AdminDashboardFilters) => {
+    const query = buildDashboardQuery(filters);
+    const nextUrl = query.length > 0 ? `/admin?${query}` : "/admin";
+    if (window.location.pathname + window.location.search === nextUrl) return;
+    // Persist filter state in the URL without forcing a client navigation or RSC refetch.
+    window.history.replaceState(null, "", nextUrl);
+  }, []);
+
   const actions = useMemo<AdminDashboardActions>(
     () => ({
       onOpenLguManagement: ({ filters }) => {
-        router.push(`/admin/lgu-management?${buildQuery(filters)}`);
+        router.push(`/admin/lgu-management?${buildDashboardQuery(filters)}`);
       },
       onOpenAccounts: ({ filters }) => {
-        router.push(`/admin/account-administration?${buildQuery(filters)}`);
+        router.push(`/admin/account-administration?${buildDashboardQuery(filters)}`);
       },
       onOpenFeedbackModeration: ({ filters }) => {
-        router.push(`/admin/feedback-moderation?${buildQuery(filters)}`);
+        router.push(`/admin/feedback-moderation?${buildDashboardQuery(filters)}`);
       },
       onOpenAipMonitoring: ({ filters, status }) => {
-        const query = buildQuery(filters, status ? { status } : undefined);
+        const query = buildDashboardQuery(filters, status ? { status } : undefined);
         router.push(`/admin/aip-monitoring?${query}`);
       },
       onOpenAuditLogs: ({ filters }) => {
-        router.push(`/admin/audit-logs?${buildQuery(filters)}`);
+        router.push(`/admin/audit-logs?${buildDashboardQuery(filters)}`);
       },
     }),
     [router]
@@ -58,6 +66,7 @@ export default function AdminDashboardPageClient({
   return (
     <AdminDashboardView
       actions={actions}
+      onFiltersChange={handleFiltersChange}
       initialData={{ filters: initialFilters, snapshot: initialSnapshot }}
     />
   );

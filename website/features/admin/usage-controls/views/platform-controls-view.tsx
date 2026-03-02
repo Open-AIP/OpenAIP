@@ -217,9 +217,9 @@ export default function PlatformControlsView() {
           )}
 
           <div>
-            <div className="text-[15px] font-semibold text-slate-900">Comment Rate Limits</div>
+            <div className="text-[15px] font-semibold text-slate-900">Feedback Rate Limits</div>
             <div className="text-[13.5px] text-slate-500">
-              Configure comment submission rate limits to prevent spam and abuse.
+              Configure feedback submission rate limits to prevent spam and abuse.
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AdminDashboardFilters,
@@ -90,6 +90,30 @@ describe("useAdminDashboardData initial snapshot hydration", () => {
       expect(repo.getUsageMetrics).not.toHaveBeenCalled();
       expect(repo.getRecentActivity).not.toHaveBeenCalled();
       expect(repo.listLguOptions).not.toHaveBeenCalled();
+    });
+  });
+
+  it("fetches reactive metrics after filters change and resolves loading state", async () => {
+    const repo = mockGetAdminDashboardRepo();
+    const { result } = renderHook(() =>
+      useAdminDashboardData({ filters: initialFilters, snapshot: initialSnapshot })
+    );
+
+    act(() => {
+      result.current.setFilters({
+        ...initialFilters,
+        dateFrom: "2026-03-02",
+      });
+    });
+
+    await waitFor(() => {
+      expect(repo.getSummary).toHaveBeenCalledTimes(1);
+      expect(repo.getAipStatusDistribution).toHaveBeenCalledTimes(1);
+      expect(repo.getReviewBacklog).toHaveBeenCalledTimes(1);
+      expect(repo.getUsageMetrics).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
     });
   });
 });

@@ -43,6 +43,7 @@ import {
 import { resolveRetrievalScope } from "@/lib/chat/scope-resolver.server";
 import { routeSqlFirstTotals, buildTotalsMissingMessage } from "@/lib/chat/totals-sql-routing";
 import type { PipelineChatCitation } from "@/lib/chat/types";
+import type { Json } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { getChatRepo } from "@/lib/repos/chat/repo.server";
@@ -62,10 +63,14 @@ import type {
   RefusalReason,
 } from "@/lib/repos/chat/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  consumeChatQuota,
+  insertAssistantChatMessage,
+  toPrivilegedActorContext,
+} from "@/lib/supabase/privileged-ops";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const MAX_MESSAGE_LENGTH = 12000;
-const NEUTRAL_HOURLY_QUOTA = 100000;
 
 type ScopeType = "barangay" | "city" | "municipality";
 
@@ -1726,25 +1731,18 @@ async function appendAssistantMessage(params: {
   citations: ChatCitation[];
   retrievalMeta: ChatRetrievalMeta;
 }): Promise<ChatMessage> {
-  const admin = supabaseAdmin();
+  const actor = await getActorContext();
+  const privilegedActor = toPrivilegedActorContext(actor);
   const normalizedMeta = normalizeRetrievalMetaStatus(params.retrievalMeta);
-  const { data, error } = await admin
-    .from("chat_messages")
-    .insert({
-      session_id: params.sessionId,
-      role: "assistant",
-      content: params.content,
-      citations: params.citations,
-      retrieval_meta: normalizedMeta,
-    })
-    .select("id,session_id,role,content,citations,retrieval_meta,created_at")
-    .single();
+  const inserted = await insertAssistantChatMessage({
+    actor: privilegedActor,
+    sessionId: params.sessionId,
+    content: params.content,
+    citations: params.citations as unknown as Json,
+    retrievalMeta: normalizedMeta as unknown as Json,
+  });
 
-  if (error || !data) {
-    throw new Error(error?.message ?? "Failed to append assistant response.");
-  }
-
-  return toChatMessage(data as ChatMessageRow);
+  return toChatMessage(inserted as ChatMessageRow);
 }
 
 async function getLatestPendingClarification(
@@ -1789,36 +1787,19 @@ async function consumeQuota(
   userId: string,
   route: "barangay_chat_message" | "city_chat_message"
 ): Promise<{ allowed: boolean; reason: string }> {
+  const actor = await getActorContext();
+  const privilegedActor = toPrivilegedActorContext(actor);
   const rateLimit = await getTypedAppSetting("controls.chatbot_rate_limit");
-  const perHour = Math.max(
-    1,
-    Math.floor(
-      rateLimit.timeWindow === "per_hour"
-        ? rateLimit.maxRequests
-        : NEUTRAL_HOURLY_QUOTA
-    )
-  );
-  const perDay =
-    rateLimit.timeWindow === "per_day"
-      ? Math.max(1, Math.floor(rateLimit.maxRequests))
-      : Math.max(1, Math.floor(rateLimit.maxRequests * 24));
-
-  const admin = supabaseAdmin();
-  const { data, error } = await admin.rpc("consume_chat_quota", {
-    p_user_id: userId,
-    p_per_hour: perHour,
-    p_per_day: perDay,
-    p_route: route,
+  const payload = await consumeChatQuota({
+    actor: privilegedActor,
+    userId,
+    maxRequests: rateLimit.maxRequests,
+    timeWindow: rateLimit.timeWindow,
+    route,
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const payload = (data ?? {}) as { allowed?: unknown; reason?: unknown };
   return {
-    allowed: payload.allowed === true,
-    reason: typeof payload.reason === "string" ? payload.reason : "unknown",
+    allowed: payload.allowed,
+    reason: payload.reason,
   };
 }
 

@@ -2,14 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { RoleType } from "@/lib/contracts/databasev2";
 import { isMockModeEnabled } from "@/lib/auth/dev-bypass";
+import { dbRoleToRouteRole, type RouteRole } from "@/lib/auth/route-roles";
 import {
   parseNumericCookie,
   SESSION_LAST_ACTIVITY_COOKIE,
   SESSION_TIMEOUT_COOKIE,
   SESSION_WARNING_COOKIE,
 } from "@/lib/security/session-timeout";
-
-type RouteRole = "citizen" | "barangay" | "city" | "municipality" | "admin";
 
 function isRoleType(value: unknown): value is RoleType {
   return (
@@ -22,10 +21,8 @@ function isRoleType(value: unknown): value is RoleType {
 }
 
 export function toRouteRole(role: RoleType): RouteRole {
-  if (role === "barangay_official") return "barangay";
-  if (role === "city_official") return "city";
-  if (role === "municipal_official") return "municipality";
-  return role;
+  const mapped = dbRoleToRouteRole(role);
+  return mapped ?? "citizen";
 }
 
 function clearPolicyCookies(response: NextResponse) {
@@ -191,4 +188,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
-

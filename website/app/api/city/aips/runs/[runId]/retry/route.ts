@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  insertExtractionRun,
+  toPrivilegedActorContext,
+} from "@/lib/supabase/privileged-ops";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 
@@ -45,23 +48,23 @@ export async function POST(
       return NextResponse.json({ message: "You cannot retry this run." }, { status: 403 });
     }
 
-    const admin = supabaseAdmin();
-    const { data: newRun, error: newRunError } = await admin
-      .from("extraction_runs")
-      .insert({
-        aip_id: run.aip_id,
-        uploaded_file_id: run.uploaded_file_id,
-        stage: "extract",
-        status: "queued",
-        model_name: "gpt-5.2",
-        created_by: actor.userId,
-      })
-      .select("id,status")
-      .single();
-
-    if (newRunError || !newRun) {
+    let newRun: { id: string; status: string };
+    try {
+      newRun = await insertExtractionRun({
+        actor: toPrivilegedActorContext(actor),
+        aipId: run.aip_id,
+        uploadedFileId: run.uploaded_file_id,
+        createdBy: actor.userId,
+        modelName: "gpt-5.2",
+      });
+    } catch (error) {
       return NextResponse.json(
-        { message: newRunError?.message ?? "Failed to create retry run." },
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to create retry run.",
+        },
         { status: 400 }
       );
     }

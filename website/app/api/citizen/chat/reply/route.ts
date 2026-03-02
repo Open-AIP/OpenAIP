@@ -3,6 +3,11 @@ import type { RetrievalScopePayload, RetrievalScopeTarget } from "@/lib/chat/typ
 import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
 import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  consumeChatQuota,
+  insertAssistantChatMessage,
+  toPrivilegedActorContextFromProfile,
+} from "@/lib/supabase/privileged-ops";
 import { supabaseServer } from "@/lib/supabase/server";
 import { isCitizenProfileComplete } from "@/lib/auth/citizen-profile-completion";
 import { NextResponse } from "next/server";
@@ -43,7 +48,6 @@ type ChatQuotaResult = {
 };
 
 const MESSAGE_CONTENT_LIMIT = 12000;
-const NEUTRAL_HOURLY_QUOTA = 100000;
 
 function buildFollowUps(userMessage: string): string[] {
   const lowered = userMessage.toLowerCase();
@@ -177,35 +181,21 @@ function toDbCitations(payload: {
 }
 
 async function consumeCitizenQuota(input: {
+  actor: NonNullable<ReturnType<typeof toPrivilegedActorContextFromProfile>>;
   userId: string;
   maxRequests: number;
   timeWindow: "per_hour" | "per_day";
 }): Promise<ChatQuotaResult> {
-  const perHour = Math.max(
-    1,
-    Math.floor(input.timeWindow === "per_hour" ? input.maxRequests : NEUTRAL_HOURLY_QUOTA)
-  );
-  const perDay =
-    input.timeWindow === "per_day"
-      ? Math.max(1, Math.floor(input.maxRequests))
-      : Math.max(1, Math.floor(input.maxRequests * 24));
-
-  const admin = supabaseAdmin();
-  const { data, error } = await admin.rpc("consume_chat_quota", {
-    p_user_id: input.userId,
-    p_per_hour: perHour,
-    p_per_day: perDay,
-    p_route: "citizen_chat_reply",
+  const quota = await consumeChatQuota({
+    actor: input.actor,
+    userId: input.userId,
+    maxRequests: input.maxRequests,
+    timeWindow: input.timeWindow,
+    route: "citizen_chat_reply",
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const payload = (data ?? {}) as { allowed?: unknown; reason?: unknown };
   return {
-    allowed: payload.allowed === true,
-    reason: typeof payload.reason === "string" ? payload.reason : "unknown",
+    allowed: quota.allowed,
+    reason: quota.reason,
   };
 }
 
@@ -285,9 +275,20 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+    const privilegedActor = toPrivilegedActorContextFromProfile({
+      userId,
+      role: profile.role,
+      barangayId: profile.barangay_id,
+      cityId: profile.city_id,
+      municipalityId: profile.municipality_id,
+    });
+    if (!privilegedActor) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const rateLimitPolicy = await getTypedAppSetting("controls.chatbot_rate_limit");
     const quota = await consumeCitizenQuota({
+      actor: privilegedActor,
       userId,
       maxRequests: rateLimitPolicy.maxRequests,
       timeWindow: rateLimitPolicy.timeWindow,
@@ -330,23 +331,13 @@ export async function POST(request: Request) {
       suggestedFollowUps,
     } as Json;
 
-    const { data: insertedData, error: insertError } = await admin
-      .from("chat_messages")
-      .insert({
-        session_id: sessionId,
-        role: "assistant",
-        content: pipeline.answer,
-        citations,
-        retrieval_meta: retrievalMeta,
-      })
-      .select("id,session_id,role,content,citations,retrieval_meta,created_at")
-      .single();
-
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
-    }
-
-    const inserted = insertedData as ChatMessageRow;
+    const inserted = (await insertAssistantChatMessage({
+      actor: privilegedActor,
+      sessionId,
+      content: pipeline.answer,
+      citations,
+      retrievalMeta,
+    })) as ChatMessageRow;
     return NextResponse.json({
       message: {
         id: inserted.id,

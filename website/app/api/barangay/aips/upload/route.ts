@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import { writeWorkflowActivityLog } from "@/lib/audit/activity-log";
 import { assertActorCanManageBarangayAipWorkflow } from "@/lib/repos/aip/workflow-permissions.server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import {
+  insertExtractionRun,
+  removeAipPdfObject,
+  toPrivilegedActorContext,
+  uploadAipPdfObject,
+} from "@/lib/supabase/privileged-ops";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -119,16 +124,22 @@ export async function POST(request: Request) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const sha256Hex = createHash("sha256").update(fileBuffer).digest("hex");
     const objectName = `${aipId}/${randomUUID()}.pdf`;
+    const privilegedActor = toPrivilegedActorContext(actor);
 
-    const admin = supabaseAdmin();
-    const { error: storageError } = await admin.storage
-      .from(BUCKET_ID)
-      .upload(objectName, fileBuffer, {
+    try {
+      await uploadAipPdfObject({
+        actor: privilegedActor,
+        aipId,
+        bucketId: BUCKET_ID,
+        objectName,
+        fileBuffer,
         contentType: "application/pdf",
-        upsert: false,
       });
-    if (storageError) {
-      return NextResponse.json({ message: storageError.message }, { status: 400 });
+    } catch (error) {
+      return NextResponse.json(
+        { message: error instanceof Error ? error.message : "Failed to upload PDF." },
+        { status: 400 }
+      );
     }
 
     const { data: fileRow, error: fileInsertError } = await client
@@ -148,29 +159,35 @@ export async function POST(request: Request) {
       .single();
 
     if (fileInsertError || !fileRow) {
-      await admin.storage.from(BUCKET_ID).remove([objectName]);
+      await removeAipPdfObject({
+        actor: privilegedActor,
+        aipId,
+        bucketId: BUCKET_ID,
+        objectNames: [objectName],
+      }).catch(() => undefined);
       return NextResponse.json(
         { message: fileInsertError?.message ?? "Failed to insert upload metadata." },
         { status: 400 }
       );
     }
 
-    const { data: runRow, error: runInsertError } = await admin
-      .from("extraction_runs")
-      .insert({
-        aip_id: aipId,
-        uploaded_file_id: fileRow.id,
-        stage: "extract",
-        status: "queued",
-        model_name: "gpt-5.2",
-        created_by: actor.userId,
-      })
-      .select("id,status")
-      .single();
-
-    if (runInsertError || !runRow) {
+    let runRow: { id: string; status: string };
+    try {
+      runRow = await insertExtractionRun({
+        actor: privilegedActor,
+        aipId,
+        uploadedFileId: fileRow.id,
+        createdBy: actor.userId,
+        modelName: "gpt-5.2",
+      });
+    } catch (error) {
       return NextResponse.json(
-        { message: runInsertError?.message ?? "Failed to queue extraction run." },
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to queue extraction run.",
+        },
         { status: 400 }
       );
     }

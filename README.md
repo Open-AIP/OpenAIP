@@ -155,6 +155,8 @@ NEXT_PUBLIC_FEEDBACK_DEBUG=0
 NEXT_PUBLIC_TEMP_ADMIN_BYPASS=false
 NEXT_PUBLIC_API_BASE_URL=
 PIPELINE_API_BASE_URL=http://localhost:8000
+PIPELINE_HMAC_SECRET=<shared-hmac-secret>
+# Legacy/unused for chat s2s auth.
 PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 ```
 
@@ -176,6 +178,8 @@ PIPELINE_ARTIFACT_INLINE_MAX_BYTES=32768
 PIPELINE_ENABLE_RAG=false
 PIPELINE_RAG_TRACE_QUERY=
 PIPELINE_DEV_ROUTES=false
+PIPELINE_HMAC_SECRET=<shared-hmac-secret>
+# Legacy/unused for chat s2s auth.
 PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 PIPELINE_RUNS_HMAC_SECRET=<hmac-secret-hex>
 PIPELINE_RUNS_ALLOWED_AUDIENCES=website-backend
@@ -211,7 +215,8 @@ Website env reference:
 | `NEXT_PUBLIC_TEMP_ADMIN_BYPASS` | No | Client-exposed | Dev-only bypass toggle |
 | `NEXT_PUBLIC_API_BASE_URL` | No | Client-exposed | Optional API base override |
 | `PIPELINE_API_BASE_URL` | Yes (chatbot) | Server-only | Internal base URL for pipeline chat endpoint |
-| `PIPELINE_INTERNAL_TOKEN` | Yes (chatbot) | Server-only | Shared internal token sent to `/v1/chat/answer` |
+| `PIPELINE_HMAC_SECRET` | Yes (chatbot) | Server-only | Shared secret used to sign `x-pipeline-*` chat request headers (`aud|ts|nonce|rawBody`) |
+| `PIPELINE_INTERNAL_TOKEN` | No (legacy) | Server-only | Legacy token retained for backward compatibility; unused for `/v1/chat/*` auth |
 
 \* Set at least one of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
@@ -233,7 +238,8 @@ Pipeline env reference:
 | `PIPELINE_ENABLE_RAG` | No | Server-only | Enable optional RAG trace stage |
 | `PIPELINE_RAG_TRACE_QUERY` | No | Server-only | Query text used when RAG trace is enabled |
 | `PIPELINE_DEV_ROUTES` | No | Server-only | Enables `/v1/runs/dev/local` |
-| `PIPELINE_INTERNAL_TOKEN` | Yes (chat route) | Server-only | Required header auth token for `/v1/chat/answer` |
+| `PIPELINE_HMAC_SECRET` | Yes (chat route) | Server-only | Shared secret used to verify `x-pipeline-aud/ts/nonce/sig` for `/v1/chat/*` |
+| `PIPELINE_INTERNAL_TOKEN` | No (legacy) | Server-only | Legacy token retained for backward compatibility; unused for `/v1/chat/*` auth |
 | `PIPELINE_RUNS_HMAC_SECRET` | Yes (`/v1/runs/*`) | Server-only | HMAC secret used to verify run-control request signatures |
 | `PIPELINE_RUNS_ALLOWED_AUDIENCES` | Yes (`/v1/runs/*`) | Server-only | Comma-separated allowlist for `aud` header (example `website-backend`) |
 | `PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS` | No | Server-only | Sliding-window size for `/v1/runs/*` throttling (default `60`) |
@@ -542,6 +548,7 @@ Common hosting options for this codebase:
 | Worker fails with `OPENAI_API_KEY not found` | Missing OpenAI secret in pipeline env | Set `OPENAI_API_KEY` in `aip-intelligence-pipeline/.env` |
 | `POST /v1/runs/dev/local` returns 403 | Dev routes disabled | Set `PIPELINE_DEV_ROUTES=true` in pipeline env |
 | `POST /v1/runs/*` returns 401 | Missing/invalid `aud`/`ts`/`nonce`/`sig`, stale `ts`, replayed nonce, or audience not allowlisted | Set `PIPELINE_RUNS_HMAC_SECRET` and `PIPELINE_RUNS_ALLOWED_AUDIENCES`; sign request body/path/method correctly and keep clock skew within ±60s |
+| `POST /v1/chat/*` returns 401 | Missing/invalid `x-pipeline-aud`/`x-pipeline-ts`/`x-pipeline-nonce`/`x-pipeline-sig`, stale `ts`, invalid `aud`, bad signature, or replayed `(aud,nonce,ts,body)` | Set matching `PIPELINE_HMAC_SECRET` on website + pipeline; sign `aud|ts|nonce|rawBody`, keep clock skew within ±60s, and send unique nonce per request |
 | `Invalid schema: app` from chatbot/admin settings APIs | Supabase Data API does not expose `app` schema, or `app.settings` is missing/inaccessible | Expose `app` in Supabase Data API schemas and run `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql` |
 | `pytest`/`ruff`/`pyright` command not found | Dev extras not installed | Reinstall with `python -m pip install -e ".[dev]"` |
 | `Fatal error in launcher` when running `pip` inside pipeline venv | Venv launchers still point to old folder path after rename | Recreate `.venv`, then use `python -m pip install --upgrade pip` and `python -m pip install -e ".[dev]"` |

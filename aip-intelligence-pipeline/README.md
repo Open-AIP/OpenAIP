@@ -20,7 +20,7 @@ Required keys in `.env`:
 - `OPENAI_API_KEY`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_KEY`
-- `PIPELINE_INTERNAL_TOKEN` (for `/v1/chat/answer` internal auth)
+- `PIPELINE_HMAC_SECRET` (for `/v1/chat/*` request signing/verification)
 - `PIPELINE_RUNS_HMAC_SECRET` (for `/v1/runs/*` request signing)
 - `PIPELINE_RUNS_ALLOWED_AUDIENCES` (for `/v1/runs/*` caller allowlist)
 
@@ -97,7 +97,8 @@ Common optional runtime vars:
 - `SUPABASE_STORAGE_ARTIFACT_BUCKET` (default `aip-artifacts`)
 - `PIPELINE_DEV_ROUTES` (default `false`)
 - `PIPELINE_ENABLE_RAG` (default `false`)
-- `PIPELINE_INTERNAL_TOKEN` (required by chat route)
+- `PIPELINE_HMAC_SECRET` (required by chat route)
+- `PIPELINE_INTERNAL_TOKEN` (legacy/unused for chat auth)
 - `PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS` (default `60`)
 - `PIPELINE_RUNS_RATE_LIMIT_PER_AUD` (default `30`)
 - `PIPELINE_RUNS_RATE_LIMIT_GLOBAL` (default `120`)
@@ -126,6 +127,28 @@ Notes:
 - Signature compare is constant-time.
 - Replayed `(aud, nonce)` values are rejected.
 - Excess request bursts are throttled with HTTP `429`.
+
+## `/v1/chat/*` authentication headers
+
+All chat routes under `/v1/chat/*` require signed headers:
+
+- `x-pipeline-aud` (must be `website-backend`)
+- `x-pipeline-ts` (unix epoch seconds, max skew ±60s)
+- `x-pipeline-nonce` (unique UUID per request)
+- `x-pipeline-sig`
+
+Signature format:
+
+```text
+HMAC_SHA256(secret, x-pipeline-aud + "|" + x-pipeline-ts + "|" + x-pipeline-nonce + "|" + raw_body)
+```
+
+Notes:
+
+- Shared secret is `PIPELINE_HMAC_SECRET` (must match website secret).
+- Signature compare is constant-time.
+- Replayed `(aud, nonce, ts, body)` values are rejected via in-memory TTL cache.
+- `PIPELINE_INTERNAL_TOKEN` is legacy/unused for chat route authentication.
 
 ## Validation resources
 

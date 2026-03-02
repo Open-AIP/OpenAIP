@@ -113,7 +113,7 @@ export default function ManifestoMotion({
         className="mt-6 text-center text-8xl font-bold text-steelblue"
         style={{
           textShadow:
-            "0 0 12px rgba(255,255,255,0.9), 0 0 24px rgba(125,211,252,0.85), 0 0 40px rgba(96,165,250,0.65), 0 0 56px rgba(196,181,253,0.45)",
+            "0 0 8px rgba(255,255,255,0.8), 0 0 18px rgba(186,230,253,0.7), 0 0 30px rgba(125,211,252,0.45)",
         }}
         variants={itemScaleIn}
       >

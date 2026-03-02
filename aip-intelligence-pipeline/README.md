@@ -21,6 +21,8 @@ Required keys in `.env`:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_KEY`
 - `PIPELINE_INTERNAL_TOKEN` (for `/v1/chat/answer` internal auth)
+- `PIPELINE_RUNS_HMAC_SECRET` (for `/v1/runs/*` request signing)
+- `PIPELINE_RUNS_ALLOWED_AUDIENCES` (for `/v1/runs/*` caller allowlist)
 
 ## Run
 
@@ -79,6 +81,11 @@ Required for extraction stages:
 
 - `OPENAI_API_KEY`
 
+Required for `/v1/runs/*` authenticated run-control routes:
+
+- `PIPELINE_RUNS_HMAC_SECRET`
+- `PIPELINE_RUNS_ALLOWED_AUDIENCES` (comma-separated, example: `website-backend,ops-runner`)
+
 Common optional runtime vars:
 
 - `PIPELINE_MODEL` (default `gpt-5.2`)
@@ -91,6 +98,34 @@ Common optional runtime vars:
 - `PIPELINE_DEV_ROUTES` (default `false`)
 - `PIPELINE_ENABLE_RAG` (default `false`)
 - `PIPELINE_INTERNAL_TOKEN` (required by chat route)
+- `PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS` (default `60`)
+- `PIPELINE_RUNS_RATE_LIMIT_PER_AUD` (default `30`)
+- `PIPELINE_RUNS_RATE_LIMIT_GLOBAL` (default `120`)
+- `PIPELINE_RUNS_NONCE_TTL_SECONDS` (default `120`)
+- `PIPELINE_RUNS_DEDUPE_TTL_SECONDS` (default `30`)
+
+## `/v1/runs/*` authentication headers
+
+All run-control routes under `/v1/runs/*` require signed headers:
+
+- `aud`
+- `ts` (unix epoch seconds, max skew ±60s)
+- `nonce`
+- `sig`
+
+Signature format:
+
+```text
+HMAC_SHA256(secret,
+  aud + "\n" + ts + "\n" + nonce + "\n" + METHOD + "\n" + PATH + "\n" + SHA256(raw_body_bytes).hex()
+)
+```
+
+Notes:
+
+- Signature compare is constant-time.
+- Replayed `(aud, nonce)` values are rejected.
+- Excess request bursts are throttled with HTTP `429`.
 
 ## Validation resources
 

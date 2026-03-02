@@ -177,6 +177,13 @@ PIPELINE_ENABLE_RAG=false
 PIPELINE_RAG_TRACE_QUERY=
 PIPELINE_DEV_ROUTES=false
 PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
+PIPELINE_RUNS_HMAC_SECRET=<hmac-secret-hex>
+PIPELINE_RUNS_ALLOWED_AUDIENCES=website-backend
+PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS=60
+PIPELINE_RUNS_RATE_LIMIT_PER_AUD=30
+PIPELINE_RUNS_RATE_LIMIT_GLOBAL=120
+PIPELINE_RUNS_NONCE_TTL_SECONDS=120
+PIPELINE_RUNS_DEDUPE_TTL_SECONDS=30
 
 PIPELINE_VERSION=
 PIPELINE_PROMPT_SET_VERSION=v1.0.0
@@ -227,6 +234,13 @@ Pipeline env reference:
 | `PIPELINE_RAG_TRACE_QUERY` | No | Server-only | Query text used when RAG trace is enabled |
 | `PIPELINE_DEV_ROUTES` | No | Server-only | Enables `/v1/runs/dev/local` |
 | `PIPELINE_INTERNAL_TOKEN` | Yes (chat route) | Server-only | Required header auth token for `/v1/chat/answer` |
+| `PIPELINE_RUNS_HMAC_SECRET` | Yes (`/v1/runs/*`) | Server-only | HMAC secret used to verify run-control request signatures |
+| `PIPELINE_RUNS_ALLOWED_AUDIENCES` | Yes (`/v1/runs/*`) | Server-only | Comma-separated allowlist for `aud` header (example `website-backend`) |
+| `PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS` | No | Server-only | Sliding-window size for `/v1/runs/*` throttling (default `60`) |
+| `PIPELINE_RUNS_RATE_LIMIT_PER_AUD` | No | Server-only | Per-audience request cap per window (default `30`) |
+| `PIPELINE_RUNS_RATE_LIMIT_GLOBAL` | No | Server-only | Global request cap per window (default `120`) |
+| `PIPELINE_RUNS_NONCE_TTL_SECONDS` | No | Server-only | Replay-protection nonce cache TTL (default `120`) |
+| `PIPELINE_RUNS_DEDUPE_TTL_SECONDS` | No | Server-only | Enqueue dedupe cache TTL (default `30`) |
 | `PIPELINE_VERSION` | No | Server-only | Overrides pipeline version hash |
 | `PIPELINE_PROMPT_SET_VERSION` | No | Server-only | Prompt set version override |
 | `PIPELINE_SCHEMA_VERSION` | No | Server-only | Schema version override |
@@ -527,6 +541,7 @@ Common hosting options for this codebase:
 | Runs stay `queued` forever | Worker not running or cannot claim runs | Start `openaip-worker`; verify pipeline `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` |
 | Worker fails with `OPENAI_API_KEY not found` | Missing OpenAI secret in pipeline env | Set `OPENAI_API_KEY` in `aip-intelligence-pipeline/.env` |
 | `POST /v1/runs/dev/local` returns 403 | Dev routes disabled | Set `PIPELINE_DEV_ROUTES=true` in pipeline env |
+| `POST /v1/runs/*` returns 401 | Missing/invalid `aud`/`ts`/`nonce`/`sig`, stale `ts`, replayed nonce, or audience not allowlisted | Set `PIPELINE_RUNS_HMAC_SECRET` and `PIPELINE_RUNS_ALLOWED_AUDIENCES`; sign request body/path/method correctly and keep clock skew within ±60s |
 | `Invalid schema: app` from chatbot/admin settings APIs | Supabase Data API does not expose `app` schema, or `app.settings` is missing/inaccessible | Expose `app` in Supabase Data API schemas and run `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql` |
 | `pytest`/`ruff`/`pyright` command not found | Dev extras not installed | Reinstall with `python -m pip install -e ".[dev]"` |
 | `Fatal error in launcher` when running `pip` inside pipeline venv | Venv launchers still point to old folder path after rename | Recreate `.venv`, then use `python -m pip install --upgrade pip` and `python -m pip install -e ".[dev]"` |

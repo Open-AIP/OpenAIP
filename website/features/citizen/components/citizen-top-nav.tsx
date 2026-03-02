@@ -74,7 +74,7 @@ export default function CitizenTopNav() {
   // Styles: hover has bg, active has NO bg (teal text only)
   const NAV_BASE =
     'inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium transition-colors duration-200';
-  const NAV_INACTIVE = 'text-slate-700 hover:bg-gray-200 hover:text-[#0E7490]';
+  const NAV_INACTIVE = 'text-slate-700 hover:text-[#0E7490]';
   const NAV_ACTIVE = 'text-[#0E7490] font-semibold';
 
   const accountTrigger = profile ? (

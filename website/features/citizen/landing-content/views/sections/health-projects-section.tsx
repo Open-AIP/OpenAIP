@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProjectHighlightVM } from "@/lib/domain/landing-content";
 import CardShell from "../../components/atoms/card-shell";
@@ -63,8 +63,8 @@ function formatCompactCount(value: number): string {
 
 function getStackStyle(delta: number) {
   const abs = Math.abs(delta);
-  const x = abs === 0 ? 0 : 200;
-  const scale = abs === 0 ? 1 : 0.75;
+  const x = abs === 0 ? 0 : 184;
+  const scale = abs === 0 ? 1 : 0.78;
   const opacity = abs === 0 ? 1 : 0.62;
   const zIndex = abs === 0 ? 50 : 40;
   const signedX = delta < 0 ? -x : x;
@@ -315,12 +315,12 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
   return (
     <FullScreenSection id="health-projects" className="bg-[#EFF4F7]">
       <motion.div
-        className="grid grid-cols-12 items-center gap-10 lg:gap-16"
+        className="grid grid-cols-12 items-start gap-10 lg:gap-16"
         initial="hidden"
         whileInView="visible"
         viewport={VIEWPORT_ONCE}
       >
-        <div className="col-span-12 space-y-8 lg:col-span-5 xl:col-span-4">
+        <div className="col-span-12 space-y-8 lg:col-span-5 lg:pt-10 xl:col-span-4">
           <motion.div className="space-y-6" variants={headerVariants}>
             <h2 className="max-w-[12ch] text-4xl font-extrabold leading-[0.95] tracking-tight text-[#052434] sm:text-5xl">
               {vm.heading}
@@ -331,24 +331,24 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
           </motion.div>
 
           <motion.div className="grid grid-cols-1 gap-5 min-[520px]:grid-cols-2" variants={kpiContainerVariants}>
-            <motion.div variants={kpiItemVariants}>
-              <CardShell className="w-full min-w-0 py-0">
-                <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
+            <motion.div className="h-full" variants={kpiItemVariants}>
+              <CardShell className="flex h-full min-h-[152px] w-full min-w-0 py-0">
+                <div className="flex h-full flex-col justify-between space-y-2 px-5 py-5 sm:px-6 sm:py-6">
                   <p className="text-3xl font-bold leading-none text-[#EC4899] sm:text-3xl">
                     {formatCompactPeso(primaryValue)}
                   </p>
-                  <p className="text-base font-medium text-slate-500">{vm.primaryKpiLabel}</p>
+                  <p className="text-sm font-medium text-slate-500">{vm.primaryKpiLabel}</p>
                 </div>
               </CardShell>
             </motion.div>
 
-            <motion.div variants={kpiItemVariants}>
-              <CardShell className="w-full min-w-0 py-0">
-                <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                  <p className="text-4xl font-bold leading-none text-[#EC4899] sm:text-4xl">
+            <motion.div className="h-full" variants={kpiItemVariants}>
+              <CardShell className="flex h-full min-h-[152px] w-full min-w-0 py-0">
+                <div className="flex h-full flex-col justify-between space-y-2 px-5 py-5 sm:px-6 sm:py-6">
+                  <p className="text-3xl font-bold leading-none text-[#EC4899] sm:text-3xl">
                     {formatCompactCount(vm.secondaryKpiValue)}
                   </p>
-                  <p className="text-base font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
+                  <p className="text-sm font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
                 </div>
               </CardShell>
             </motion.div>
@@ -359,7 +359,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
           <div className="relative w-full lg:max-w-[920px]">
             <div className="relative overflow-hidden rounded-2xl" onMouseLeave={stopEdgeScroll}>
               <div
-                className="relative h-[546px] sm:h-[588px]"
+                className="relative h-[500px] sm:h-[540px]"
                 onMouseMove={handleStageMouseMove}
                 onWheel={() => {
                   stopEdgeScroll();
@@ -368,7 +368,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
               >
                 {previousItem ? (
                   <div
-                    className="absolute left-1/2 top-1/2 w-[400px]"
+                    className="absolute left-1/2 top-1/2 w-[360px]"
                     style={getStackStyle(-1)}
                     onClick={() => setActiveIndex(effectiveActiveIndex - 1)}
                   >
@@ -378,7 +378,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
                 {nextItem ? (
                   <div
-                    className="absolute left-1/2 top-1/2 w-[400px]"
+                    className="absolute left-1/2 top-1/2 w-[360px]"
                     style={getStackStyle(1)}
                     onClick={() => setActiveIndex(effectiveActiveIndex + 1)}
                   >
@@ -389,7 +389,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                 {activeItem ? (
                   <div
                     key={activeItem.id}
-                    className="absolute left-1/2 top-1/2 z-[56] w-[400px]"
+                    className="absolute left-1/2 top-1/2 z-[56] w-[360px]"
                     style={{ transform: "translate(-50%, -50%)" }}
                   >
                     {renderCarouselItem(activeItem, true)}
@@ -422,7 +422,7 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
 
             <div className="pointer-events-none absolute inset-y-0 -left-[43px] -right-[43px] z-[70] hidden items-center justify-between lg:flex">
               <motion.div
-                whileHover={reducedMotion ? undefined : { x: -2, scale: 1.03 }}
+                whileHover={reducedMotion ? undefined : { x: -2, scale: 1.04 }}
                 whileTap={reducedMotion ? undefined : { scale: 0.98 }}
                 transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
               >
@@ -432,15 +432,15 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                   variant="ghost"
                   aria-label="Go to previous health project"
                   disabled={!hasMultipleItems || effectiveActiveIndex <= 0}
-                  className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                  className="pointer-events-auto h-14 w-14 rounded-full border border-white/70 bg-white/95 text-[#56616B] shadow-[0_10px_24px_rgba(15,23,42,0.14)] hover:bg-white disabled:opacity-30"
                   onClick={goToPrevious}
                 >
-                  <ArrowLeft className="h-14 w-14 stroke-[1.6]" />
+                  <ChevronLeft className="h-7 w-7 stroke-[2.8]" />
                 </Button>
               </motion.div>
 
               <motion.div
-                whileHover={reducedMotion ? undefined : { x: 2, scale: 1.03 }}
+                whileHover={reducedMotion ? undefined : { x: 2, scale: 1.04 }}
                 whileTap={reducedMotion ? undefined : { scale: 0.98 }}
                 transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
               >
@@ -450,10 +450,10 @@ export default function HealthProjectsSection({ vm }: HealthProjectsSectionProps
                   variant="ghost"
                   aria-label="Advance to next health project"
                   disabled={!hasMultipleItems || effectiveActiveIndex >= carouselItems.length - 1}
-                  className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                  className="pointer-events-auto h-14 w-14 rounded-full border border-white/70 bg-white/95 text-[#56616B] shadow-[0_10px_24px_rgba(15,23,42,0.14)] hover:bg-white disabled:opacity-30"
                   onClick={goToNext}
                 >
-                  <ArrowRight className="h-14 w-14 stroke-[1.6]" />
+                  <ChevronRight className="h-7 w-7 stroke-[2.8]" />
                 </Button>
               </motion.div>
             </div>

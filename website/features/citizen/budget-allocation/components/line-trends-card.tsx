@@ -1,5 +1,7 @@
+"use client";
+
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPeso } from "@/lib/formatting";
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from "recharts";
 
 export type SectorTrendPoint = {
@@ -23,6 +25,8 @@ const SERIES_META: Array<{ key: keyof Omit<SectorTrendPoint, "year">; label: str
 ];
 
 export default function LineTrendsCard({ subtitle, data }: LineTrendsCardProps) {
+  const [activeSeriesName, setActiveSeriesName] = useState<string | null>(null);
+
   return (
     <Card className="rounded-2xl border border-[#033a58] bg-[#022437] text-white shadow-sm">
       <CardHeader className="space-y-1">
@@ -47,18 +51,7 @@ export default function LineTrendsCard({ subtitle, data }: LineTrendsCardProps) 
                   tick={{ fill: "rgba(241, 245, 249, 0.85)", fontSize: 12 }}
                   tickFormatter={(value: number) => `PHP ${Math.round(value / 1_000_000)}M`}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#011826",
-                    border: "1px solid rgba(148, 163, 184, 0.4)",
-                    borderRadius: "0.75rem",
-                  }}
-                  labelStyle={{ color: "#F8FAFC" }}
-                  formatter={(value: number | string | undefined, name: string | undefined) => {
-                    const amount = typeof value === "number" ? value : Number(value ?? 0);
-                    return [formatPeso(Number.isFinite(amount) ? amount : 0), name ?? ""];
-                  }}
-                />
+                <Tooltip content={() => null} cursor={false} />
                 <Legend
                   wrapperStyle={{
                     color: "rgba(241, 245, 249, 0.9)",
@@ -73,9 +66,17 @@ export default function LineTrendsCard({ subtitle, data }: LineTrendsCardProps) 
                     dataKey={series.key}
                     name={series.label}
                     stroke={series.color}
-                    strokeWidth={2.4}
-                    dot={{ r: 3.5, fill: series.color, stroke: "#022437", strokeWidth: 1 }}
-                    activeDot={{ r: 5 }}
+                    strokeWidth={activeSeriesName === series.label ? 3.6 : 2.4}
+                    strokeOpacity={activeSeriesName && activeSeriesName !== series.label ? 0.28 : 1}
+                    dot={{
+                      r: activeSeriesName === series.label ? 4.5 : 3.5,
+                      fill: series.color,
+                      stroke: "#022437",
+                      strokeWidth: 1,
+                    }}
+                    activeDot={{ r: activeSeriesName === series.label ? 6 : 5 }}
+                    onMouseEnter={() => setActiveSeriesName(series.label)}
+                    onMouseLeave={() => setActiveSeriesName(null)}
                   />
                 ))}
               </LineChart>

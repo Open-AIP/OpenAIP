@@ -23,7 +23,7 @@ type AipDetailsSectionProps = {
 export default function AipDetailsSection({ vm, onTabChange, onSearchChange, viewAllHref, page, totalPages, onPageChange }: AipDetailsSectionProps) {
   const hasPagination = totalPages > 0;
   return (
-    <section className="mx-auto max-w-6xl px-6 py-12">
+    <section className="mx-auto max-w-6xl px-6 pt-5 pb-12">
       <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <CardContent className="space-y-5 p-6 md:p-7">
           <div className="space-y-1">

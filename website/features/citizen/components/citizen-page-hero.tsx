@@ -1,6 +1,9 @@
 import Image from "next/image";
 import { cn } from "@/lib/ui/utils";
 
+const CITY_SRC = "/citizen-dashboard/city.png";
+const FLAG_SRC = "/citizen-dashboard/flag.jpg";
+
 type CitizenPageHeroProps = {
   title: string;
   subtitle: string;
@@ -48,8 +51,25 @@ export default function CitizenPageHero({
             </div>
           ) : (
             <div className="pointer-events-none absolute inset-0">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.18),transparent_45%)]" />
-              <div className="absolute inset-x-0 bottom-0 h-20 opacity-35 [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.35)_0_12px,transparent_12px_22px)]" />
+              <div className="absolute inset-0 bg-[#3888f1]" />
+              <Image
+                src={CITY_SRC}
+                alt=""
+                fill
+                className="object-cover object-[center_88%] opacity-92"
+                sizes="100vw"
+                priority
+              />
+              <Image
+                src={FLAG_SRC}
+                alt=""
+                fill
+                className="object-cover object-center opacity-24"
+                sizes="100vw"
+              />
+              <div className="absolute inset-0 bg-[#3888f1]/50" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,47,111,0.12)_0%,rgba(10,47,111,0.35)_55%,rgba(10,47,111,0.55)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.35)_75%,rgba(0,0,0,0.55)_100%)]" />
             </div>
           )}
 
@@ -60,7 +80,10 @@ export default function CitizenPageHero({
                 {eyebrow}
               </p>
             ) : null}
-            <h1 className="text-3xl font-semibold tracking-[0.06em] md:text-5xl">
+            <h1
+              className="text-3xl font-normal uppercase tracking-[0.06em] text-white md:text-5xl"
+              style={{ fontFamily: "var(--font-baskervville-sc), Georgia, serif" }}
+            >
               {title}
             </h1>
             <p className="mx-auto mt-4 max-w-4xl text-sm md:text-lg">

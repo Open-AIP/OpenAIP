@@ -7,7 +7,7 @@ export default function AipOverviewDocumentCard({ aip }: { aip: AipDetails }) {
   return (
     <Card className="border-slate-200">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-3xl">
+        <CardTitle className="flex items-center gap-2 text-2xl">
           <FileText className="h-5 w-5 text-slate-600" />
           {aip.title}
         </CardTitle>

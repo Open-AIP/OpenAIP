@@ -49,14 +49,14 @@ export default function CitizenFiltersBar({
 
   return (
     <Card className="w-full border-slate-200">
-      <CardContent className="space-y-4 px-4 py-2 md:px-6 md:py-3">
+      <CardContent className="space-y-2 px-4 md:px-6">
         <h3 className="text-sm font-medium text-slate-700">Filters</h3>
 
         <div className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">{yearLabel}</label>
             <Select value={yearValue} onValueChange={onYearChange}>
-              <SelectTrigger className="h-10 w-full bg-white">
+              <SelectTrigger className="h-11 w-full bg-white">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
@@ -72,7 +72,7 @@ export default function CitizenFiltersBar({
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">{lguLabel}</label>
             <Select value={lguValue} onValueChange={onLguChange}>
-              <SelectTrigger className="h-10 w-full bg-white">
+              <SelectTrigger className="h-11 w-full bg-white">
                 <SelectValue placeholder="Select LGU" />
               </SelectTrigger>
               <SelectContent>
@@ -93,7 +93,7 @@ export default function CitizenFiltersBar({
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="h-10 w-full bg-white pl-9"
+                className="h-11 w-full bg-white pl-9"
               />
             </div>
           </div>

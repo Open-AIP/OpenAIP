@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Arimo, Arsenal_SC, Geist_Mono, Inter } from "next/font/google";
+import { Arimo, Arsenal_SC, Baskervville_SC, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 
@@ -17,6 +17,12 @@ const arsenalSc = Arsenal_SC({
   variable: "--font-arsenal-sc",
   subsets: ["latin"],
   weight: ["400", "700"],
+});
+
+const baskervvilleSc = Baskervville_SC({
+  variable: "--font-baskervville-sc",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 const inter = Inter({
@@ -37,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${arimo.variable} ${geistMono.variable} ${arsenalSc.variable} ${inter.variable} antialiased`}
+        className={`${arimo.variable} ${geistMono.variable} ${arsenalSc.variable} ${baskervvilleSc.variable} ${inter.variable} antialiased`}
       >
         {children}
       </body>

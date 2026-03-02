@@ -250,8 +250,11 @@ export default function CitizenAboutUsView({
                 const Icon = card.icon;
                 return (
                   <motion.div key={card.title} variants={cardReveal}>
-                    <Card className="rounded-2xl shadow-sm" style={{ backgroundColor: card.tint, borderColor: card.border }}>
-                      <CardContent className="space-y-3 p-4">
+                    <Card
+                      className="rounded-2xl shadow-sm"
+                      style={{ backgroundColor: card.tint, borderColor: card.border }}
+                    >
+                      <CardContent className="flex min-h-[178px] flex-col space-y-3 p-4">
                         <div className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-[#0247A1]">
                           <Icon className="h-4 w-4" />
                         </div>

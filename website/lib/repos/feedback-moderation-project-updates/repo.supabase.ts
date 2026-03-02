@@ -1,4 +1,4 @@
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { getAuthenticatedBrowserClient } from "@/lib/supabase/client";
 import type {
   FeedbackModerationProjectUpdatesRepo,
   FeedbackModerationProjectUpdatesSeed,
@@ -6,7 +6,7 @@ import type {
 } from "./repo";
 
 async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const [
     updatesResult,
     updateMediaResult,
@@ -99,7 +99,7 @@ async function loadSeedData(): Promise<FeedbackModerationProjectUpdatesSeed> {
 }
 
 async function resolveActorId(): Promise<string | null> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const { data, error } = await client.auth.getUser();
   if (error) return null;
   return data.user?.id ?? null;
@@ -109,7 +109,7 @@ async function logProjectUpdateAction(
   input: ProjectUpdateModerationInput,
   action: "project_update_hidden" | "project_update_unhidden"
 ): Promise<void> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const { error } = await client.rpc("log_activity", {
     p_action: action,
     p_entity_table: "project_updates",
@@ -136,7 +136,7 @@ async function setProjectUpdateVisibility(input: {
   reason: string;
   violationCategory?: string | null;
 }): Promise<void> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const actorId = await resolveActorId();
 
   const payload = input.hidden

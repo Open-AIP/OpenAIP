@@ -56,8 +56,10 @@ export function LoginForm({role, baseURL}:AuthParameters) {
         throw new Error(payload?.error?.message ?? "An error occurred");
       }
 
-      // route to redirect to an authenticated route. The user already has an active session.
-      router.push(`/${isStaffRole ? role : ""}`);
+      const targetPath = `/${isStaffRole ? role : ""}`;
+      // Refresh the App Router tree after auth so RSC/cached payloads re-read fresh auth cookies.
+      router.replace(targetPath);
+      router.refresh();
 
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -18,6 +19,14 @@ type SessionConfig = {
 };
 
 const HEARTBEAT_THROTTLE_MS = 30_000;
+const PROTECTED_PATH_PREFIXES = ["/admin", "/city", "/barangay", "/municipality", "/account"];
+
+function isProtectedPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return PROTECTED_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
 
 function formatRemaining(minutesMs: number): string {
   const totalSeconds = Math.max(0, Math.ceil(minutesMs / 1000));
@@ -27,6 +36,8 @@ function formatRemaining(minutesMs: number): string {
 }
 
 export default function SessionTimeoutGuard() {
+  const pathname = usePathname();
+  const isProtectedRoute = isProtectedPath(pathname);
   const [config, setConfig] = useState<SessionConfig | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
   const [warningOpen, setWarningOpen] = useState(false);
@@ -83,11 +94,19 @@ export default function SessionTimeoutGuard() {
   }, []);
 
   useEffect(() => {
+    if (!isProtectedRoute) {
+      setConfig(null);
+      setWarningOpen(false);
+      setRemainingMs(0);
+      lastActivityRef.current = null;
+      return;
+    }
+    // Keep session heartbeat inactive on public routes to avoid noisy /auth/session/activity traffic.
     void heartbeat();
-  }, [heartbeat]);
+  }, [heartbeat, isProtectedRoute]);
 
   useEffect(() => {
-    if (!config) return;
+    if (!isProtectedRoute || !config) return;
 
     const onActivity = () => {
       lastActivityRef.current = Date.now();
@@ -109,10 +128,10 @@ export default function SessionTimeoutGuard() {
       window.removeEventListener("scroll", onActivity);
       window.removeEventListener("touchstart", onActivity);
     };
-  }, [config, heartbeat]);
+  }, [config, heartbeat, isProtectedRoute]);
 
   useEffect(() => {
-    if (!config) return;
+    if (!isProtectedRoute || !config) return;
 
     const tick = () => {
       const lastActivity = lastActivityRef.current;
@@ -137,7 +156,7 @@ export default function SessionTimeoutGuard() {
     return () => {
       window.clearInterval(timer);
     };
-  }, [config, signOutNow]);
+  }, [config, isProtectedRoute, signOutNow]);
 
   if (!config) return null;
 
@@ -170,4 +189,3 @@ export default function SessionTimeoutGuard() {
     </Dialog>
   );
 }
-

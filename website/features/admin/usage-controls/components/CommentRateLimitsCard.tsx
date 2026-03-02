@@ -50,9 +50,9 @@ export default function CommentRateLimitsCard({
             <MessageSquare className="h-4 w-4" />
           </div>
           <div>
-            <CardTitle className="text-[15px]">Comment Submission Limits</CardTitle>
+            <CardTitle className="text-[15px]">Feedback Submission Limits</CardTitle>
             <div className="text-[12px] text-slate-500">
-              Control how frequently users can submit comments
+              Control how frequently users can submit feedback
             </div>
           </div>
         </div>
@@ -60,7 +60,7 @@ export default function CommentRateLimitsCard({
       <CardContent className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <div className="text-xs text-slate-500">Max Comments</div>
+            <div className="text-xs text-slate-500">Max Feedback</div>
             <Input
               type="number"
               min={1}
@@ -93,7 +93,7 @@ export default function CommentRateLimitsCard({
 
         <div className="rounded-lg bg-slate-50 px-4 py-3 text-[12px] text-slate-600">
           <div className="font-medium">
-            Current limit: {maxComments} comments per {timeWindow}
+            Current limit: {maxComments} feedback entries per {timeWindow}
           </div>
           Users exceeding this limit will be temporarily rate-limited and may be flagged for review.
         </div>
@@ -104,7 +104,7 @@ export default function CommentRateLimitsCard({
             onClick={handleSave}
             disabled={!canSave}
           >
-            Save Comment Rate Limits
+            Save Feedback Rate Limits
           </Button>
           {saved && (
             <span className="text-[12px] text-emerald-600">

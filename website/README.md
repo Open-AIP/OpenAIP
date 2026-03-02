@@ -56,6 +56,32 @@ npx tsc --noEmit
 node scripts/repo-smoke/run.js
 ```
 
+## Admin Auth Regression Checklist
+
+1. Fresh admin sign-up/confirm (if applicable in your environment):
+   - Complete staff/admin sign-up and confirmation flow.
+   - Navigate to `/admin` and confirm dashboard data is visible immediately without manual refresh.
+2. Fresh admin sign-in:
+   - Sign in at `/admin/sign-in`.
+   - Confirm `/admin` dashboard data is visible immediately on first load without manual refresh.
+3. First client-side nav to dashboard:
+   - From any authenticated admin page, click `Dashboard` in the admin sidebar.
+   - Confirm dashboard data appears on first render without manual refresh.
+4. Role guard:
+   - Sign in as non-admin and request `/admin`.
+   - Confirm redirect to the unauthorized page.
+5. Refresh parity:
+   - Hard refresh `/admin` and confirm values remain consistent with first-load values.
+6. Console/runtime:
+   - Confirm no new client or server errors during the above scenarios.
+7. Session heartbeat scope:
+   - Visit a public route (for example `/`) while signed out.
+   - Confirm the server log is not spammed with repeated `POST /auth/session/activity`.
+   - Visit `/admin` while signed in and confirm heartbeat calls resume.
+8. Admin sign-up policy:
+   - Request `/admin/sign-up`.
+   - Confirm redirect to `/admin/sign-in`.
+
 ## Notes
 
 - Database schema and SQL patches are in `docs/sql`.

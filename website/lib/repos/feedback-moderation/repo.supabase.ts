@@ -1,4 +1,4 @@
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { getAuthenticatedBrowserClient } from "@/lib/supabase/client";
 import type {
   FeedbackModerationActionInput,
   FeedbackModerationDataset,
@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 async function loadDataset(): Promise<FeedbackModerationDataset> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const [
     feedbackResult,
     activityResult,
@@ -83,7 +83,7 @@ async function logModerationActivity(
   input: FeedbackModerationActionInput,
   action: "feedback_hidden" | "feedback_unhidden"
 ): Promise<void> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const { error } = await client.rpc("log_activity", {
     p_action: action,
     p_entity_table: "feedback",
@@ -108,7 +108,7 @@ async function setFeedbackVisibility(
   feedbackId: string,
   isPublic: boolean
 ): Promise<void> {
-  const client = supabaseBrowser();
+  const client = await getAuthenticatedBrowserClient();
   const { error } = await client
     .from("feedback")
     .update({ is_public: isPublic })
@@ -136,4 +136,3 @@ export function createSupabaseFeedbackModerationRepo(): FeedbackModerationRepo {
     },
   };
 }
-

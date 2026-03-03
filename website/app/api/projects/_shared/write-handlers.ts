@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { withWorkflowActivityMetadata } from "@/lib/audit/workflow-metadata";
 import { getActorContext } from "@/lib/domain/get-actor-context";
 import type { ActorContext } from "@/lib/domain/actor-context";
+import { notifySafely } from "@/lib/notifications";
 import { normalizeDateForStorage } from "@/features/projects/shared/add-information/date-normalization";
 import {
   getProjectMediaBucketName,
@@ -816,6 +817,20 @@ export async function handlePostUpdateRequest(input: {
       await client.from("project_updates").delete().eq("id", insertedUpdate.id);
       throw new ApiError(400, logError.message);
     }
+    await notifySafely({
+      eventType: "PROJECT_UPDATE_STATUS_CHANGED",
+      scopeType: input.scope,
+      entityType: "project_update",
+      entityId: insertedUpdate.id,
+      projectUpdateId: insertedUpdate.id,
+      projectId: project.id,
+      aipId: project.aipId,
+      barangayId: project.barangayId,
+      cityId: project.cityId,
+      actorUserId: actor.userId,
+      actorRole: actor.role,
+      transition: "draft->published",
+    });
 
     return NextResponse.json(
       {

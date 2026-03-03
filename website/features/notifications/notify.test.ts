@@ -8,6 +8,12 @@ type MockRecipient = {
 };
 
 const mockGetAdminRecipients = vi.fn<() => Promise<MockRecipient[]>>();
+const mockGetBarangayOfficialRecipients = vi.fn<() => Promise<MockRecipient[]>>();
+const mockGetCitizenRecipientsForBarangay = vi.fn<() => Promise<MockRecipient[]>>();
+const mockResolveAipTemplateContext = vi.fn();
+const mockResolveProjectTemplateContext = vi.fn();
+const mockResolveFeedbackTemplateContext = vi.fn();
+const mockResolveActorDisplayName = vi.fn();
 const mockGetUserById = vi.fn();
 const notificationUpserts: Array<{ rows: Array<Record<string, unknown>>; options: unknown }> = [];
 const emailUpserts: Array<{ rows: Array<Record<string, unknown>>; options: unknown }> = [];
@@ -19,15 +25,19 @@ let preferenceRows: Array<{
 
 vi.mock("@/lib/notifications/recipients", () => ({
   getAdminRecipients: () => mockGetAdminRecipients(),
-  getBarangayOfficialRecipients: vi.fn(async () => []),
+  getBarangayOfficialRecipients: () => mockGetBarangayOfficialRecipients(),
   getCityOfficialRecipients: vi.fn(async () => []),
-  getCitizenRecipientsForBarangay: vi.fn(async () => []),
+  getCitizenRecipientsForBarangay: () => mockGetCitizenRecipientsForBarangay(),
   getCitizenRecipientsForCity: vi.fn(async () => []),
   getRecipientByUserId: vi.fn(async () => null),
   resolveAipScope: vi.fn(async () => null),
+  resolveAipTemplateContext: (...args: unknown[]) => mockResolveAipTemplateContext(...args),
+  resolveProjectTemplateContext: (...args: unknown[]) => mockResolveProjectTemplateContext(...args),
   resolveFeedbackContext: vi.fn(async () => null),
+  resolveFeedbackTemplateContext: (...args: unknown[]) => mockResolveFeedbackTemplateContext(...args),
   resolveProjectScope: vi.fn(async () => null),
   resolveProjectUpdateContext: vi.fn(async () => null),
+  resolveActorDisplayName: (...args: unknown[]) => mockResolveActorDisplayName(...args),
   mergeRecipients: (...groups: Array<MockRecipient[]>) => {
     const merged = groups.flat();
     const seen = new Set<string>();
@@ -92,6 +102,25 @@ describe("notify()", () => {
       data: { user: { email: "fallback@example.com" } },
       error: null,
     });
+    mockResolveAipTemplateContext.mockReset();
+    mockResolveAipTemplateContext.mockResolvedValue({
+      fiscalYear: 2026,
+      lguName: "Barangay Uno",
+      scopeLabel: "barangay",
+    });
+    mockResolveProjectTemplateContext.mockReset();
+    mockResolveProjectTemplateContext.mockResolvedValue({
+      projectName: "Rural Health Program",
+    });
+    mockResolveFeedbackTemplateContext.mockReset();
+    mockResolveFeedbackTemplateContext.mockResolvedValue({
+      feedbackKind: "question",
+      feedbackBody: "Can you share update details for this project?",
+      entityLabel: "Rural Health Program",
+      targetType: "project",
+    });
+    mockResolveActorDisplayName.mockReset();
+    mockResolveActorDisplayName.mockResolvedValue("Default Actor");
 
     mockGetAdminRecipients.mockReset();
     mockGetAdminRecipients.mockResolvedValue([
@@ -108,6 +137,10 @@ describe("notify()", () => {
         scopeType: "admin",
       },
     ]);
+    mockGetBarangayOfficialRecipients.mockReset();
+    mockGetBarangayOfficialRecipients.mockResolvedValue([]);
+    mockGetCitizenRecipientsForBarangay.mockReset();
+    mockGetCitizenRecipientsForBarangay.mockResolvedValue([]);
   });
 
   it("inserts notifications and outbox rows for multiple recipients", async () => {
@@ -127,6 +160,12 @@ describe("notify()", () => {
     expect(notificationUpserts[0].rows[0].dedupe_key).toBe(
       "OUTBOX_FAILURE_THRESHOLD_REACHED:system:none:2026-03-03T05"
     );
+    expect(emailUpserts[0].rows[0].payload).toMatchObject({
+      notification_ref: "OUTBOX_FAILURE_THRESHOLD_REACHED:system:none:2026-03-03T05",
+      template_data: expect.objectContaining({
+        event_type: "OUTBOX_FAILURE_THRESHOLD_REACHED",
+      }),
+    });
   });
 
   it("respects preference rows and keeps missing rows enabled by default", async () => {
@@ -181,5 +220,100 @@ describe("notify()", () => {
     expect(notificationUpserts[0].rows[0].dedupe_key).toBe(
       notificationUpserts[1].rows[0].dedupe_key
     );
+  });
+
+  it("builds recipient-aware action URLs for mixed recipient events", async () => {
+    mockGetBarangayOfficialRecipients.mockResolvedValueOnce([
+      {
+        userId: "bo-1",
+        role: "barangay_official",
+        email: "bo1@example.com",
+        scopeType: "barangay",
+      },
+    ]);
+    mockGetCitizenRecipientsForBarangay.mockResolvedValueOnce([
+      {
+        userId: "citizen-1",
+        role: "citizen",
+        email: "citizen1@example.com",
+        scopeType: "citizen",
+      },
+    ]);
+
+    await notify({
+      eventType: "AIP_PUBLISHED",
+      scopeType: "barangay",
+      entityType: "aip",
+      aipId: "aip-1",
+      barangayId: "brgy-1",
+      cityId: "city-1",
+      entityId: "aip-1",
+    });
+
+    expect(notificationUpserts).toHaveLength(1);
+    const rows = notificationUpserts[0].rows;
+    const byUserId = new Map(rows.map((row) => [String(row.recipient_user_id), row]));
+    expect(byUserId.get("bo-1")?.action_url).toBe("/barangay/aips/aip-1");
+    expect(byUserId.get("citizen-1")?.action_url).toBe("/aips/aip-1");
+
+    expect(emailUpserts).toHaveLength(1);
+    const emailRows = emailUpserts[0].rows;
+    const emailByUserId = new Map(emailRows.map((row) => [String(row.recipient_user_id), row]));
+    expect(emailByUserId.get("bo-1")?.payload).toMatchObject({
+      action_url: "/barangay/aips/aip-1",
+    });
+    expect(emailByUserId.get("citizen-1")?.payload).toMatchObject({
+      action_url: "/aips/aip-1",
+      template_data: expect.objectContaining({
+        fiscal_year: 2026,
+        lgu_name: "Barangay Uno",
+      }),
+    });
+  });
+
+  it("enriches feedback payload template_data with sanitized excerpt and labels", async () => {
+    mockGetBarangayOfficialRecipients.mockResolvedValueOnce([
+      {
+        userId: "bo-1",
+        role: "barangay_official",
+        email: "bo1@example.com",
+        scopeType: "barangay",
+      },
+    ]);
+    mockResolveFeedbackTemplateContext.mockResolvedValueOnce({
+      feedbackKind: "concern",
+      feedbackBody: "x".repeat(260),
+      entityLabel: "Road Improvement Project",
+      targetType: "project",
+    });
+    mockResolveProjectTemplateContext.mockResolvedValueOnce({
+      projectName: "Road Improvement Project",
+    });
+    mockResolveActorDisplayName.mockResolvedValueOnce("Admin Reviewer");
+
+    await notify({
+      eventType: "FEEDBACK_VISIBILITY_CHANGED",
+      scopeType: "barangay",
+      entityType: "feedback",
+      entityId: "fb-1",
+      feedbackId: "fb-1",
+      projectId: "proj-1",
+      aipId: "aip-1",
+      barangayId: "brgy-1",
+      actorUserId: "admin-1",
+      actorRole: "admin",
+      transition: "visible->hidden",
+      reason: "Contains personal information",
+    });
+
+    expect(emailUpserts).toHaveLength(1);
+    const payload = emailUpserts[0].rows[0].payload as Record<string, unknown>;
+    const templateData = payload.template_data as Record<string, unknown>;
+    expect(templateData.entity_label).toBe("Road Improvement Project");
+    expect(templateData.feedback_kind).toBe("Concern");
+    expect(String(templateData.feedback_excerpt)).toContain("...");
+    expect(String(templateData.feedback_excerpt).length).toBeLessThanOrEqual(200);
+    expect(templateData.visibility_action).toBe("hidden");
+    expect(templateData.new_visibility).toBe("Hidden");
   });
 });

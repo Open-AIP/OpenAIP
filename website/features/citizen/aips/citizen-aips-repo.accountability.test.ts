@@ -119,9 +119,7 @@ function createServerClient(input: {
           select: () => ({
             eq: (_column: string, _value: string) => ({
               eq: (_column2: string, _value2: string) => ({
-                eq: (_column3: string, _value3: boolean) => ({
-                  is: async () => ({ count: 0, error: null }),
-                }),
+                is: async () => ({ count: 0, error: null }),
               }),
             }),
           }),

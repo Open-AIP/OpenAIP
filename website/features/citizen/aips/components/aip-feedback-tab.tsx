@@ -45,6 +45,22 @@ type ProfileStatusPayload = {
   blockedReason?: string | null;
 };
 
+function readSearchParam(
+  searchParams: ReturnType<typeof useSearchParams>,
+  key: string
+): string | null {
+  if (typeof (searchParams as { get?: unknown })?.get === "function") {
+    return (searchParams as { get(name: string): string | null }).get(key);
+  }
+
+  const rawQuery =
+    typeof (searchParams as { toString?: unknown })?.toString === "function"
+      ? (searchParams as { toString(): string }).toString()
+      : "";
+  if (!rawQuery) return null;
+  return new URLSearchParams(rawQuery).get(key);
+}
+
 function sortByCreatedNewestFirst(items: AipFeedbackItem[]): AipFeedbackItem[] {
   return [...items].sort((left, right) => {
     const leftTime = new Date(left.createdAt).getTime();
@@ -138,11 +154,13 @@ function FeedbackCard({
   onReply,
   replyDisabled,
   showReplyButton,
+  highlighted = false,
 }: {
   item: AipFeedbackItem;
   onReply: (item: AipFeedbackItem) => void;
   replyDisabled: boolean;
   showReplyButton?: boolean;
+  highlighted?: boolean;
 }) {
   const isHidden = item.isHidden === true;
   const isNested = item.parentFeedbackId !== null;
@@ -151,10 +169,11 @@ function FeedbackCard({
 
   return (
     <article
+      data-feedback-id={item.id}
       data-hidden-comment={isHidden ? "true" : "false"}
       className={`rounded-xl border bg-white p-4 shadow-sm ${
         isHidden ? "border-slate-300 bg-slate-50/80" : "border-slate-200"
-      }`}
+      } ${highlighted ? "border-sky-300 ring-2 ring-sky-200" : ""}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
@@ -234,6 +253,10 @@ function ThreadList({
   onCancelReply,
   onSubmitReply,
   readOnly,
+  selectedThreadId,
+  selectedFeedbackId,
+  setThreadRef,
+  setFeedbackRef,
 }: {
   threads: AipFeedbackThread[];
   postingReplyRootId: string | null;
@@ -244,6 +267,10 @@ function ThreadList({
   onCancelReply: () => void;
   onSubmitReply: (input: { kind: CitizenProjectFeedbackKind; body: string }) => Promise<void>;
   readOnly?: boolean;
+  selectedThreadId?: string | null;
+  selectedFeedbackId?: string | null;
+  setThreadRef?: (threadId: string) => (node: HTMLDivElement | null) => void;
+  setFeedbackRef?: (feedbackId: string) => (node: HTMLDivElement | null) => void;
 }) {
   if (threads.length === 0) {
     return null;
@@ -254,27 +281,44 @@ function ThreadList({
       {threads.map((thread) => {
         const isPostingReply = postingReplyRootId === thread.root.id;
         const isReplyingHere = replyComposer?.rootId === thread.root.id;
+        const isSelectedThread = selectedThreadId === thread.root.id;
+        const isRootFeedbackSelected = selectedFeedbackId === thread.root.id;
 
         return (
-          <div key={thread.root.id} className="space-y-3 rounded-2xl border border-slate-200 p-4">
-            <FeedbackCard
-              item={thread.root}
-              onReply={onReply}
-              replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
-              showReplyButton={!readOnly}
-            />
+          <div
+            key={thread.root.id}
+            ref={setThreadRef?.(thread.root.id)}
+            className={`space-y-3 rounded-2xl border border-slate-200 p-4 ${
+              isSelectedThread ? "border-sky-300 ring-2 ring-sky-200" : ""
+            }`}
+            data-thread-id={thread.root.id}
+          >
+            <div ref={setFeedbackRef?.(thread.root.id)}>
+              <FeedbackCard
+                item={thread.root}
+                onReply={onReply}
+                replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
+                showReplyButton={!readOnly}
+                highlighted={isRootFeedbackSelected}
+              />
+            </div>
 
             {thread.replies.length > 0 ? (
               <div className="ml-4 space-y-3 border-l border-slate-200 pl-4">
-                {thread.replies.map((reply) => (
-                  <FeedbackCard
-                    key={reply.id}
-                    item={reply}
-                    onReply={onReply}
-                    replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
-                    showReplyButton={!readOnly}
-                  />
-                ))}
+                {thread.replies.map((reply) => {
+                  const isReplySelected = selectedFeedbackId === reply.id;
+                  return (
+                    <div key={reply.id} ref={setFeedbackRef?.(reply.id)}>
+                      <FeedbackCard
+                        item={reply}
+                        onReply={onReply}
+                        replyDisabled={readOnly || isPostingReply || isPostingRoot || isAuthLoading}
+                        showReplyButton={!readOnly}
+                        highlighted={isReplySelected}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 
@@ -304,6 +348,8 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const selectedThreadId = readSearchParam(searchParams, "thread");
+  const selectedFeedbackId = readSearchParam(searchParams, "comment");
   const [isAuthLoading, setIsAuthLoading] = React.useState(true);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [items, setItems] = React.useState<AipFeedbackItem[]>([]);
@@ -315,6 +361,20 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
   const [isBlocked, setIsBlocked] = React.useState(false);
   const [blockedUntil, setBlockedUntil] = React.useState<string | null>(null);
   const [blockedReason, setBlockedReason] = React.useState<string | null>(null);
+  const threadRefs = React.useRef(new Map<string, HTMLDivElement | null>());
+  const feedbackRefs = React.useRef(new Map<string, HTMLDivElement | null>());
+  const setThreadRef = React.useCallback(
+    (threadId: string) => (node: HTMLDivElement | null) => {
+      threadRefs.current.set(threadId, node);
+    },
+    []
+  );
+  const setFeedbackRef = React.useCallback(
+    (feedbackId: string) => (node: HTMLDivElement | null) => {
+      feedbackRefs.current.set(feedbackId, node);
+    },
+    []
+  );
 
   const currentDetailPath = React.useMemo(() => {
     const query = searchParams.toString();
@@ -433,6 +493,20 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
       setReplyComposer(null);
     }
   }, [isBlocked]);
+
+  React.useEffect(() => {
+    const node = selectedFeedbackId
+      ? feedbackRefs.current.get(selectedFeedbackId)
+      : selectedThreadId
+        ? threadRefs.current.get(selectedThreadId)
+        : null;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      if (typeof node.scrollIntoView === "function") {
+        node.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, [selectedFeedbackId, selectedThreadId, citizenThreads, workflowThreads]);
 
   const handleReplyClick = React.useCallback(
     (item: AipFeedbackItem) => {
@@ -624,6 +698,10 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
               onCancelReply={() => setReplyComposer(null)}
               onSubmitReply={handleCreateReplyFeedback}
               readOnly={isBlocked}
+              selectedThreadId={selectedThreadId}
+              selectedFeedbackId={selectedFeedbackId}
+              setThreadRef={setThreadRef}
+              setFeedbackRef={setFeedbackRef}
             />
           ) : null}
         </CardContent>
@@ -665,6 +743,10 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
                 // Read-only workflow container
               }}
               readOnly
+              selectedThreadId={selectedThreadId}
+              selectedFeedbackId={selectedFeedbackId}
+              setThreadRef={setThreadRef}
+              setFeedbackRef={setFeedbackRef}
             />
           ) : null}
         </CardContent>

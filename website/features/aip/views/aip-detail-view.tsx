@@ -266,6 +266,7 @@ export default function AipDetailView({
   const router = useRouter();
   const pathname = usePathname();
   const threadId = searchParams.get("thread");
+  const commentId = searchParams.get("comment");
   const tab = searchParams.get("tab");
   const runIdFromQuery = searchParams.get("run");
   const activeTab = tab === "comments" ? "comments" : "summary";
@@ -1138,9 +1139,11 @@ export default function AipDetailView({
                     if (value === "comments") {
                       params.set("tab", "comments");
                       params.delete("thread");
+                      params.delete("comment");
                     } else {
                       params.delete("tab");
                       params.delete("thread");
+                      params.delete("comment");
                       params.delete("focus");
                     }
                     const query = params.toString();
@@ -1164,6 +1167,7 @@ export default function AipDetailView({
                         const params = new URLSearchParams(searchParams.toString());
                         params.set("tab", "comments");
                         params.delete("thread");
+                        params.delete("comment");
                         const query = params.toString();
                         router.replace(query ? `${pathname}?${query}` : pathname, {
                           scroll: false,
@@ -1227,6 +1231,7 @@ export default function AipDetailView({
                           aipId={aip.id}
                           scope={scope}
                           selectedThreadId={threadId}
+                          selectedFeedbackId={commentId}
                         />
                       </CardContent>
                     </Card>

@@ -287,7 +287,6 @@ async function emitModerationNotifications(input: {
     actorRole: input.actorRole,
     reason: input.reason,
     transition: input.transition,
-    sendEmail: false,
     metadata: {
       moderated_scope_type: input.scopeType,
       moderated_barangay_id: input.barangayId,

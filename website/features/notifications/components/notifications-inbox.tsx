@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatNotificationRelativeTime } from "@/features/notifications/components/notification-time";
+import { buildTrackedNotificationOpenHref } from "@/lib/notifications/open-link";
 import { withCsrfHeader } from "@/lib/security/csrf";
 import { cn } from "@/lib/ui/utils";
 
@@ -309,7 +310,10 @@ export default function NotificationsInbox({
                 </p>
                 {item.action_url ? (
                   <Link
-                    href={item.action_url}
+                    href={buildTrackedNotificationOpenHref({
+                        next: item.action_url,
+                        notificationId: item.id,
+                      })}
                     className="mt-3 inline-flex text-xs font-semibold text-[#0E7490] underline-offset-2 hover:underline"
                   >
                     Open related page

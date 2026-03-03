@@ -11,6 +11,7 @@ type FeedbackCardProps = {
   replyDisabled?: boolean;
   isReply?: boolean;
   hideReplyButton?: boolean;
+  className?: string;
 };
 
 const KIND_LABELS: Record<ProjectFeedbackDisplayKind, string> = {
@@ -55,6 +56,7 @@ export function FeedbackCard({
   replyDisabled = false,
   isReply = false,
   hideReplyButton = false,
+  className,
 }: FeedbackCardProps) {
   const isLguNote = item.kind === "lgu_note";
   const isHidden = item.isHidden === true;
@@ -63,12 +65,14 @@ export function FeedbackCard({
 
   return (
     <article
+      data-feedback-id={item.id}
       data-hidden-comment={isHidden ? "true" : "false"}
       className={cn(
         "rounded-xl border border-slate-200 bg-white p-4 shadow-sm",
         isReply && "rounded-lg",
         isLguNote && "border-sky-200 bg-sky-50/50",
-        isHidden && "border-slate-300 bg-slate-50/80"
+        isHidden && "border-slate-300 bg-slate-50/80",
+        className
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">

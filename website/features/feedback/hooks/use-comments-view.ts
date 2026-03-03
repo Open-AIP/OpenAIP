@@ -7,6 +7,98 @@ import type { CategoryKind } from "@/lib/constants/feedback-kind";
 import type { CommentSidebarItem, CommentThread } from "../types";
 
 type StatusFilter = "all" | "no_response" | "responded";
+type YearFilter = string;
+type ContextFilter = string;
+type QueryFilter = string;
+
+export type FeedbackKpiCounts = {
+  total: number;
+  commend: number;
+  suggestion: number;
+  question: number;
+  concern: number;
+};
+
+type ApplyCommentsViewFiltersParams = {
+  items: CommentSidebarItem[];
+  threadMap: Map<string, CommentThread>;
+  year: YearFilter;
+  status: StatusFilter;
+  kind: CategoryKind | "all";
+  context: ContextFilter;
+  query: QueryFilter;
+  ignoreKind?: boolean;
+};
+
+export function applyCommentsViewFilters({
+  items,
+  threadMap,
+  year,
+  status,
+  kind,
+  context,
+  query,
+  ignoreKind = false,
+}: ApplyCommentsViewFiltersParams): CommentSidebarItem[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return items.filter((item) => {
+    if (status !== "all" && item.status !== status) return false;
+
+    const thread = threadMap.get(item.threadId);
+    if (!ignoreKind && kind !== "all" && thread?.preview.kind !== kind) return false;
+
+    if (context !== "all" && item.contextTitle !== context) return false;
+
+    if (year !== "all") {
+      const itemYear = new Date(item.updatedAt).getFullYear();
+      if (Number.isNaN(itemYear) || itemYear !== Number(year)) return false;
+    }
+
+    if (!normalizedQuery) return true;
+
+    const haystack = [
+      item.snippet,
+      item.contextTitle,
+      item.contextSubtitle,
+      thread?.preview.authorName,
+      thread?.preview.authorRoleLabel,
+      thread?.preview.authorLguLabel,
+      thread?.preview.authorScopeLabel,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedQuery);
+  });
+}
+
+export function getFeedbackKpiCounts(
+  items: CommentSidebarItem[],
+  threadMap: Map<string, CommentThread>
+): FeedbackKpiCounts {
+  return items.reduce<FeedbackKpiCounts>(
+    (counts, item) => {
+      counts.total += 1;
+
+      const kind = threadMap.get(item.threadId)?.preview.kind;
+      if (kind === "commend") counts.commend += 1;
+      if (kind === "suggestion") counts.suggestion += 1;
+      if (kind === "question") counts.question += 1;
+      if (kind === "concern") counts.concern += 1;
+
+      return counts;
+    },
+    {
+      total: 0,
+      commend: 0,
+      suggestion: 0,
+      question: 0,
+      concern: 0,
+    }
+  );
+}
 
 export function useCommentsView({
   scope = "barangay",
@@ -83,39 +175,33 @@ export function useCommentsView({
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  const filteredItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  const filteredItems = useMemo(
+    () =>
+      applyCommentsViewFilters({
+        items,
+        threadMap,
+        year,
+        status,
+        kind,
+        context,
+        query,
+      }),
+    [context, items, kind, query, status, threadMap, year]
+  );
 
-    return items.filter((item) => {
-      if (status !== "all" && item.status !== status) return false;
-
-      const thread = threadMap.get(item.threadId);
-      if (kind !== "all" && thread?.preview.kind !== kind) return false;
-
-      if (context !== "all" && item.contextTitle !== context) return false;
-
-      if (year !== "all") {
-        const itemYear = new Date(item.updatedAt).getFullYear();
-        if (Number.isNaN(itemYear) || itemYear !== Number(year)) return false;
-      }
-
-      if (!normalizedQuery) return true;
-
-      const haystack = [
-        item.snippet,
-        item.contextTitle,
-        item.contextSubtitle,
-        thread?.preview.authorName,
-        thread?.preview.authorRoleLabel,
-        thread?.preview.authorLguLabel,
-        thread?.preview.authorScopeLabel,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(normalizedQuery);
+  const kpiCounts = useMemo(() => {
+    const kpiItems = applyCommentsViewFilters({
+      items,
+      threadMap,
+      year,
+      status,
+      kind,
+      context,
+      query,
+      ignoreKind: true,
     });
+
+    return getFeedbackKpiCounts(kpiItems, threadMap);
   }, [context, items, kind, query, status, threadMap, year]);
 
   return {
@@ -131,6 +217,7 @@ export function useCommentsView({
     yearOptions,
     contextOptions,
     filteredItems,
+    kpiCounts,
     setYear,
     setStatus,
     setKind,

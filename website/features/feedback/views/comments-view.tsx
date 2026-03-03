@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { CommentThreadListCard } from "../components/comment-thread-list-card";
+import { FeedbackKpiRow } from "../components/feedback-kpi-row";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -33,6 +34,7 @@ export default function CommentsView({
     yearOptions,
     contextOptions,
     filteredItems,
+    kpiCounts,
     setYear,
     setStatus,
     setKind,
@@ -49,6 +51,8 @@ export default function CommentsView({
           AIPs and projects.
         </p>
       </div>
+
+      {!loading && !error ? <FeedbackKpiRow counts={kpiCounts} /> : null}
 
       <div className="rounded-2xl p-5">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[120px_160px_120px_120px_minmax(0,1fr)] lg:items-end">

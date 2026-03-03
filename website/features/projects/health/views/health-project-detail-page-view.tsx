@@ -52,6 +52,8 @@ export default function HealthProjectDetailPageView({
   const pathname = usePathname();
   const tab = searchParams.get("tab");
   const threadId = searchParams.get("thread");
+  const commentId = searchParams.get("comment");
+  const updateId = searchParams.get("update");
   const activeTab = tab === "feedback" || tab === "comments" ? "feedback" : "updates";
   const projectsListHref =
     scope === "citizen" ? "/projects/health" : `/${scope}/projects/health`;
@@ -108,9 +110,12 @@ export default function HealthProjectDetailPageView({
             if (value === "feedback") {
               params.set("tab", "feedback");
               params.delete("thread");
+              params.delete("comment");
+              params.delete("update");
             } else {
-              params.delete("tab");
+              params.set("tab", "updates");
               params.delete("thread");
+              params.delete("comment");
             }
             const query = params.toString();
             router.replace(query ? `${pathname}?${query}` : pathname, {
@@ -137,7 +142,11 @@ export default function HealthProjectDetailPageView({
 
       {activeTab === "updates" ? (
         scope === "citizen" ? (
-          <ProjectUpdatesSection initialUpdates={initialUpdates} allowPosting={false} />
+          <ProjectUpdatesSection
+            initialUpdates={initialUpdates}
+            allowPosting={false}
+            selectedUpdateId={updateId}
+          />
         ) : (
           <ProjectUpdatesSection
             initialUpdates={initialUpdates}
@@ -146,6 +155,7 @@ export default function HealthProjectDetailPageView({
             scope={scope}
             projectKind="health"
             participantsTargetTotal={project.totalTargetParticipants ?? 0}
+            selectedUpdateId={updateId}
           />
         )
       ) : (
@@ -157,6 +167,7 @@ export default function HealthProjectDetailPageView({
               projectId={project.id}
               scope={scope}
               selectedThreadId={threadId}
+              selectedFeedbackId={commentId}
             />
           )}
         </div>

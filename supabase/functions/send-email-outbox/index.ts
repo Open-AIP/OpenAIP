@@ -1,4 +1,9 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.90.1";
+import {
+  renderNotificationEmail,
+  renderTemplateHtml,
+  renderTemplateText,
+} from "./email-template.ts";
 
 const DEFAULT_BATCH_SIZE = 25;
 const DEFAULT_MAX_ATTEMPTS = 5;
@@ -45,6 +50,7 @@ type SendEmailArgs = {
   toEmail: string;
   subject: string;
   html: string;
+  text: string;
   resendApiKey: string;
   fromEmail: string;
 };
@@ -73,6 +79,16 @@ type OutboxThresholdNotificationRow = {
   dedupe_key: string;
 };
 
+type OutboxThresholdEmailRow = {
+  recipient_user_id: string;
+  to_email: string;
+  template_key: "OUTBOX_FAILURE_THRESHOLD_REACHED";
+  subject: string;
+  payload: Record<string, unknown>;
+  status: "queued";
+  dedupe_key: string;
+};
+
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -98,6 +114,17 @@ function readPositiveInt(value: string | null, fallback: number, max?: number): 
 
 function readPositiveIntEnv(name: string, fallback: number, max?: number): number {
   return readPositiveInt(Deno.env.get(name) ?? null, fallback, max);
+}
+
+function truncateText(value: string | null | undefined, maxLength: number): string | null {
+  if (!value) return null;
+  const normalized = value
+    .replaceAll(/[\u0000-\u001f\u007f]+/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+  if (!normalized) return null;
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(1, maxLength - 3)).trimEnd()}...`;
 }
 
 function parseBearerToken(request: Request): string | null {
@@ -138,72 +165,7 @@ export function isAuthorizedRequest(request: Request): boolean {
 
   return payload.role === "service_role";
 }
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as Record<string, unknown>;
-}
-
-function readString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function resolveActionUrl(payload: Record<string, unknown>, appBaseUrl: string): string | null {
-  const actionUrl = readString(payload.action_url) ?? readString(payload.actionUrl);
-  if (!actionUrl) return null;
-  if (actionUrl.startsWith("http://") || actionUrl.startsWith("https://")) {
-    return actionUrl;
-  }
-  const normalizedBase = appBaseUrl.replace(/\/+$/, "");
-  const normalizedPath = actionUrl.startsWith("/") ? actionUrl : `/${actionUrl}`;
-  return `${normalizedBase}${normalizedPath}`;
-}
-
-export function renderTemplateHtml(
-  templateKey: string,
-  subject: string,
-  payload: Record<string, unknown>,
-  appBaseUrl: string
-): string {
-  const title = readString(payload.title) ?? subject;
-  const message = readString(payload.message) ?? "You have a new OpenAIP notification.";
-  const actionUrl = resolveActionUrl(payload, appBaseUrl);
-
-  const intro =
-    templateKey === "AIP_PUBLISHED"
-      ? "An AIP has been published."
-      : templateKey === "PROJECT_UPDATE_STATUS_CHANGED"
-        ? "A project update visibility change was recorded."
-        : templateKey === "FEEDBACK_VISIBILITY_CHANGED"
-          ? "A feedback moderation update was recorded."
-          : "A new OpenAIP notification is available.";
-
-  return [
-    "<!doctype html>",
-    "<html><body style=\"font-family:Arial,Helvetica,sans-serif;color:#0f172a;line-height:1.5;\">",
-    `<h2 style="margin:0 0 12px 0;color:#022437;">${escapeHtml(title)}</h2>`,
-    `<p style="margin:0 0 10px 0;">${escapeHtml(intro)}</p>`,
-    `<p style="margin:0 0 16px 0;">${escapeHtml(message)}</p>`,
-    actionUrl
-      ? `<p style="margin:0 0 16px 0;"><a href="${escapeHtml(
-          actionUrl
-        )}" style="display:inline-block;padding:10px 14px;background:#022437;color:#fff;text-decoration:none;border-radius:6px;">Open in OpenAIP</a></p>`
-      : "",
-    `<p style="margin:12px 0 0 0;font-size:12px;color:#64748b;">This message was sent by OpenAIP.</p>`,
-    "</body></html>",
-  ].join("");
-}
+export { renderNotificationEmail, renderTemplateHtml, renderTemplateText };
 
 export function canAttemptRow(
   row: Pick<OutboxRow, "created_at" | "attempt_count">,
@@ -233,6 +195,7 @@ async function sendViaResend(args: SendEmailArgs): Promise<SendEmailResult> {
         to: [args.toEmail],
         subject: args.subject,
         html: args.html,
+        text: args.text,
       }),
     });
 
@@ -270,12 +233,17 @@ export async function processOutboxBatch(args: {
   let queuedForRetry = 0;
 
   for (const row of eligibleRows) {
-    const payload = asRecord(row.payload);
-    const html = renderTemplateHtml(row.template_key, row.subject, payload, args.appBaseUrl);
+    const rendered = renderNotificationEmail({
+      templateKey: row.template_key,
+      subject: row.subject,
+      payload: row.payload,
+      appBaseUrl: args.appBaseUrl,
+    });
     const result = await sendEmail({
       toEmail: row.to_email,
       subject: row.subject,
-      html,
+      html: rendered.html,
+      text: rendered.text,
       resendApiKey: args.resendApiKey,
       fromEmail: args.fromEmail,
     });
@@ -359,7 +327,7 @@ export function buildOutboxFailureThresholdNotifications(args: {
     entity_id: null,
     title: "Email outbox failure threshold reached",
     message: `${args.failedCountLastHour} outbox rows failed in the last hour (threshold: ${args.threshold}).`,
-    action_url: "/admin/usage-controls",
+    action_url: "/admin/notifications",
     metadata: {
       failed_count_last_hour: args.failedCountLastHour,
       threshold: args.threshold,
@@ -374,7 +342,7 @@ async function maybeEmitOutboxFailureThresholdAlert(args: {
   supabase: SupabaseClient;
   threshold: number;
   now: Date;
-}): Promise<{ failedCountLastHour: number; alertsInserted: number }> {
+}): Promise<{ failedCountLastHour: number; alertsInserted: number; emailsQueued: number }> {
   const oneHourAgoIso = new Date(args.now.getTime() - 60 * 60 * 1000).toISOString();
 
   const { count, error: countError } = await args.supabase
@@ -388,17 +356,33 @@ async function maybeEmitOutboxFailureThresholdAlert(args: {
 
   const failedCountLastHour = count ?? 0;
   if (failedCountLastHour <= args.threshold) {
-    return { failedCountLastHour, alertsInserted: 0 };
+    return { failedCountLastHour, alertsInserted: 0, emailsQueued: 0 };
   }
 
   const { data: admins, error: adminsError } = await args.supabase
     .from("profiles")
-    .select("id,role")
+    .select("id,role,email")
     .eq("role", "admin")
     .eq("is_active", true);
   if (adminsError) {
     throw new Error(adminsError.message);
   }
+
+  const { data: lastFailure, error: lastFailureError } = await args.supabase
+    .from("email_outbox")
+    .select("last_error")
+    .eq("status", "failed")
+    .gte("created_at", oneHourAgoIso)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastFailureError) {
+    throw new Error(lastFailureError.message);
+  }
+  const lastErrorSample = truncateText(
+    ((lastFailure ?? null) as { last_error: string | null } | null)?.last_error ?? null,
+    240
+  );
 
   const adminRecipients = ((admins ?? []) as Array<{ id: string; role: string }>).map(
     (row) => ({ id: row.id, role: row.role })
@@ -411,7 +395,7 @@ async function maybeEmitOutboxFailureThresholdAlert(args: {
   });
 
   if (rows.length === 0) {
-    return { failedCountLastHour, alertsInserted: 0 };
+    return { failedCountLastHour, alertsInserted: 0, emailsQueued: 0 };
   }
 
   const { error: insertError } = await args.supabase.from("notifications").upsert(rows, {
@@ -422,7 +406,55 @@ async function maybeEmitOutboxFailureThresholdAlert(args: {
     throw new Error(insertError.message);
   }
 
-  return { failedCountLastHour, alertsInserted: rows.length };
+  const bucket = toHourBucket(args.now);
+  const dedupeKey = `OUTBOX_FAILURE_THRESHOLD_REACHED:system:outbox_failures:${bucket}`;
+  const emailRows: OutboxThresholdEmailRow[] = ((admins ?? []) as Array<{
+    id: string;
+    email: string | null;
+  }>)
+    .filter((row) => !!row.email && row.email.trim().length > 0)
+    .map((row) => ({
+      recipient_user_id: row.id,
+      to_email: String(row.email).trim(),
+      template_key: "OUTBOX_FAILURE_THRESHOLD_REACHED",
+      subject: "OpenAIP - Email delivery failures detected",
+      payload: {
+        title: "Email Outbox Failure Threshold Reached",
+        message:
+          "The email outbox is experiencing elevated failures. Please investigate to prevent missed workflow notifications.",
+        action_url: "/admin/notifications",
+        event_type: "OUTBOX_FAILURE_THRESHOLD_REACHED",
+        template_data: {
+          event_type: "OUTBOX_FAILURE_THRESHOLD_REACHED",
+          occurred_at: args.now.toISOString(),
+          window_label: "Last 60 minutes",
+          failed_count: failedCountLastHour,
+          threshold: args.threshold,
+          last_error_sample: lastErrorSample,
+        },
+        metadata: {
+          failed_count_last_hour: failedCountLastHour,
+          threshold: args.threshold,
+          window_minutes: 60,
+          bucket,
+          last_error_sample: lastErrorSample,
+        },
+      },
+      status: "queued",
+      dedupe_key: dedupeKey,
+    }));
+
+  if (emailRows.length > 0) {
+    const { error: outboxError } = await args.supabase.from("email_outbox").upsert(emailRows, {
+      onConflict: "to_email,dedupe_key",
+      ignoreDuplicates: true,
+    });
+    if (outboxError) {
+      throw new Error(outboxError.message);
+    }
+  }
+
+  return { failedCountLastHour, alertsInserted: rows.length, emailsQueued: emailRows.length };
 }
 
 async function loadQueuedRows(
@@ -526,6 +558,7 @@ export async function handleRequest(request: Request): Promise<Response> {
       },
       outbox_failures_last_hour: thresholdSummary.failedCountLastHour,
       threshold_notifications_inserted: thresholdSummary.alertsInserted,
+      threshold_emails_queued: thresholdSummary.emailsQueued,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown outbox processing failure.";

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { buildTrackedNotificationOpenHref } from "@/lib/notifications/open-link";
 import { withCsrfHeader } from "@/lib/security/csrf";
 
 type NotificationItem = {
@@ -208,7 +209,10 @@ export default function NotificationsInbox({
                   <p className="text-xs text-slate-400">{formatTimestamp(item.created_at)}</p>
                   {item.action_url ? (
                     <Link
-                      href={item.action_url}
+                      href={buildTrackedNotificationOpenHref({
+                        next: item.action_url,
+                        notificationId: item.id,
+                      })}
                       className="inline-flex text-xs font-medium text-[#022437] underline-offset-2 hover:underline"
                     >
                       Open related page

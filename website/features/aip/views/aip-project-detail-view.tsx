@@ -172,6 +172,7 @@ export default function AipProjectDetailView({
   const isCityOwnedAip = aip.scope === "city";
   const isPublished = aip.status === "published";
   const selectedThreadId = searchParams.get("thread");
+  const selectedFeedbackId = searchParams.get("comment");
 
   const [project, setProject] = React.useState(detail.project);
   const [draft, setDraft] = React.useState<AipProjectEditableFields>(
@@ -725,6 +726,7 @@ export default function AipProjectDetailView({
                   projectId={project.id}
                   scope={scope}
                   selectedThreadId={selectedThreadId}
+                  selectedFeedbackId={selectedFeedbackId}
                 />
               </div>
             </div>

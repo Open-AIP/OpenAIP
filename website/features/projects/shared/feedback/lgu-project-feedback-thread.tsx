@@ -26,6 +26,7 @@ type LguProjectFeedbackThreadProps = {
   projectId: string;
   scope: "barangay" | "city";
   selectedThreadId?: string | null;
+  selectedFeedbackId?: string | null;
 };
 
 const EMPTY_STATE_TEXT =
@@ -86,6 +87,7 @@ export function LguProjectFeedbackThread({
   projectId,
   scope,
   selectedThreadId,
+  selectedFeedbackId,
 }: LguProjectFeedbackThreadProps) {
   const [items, setItems] = React.useState<ProjectFeedbackItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -97,9 +99,16 @@ export function LguProjectFeedbackThread({
   const [replyError, setReplyError] = React.useState<string | null>(null);
 
   const threadRefs = React.useRef(new Map<string, HTMLDivElement | null>());
+  const feedbackRefs = React.useRef(new Map<string, HTMLDivElement | null>());
   const setThreadRef = React.useCallback(
     (threadId: string) => (node: HTMLDivElement | null) => {
       threadRefs.current.set(threadId, node);
+    },
+    []
+  );
+  const setFeedbackRef = React.useCallback(
+    (feedbackId: string) => (node: HTMLDivElement | null) => {
+      feedbackRefs.current.set(feedbackId, node);
     },
     []
   );
@@ -124,15 +133,18 @@ export function LguProjectFeedbackThread({
   const threads = React.useMemo(() => groupFeedbackThreads(items), [items]);
 
   React.useEffect(() => {
-    if (!selectedThreadId) return;
-    const node = threadRefs.current.get(selectedThreadId);
+    const node = selectedFeedbackId
+      ? feedbackRefs.current.get(selectedFeedbackId)
+      : selectedThreadId
+        ? threadRefs.current.get(selectedThreadId)
+        : null;
     if (!node) return;
     requestAnimationFrame(() => {
       if (typeof node.scrollIntoView === "function") {
         node.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     });
-  }, [selectedThreadId, threads]);
+  }, [selectedFeedbackId, selectedThreadId, threads]);
 
   const handleReplyClick = React.useCallback((item: ProjectFeedbackItem) => {
     const rootId = item.parentFeedbackId ?? item.id;
@@ -215,6 +227,7 @@ export function LguProjectFeedbackThread({
         const isPostingReply = postingReplyRootId === thread.root.id;
         const isReplyingHere = replyComposer?.rootId === thread.root.id;
         const isSelected = selectedThreadId === thread.root.id;
+        const isRootFeedbackSelected = selectedFeedbackId === thread.root.id;
 
         return (
           <div
@@ -227,23 +240,35 @@ export function LguProjectFeedbackThread({
             data-thread-id={thread.root.id}
             data-thread-selected={isSelected ? "true" : "false"}
           >
-            <FeedbackCard
-              item={thread.root}
-              onReply={handleReplyClick}
-              replyDisabled={isPostingReply}
-            />
+            <div ref={setFeedbackRef(thread.root.id)}>
+              <FeedbackCard
+                item={thread.root}
+                onReply={handleReplyClick}
+                replyDisabled={isPostingReply}
+                className={
+                  isRootFeedbackSelected ? "border-sky-300 ring-2 ring-sky-200" : undefined
+                }
+              />
+            </div>
 
             {thread.replies.length > 0 ? (
               <div className="ml-4 space-y-3 border-l border-slate-200 pl-4">
-                {thread.replies.map((reply) => (
-                  <FeedbackCard
-                    key={reply.id}
-                    item={reply}
-                    onReply={handleReplyClick}
-                    replyDisabled={isPostingReply}
-                    isReply
-                  />
-                ))}
+                {thread.replies.map((reply) => {
+                  const isReplySelected = selectedFeedbackId === reply.id;
+                  return (
+                    <div key={reply.id} ref={setFeedbackRef(reply.id)}>
+                      <FeedbackCard
+                        item={reply}
+                        onReply={handleReplyClick}
+                        replyDisabled={isPostingReply}
+                        isReply
+                        className={
+                          isReplySelected ? "border-sky-300 ring-2 ring-sky-200" : undefined
+                        }
+                      />
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 

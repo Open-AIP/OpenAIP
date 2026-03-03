@@ -10,13 +10,15 @@ export function BudgetBreakdownSection({
   totalBudget,
   items,
   detailsHref,
+  scope,
 }: {
   totalBudget: string;
   items: Array<{ sectorCode: string; label: string; amount: number; percentage: number }>;
-  detailsHref: string;
+  detailsHref?: string;
+  scope?: "city" | "barangay";
 }) {
   const dotClassByIndex = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
-  const scopePrefix = detailsHref.startsWith("/city/") ? "/city" : detailsHref.startsWith("/barangay/") ? "/barangay" : "";
+  const scopePrefix = scope ? `/${scope}` : detailsHref?.startsWith("/city/") ? "/city" : detailsHref?.startsWith("/barangay/") ? "/barangay" : "";
   const projectsHref = scopePrefix ? `${scopePrefix}/projects` : "/projects";
   const chartData = items.map((item, index) => ({
     name: item.label,
@@ -61,9 +63,19 @@ export function BudgetBreakdownSection({
           </div>
         </div>
         <div className="border-t border-border pt-4 flex flex-wrap gap-3">
-          <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-            <Link href={detailsHref}>View AIP Details</Link>
-          </Button>
+          {detailsHref ? (
+            <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+              <Link href={detailsHref}>View AIP Details</Link>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled
+              className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              View AIP Details
+            </Button>
+          )}
           <Button
             asChild
             variant="outline"

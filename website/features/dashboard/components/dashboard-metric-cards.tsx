@@ -62,7 +62,7 @@ export function KpiRow({
   projectBreakdownText,
   scope,
 }: {
-  selectedAip: DashboardAip;
+  selectedAip: DashboardAip | null;
   totalProjects: number;
   totalBudget: string;
   citizenFeedbackCount: number;
@@ -128,19 +128,25 @@ export function KpiRow({
     );
   }
 
-  const daysInCurrentStatus = daysSince(selectedAip.statusUpdatedAt);
+  const daysInCurrentStatus = daysSince(selectedAip?.statusUpdatedAt ?? null);
   const feedbackValueLabel = `${citizenFeedbackCount} ${citizenFeedbackCount === 1 ? "Comment" : "Comments"}`;
+  const aipStatusValue = selectedAip ? formatStatusLabel(selectedAip.status) : "No AIP";
+  const aipStatusSubtext = selectedAip
+    ? `${daysInCurrentStatus} days in current status`
+    : `No AIP uploaded for FY ${fiscalYear}`;
+  const aipStatusMeta = selectedAip ? `Last updated: ${formatDateTime(selectedAip.statusUpdatedAt)}` : undefined;
+  const aipStatusAccent = selectedAip ? statusAccent(selectedAip.status) : "slate";
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KpiCard
         variant="status"
         label="AIP Status"
-        value={formatStatusLabel(selectedAip.status)}
-        subtext={`${daysInCurrentStatus} days in current status`}
-        meta={`Last updated: ${formatDateTime(selectedAip.statusUpdatedAt)}`}
+        value={aipStatusValue}
+        subtext={aipStatusSubtext}
+        meta={aipStatusMeta}
         icon={<FileText className="h-4 w-4" strokeWidth={2.2} />}
-        accent={statusAccent(selectedAip.status)}
+        accent={aipStatusAccent}
         accentMode="border"
       />
       <KpiCard
@@ -208,6 +214,5 @@ export function PulseKpis({
     </div>
   );
 }
-
 
 

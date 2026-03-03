@@ -25,7 +25,17 @@ const STATUS_PIE_COLORS: Record<string, string> = {
   draft: "#94A3B8",
 };
 
-export function AipCoverageCard({ selectedAip }: { selectedAip: DashboardAip | null }) {
+export function AipCoverageCard({
+  selectedAip,
+  scope,
+  fiscalYear,
+  createDraftAction,
+}: {
+  selectedAip: DashboardAip | null;
+  scope?: "city" | "barangay";
+  fiscalYear?: number;
+  createDraftAction?: (formData: FormData) => Promise<void>;
+}) {
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardHeader className="p-5 pb-0"><CardTitle className="text-lg font-medium text-foreground">AIP Coverage</CardTitle></CardHeader>
@@ -36,22 +46,48 @@ export function AipCoverageCard({ selectedAip }: { selectedAip: DashboardAip | n
             <Badge className={`mt-2 w-fit border text-xs font-medium ${STATUS_STYLES[selectedAip.status] ?? STATUS_STYLES.draft}`}>{formatStatusLabel(selectedAip.status)}</Badge>
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="h-[101px] rounded-lg border border-border bg-[color:var(--color-warning-soft)] p-4">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium text-foreground">Missing AIP</span>
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">No AIP uploaded for selected year.</div>
-            </div>
-            <Button className="h-10 w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" size="sm">
-              <FileUp className="mr-2 h-4 w-4" />
-              Upload City AIP
-            </Button>
-          </div>
+          <MissingAipState scope={scope} fiscalYear={fiscalYear} createDraftAction={createDraftAction} />
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function MissingAipState({
+  scope,
+  fiscalYear,
+  createDraftAction,
+}: {
+  scope?: "city" | "barangay";
+  fiscalYear?: number;
+  createDraftAction?: (formData: FormData) => Promise<void>;
+}) {
+  const scopeLabel = scope === "barangay" ? "Barangay" : "City";
+
+  return (
+    <div className="space-y-3">
+      <div className="h-[101px] rounded-lg border border-border bg-[color:var(--color-warning-soft)] p-4">
+        <div className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <span className="text-sm font-medium text-foreground">Missing AIP</span>
+        </div>
+        <div className="mt-1 text-sm text-muted-foreground">No AIP uploaded for selected year.</div>
+      </div>
+      {createDraftAction ? (
+        <form action={createDraftAction}>
+          {typeof fiscalYear === "number" ? <input type="hidden" name="fiscalYear" value={fiscalYear} /> : null}
+          <Button className="h-10 w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" size="sm">
+            <FileUp className="mr-2 h-4 w-4" />
+            Upload {scopeLabel} AIP
+          </Button>
+        </form>
+      ) : (
+        <Button className="h-10 w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" size="sm" disabled>
+          <FileUp className="mr-2 h-4 w-4" />
+          Upload {scopeLabel} AIP
+        </Button>
+      )}
+    </div>
   );
 }
 

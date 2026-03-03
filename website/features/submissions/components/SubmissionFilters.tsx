@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -28,6 +27,8 @@ export function SubmissionFilters({
   onStatusChange,
   onBarangayChange,
 }: SubmissionFiltersProps) {
+  const triggerClassName = "w-full border-slate-200 bg-white hover:bg-white sm:w-[180px]";
+
   // Extract unique years from AIPs
   const years = Array.from(new Set(aips.map((aip) => aip.year))).sort(
     (a, b) => b - a
@@ -42,52 +43,48 @@ export function SubmissionFilters({
   ).sort();
 
   return (
-    <Card className="border-slate-200">
-      <CardContent className="p-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Select value={yearFilter} onValueChange={onYearChange}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Years</SelectItem>
-              {years.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:justify-end">
+      <Select value={yearFilter} onValueChange={onYearChange}>
+        <SelectTrigger className={triggerClassName}>
+          <SelectValue placeholder="Year" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Years</SelectItem>
+          {years.map((year) => (
+            <SelectItem key={year} value={year.toString()}>
+              {year}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-          <Select value={statusFilter} onValueChange={onStatusChange}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {getAipStatusLabel(status)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <Select value={statusFilter} onValueChange={onStatusChange}>
+        <SelectTrigger className={triggerClassName}>
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Status</SelectItem>
+          {statuses.map((status) => (
+            <SelectItem key={status} value={status}>
+              {getAipStatusLabel(status)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-          <Select value={barangayFilter} onValueChange={onBarangayChange}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Barangay" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Barangays</SelectItem>
-              {barangays.map((barangay) => (
-                <SelectItem key={barangay} value={barangay!}>
-                  {barangay}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </CardContent>
-    </Card>
+      <Select value={barangayFilter} onValueChange={onBarangayChange}>
+        <SelectTrigger className={triggerClassName}>
+          <SelectValue placeholder="Barangay" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Barangays</SelectItem>
+          {barangays.map((barangay) => (
+            <SelectItem key={barangay} value={barangay!}>
+              {barangay}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

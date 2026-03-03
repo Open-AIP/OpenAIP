@@ -29,6 +29,7 @@ export function FeedbackCategorySummaryCard({
 
 export function FeedbackTargetsCard({ targets }: { targets: Array<{ label: string; value: number }> }) {
   const max = Math.max(1, ...targets.map((target) => target.value));
+  const isEmptyState = targets.every((target) => target.value === 0);
   return (
     <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
       <CardContent className="p-5">
@@ -37,7 +38,11 @@ export function FeedbackTargetsCard({ targets }: { targets: Array<{ label: strin
           <div className="grid grid-cols-3 items-end gap-3 border-b border-border pb-1 pt-4">
             {targets.map((target) => (
               <div key={target.label} className="space-y-2 text-center">
-                <div className="mx-auto w-full max-w-[140px] rounded-t-sm bg-chart-2" style={{ height: `${Math.max(16, Math.round((target.value / max) * 120))}px` }} />
+                <div
+                  data-testid={`feedback-target-bar-${target.label.toLowerCase()}`}
+                  className={`mx-auto w-full max-w-[140px] rounded-t-sm ${isEmptyState ? "bg-slate-300" : "bg-chart-2"}`}
+                  style={{ height: `${Math.max(16, Math.round((target.value / max) * 120))}px` }}
+                />
                 <div className="text-xs text-muted-foreground">{target.label}</div>
               </div>
             ))}

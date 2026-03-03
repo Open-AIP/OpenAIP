@@ -96,7 +96,16 @@ function buildContentSecurityPolicy(input: CspOptions): string {
     ["style-src", styleSrc],
     // Framer Motion and some Radix primitives use style attributes at runtime.
     ["style-src-attr", ["'unsafe-inline'"]],
-    ["img-src", ["'self'", "data:", "blob:"]],
+    [
+      "img-src",
+      [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://*.tile.openstreetmap.org",
+        "https://unpkg.com/leaflet@1.9.4/dist/images/",
+      ],
+    ],
     ["font-src", ["'self'", "data:"]],
     ["connect-src", input.connectSrcAllowlist],
     ["form-action", ["'self'"]],

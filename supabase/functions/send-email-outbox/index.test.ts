@@ -5,6 +5,7 @@ import {
   isAuthorizedRequest,
   processOutboxBatch,
   renderTemplateHtml,
+  renderTemplateText,
   type OutboxRow,
 } from "./index.ts";
 
@@ -81,6 +82,8 @@ Deno.test("handleRequest rejects non-service-role authorization", async () => {
 Deno.test("processOutboxBatch marks successful sends as sent", async () => {
   const now = new Date("2026-03-03T01:00:00.000Z");
   const rows = [makeQueuedRow()];
+  let sentText: string | null = null;
+  let sentHtml: string | null = null;
 
   const summary = await processOutboxBatch({
     rows,
@@ -89,7 +92,11 @@ Deno.test("processOutboxBatch marks successful sends as sent", async () => {
     resendApiKey: "resend-key",
     fromEmail: "OpenAIP <noreply@example.com>",
     appBaseUrl: "https://openaip.example.com",
-    sendEmailFn: async () => ({ ok: true, error: null }),
+    sendEmailFn: async (args) => {
+      sentHtml = args.html;
+      sentText = args.text;
+      return { ok: true, error: null };
+    },
   });
 
   assertEquals(summary.fetched, 1);
@@ -100,6 +107,8 @@ Deno.test("processOutboxBatch marks successful sends as sent", async () => {
   assertEquals(summary.patches[0].status, "sent");
   assertEquals(summary.patches[0].attempt_count, 1);
   assertEquals(summary.patches[0].last_error, null);
+  assertEquals(typeof sentHtml === "string" && sentHtml.length > 0, true);
+  assertEquals(typeof sentText === "string" && sentText.length > 0, true);
 });
 
 Deno.test("processOutboxBatch increments attempts and marks failed at max attempts", async () => {
@@ -168,4 +177,117 @@ Deno.test("renderTemplateHtml wraps internal action links with tracked-open rout
     ),
     true
   );
+});
+
+Deno.test("renderTemplateHtml uses OTP-inspired structure and event/context sections", () => {
+  const html = renderTemplateHtml(
+    "FEEDBACK_VISIBILITY_CHANGED",
+    "Feedback visibility changed",
+    {
+      title: "Feedback Visibility Updated",
+      message: "A feedback visibility update was recorded.",
+      event_type: "FEEDBACK_VISIBILITY_CHANGED",
+      scope_type: "city",
+      entity_type: "feedback",
+      transition: "visible->hidden",
+      reason: "Policy violation",
+      action_url: "/city/feedback?comment=fb-1",
+    },
+    "https://openaip.example.com"
+  );
+
+  assertEquals(html.includes("Moderation Update"), true);
+  assertEquals(html.includes("Feedback Visibility Updated"), true);
+  assertEquals(html.includes("DETAILS"), true);
+  assertEquals(html.includes("Status: <strong>Hidden</strong>"), true);
+  assertEquals(html.includes("Reason: <strong>Policy violation</strong>"), true);
+  assertEquals(html.includes("View Feedback"), true);
+  assertEquals(html.includes("This is an automated message from OpenAIP."), true);
+});
+
+Deno.test("renderTemplateHtml omits transition and reason rows when not present", () => {
+  const html = renderTemplateHtml(
+    "AIP_PUBLISHED",
+    "AIP Published",
+    {
+      title: "AIP Published",
+      message: "An AIP was published.",
+      event_type: "AIP_PUBLISHED",
+      scope_type: "barangay",
+      entity_type: "aip",
+    },
+    "https://openaip.example.com"
+  );
+
+  assertEquals(html.includes("DETAILS"), true);
+  assertEquals(html.includes("Old status"), false);
+  assertEquals(html.includes("Reason"), false);
+});
+
+Deno.test("renderTemplateText returns deterministic plain text fallback", () => {
+  const text = renderTemplateText(
+    "AIP_PUBLISHED",
+    "AIP Published",
+    {
+      title: "AIP Published",
+      message: "An AIP was published.",
+      event_type: "AIP_PUBLISHED",
+      scope_type: "citizen",
+      entity_type: "aip",
+      action_url: "/aips/aip-1",
+      notification_ref: "AIP_PUBLISHED:aip:aip-1:draft->published",
+    },
+    "https://openaip.example.com"
+  );
+
+  assertEquals(text.includes("OpenAIP - Publication Notice"), true);
+  assertEquals(text.includes("AIP Published"), true);
+  assertEquals(text.includes("DETAILS"), true);
+  assertEquals(text.includes("Open in OpenAIP: https://openaip.example.com/api/notifications/open?"), true);
+  assertEquals(text.includes("<div"), false);
+});
+
+Deno.test("renderTemplateHtml supports event-specific headings", () => {
+  const events: Array<{ key: string; expectedHeading: string; expectedSubtitle: string }> = [
+    { key: "AIP_CLAIMED", expectedHeading: "AIP Claimed for Review", expectedSubtitle: "AIP Review Update" },
+    { key: "AIP_REVISION_REQUESTED", expectedHeading: "Revision Requested", expectedSubtitle: "AIP Revision Request" },
+    { key: "AIP_PUBLISHED", expectedHeading: "AIP Published", expectedSubtitle: "Publication Notice" },
+    { key: "AIP_SUBMITTED", expectedHeading: "AIP Submitted for Review", expectedSubtitle: "City Review Queue" },
+    { key: "AIP_RESUBMITTED", expectedHeading: "AIP Resubmitted", expectedSubtitle: "City Review Queue" },
+    { key: "FEEDBACK_CREATED", expectedHeading: "New Feedback Received", expectedSubtitle: "Citizen Engagement" },
+    {
+      key: "FEEDBACK_VISIBILITY_CHANGED",
+      expectedHeading: "Feedback Visibility Updated",
+      expectedSubtitle: "Moderation Update",
+    },
+    {
+      key: "PROJECT_UPDATE_STATUS_CHANGED",
+      expectedHeading: "Project Update Status Changed",
+      expectedSubtitle: "Project Updates",
+    },
+    {
+      key: "OUTBOX_FAILURE_THRESHOLD_REACHED",
+      expectedHeading: "Email Outbox Failure Threshold Reached",
+      expectedSubtitle: "System Alert",
+    },
+    { key: "MODERATION_ACTION_AUDIT", expectedHeading: "Moderation Action Audit", expectedSubtitle: "Audit Log" },
+    { key: "PIPELINE_JOB_FAILED", expectedHeading: "Pipeline Job Failed", expectedSubtitle: "Pipeline Alert" },
+  ];
+
+  for (const entry of events) {
+    const html = renderTemplateHtml(
+      entry.key,
+      "OpenAIP update",
+      {
+        title: "OpenAIP update",
+        message: "Message",
+        event_type: entry.key,
+        action_url: "/notifications",
+      },
+      "https://openaip.example.com"
+    );
+
+    assertEquals(html.includes(entry.expectedHeading), true);
+    assertEquals(html.includes(entry.expectedSubtitle), true);
+  }
 });

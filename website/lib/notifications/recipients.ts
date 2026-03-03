@@ -7,10 +7,12 @@ type ProfileRecipientRow = {
   id: string;
   role: ProfileRole;
   email: string | null;
+  full_name?: string | null;
 };
 
 type AipScopeRow = {
   id: string;
+  fiscal_year?: number | null;
   barangay_id: string | null;
   city_id: string | null;
   municipality_id: string | null;
@@ -20,6 +22,7 @@ type ProjectScopeRow = {
   id: string;
   aip_id: string;
   category: "health" | "infrastructure" | "other" | null;
+  program_project_description?: string | null;
 };
 
 type FeedbackScopeRow = {
@@ -29,6 +32,8 @@ type FeedbackScopeRow = {
   project_id: string | null;
   parent_feedback_id: string | null;
   author_id: string | null;
+  kind?: string | null;
+  body?: string | null;
 };
 
 type ProjectUpdateScopeRow = {
@@ -73,6 +78,23 @@ export type ResolvedProjectUpdateContext = {
   scope: ResolvedAipScope | null;
 };
 
+export type AipTemplateContext = {
+  fiscalYear: number | null;
+  lguName: string | null;
+  scopeLabel: string | null;
+};
+
+export type ProjectTemplateContext = {
+  projectName: string | null;
+};
+
+export type FeedbackTemplateContext = {
+  feedbackKind: string | null;
+  feedbackBody: string | null;
+  entityLabel: string | null;
+  targetType: "aip" | "project" | null;
+};
+
 export function toScopeTypeFromRole(role: ProfileRole): NotificationScopeType {
   if (role === "admin") return "admin";
   if (role === "citizen") return "citizen";
@@ -84,6 +106,52 @@ function normalizeEmail(value: string | null): string | null {
   if (!value) return null;
   const email = value.trim();
   return email.length > 0 ? email : null;
+}
+
+function normalizeText(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const text = value.trim();
+  return text.length > 0 ? text : null;
+}
+
+async function resolveLguNameFromScope(
+  admin: SupabaseAdminClient,
+  scope: Pick<ResolvedAipScope, "barangayId" | "cityId" | "municipalityId">
+): Promise<{ lguName: string | null; scopeLabel: string | null }> {
+  if (scope.barangayId) {
+    const { data, error } = await admin
+      .from("barangays")
+      .select("name")
+      .eq("id", scope.barangayId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const row = (data ?? null) as { name: string | null } | null;
+    return { lguName: normalizeText(row?.name), scopeLabel: "barangay" };
+  }
+
+  if (scope.cityId) {
+    const { data, error } = await admin
+      .from("cities")
+      .select("name")
+      .eq("id", scope.cityId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const row = (data ?? null) as { name: string | null } | null;
+    return { lguName: normalizeText(row?.name), scopeLabel: "city" };
+  }
+
+  if (scope.municipalityId) {
+    const { data, error } = await admin
+      .from("municipalities")
+      .select("name")
+      .eq("id", scope.municipalityId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const row = (data ?? null) as { name: string | null } | null;
+    return { lguName: normalizeText(row?.name), scopeLabel: "municipality" };
+  }
+
+  return { lguName: null, scopeLabel: null };
 }
 
 function dedupeRecipients(input: NotificationRecipient[]): NotificationRecipient[] {
@@ -253,6 +321,33 @@ export async function resolveAipScope(
   };
 }
 
+export async function resolveAipTemplateContext(
+  admin: SupabaseAdminClient,
+  aipId: string
+): Promise<AipTemplateContext | null> {
+  const { data, error } = await admin
+    .from("aips")
+    .select("id,fiscal_year,barangay_id,city_id,municipality_id")
+    .eq("id", aipId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const row = data as AipScopeRow;
+  const scope = await resolveAipScope(admin, aipId);
+  const lgu = await resolveLguNameFromScope(admin, {
+    barangayId: scope?.barangayId ?? row.barangay_id,
+    cityId: scope?.cityId ?? row.city_id,
+    municipalityId: scope?.municipalityId ?? row.municipality_id,
+  });
+
+  return {
+    fiscalYear: typeof row.fiscal_year === "number" ? row.fiscal_year : null,
+    lguName: lgu.lguName,
+    scopeLabel: lgu.scopeLabel,
+  };
+}
+
 export async function resolveProjectScope(
   admin: SupabaseAdminClient,
   projectId: string
@@ -277,6 +372,50 @@ export async function resolveProjectScope(
     projectCategory: project.category,
     scope,
   };
+}
+
+export async function resolveProjectTemplateContext(
+  admin: SupabaseAdminClient,
+  projectId: string
+): Promise<ProjectTemplateContext | null> {
+  const { data, error } = await admin
+    .from("projects")
+    .select("id,category,program_project_description")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const project = data as ProjectScopeRow;
+  let projectName: string | null = null;
+
+  if (project.category === "infrastructure") {
+    const { data: detail, error: detailError } = await admin
+      .from("infrastructure_project_details")
+      .select("project_name")
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (detailError) throw new Error(detailError.message);
+    projectName = normalizeText(
+      ((detail ?? null) as { project_name: string | null } | null)?.project_name
+    );
+  } else if (project.category === "health") {
+    const { data: detail, error: detailError } = await admin
+      .from("health_project_details")
+      .select("program_name")
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (detailError) throw new Error(detailError.message);
+    projectName = normalizeText(
+      ((detail ?? null) as { program_name: string | null } | null)?.program_name
+    );
+  }
+
+  if (!projectName) {
+    projectName = normalizeText(project.program_project_description ?? null);
+  }
+
+  return { projectName };
 }
 
 export async function resolveFeedbackContext(
@@ -335,6 +474,47 @@ export async function resolveFeedbackContext(
   };
 }
 
+export async function resolveFeedbackTemplateContext(
+  admin: SupabaseAdminClient,
+  feedbackId: string
+): Promise<FeedbackTemplateContext | null> {
+  const { data, error } = await admin
+    .from("feedback")
+    .select("id,target_type,aip_id,project_id,kind,body")
+    .eq("id", feedbackId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const row = data as FeedbackScopeRow;
+  let entityLabel: string | null = null;
+
+  if (row.target_type === "aip" && row.aip_id) {
+    const aipContext = await resolveAipTemplateContext(admin, row.aip_id);
+    const fiscalYearLabel =
+      typeof aipContext?.fiscalYear === "number" ? `FY ${aipContext.fiscalYear}` : null;
+    if (aipContext?.lguName && fiscalYearLabel) {
+      entityLabel = `${aipContext.lguName} ${fiscalYearLabel} AIP`;
+    } else if (aipContext?.lguName) {
+      entityLabel = `${aipContext.lguName} AIP`;
+    } else if (fiscalYearLabel) {
+      entityLabel = `${fiscalYearLabel} AIP`;
+    } else {
+      entityLabel = "AIP";
+    }
+  } else if (row.target_type === "project" && row.project_id) {
+    const projectContext = await resolveProjectTemplateContext(admin, row.project_id);
+    entityLabel = projectContext?.projectName ?? "Project";
+  }
+
+  return {
+    feedbackKind: normalizeText(row.kind ?? null),
+    feedbackBody: normalizeText(row.body ?? null),
+    entityLabel,
+    targetType: row.target_type ?? null,
+  };
+}
+
 export async function resolveProjectUpdateContext(
   admin: SupabaseAdminClient,
   updateId: string
@@ -356,6 +536,24 @@ export async function resolveProjectUpdateContext(
     projectCategory: projectScope?.projectCategory ?? null,
     scope: projectScope?.scope ?? (await resolveAipScope(admin, row.aip_id)),
   };
+}
+
+export async function resolveActorDisplayName(
+  admin: SupabaseAdminClient,
+  userId: string | null | undefined
+): Promise<string | null> {
+  const normalizedUserId = normalizeText(userId ?? null);
+  if (!normalizedUserId) return null;
+
+  const { data, error } = await admin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", normalizedUserId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  const row = (data ?? null) as { full_name: string | null } | null;
+  return normalizeText(row?.full_name);
 }
 
 export function mergeRecipients(...groups: NotificationRecipient[][]): NotificationRecipient[] {

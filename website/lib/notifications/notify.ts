@@ -14,7 +14,11 @@ import {
   getRecipientByUserId,
   mergeRecipients,
   resolveAipScope,
+  resolveAipTemplateContext,
+  resolveActorDisplayName,
   resolveFeedbackContext,
+  resolveFeedbackTemplateContext,
+  resolveProjectTemplateContext,
   resolveProjectScope,
   resolveProjectUpdateContext,
   type NotificationRecipient,
@@ -40,6 +44,95 @@ function normalizeTransition(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+const MAX_FEEDBACK_EXCERPT_LENGTH = 200;
+const MAX_REASON_LENGTH = 240;
+
+function sanitizeTemplateText(value: string | null | undefined, maxLength: number): string | null {
+  if (!value) return null;
+  const sanitized = value
+    .replaceAll(/[\u0000-\u001f\u007f]+/g, " ")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+  if (!sanitized) return null;
+  if (sanitized.length <= maxLength) return sanitized;
+  return `${sanitized.slice(0, Math.max(1, maxLength - 3)).trimEnd()}...`;
+}
+
+function humanizeToken(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = value
+    .trim()
+    .replaceAll(/[_-]+/g, " ")
+    .replaceAll(/\s+/g, " ");
+  if (!normalized) return null;
+
+  return normalized
+    .split(" ")
+    .filter((part) => part.length > 0)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function parseTransition(
+  transition: string | null
+): { from: string | null; to: string | null } {
+  if (!transition) return { from: null, to: null };
+  const [fromRaw, toRaw] = transition.split("->", 2);
+  return {
+    from: fromRaw?.trim() || null,
+    to: toRaw?.trim() || null,
+  };
+}
+
+function normalizeStatusLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "active") return "Published";
+  return humanizeToken(normalized);
+}
+
+function toVisibilityAction(value: string | null): string | null {
+  const normalized = value?.trim().toLowerCase() ?? null;
+  if (!normalized) return null;
+  if (normalized === "hidden") return "hidden";
+  if (normalized === "visible" || normalized === "published" || normalized === "active") {
+    return "unhidden";
+  }
+  return null;
+}
+
+function toModerationActionLabel(input: {
+  eventType: NotifyInput["eventType"];
+  entityType: NotifyInput["entityType"];
+  transition: string | null;
+}): string | null {
+  if (input.eventType !== "MODERATION_ACTION_AUDIT") return null;
+  const parsed = parseTransition(input.transition);
+  const next = parsed.to?.toLowerCase() ?? null;
+
+  if (input.entityType === "feedback") {
+    if (next === "hidden") return "feedback_hidden";
+    if (next === "visible") return "feedback_unhidden";
+  }
+
+  if (input.entityType === "project_update") {
+    if (next === "hidden") return "project_update_hidden";
+    if (next === "published" || next === "active") return "project_update_unhidden";
+  }
+
+  return null;
+}
+
+function compactRecord(input: Record<string, unknown>): Record<string, unknown> {
+  const output: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    output[key] = value;
+  }
+  return output;
 }
 
 async function loadPreferencesByUserId(
@@ -309,12 +402,135 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
   const resolvedFeedbackTargetType = resolvedFeedbackContext?.targetType ?? null;
   const resolvedRootFeedbackId =
     resolvedFeedbackContext?.rootFeedbackId ?? resolvedFeedbackContext?.feedbackId ?? null;
+  const occurredAt = new Date().toISOString();
+  const aipTemplateContext = resolvedAipId
+    ? await resolveAipTemplateContext(admin, resolvedAipId)
+    : null;
+  const projectTemplateContext = resolvedProjectId
+    ? await resolveProjectTemplateContext(admin, resolvedProjectId)
+    : null;
+  const feedbackTemplateContext = resolvedFeedbackId
+    ? await resolveFeedbackTemplateContext(admin, resolvedFeedbackId)
+    : null;
+  const actorNameFromProfile =
+    input.actorName?.trim() || (await resolveActorDisplayName(admin, input.actorUserId));
+  const actorName = sanitizeTemplateText(actorNameFromProfile, 120);
+  const actorRoleLabel = humanizeToken(input.actorRole ?? null);
+  const parsedTransition = parseTransition(transition);
+  const oldStatusLabel = normalizeStatusLabel(parsedTransition.from);
+  const newStatusLabel = normalizeStatusLabel(parsedTransition.to);
+  const visibilityAction = toVisibilityAction(parsedTransition.to);
+  const newVisibility = normalizeStatusLabel(parsedTransition.to);
+  const moderationAction = toModerationActionLabel({
+    eventType: input.eventType,
+    entityType: input.entityType,
+    transition,
+  });
+  const feedbackExcerpt = sanitizeTemplateText(
+    feedbackTemplateContext?.feedbackBody ?? null,
+    MAX_FEEDBACK_EXCERPT_LENGTH
+  );
+  const sanitizedReason = sanitizeTemplateText(input.reason ?? null, MAX_REASON_LENGTH);
+  const sanitizedNote = sanitizeTemplateText(input.note ?? null, MAX_REASON_LENGTH);
+
+  const commonTemplateData = compactRecord({
+    event_type: input.eventType,
+    scope_type: input.scopeType,
+    entity_type: input.entityType,
+    entity_id: resolvedEntityId,
+    occurred_at: occurredAt,
+    actor_name: actorName,
+    actor_role: actorRoleLabel,
+    aip_id: resolvedAipId,
+    project_id: resolvedProjectId,
+    feedback_id: resolvedFeedbackId,
+    project_update_id: resolvedProjectUpdateId,
+    transition,
+    action_url: input.actionUrl ?? null,
+  });
+
+  const eventTemplateData = compactRecord(
+    input.eventType === "AIP_CLAIMED" ||
+      input.eventType === "AIP_REVISION_REQUESTED" ||
+      input.eventType === "AIP_PUBLISHED" ||
+      input.eventType === "AIP_SUBMITTED" ||
+      input.eventType === "AIP_RESUBMITTED"
+      ? {
+          fiscal_year: aipTemplateContext?.fiscalYear ?? null,
+          lgu_name: aipTemplateContext?.lguName ?? null,
+          scope_label: humanizeToken(aipTemplateContext?.scopeLabel ?? null),
+          revision_notes: sanitizedNote,
+          revision_reason: sanitizedReason ?? sanitizedNote,
+          entity_label:
+            aipTemplateContext?.lguName && typeof aipTemplateContext.fiscalYear === "number"
+              ? `${aipTemplateContext.lguName} FY ${aipTemplateContext.fiscalYear} AIP`
+              : aipTemplateContext?.lguName
+                ? `${aipTemplateContext.lguName} AIP`
+                : typeof aipTemplateContext?.fiscalYear === "number"
+                  ? `FY ${aipTemplateContext.fiscalYear} AIP`
+                  : "AIP",
+        }
+      : input.eventType === "FEEDBACK_CREATED" || input.eventType === "FEEDBACK_VISIBILITY_CHANGED"
+        ? {
+            entity_label: feedbackTemplateContext?.entityLabel ?? null,
+            feedback_kind: humanizeToken(feedbackTemplateContext?.feedbackKind ?? null),
+            feedback_excerpt: feedbackExcerpt,
+            visibility_action: visibilityAction,
+            new_visibility: newVisibility,
+            moderation_reason: sanitizedReason,
+          }
+        : input.eventType === "PROJECT_UPDATE_STATUS_CHANGED"
+          ? {
+              project_name: projectTemplateContext?.projectName ?? null,
+              old_status_label: oldStatusLabel,
+              new_status_label: newStatusLabel,
+              moderation_reason: sanitizedReason,
+            }
+          : input.eventType === "MODERATION_ACTION_AUDIT"
+            ? {
+                moderation_action: moderationAction,
+                moderation_reason: sanitizedReason,
+                entity_type: humanizeToken(input.entityType),
+                entity_id: resolvedEntityId,
+              }
+            : input.eventType === "OUTBOX_FAILURE_THRESHOLD_REACHED"
+              ? {
+                  failed_count:
+                    (input.metadata?.failed_count as number | null | undefined) ??
+                    (input.metadata?.failed_count_last_hour as number | null | undefined) ??
+                    null,
+                  threshold: (input.metadata?.threshold as number | null | undefined) ?? null,
+                  window_label: "Last 60 minutes",
+                  last_error_sample: sanitizeTemplateText(
+                    (input.metadata?.last_error_sample as string | null | undefined) ??
+                      (input.metadata?.last_error as string | null | undefined) ??
+                      null,
+                    MAX_REASON_LENGTH
+                  ),
+                }
+              : input.eventType === "PIPELINE_JOB_FAILED"
+                ? {
+                    run_id: input.metadata?.run_id ?? null,
+                    aip_id: input.metadata?.aip_id ?? resolvedAipId,
+                    stage: input.metadata?.stage ?? null,
+                    error_code: input.metadata?.error_code ?? null,
+                    error_message: sanitizeTemplateText(
+                      (input.metadata?.error_message as string | null | undefined) ?? null,
+                      MAX_REASON_LENGTH
+                    ),
+                  }
+                : {}
+  );
+  const templateData = {
+    ...commonTemplateData,
+    ...eventTemplateData,
+  };
 
   const metadata = {
     ...(input.metadata ?? {}),
     actor_user_id: input.actorUserId ?? null,
     actor_role: input.actorRole ?? null,
-    actor_name: input.actorName ?? null,
+    actor_name: actorName ?? null,
     scope_type: input.scopeType,
     aip_id: resolvedAipId,
     project_id: resolvedProjectId,
@@ -323,8 +539,8 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
     barangay_id: resolvedBarangayId,
     city_id: resolvedCityId,
     transition,
-    reason: input.reason ?? null,
-    note: input.note ?? null,
+    reason: sanitizedReason ?? null,
+    note: sanitizedNote ?? null,
   };
 
   const preferences = await loadPreferencesByUserId(
@@ -400,6 +616,10 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
           action_url: actionUrl,
           notification_ref: dedupeKey,
           event_type: input.eventType,
+          scope_type: toNotificationScope(recipient),
+          entity_type: input.entityType,
+          entity_id: resolvedEntityId,
+          template_data: templateData,
           metadata,
         },
         status: "queued",

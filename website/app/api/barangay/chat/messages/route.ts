@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { formatTotalsEvidence } from "@/lib/chat/evidence";
+import { getLguChatAuthFailure } from "@/lib/chat/lgu-route-auth";
 import { buildRefusalMessage } from "@/lib/chat/refusal";
 import {
   detectAggregationIntent,
@@ -85,6 +86,11 @@ import {
 import { supabaseServer } from "@/lib/supabase/server";
 
 const MAX_MESSAGE_LENGTH = 12000;
+
+function resolveExpectedRouteKind(request: Request): "barangay" | "city" {
+  const pathname = new URL(request.url).pathname.toLowerCase();
+  return pathname.includes("/api/city/chat/") ? "city" : "barangay";
+}
 
 type ScopeType = "barangay" | "city" | "municipality";
 
@@ -3098,7 +3104,16 @@ export async function POST(request: Request) {
     }
 
     const actor = await getActorContext();
-    assertActorPresent(actor, "Unauthorized.");
+    const authFailure = getLguChatAuthFailure(
+      resolveExpectedRouteKind(request),
+      actor,
+      "messages"
+    );
+    if (authFailure) {
+      return NextResponse.json({ message: authFailure.message }, { status: authFailure.status });
+    }
+
+    assertActorPresent(actor, "Authentication required.");
     assertPrivilegedWriteAccess({
       actor,
       allowlistedRoles: ["barangay_official", "city_official"],
@@ -3107,7 +3122,7 @@ export async function POST(request: Request) {
         city_official: "city",
       },
       requireScopeId: true,
-      message: "Unauthorized.",
+      message: "Forbidden. Missing required LGU scope.",
     });
     const privilegedActor = toPrivilegedActorContext(actor);
     if (await isUserBlocked(actor.userId)) {
@@ -3190,12 +3205,13 @@ export async function POST(request: Request) {
     }
 
     const userMessage = await repo.appendUserMessage(session.id, content);
+    const pendingClarification = await getLatestPendingClarification(session.id);
     const startedAt = Date.now();
     const frontendIntent = frontendIntentClassification?.intent;
     const confidence = frontendIntentClassification?.confidence ?? null;
     const domainCues = containsDomainCues(content);
 
-    if (!domainCues && isConversationalIntent(frontendIntent)) {
+    if (!pendingClarification && !domainCues && isConversationalIntent(frontendIntent)) {
       const shortcutScopeResolution: ChatScopeResolution = {
         mode: "global",
         requestedScopes: [],
@@ -3204,6 +3220,7 @@ export async function POST(request: Request) {
         ambiguousScopes: [],
       };
       const assistantMessage = await appendAssistantMessage({
+        actor: privilegedActor,
         sessionId: session.id,
         content: conversationalReply(frontendIntent),
         citations: [
@@ -3465,7 +3482,6 @@ export async function POST(request: Request) {
           ? userBarangay?.name ?? explicitBarangayTarget?.scopeName ?? null
           : null;
 
-    const pendingClarification = await getLatestPendingClarification(session.id);
     if (pendingClarification) {
       const selection = parseClarificationSelection(content);
 

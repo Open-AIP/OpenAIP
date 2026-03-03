@@ -359,7 +359,7 @@ export function buildOutboxFailureThresholdNotifications(args: {
     entity_id: null,
     title: "Email outbox failure threshold reached",
     message: `${args.failedCountLastHour} outbox rows failed in the last hour (threshold: ${args.threshold}).`,
-    action_url: "/admin/usage-controls",
+    action_url: "/admin/notifications",
     metadata: {
       failed_count_last_hour: args.failedCountLastHour,
       threshold: args.threshold,

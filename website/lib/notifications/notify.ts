@@ -4,6 +4,7 @@ import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { buildNotificationDedupeKey, toHourBucket } from "./dedupe";
 import type { NotificationScopeType, NotifyInput, NotifyResult } from "./events";
+import { buildNotificationActionUrl } from "./action-url";
 import {
   getAdminRecipients,
   getBarangayOfficialRecipients,
@@ -18,7 +19,7 @@ import {
   resolveProjectUpdateContext,
   type NotificationRecipient,
 } from "./recipients";
-import { buildNotificationTemplate, defaultActionUrl } from "./templates";
+import { buildNotificationTemplate } from "./templates";
 
 type PreferenceRow = {
   user_id: string;
@@ -94,13 +95,19 @@ async function resolveRecipientsForEvent(
   resolvedProjectUpdateId: string | null;
   resolvedBarangayId: string | null;
   resolvedCityId: string | null;
+  resolvedFeedbackContext: Awaited<ReturnType<typeof resolveFeedbackContext>>;
+  resolvedProjectScope: Awaited<ReturnType<typeof resolveProjectScope>>;
+  resolvedProjectUpdateContext: Awaited<ReturnType<typeof resolveProjectUpdateContext>>;
 }> {
   let resolvedAipId = input.aipId ?? null;
   let resolvedProjectId = input.projectId ?? null;
-  let resolvedFeedbackId = input.feedbackId ?? null;
-  let resolvedProjectUpdateId = input.projectUpdateId ?? null;
+  const resolvedFeedbackId = input.feedbackId ?? null;
+  const resolvedProjectUpdateId = input.projectUpdateId ?? null;
   let resolvedBarangayId = input.barangayId ?? null;
   let resolvedCityId = input.cityId ?? null;
+  let resolvedFeedbackContext: Awaited<ReturnType<typeof resolveFeedbackContext>> = null;
+  let resolvedProjectScope: Awaited<ReturnType<typeof resolveProjectScope>> = null;
+  let resolvedProjectUpdateContext: Awaited<ReturnType<typeof resolveProjectUpdateContext>> = null;
 
   if (resolvedAipId && (!resolvedBarangayId || !resolvedCityId)) {
     const scope = await resolveAipScope(admin, resolvedAipId);
@@ -109,42 +116,50 @@ async function resolveRecipientsForEvent(
   }
 
   if (resolvedProjectId && (!resolvedAipId || !resolvedBarangayId || !resolvedCityId)) {
-    const projectScope = await resolveProjectScope(admin, resolvedProjectId);
-    if (projectScope) {
-      resolvedAipId = resolvedAipId ?? projectScope.aipId;
-      resolvedBarangayId = resolvedBarangayId ?? projectScope.scope?.barangayId ?? null;
-      resolvedCityId = resolvedCityId ?? projectScope.scope?.cityId ?? null;
+    resolvedProjectScope = await resolveProjectScope(admin, resolvedProjectId);
+    if (resolvedProjectScope) {
+      resolvedAipId = resolvedAipId ?? resolvedProjectScope.aipId;
+      resolvedBarangayId = resolvedBarangayId ?? resolvedProjectScope.scope?.barangayId ?? null;
+      resolvedCityId = resolvedCityId ?? resolvedProjectScope.scope?.cityId ?? null;
     }
   }
 
   if (resolvedFeedbackId && (!resolvedAipId || !resolvedProjectId || !resolvedBarangayId || !resolvedCityId)) {
-    const feedbackContext = await resolveFeedbackContext(admin, resolvedFeedbackId);
-    if (feedbackContext) {
-      resolvedAipId = resolvedAipId ?? feedbackContext.aipId;
-      resolvedProjectId = resolvedProjectId ?? feedbackContext.projectId;
-      resolvedBarangayId = resolvedBarangayId ?? feedbackContext.scope?.barangayId ?? null;
-      resolvedCityId = resolvedCityId ?? feedbackContext.scope?.cityId ?? null;
+    resolvedFeedbackContext = await resolveFeedbackContext(admin, resolvedFeedbackId);
+    if (resolvedFeedbackContext) {
+      resolvedAipId = resolvedAipId ?? resolvedFeedbackContext.aipId;
+      resolvedProjectId = resolvedProjectId ?? resolvedFeedbackContext.projectId;
+      resolvedBarangayId = resolvedBarangayId ?? resolvedFeedbackContext.scope?.barangayId ?? null;
+      resolvedCityId = resolvedCityId ?? resolvedFeedbackContext.scope?.cityId ?? null;
     }
   }
 
   if (resolvedProjectUpdateId && (!resolvedAipId || !resolvedProjectId || !resolvedBarangayId || !resolvedCityId)) {
-    const updateContext = await resolveProjectUpdateContext(admin, resolvedProjectUpdateId);
-    if (updateContext) {
-      resolvedAipId = resolvedAipId ?? updateContext.aipId;
-      resolvedProjectId = resolvedProjectId ?? updateContext.projectId;
-      resolvedBarangayId = resolvedBarangayId ?? updateContext.scope?.barangayId ?? null;
-      resolvedCityId = resolvedCityId ?? updateContext.scope?.cityId ?? null;
+    resolvedProjectUpdateContext = await resolveProjectUpdateContext(admin, resolvedProjectUpdateId);
+    if (resolvedProjectUpdateContext) {
+      resolvedAipId = resolvedAipId ?? resolvedProjectUpdateContext.aipId;
+      resolvedProjectId = resolvedProjectId ?? resolvedProjectUpdateContext.projectId;
+      resolvedBarangayId = resolvedBarangayId ?? resolvedProjectUpdateContext.scope?.barangayId ?? null;
+      resolvedCityId = resolvedCityId ?? resolvedProjectUpdateContext.scope?.cityId ?? null;
     }
   }
 
   if ((input.eventType === "FEEDBACK_VISIBILITY_CHANGED" || input.eventType === "FEEDBACK_CREATED") && resolvedFeedbackId) {
-    const feedbackContext = await resolveFeedbackContext(admin, resolvedFeedbackId);
-    if (feedbackContext) {
-      resolvedAipId = resolvedAipId ?? feedbackContext.aipId;
-      resolvedProjectId = resolvedProjectId ?? feedbackContext.projectId;
-      resolvedBarangayId = resolvedBarangayId ?? feedbackContext.scope?.barangayId ?? null;
-      resolvedCityId = resolvedCityId ?? feedbackContext.scope?.cityId ?? null;
+    resolvedFeedbackContext = resolvedFeedbackContext ?? (await resolveFeedbackContext(admin, resolvedFeedbackId));
+    if (resolvedFeedbackContext) {
+      resolvedAipId = resolvedAipId ?? resolvedFeedbackContext.aipId;
+      resolvedProjectId = resolvedProjectId ?? resolvedFeedbackContext.projectId;
+      resolvedBarangayId = resolvedBarangayId ?? resolvedFeedbackContext.scope?.barangayId ?? null;
+      resolvedCityId = resolvedCityId ?? resolvedFeedbackContext.scope?.cityId ?? null;
     }
+  }
+
+  if (resolvedProjectId && !resolvedProjectScope) {
+    resolvedProjectScope = await resolveProjectScope(admin, resolvedProjectId);
+  }
+
+  if (resolvedProjectUpdateId && !resolvedProjectUpdateContext) {
+    resolvedProjectUpdateContext = await resolveProjectUpdateContext(admin, resolvedProjectUpdateId);
   }
 
   const recipients: NotificationRecipient[] = [];
@@ -182,9 +197,11 @@ async function resolveRecipientsForEvent(
       break;
     case "FEEDBACK_VISIBILITY_CHANGED":
       if (resolvedFeedbackId) {
-        const feedback = await resolveFeedbackContext(admin, resolvedFeedbackId);
-        if (feedback?.authorUserId) {
-          const author = await getRecipientByUserId(admin, feedback.authorUserId);
+        const feedbackContext =
+          resolvedFeedbackContext ?? (await resolveFeedbackContext(admin, resolvedFeedbackId));
+        resolvedFeedbackContext = feedbackContext;
+        if (feedbackContext?.authorUserId) {
+          const author = await getRecipientByUserId(admin, feedbackContext.authorUserId);
           if (author) recipients.push(author);
         }
       }
@@ -223,6 +240,9 @@ async function resolveRecipientsForEvent(
     resolvedProjectUpdateId,
     resolvedBarangayId,
     resolvedCityId,
+    resolvedFeedbackContext,
+    resolvedProjectScope,
+    resolvedProjectUpdateContext,
   };
 }
 
@@ -236,6 +256,9 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
     resolvedProjectUpdateId,
     resolvedBarangayId,
     resolvedCityId,
+    resolvedFeedbackContext,
+    resolvedProjectScope,
+    resolvedProjectUpdateContext,
   } = await resolveRecipientsForEvent(admin, input);
 
   if (recipients.length === 0) {
@@ -278,7 +301,14 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
     entityId: resolvedEntityId,
   };
   const template = buildNotificationTemplate(templateInput);
-  const actionUrl = defaultActionUrl(templateInput);
+  const resolvedProjectCategory =
+    resolvedProjectUpdateContext?.projectCategory ??
+    resolvedProjectScope?.projectCategory ??
+    resolvedFeedbackContext?.projectCategory ??
+    null;
+  const resolvedFeedbackTargetType = resolvedFeedbackContext?.targetType ?? null;
+  const resolvedRootFeedbackId =
+    resolvedFeedbackContext?.rootFeedbackId ?? resolvedFeedbackContext?.feedbackId ?? null;
 
   const metadata = {
     ...(input.metadata ?? {}),
@@ -303,12 +333,35 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
     input.eventType
   );
 
+  const actionUrlByRecipientUserId = new Map<string, string>();
+  for (const recipient of recipients) {
+    const recipientScopeType = toNotificationScope(recipient);
+    actionUrlByRecipientUserId.set(
+      recipient.userId,
+      buildNotificationActionUrl({
+        eventType: input.eventType,
+        recipientScopeType,
+        entityType: input.entityType,
+        actionUrlOverride: input.actionUrl ?? null,
+        transition,
+        aipId: resolvedAipId,
+        projectId: resolvedProjectId,
+        feedbackId: resolvedFeedbackId,
+        rootFeedbackId: resolvedRootFeedbackId,
+        projectUpdateId: resolvedProjectUpdateId,
+        projectCategory: resolvedProjectCategory,
+        feedbackTargetType: resolvedFeedbackTargetType,
+      })
+    );
+  }
+
   const notificationRows: Array<Record<string, unknown>> = [];
   for (const recipient of recipients) {
     const pref = preferences.get(recipient.userId);
     const inAppEnabled = pref?.inAppEnabled ?? true;
     if (!inAppEnabled) continue;
 
+    const actionUrl = actionUrlByRecipientUserId.get(recipient.userId) ?? null;
     notificationRows.push({
       recipient_user_id: recipient.userId,
       recipient_role: recipient.role,
@@ -334,6 +387,7 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
 
       const toEmail = await resolveRecipientEmail(admin, recipient);
       if (!toEmail) continue;
+      const actionUrl = actionUrlByRecipientUserId.get(recipient.userId) ?? null;
 
       emailRows.push({
         recipient_user_id: recipient.userId,

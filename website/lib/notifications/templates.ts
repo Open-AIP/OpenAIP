@@ -1,4 +1,5 @@
 import type { NotifyInput } from "./events";
+import { buildNotificationActionUrl } from "./action-url";
 
 export type NotificationTemplate = {
   title: string;
@@ -14,42 +15,20 @@ function withActorPrefix(actorName: string | null | undefined, fallback: string)
 }
 
 export function defaultActionUrl(input: NotifyInput): string | null {
-  if (input.actionUrl) return input.actionUrl;
-
-  switch (input.eventType) {
-    case "AIP_CLAIMED":
-    case "AIP_REVISION_REQUESTED":
-    case "AIP_SUBMITTED":
-    case "AIP_RESUBMITTED":
-      return input.aipId ? `/city/submissions/aip/${input.aipId}` : "/city/submissions";
-    case "AIP_PUBLISHED":
-      if (input.scopeType === "city") {
-        return input.aipId ? `/city/aips/${input.aipId}` : "/city/aips";
-      }
-      if (input.scopeType === "citizen") {
-        return input.aipId ? `/aips/${input.aipId}` : "/aips";
-      }
-      return input.aipId ? `/barangay/aips/${input.aipId}` : "/barangay/aips";
-    case "FEEDBACK_CREATED":
-      if (input.scopeType === "city") return "/city/feedback";
-      if (input.scopeType === "barangay") return "/barangay/feedback";
-      return "/feedback";
-    case "FEEDBACK_VISIBILITY_CHANGED":
-      return "/admin/feedback-moderation";
-    case "PROJECT_UPDATE_STATUS_CHANGED":
-      if (input.scopeType === "city") return "/city/projects";
-      if (input.scopeType === "citizen") return "/projects";
-      if (input.scopeType === "barangay") return "/barangay/projects";
-      return "/admin/feedback-moderation";
-    case "OUTBOX_FAILURE_THRESHOLD_REACHED":
-      return "/admin/usage-controls";
-    case "MODERATION_ACTION_AUDIT":
-      return "/admin/feedback-moderation";
-    case "PIPELINE_JOB_FAILED":
-      return "/admin/aip-monitoring";
-    default:
-      return "/notifications";
-  }
+  return buildNotificationActionUrl({
+    eventType: input.eventType,
+    recipientScopeType: input.scopeType,
+    entityType: input.entityType,
+    actionUrlOverride: input.actionUrl ?? null,
+    transition: input.transition ?? null,
+    aipId: input.aipId ?? null,
+    projectId: input.projectId ?? null,
+    feedbackId: input.feedbackId ?? null,
+    rootFeedbackId: input.feedbackId ?? null,
+    projectUpdateId: input.projectUpdateId ?? null,
+    projectCategory: null,
+    feedbackTargetType: null,
+  });
 }
 
 export function buildNotificationTemplate(input: NotifyInput): NotificationTemplate {

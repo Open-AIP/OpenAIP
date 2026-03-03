@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { cn } from "@/ui/utils";
 import {
   buildCitizenAuthHref,
   setReturnToInSessionStorage,
@@ -50,6 +51,22 @@ type ProfileStatusPayload = {
 
 const EMPTY_STATE_TEXT =
   "No feedback yet. Be the first to share a commendation, suggestion, concern, or question.";
+
+function readSearchParam(
+  searchParams: ReturnType<typeof useSearchParams>,
+  key: string
+): string | null {
+  if (typeof (searchParams as { get?: unknown })?.get === "function") {
+    return (searchParams as { get(name: string): string | null }).get(key);
+  }
+
+  const rawQuery =
+    typeof (searchParams as { toString?: unknown })?.toString === "function"
+      ? (searchParams as { toString(): string }).toString()
+      : "";
+  if (!rawQuery) return null;
+  return new URLSearchParams(rawQuery).get(key);
+}
 
 function sortByCreatedNewestFirst(items: ProjectFeedbackItem[]): ProjectFeedbackItem[] {
   return [...items].sort((left, right) => {
@@ -147,6 +164,8 @@ export function FeedbackThread({
     const path = query ? `${pathname}?${query}` : pathname;
     return `${path}#feedback`;
   }, [pathname, searchParams]);
+  const selectedThreadId = readSearchParam(searchParams, "thread");
+  const selectedFeedbackId = readSearchParam(searchParams, "comment");
 
   const openAuthModal = React.useCallback(
     (input: { forceCompleteProfile?: boolean }) => {
@@ -292,6 +311,35 @@ export function FeedbackThread({
     if (rootFilter === "citizen") return grouped.filter(isCitizenRoot);
     return grouped.filter((thread) => !isCitizenRoot(thread));
   }, [items, rootFilter]);
+
+  const threadRefs = React.useRef(new Map<string, HTMLDivElement | null>());
+  const feedbackRefs = React.useRef(new Map<string, HTMLDivElement | null>());
+  const setThreadRef = React.useCallback(
+    (threadId: string) => (node: HTMLDivElement | null) => {
+      threadRefs.current.set(threadId, node);
+    },
+    []
+  );
+  const setFeedbackRef = React.useCallback(
+    (feedbackId: string) => (node: HTMLDivElement | null) => {
+      feedbackRefs.current.set(feedbackId, node);
+    },
+    []
+  );
+
+  React.useEffect(() => {
+    const node = selectedFeedbackId
+      ? feedbackRefs.current.get(selectedFeedbackId)
+      : selectedThreadId
+        ? threadRefs.current.get(selectedThreadId)
+        : null;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      if (typeof node.scrollIntoView === "function") {
+        node.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, [selectedFeedbackId, selectedThreadId, threads]);
 
   React.useEffect(() => {
     if (isBlocked) {
@@ -504,30 +552,58 @@ export function FeedbackThread({
           {threads.map((thread) => {
             const isPostingReply = postingReplyRootId === thread.root.id;
             const isReplyingHere = replyComposer?.rootId === thread.root.id;
+            const isSelectedThread = selectedThreadId === thread.root.id;
+            const isRootFeedbackSelected = selectedFeedbackId === thread.root.id;
 
             return (
-              <div key={thread.root.id} className="space-y-3 rounded-2xl border border-slate-200 p-4">
-                <FeedbackCard
-                  item={thread.root}
-                  onReply={handleReplyClick}
-                  replyDisabled={readOnly || isBlocked || isPostingReply || isPostingRoot || isAuthLoading}
-                  hideReplyButton={readOnly || isBlocked}
-                />
+              <div
+                key={thread.root.id}
+                ref={setThreadRef(thread.root.id)}
+                className={cn(
+                  "space-y-3 rounded-2xl border border-slate-200 p-4",
+                  isSelectedThread && "border-sky-300 ring-2 ring-sky-200"
+                )}
+                data-thread-id={thread.root.id}
+              >
+                <div ref={setFeedbackRef(thread.root.id)}>
+                  <FeedbackCard
+                    item={thread.root}
+                    onReply={handleReplyClick}
+                    replyDisabled={
+                      readOnly || isBlocked || isPostingReply || isPostingRoot || isAuthLoading
+                    }
+                    hideReplyButton={readOnly || isBlocked}
+                    className={
+                      isRootFeedbackSelected ? "border-sky-300 ring-2 ring-sky-200" : undefined
+                    }
+                  />
+                </div>
 
                 {thread.replies.length > 0 ? (
                   <div className="ml-4 space-y-3 border-l border-slate-200 pl-4">
-                    {thread.replies.map((reply) => (
-                      <FeedbackCard
-                        key={reply.id}
-                        item={reply}
-                        onReply={handleReplyClick}
-                        replyDisabled={
-                          readOnly || isBlocked || isPostingReply || isPostingRoot || isAuthLoading
-                        }
-                        hideReplyButton={readOnly || isBlocked}
-                        isReply
-                      />
-                    ))}
+                    {thread.replies.map((reply) => {
+                      const isReplySelected = selectedFeedbackId === reply.id;
+                      return (
+                        <div key={reply.id} ref={setFeedbackRef(reply.id)}>
+                          <FeedbackCard
+                            item={reply}
+                            onReply={handleReplyClick}
+                            replyDisabled={
+                              readOnly ||
+                              isBlocked ||
+                              isPostingReply ||
+                              isPostingRoot ||
+                              isAuthLoading
+                            }
+                            hideReplyButton={readOnly || isBlocked}
+                            isReply
+                            className={
+                              isReplySelected ? "border-sky-300 ring-2 ring-sky-200" : undefined
+                            }
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : null}
 

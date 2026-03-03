@@ -8,6 +8,8 @@ type MockRecipient = {
 };
 
 const mockGetAdminRecipients = vi.fn<() => Promise<MockRecipient[]>>();
+const mockGetBarangayOfficialRecipients = vi.fn<() => Promise<MockRecipient[]>>();
+const mockGetCitizenRecipientsForBarangay = vi.fn<() => Promise<MockRecipient[]>>();
 const mockGetUserById = vi.fn();
 const notificationUpserts: Array<{ rows: Array<Record<string, unknown>>; options: unknown }> = [];
 const emailUpserts: Array<{ rows: Array<Record<string, unknown>>; options: unknown }> = [];
@@ -19,9 +21,9 @@ let preferenceRows: Array<{
 
 vi.mock("@/lib/notifications/recipients", () => ({
   getAdminRecipients: () => mockGetAdminRecipients(),
-  getBarangayOfficialRecipients: vi.fn(async () => []),
+  getBarangayOfficialRecipients: () => mockGetBarangayOfficialRecipients(),
   getCityOfficialRecipients: vi.fn(async () => []),
-  getCitizenRecipientsForBarangay: vi.fn(async () => []),
+  getCitizenRecipientsForBarangay: () => mockGetCitizenRecipientsForBarangay(),
   getCitizenRecipientsForCity: vi.fn(async () => []),
   getRecipientByUserId: vi.fn(async () => null),
   resolveAipScope: vi.fn(async () => null),
@@ -108,6 +110,10 @@ describe("notify()", () => {
         scopeType: "admin",
       },
     ]);
+    mockGetBarangayOfficialRecipients.mockReset();
+    mockGetBarangayOfficialRecipients.mockResolvedValue([]);
+    mockGetCitizenRecipientsForBarangay.mockReset();
+    mockGetCitizenRecipientsForBarangay.mockResolvedValue([]);
   });
 
   it("inserts notifications and outbox rows for multiple recipients", async () => {
@@ -181,5 +187,50 @@ describe("notify()", () => {
     expect(notificationUpserts[0].rows[0].dedupe_key).toBe(
       notificationUpserts[1].rows[0].dedupe_key
     );
+  });
+
+  it("builds recipient-aware action URLs for mixed recipient events", async () => {
+    mockGetBarangayOfficialRecipients.mockResolvedValueOnce([
+      {
+        userId: "bo-1",
+        role: "barangay_official",
+        email: "bo1@example.com",
+        scopeType: "barangay",
+      },
+    ]);
+    mockGetCitizenRecipientsForBarangay.mockResolvedValueOnce([
+      {
+        userId: "citizen-1",
+        role: "citizen",
+        email: "citizen1@example.com",
+        scopeType: "citizen",
+      },
+    ]);
+
+    await notify({
+      eventType: "AIP_PUBLISHED",
+      scopeType: "barangay",
+      entityType: "aip",
+      aipId: "aip-1",
+      barangayId: "brgy-1",
+      cityId: "city-1",
+      entityId: "aip-1",
+    });
+
+    expect(notificationUpserts).toHaveLength(1);
+    const rows = notificationUpserts[0].rows;
+    const byUserId = new Map(rows.map((row) => [String(row.recipient_user_id), row]));
+    expect(byUserId.get("bo-1")?.action_url).toBe("/barangay/aips/aip-1");
+    expect(byUserId.get("citizen-1")?.action_url).toBe("/aips/aip-1");
+
+    expect(emailUpserts).toHaveLength(1);
+    const emailRows = emailUpserts[0].rows;
+    const emailByUserId = new Map(emailRows.map((row) => [String(row.recipient_user_id), row]));
+    expect(emailByUserId.get("bo-1")?.payload).toMatchObject({
+      action_url: "/barangay/aips/aip-1",
+    });
+    expect(emailByUserId.get("citizen-1")?.payload).toMatchObject({
+      action_url: "/aips/aip-1",
+    });
   });
 });

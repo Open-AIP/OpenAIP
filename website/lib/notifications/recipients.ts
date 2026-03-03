@@ -19,6 +19,7 @@ type AipScopeRow = {
 type ProjectScopeRow = {
   id: string;
   aip_id: string;
+  category: "health" | "infrastructure" | "other" | null;
 };
 
 type FeedbackScopeRow = {
@@ -26,6 +27,7 @@ type FeedbackScopeRow = {
   target_type: "aip" | "project";
   aip_id: string | null;
   project_id: string | null;
+  parent_feedback_id: string | null;
   author_id: string | null;
 };
 
@@ -56,6 +58,9 @@ export type ResolvedFeedbackContext = {
   targetType: "aip" | "project";
   aipId: string | null;
   projectId: string | null;
+  parentFeedbackId: string | null;
+  rootFeedbackId: string | null;
+  projectCategory: "health" | "infrastructure" | "other" | null;
   scope: ResolvedAipScope | null;
 };
 
@@ -64,6 +69,7 @@ export type ResolvedProjectUpdateContext = {
   projectId: string;
   aipId: string;
   status: "active" | "hidden";
+  projectCategory: "health" | "infrastructure" | "other" | null;
   scope: ResolvedAipScope | null;
 };
 
@@ -250,10 +256,15 @@ export async function resolveAipScope(
 export async function resolveProjectScope(
   admin: SupabaseAdminClient,
   projectId: string
-): Promise<{ projectId: string; aipId: string; scope: ResolvedAipScope | null } | null> {
+): Promise<{
+  projectId: string;
+  aipId: string;
+  projectCategory: "health" | "infrastructure" | "other" | null;
+  scope: ResolvedAipScope | null;
+} | null> {
   const { data, error } = await admin
     .from("projects")
-    .select("id,aip_id")
+    .select("id,aip_id,category")
     .eq("id", projectId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -263,6 +274,7 @@ export async function resolveProjectScope(
   return {
     projectId: project.id,
     aipId: project.aip_id,
+    projectCategory: project.category,
     scope,
   };
 }
@@ -273,13 +285,14 @@ export async function resolveFeedbackContext(
 ): Promise<ResolvedFeedbackContext | null> {
   const { data, error } = await admin
     .from("feedback")
-    .select("id,target_type,aip_id,project_id,author_id")
+    .select("id,target_type,aip_id,project_id,parent_feedback_id,author_id")
     .eq("id", feedbackId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
 
   const row = data as FeedbackScopeRow;
+  const rootFeedbackId = row.parent_feedback_id ?? row.id;
   if (row.target_type === "aip" && row.aip_id) {
     const scope = await resolveAipScope(admin, row.aip_id);
     return {
@@ -288,6 +301,9 @@ export async function resolveFeedbackContext(
       targetType: row.target_type,
       aipId: row.aip_id,
       projectId: null,
+      parentFeedbackId: row.parent_feedback_id,
+      rootFeedbackId,
+      projectCategory: null,
       scope,
     };
   }
@@ -299,6 +315,9 @@ export async function resolveFeedbackContext(
       targetType: row.target_type,
       aipId: projectScope?.aipId ?? null,
       projectId: row.project_id,
+      parentFeedbackId: row.parent_feedback_id,
+      rootFeedbackId,
+      projectCategory: projectScope?.projectCategory ?? null,
       scope: projectScope?.scope ?? null,
     };
   }
@@ -309,6 +328,9 @@ export async function resolveFeedbackContext(
     targetType: row.target_type,
     aipId: row.aip_id,
     projectId: row.project_id,
+    parentFeedbackId: row.parent_feedback_id,
+    rootFeedbackId,
+    projectCategory: null,
     scope: null,
   };
 }
@@ -325,12 +347,14 @@ export async function resolveProjectUpdateContext(
   if (error) throw new Error(error.message);
   if (!data) return null;
   const row = data as ProjectUpdateScopeRow;
+  const projectScope = await resolveProjectScope(admin, row.project_id);
   return {
     updateId: row.id,
     projectId: row.project_id,
     aipId: row.aip_id,
     status: row.status,
-    scope: await resolveAipScope(admin, row.aip_id),
+    projectCategory: projectScope?.projectCategory ?? null,
+    scope: projectScope?.scope ?? (await resolveAipScope(admin, row.aip_id)),
   };
 }
 

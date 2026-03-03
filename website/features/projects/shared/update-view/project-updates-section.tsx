@@ -22,6 +22,7 @@ type ProjectUpdatesSectionProps =
   | {
       initialUpdates: ProjectUpdateUi[];
       allowPosting?: false;
+      selectedUpdateId?: string | null;
       projectId?: never;
       scope?: never;
       projectKind?: never;
@@ -30,6 +31,7 @@ type ProjectUpdatesSectionProps =
   | {
       initialUpdates: ProjectUpdateUi[];
       allowPosting: true;
+      selectedUpdateId?: string | null;
       projectId: string;
       scope: PostingScope;
       projectKind: PostingProjectKind;
@@ -73,12 +75,12 @@ export default function ProjectUpdatesSection(props: ProjectUpdatesSectionProps)
   );
 
   if (props.allowPosting !== true) {
-    return <UpdatesTimelineView updates={updates} />;
+    return <UpdatesTimelineView updates={updates} selectedUpdateId={props.selectedUpdateId} />;
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-      <UpdatesTimelineView updates={updates} />
+      <UpdatesTimelineView updates={updates} selectedUpdateId={props.selectedUpdateId} />
       <PostUpdateForm
         projectId={props.projectId}
         scope={props.scope}

@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { CitizenChatSessionVM } from "../types/citizen-chatbot.types";
 
 const TITLE_MIN_LENGTH = 1;

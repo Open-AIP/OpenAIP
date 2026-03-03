@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import {
   buildCitizenAuthHref,
   setReturnToInSessionStorage,

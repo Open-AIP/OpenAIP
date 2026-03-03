@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { AccountRecord } from "@/lib/repos/accounts/repo";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import AccountRowActions from "./account-row-actions";
 
 function roleLabel(role: AccountRecord["role"]) {

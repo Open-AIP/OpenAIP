@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type PrimaryButtonProps = {
   label: string;
@@ -22,7 +22,7 @@ export default function PrimaryButton({
       <Button
         asChild
         className={cn(
-          "rounded-full bg-powderblue px-6 text-[#001925] hover:bg-powderblue/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]",
+          "rounded-full bg-[#CBECF4] px-6 text-[#001925] hover:bg-[#CBECF4]/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]",
           className
         )}
       >
@@ -39,7 +39,7 @@ export default function PrimaryButton({
       aria-label={ariaLabel ?? label}
       data-action-key={actionKey}
       className={cn(
-        "rounded-full bg-powderblue px-6 text-[#001925] hover:bg-powderblue/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]",
+        "rounded-full bg-[#CBECF4] px-6 text-[#001925] hover:bg-[#CBECF4]/90 focus-visible:ring-2 focus-visible:ring-[#67E8F9]",
         className
       )}
     >

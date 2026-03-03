@@ -1,7 +1,7 @@
 import { getUser } from "@/lib/actions/auth.actions";
-import { mapUserToActorContext } from "./actor-context";
+import { mapUserToActorContext, type ActorContext } from "./actor-context";
 
-export async function getActorContext() {
+export async function getActorContext(): Promise<ActorContext | null> {
   try {
     const user = await getUser();
     if (!user) return null;

@@ -15,7 +15,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { getRolePath, getRoleEmailPlaceholder } from "@/ui/auth-helpers";
+import { getRolePath, getRoleEmailPlaceholder } from "@/lib/ui/auth-helpers";
+import { toRouteRole } from '@/lib/supabase/proxy'
 
 export function LoginForm({role, baseURL}:AuthParameters) {
   const [email, setEmail] = useState('')
@@ -87,25 +88,27 @@ export function LoginForm({role, baseURL}:AuthParameters) {
         />
         <div className="relative z-10 grid min-h-screen lg:grid-cols-5">
           <main className="order-1 flex min-h-screen items-stretch lg:order-2 lg:col-span-2">
-            <div className="w-full p-4 sm:p-6 lg:p-8">
-              <Card className="h-full w-full gap-0 rounded-2xl border-slate-200 bg-white shadow-xl">
+            <div className="w-full p-5 sm:p-7 lg:p-9">
+              <Card className="relative h-full w-full gap-0 rounded-2xl border-slate-200 bg-white shadow-xl">
               <CardHeader className="items-center space-y-5 px-9 pt-11 text-center sm:px-12">
-                <Image
-                  src="/brand/logo.svg"
-                  alt="OpenAIP logo"
-                  width={56}
-                  height={56}
-                  className="mx-auto h-14 w-14"
-                />
-                <div className="space-y-2">
-                  <CardTitle className="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl">
+                <div className="absolute left-7 top-7 sm:left-9 sm:top-9">
+                  <Image
+                    src="/brand/logo3.svg"
+                    alt="OpenAIP logo"
+                    width={64}
+                    height={64}
+                    className="h-12 w-12 sm:h-14 sm:w-14"
+                  />
+                </div>
+                <div className="space-y-2 pt-4">
+                  <CardTitle className="text-4xl font-bold leading-tight text-slate-900 sm:text-5xl">
                     Welcome back!
                   </CardTitle>
                   <CardDescription className="text-sm leading-relaxed text-slate-500 sm:text-base">
                     Sign in to continue to OpenAIP.
                   </CardDescription>
                 </div>
-                <span className="w-full text-center text-xl font-bold text-[#3B7A9D]">
+                <span className="mt-4 w-full text-center text-xl font-bold text-[#3B7A9D]">
                   {roleBadgeLabel}
                 </span>
               </CardHeader>
@@ -127,17 +130,9 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-4">
-                      <Label htmlFor="password" className="text-sm font-medium text-slate-700">
-                        Password
-                      </Label>
-                      <Link
-                        href={`${rolePath}/forgot-password`}
-                        className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                      >
-                        Forgot password?
-                      </Link>
-                    </div>
+                    <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+                      Password
+                    </Label>
                     <div className="relative">
                       <Input
                         id="password"
@@ -165,11 +160,19 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                   )}
                   <Button
                     type="submit"
-                    className="h-12 w-full text-base font-medium focus-visible:ring-2 focus-visible:ring-primary/40"
+                    className="h-12 w-full bg-[#022437] text-base font-medium text-white hover:bg-[#022437]/90 focus-visible:ring-2 focus-visible:ring-[#022437]/40"
                     disabled={isLoading}
                   >
                     {isLoading ? 'Logging in...' : 'Sign in'}
                   </Button>
+                  <div>
+                    <Link
+                      href={`${rolePath}/forgot-password`}
+                      className="inline-flex rounded-sm text-sm font-medium text-slate-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <div className="space-y-2">
                     <a
                       href="mailto:administrator@lgu.gov.ph"
@@ -192,14 +195,13 @@ export function LoginForm({role, baseURL}:AuthParameters) {
               src="/login/faded-logo.png"
               alt=""
               aria-hidden
-              width={440}
-              height={440}
-              className="pointer-events-none absolute left-1/2 top-1/2 hidden h-auto w-[360px] -translate-x-1/2 -translate-y-1/2 opacity-20 lg:block"
+              width={660}
+              height={660}
+              className="pointer-events-none absolute left-1/2 top-1/2 hidden h-auto w-[560px] -translate-x-1/2 -translate-y-1/2 opacity-20 lg:block"
             />
 
             <div className="relative z-10 flex h-full flex-col justify-between p-8 text-white sm:p-10 lg:p-14">
-              <div className="flex items-center gap-3">
-                <Image src="/brand/logo3.svg" alt="OpenAIP logo" width={34} height={34} className="h-8 w-8" />
+              <div className="flex items-center">
                 <span className="text-3xl font-semibold leading-none tracking-tight">OpenAIP</span>
               </div>
               <div className="max-w-2xl space-y-6 pb-2 lg:pb-10">

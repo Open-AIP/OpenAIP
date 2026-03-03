@@ -5,9 +5,11 @@ type OverviewHeaderProps = {
 
 export default function OverviewHeader({ title, subtitle }: OverviewHeaderProps) {
   return (
-    <section className="mx-auto max-w-6xl px-6 pt-12 text-center">
-      <h2 className="text-3xl font-semibold text-[#022437] md:text-4xl">{title}</h2>
-      <p className="mt-2 text-sm text-slate-600">{subtitle}</p>
+    <section className="mx-auto max-w-6xl px-6">
+      <header className="space-y-2">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
+        <p className="text-sm text-slate-600">{subtitle}</p>
+      </header>
     </section>
   );
 }

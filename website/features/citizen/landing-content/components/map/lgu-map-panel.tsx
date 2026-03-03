@@ -4,7 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import LguMapPanelPlaceholder from "./lgu-map-panel-placeholder";
 
 type LguMapPanelProps = {

@@ -53,32 +53,12 @@ export function DashboardHeader({
   return (
     <div className="w-full space-y-6">
       <h1 className="text-5xl font-bold text-foreground">{title}</h1>
-      <form ref={formRef} method="get" className="flex items-center justify-between gap-4">
+      <form ref={formRef} method="get" className="flex items-center justify-end gap-4">
         <input type="hidden" name="kpi" value={kpiMode} />
+        <input type="hidden" name="q" value={q} />
         <input ref={tableQRef} type="hidden" name="tableQ" defaultValue={tableQ} />
         <input ref={categoryRef} type="hidden" name="category" defaultValue={tableCategory} />
         <input ref={sectorRef} type="hidden" name="sector" defaultValue={tableSector} />
-        <div className="relative w-full max-w-[360px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <input
-            name="q"
-            defaultValue={q}
-            onBlur={(event) => {
-              if (event.currentTarget.value !== q) {
-                submitWithSyncedFilters();
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                submitWithSyncedFilters();
-              }
-            }}
-            placeholder="Global search..."
-            className="h-10 w-full rounded-lg border-0 bg-secondary pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Global search"
-          />
-        </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Year:</span>
           <div className="relative">
@@ -200,8 +180,8 @@ export function DateCard({ label, backgroundImageUrl }: { label: string; backgro
 export function WorkingOnCard({ items }: { items: Array<{ id: string; label: string; href: string }> }) {
   return (
     <Card className="w-full min-w-0 rounded-xl border border-border bg-card py-0 text-card-foreground">
-      <CardHeader className="p-5 pb-0"><CardTitle className="text-sm font-medium">You&apos;re Working On</CardTitle></CardHeader>
-      <CardContent className="p-5 space-y-3">
+      <CardHeader className="pt-5"><CardTitle className="text-lg font-medium">You&apos;re Working On</CardTitle></CardHeader>
+      <CardContent className="pb-5 space-y-3">
         {items.length === 0 ? (
           <div className="mt-10 text-center text-xl font-semibold">All Caught Up</div>
         ) : (

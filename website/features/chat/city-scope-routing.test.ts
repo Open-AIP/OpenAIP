@@ -4,6 +4,7 @@ import type { ChatMessage, ChatSession } from "@/lib/repos/chat/types";
 const mockGetActorContext = vi.fn();
 const mockResolveRetrievalScope = vi.fn();
 const mockRequestPipelineQueryEmbedding = vi.fn();
+const mockRequestPipelineIntentClassify = vi.fn();
 const mockRequestPipelineChatAnswer = vi.fn();
 const mockSupabaseServer = vi.fn();
 const mockSupabaseAdmin = vi.fn();
@@ -379,6 +380,7 @@ vi.mock("@/lib/chat/scope-resolver.server", () => ({
 
 vi.mock("@/lib/chat/pipeline-client", () => ({
   requestPipelineQueryEmbedding: (...args: unknown[]) => mockRequestPipelineQueryEmbedding(...args),
+  requestPipelineIntentClassify: (...args: unknown[]) => mockRequestPipelineIntentClassify(...args),
   requestPipelineChatAnswer: (...args: unknown[]) => mockRequestPipelineChatAnswer(...args),
 }));
 
@@ -446,7 +448,16 @@ describe("city scope routing", () => {
     mockIsUserBlocked.mockReset();
     mockRequestPipelineChatAnswer.mockReset();
     mockRequestPipelineQueryEmbedding.mockReset();
+    mockRequestPipelineIntentClassify.mockReset();
     mockRouteSqlFirstTotals.mockReset();
+    mockRequestPipelineIntentClassify.mockResolvedValue({
+      intent: "UNKNOWN",
+      confidence: 0,
+      top2_intent: null,
+      top2_confidence: null,
+      margin: 0,
+      method: "none",
+    });
 
     aipRows = [
       {

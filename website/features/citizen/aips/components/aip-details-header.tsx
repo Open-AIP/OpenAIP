@@ -12,12 +12,12 @@ export default function AipDetailsHeader({ aip }: { aip: AipDetails }) {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-[#cae4f6] p-2">
+            <div className="rounded-lg bg-[#cae4f6]/90 p-2">
               <FileText className="h-5 w-5 text-[#1d5f89]" />
             </div>
             <div>
-              <h1 className="text-5xl font-semibold tracking-tight text-slate-900">{aip.title}</h1>
-              <p className="mt-1 text-2xl text-slate-600">{aip.subtitle}</p>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{aip.title}</h1>
+              <p className="mt-1 text-lg text-slate-600">{aip.subtitle}</p>
             </div>
           </div>
 

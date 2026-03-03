@@ -86,8 +86,8 @@ export function AipStatusInfoCard({
 
   return (
     <Card className="border-slate-200">
-      <CardContent className="space-y-4 p-5">
-        <h3 className="text-sm font-semibold text-slate-900">{resolvedTitle}</h3>
+      <CardContent className="space-y-4 px-5">
+        <h3 className="text-2xl font-bold text-slate-900">{resolvedTitle}</h3>
         <div className={`rounded-lg border p-3 text-sm ${styles.wrapper}`}>
           <div className="flex items-start gap-2">
             <span className={`${styles.icon} mt-0.5`}>

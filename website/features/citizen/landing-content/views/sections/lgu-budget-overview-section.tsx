@@ -18,9 +18,9 @@ export default function LguBudgetOverviewSection({ vm }: LguBudgetOverviewSectio
           alt=""
           fill
           sizes="10vw"
-          className="object-cover object-center opacity-90"
+          className="object-cover object-center opacity-95"
         />
-        <div className="absolute inset-0 bg-[#DCE6EC]/58" />
+        <div className="absolute inset-0 bg-[#DCE6EC]/80" />
       </div>
 
       <LguBudgetOverviewMotion vm={vm} mapPanelHeightClass={MAP_PANEL_HEIGHT_CLASS} />

@@ -246,6 +246,7 @@ export function useCitizenChatbot() {
       setIsBootstrapping(false);
       return;
     }
+
     const currentUserId = userId;
 
     async function bootstrapSessions() {
@@ -438,6 +439,7 @@ export function useCitizenChatbot() {
       openAuthModal(false);
       return;
     }
+    const currentUserId = userId;
 
     if (!isProfileComplete) {
       openAuthModal(true);
@@ -468,7 +470,7 @@ export function useCitizenChatbot() {
 
     try {
       if (!sessionId) {
-        const created = await repo.createSession(userId, { context: {} });
+        const created = await repo.createSession(currentUserId, { context: {} });
         setSessions((prev) => sortSessionsByUpdatedAt([created, ...prev.filter((item) => item.id !== created.id)]));
         setActiveSessionId(created.id);
         setMessagesBySession((prev) => ({ ...prev, [created.id]: [] }));

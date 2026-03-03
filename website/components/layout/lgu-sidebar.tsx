@@ -4,8 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { cn } from "@/ui/utils";
+import { Building2, ChevronDown, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/ui/utils";
 import type { LguVariant } from "@/types/navigation";
 import { BARANGAY_NAV, CITY_NAV } from "@/constants/lgu-nav";
 
@@ -15,28 +15,20 @@ type Props = {
 };
 
 function isActive(pathname: string, href: string) {
-  // Exact match
   if (pathname === href) return true;
-  // For root paths like "/barangay" or "/city", only match exact path
   if (href === "/barangay" || href === "/city") return false;
-  // Nested route match (avoid "/" edge cases)
   if (href !== "/" && pathname.startsWith(href + "/")) return true;
   return false;
 }
 
 function isParentActive(pathname: string, href: string, hasChildren: boolean) {
-  // If has children, only highlight on exact match, not when children are active
-  if (hasChildren) {
-    return pathname === href;
-  }
-  // Otherwise use normal active logic
+  if (hasChildren) return pathname === href;
   return isActive(pathname, href);
 }
 
 function formatHeaderLabel(variant: LguVariant, scopeDisplayName?: string): string {
   const fallback = variant === "barangay" ? "Barangay Management" : "City Management";
   const trimmedName = typeof scopeDisplayName === "string" ? scopeDisplayName.trim() : "";
-
   if (!trimmedName) return fallback;
 
   if (variant === "barangay") {
@@ -48,12 +40,27 @@ function formatHeaderLabel(variant: LguVariant, scopeDisplayName?: string): stri
   return `${trimmedName} City`;
 }
 
+function formatHeaderSubtext(variant: LguVariant, scopeDisplayName?: string): string {
+  const trimmedName = typeof scopeDisplayName === "string" ? scopeDisplayName.trim() : "";
+
+  if (variant === "barangay") {
+    return "Cabuyao, Laguna";
+  }
+
+  if (trimmedName) {
+    return "Laguna, Philippines";
+  }
+
+  return "Local Government";
+}
+
 export default function LguSidebar({ variant, scopeDisplayName }: Props) {
   const pathname = usePathname();
   const nav = variant === "barangay" ? BARANGAY_NAV : CITY_NAV;
-  const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
 
+  const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
   const headerLabel = formatHeaderLabel(variant, scopeDisplayName);
+  const headerSubtext = formatHeaderSubtext(variant, scopeDisplayName);
 
   const toggleDropdown = (href: string) => {
     setOpenDropdowns((prev) =>
@@ -62,90 +69,128 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
   };
 
   return (
-    <aside className="w-68.75 shrink-0 bg-[#022437] text-white h-screen flex flex-col sticky top-0 overflow-y-auto">
+    <aside
+      className={cn(
+        // ✅ Width collapses on small screens, full on md+
+        "shrink-0 sticky top-0 bg-[#022437] text-white flex flex-col",
+        "w-16 md:w-72",
+
+        // ✅ Use dvh for better mobile sizing, prevent sidebar scrollbar by default
+        "h-dvh overflow-hidden"
+      )}
+    >
       {/* Brand */}
-      <div className="px-6 pt-8 pb-3">
-        <div className="flex flex-col items-center gap-3">
-          <Image 
-            src="/brand/logo3.svg" 
-            alt="OpenAIP Logo" 
-            width={100} 
+      <div className="pt-4 md:pt-8 pb-2 md:pb-3 px-2 md:px-6">
+        <div className="flex flex-col items-center gap-2 md:gap-3">
+          <Image
+            src="/brand/logo3.svg"
+            alt="OpenAIP Logo"
+            width={100}
             height={100}
-            className="h-20 w-20"
+            className="h-10 w-10 md:h-20 md:w-20"
           />
-          <div className="text-3xl font-semibold leading-none">OpenAIP</div>
+
+          {/* ✅ Hide text on small screens to avoid overflow */}
+          <div className="hidden md:block text-3xl font-semibold leading-none">OpenAIP</div>
         </div>
 
-        <div className="mt-6 h-21 rounded-[9px] border-2 border-[#1B6272] bg-[#114B59] shadow-[0_4px_4px_rgba(0,0,0,0.25)] flex items-center justify-center px-4 text-sm font-semibold text-center">
-          {headerLabel}
+        {/* ✅ Hide the big header card on small screens (it causes overflow) */}
+        <div className="hidden md:flex mt-5 items-center gap-3 rounded-3xl border border-white/10 bg-[#0A5A6C33] px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.2)] backdrop-blur-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+            <Building2 className="h-7 w-7 text-white/90" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-semibold leading-tight text-white">
+              {headerLabel}
+            </div>
+            <div className="mt-1 truncate text-sm text-white/65">
+              {headerSubtext}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6">
-        <ul className="space-y-2">
+      <nav className="flex-1 px-1 md:px-4 pb-3 md:py-5">
+        <ul className="space-y-1 md:space-y-1.5">
           {nav.map((item) => {
             const Icon = item.icon;
             const hasChildren = Boolean(item.children && item.children.length > 0);
             const active = isParentActive(pathname, item.href, hasChildren);
             const isOpen = openDropdowns.includes(item.href);
 
+            // ✅ Common link/button styles (compact on small, roomy on md+)
+            const baseRowClass = cn(
+              "w-full flex items-center rounded-xl transition-colors",
+              "hover:bg-white/10",
+              active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]",
+              // sizing
+              "h-9 md:h-10",
+              // padding
+              "px-2 md:px-3",
+              // text
+              "text-[11px] md:text-xs"
+            );
+
             return (
               <li key={item.href}>
                 {hasChildren ? (
                   <div>
+                    {/* ✅ On small screens: keep it simple (no dropdown expansion) */}
                     <button
+                      type="button"
                       onClick={() => toggleDropdown(item.href)}
-                      className={cn(
-                        "w-full flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
-                        "hover:bg-white/10",
-                        active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
-                      )}
+                      className={cn(baseRowClass, "gap-0 md:gap-3")}
                     >
-                      <Icon className="h-5 w-5" />
-                      <span className="font-medium flex-1 text-left">{item.label}</span>
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </button>
-                    {isOpen && (
-                      <ul className="ml-4 mt-1 space-y-1">
-                        {item.children?.map((child) => {
-                          const childActive = isActive(pathname, child.href);
-                          const ChildIcon = child.icon;
+                      <Icon className="h-4.5 w-4.5 md:h-4 md:w-4 mx-auto md:mx-0" />
 
-                          return (
-                            <li key={child.href}>
-                              <Link
-                                href={child.href}
-                                className={cn(
-                                  "flex items-center gap-3 rounded-xl px-4 py-2 text-xs transition-colors",
-                                  "hover:bg-white/10",
-                                  childActive && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
-                                )}
-                              >
-                                <ChildIcon className="h-4 w-4" />
-                                <span className="font-medium">{child.label}</span>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
+                      {/* ✅ Label only on md+ */}
+                      <span className="hidden md:block font-medium flex-1 text-left">
+                        {item.label}
+                      </span>
+
+                      {/* ✅ Chevron only on md+ */}
+                      <span className="hidden md:block">
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </span>
+                    </button>
+
+                    {/* ✅ Children ONLY render on md+ (prevents overflow/scrollbar on small) */}
+                    <div className="hidden md:block">
+                      {isOpen && (
+                        <ul className="ml-4 mt-1 space-y-1">
+                          {item.children?.map((child) => {
+                            const childActive = isActive(pathname, child.href);
+                            const ChildIcon = child.icon;
+
+                            return (
+                              <li key={child.href}>
+                                <Link
+                                  href={child.href}
+                                  className={cn(
+                                    "flex items-center gap-3 rounded-xl px-3 py-1.5 text-xs transition-colors",
+                                    "hover:bg-white/10",
+                                    childActive && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
+                                  )}
+                                >
+                                  <ChildIcon className="h-3.5 w-3.5" />
+                                  <span className="font-medium">{child.label}</span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-xs transition-colors",
-                      "hover:bg-white/10",
-                      active && "bg-[#2E6F7A] hover:bg-[#2E6F7A]"
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{item.label}</span>
+                  <Link href={item.href} className={cn(baseRowClass, "gap-0 md:gap-3")}>
+                    <Icon className="h-4.5 w-4.5 md:h-4 md:w-4 mx-auto md:mx-0" />
+                    <span className="hidden md:block font-medium">{item.label}</span>
                   </Link>
                 )}
               </li>
@@ -153,6 +198,8 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
           })}
         </ul>
       </nav>
+
+    
     </aside>
   );
 }

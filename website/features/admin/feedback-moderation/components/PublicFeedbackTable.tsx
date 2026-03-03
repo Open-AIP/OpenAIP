@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   Table,
@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical, Eye, EyeOff } from "lucide-react";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import type { FeedbackModerationRow } from "@/lib/mappers/feedback-moderation";
 
 const statusBadgeClass = (status: "Visible" | "Hidden") => {

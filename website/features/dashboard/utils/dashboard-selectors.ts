@@ -4,6 +4,11 @@ import type {
   PipelineStatus,
   ProjectCategory,
 } from "@/lib/contracts/databasev2/enums";
+import {
+  createFeedbackCategorySummary,
+  isFeedbackCategorySummaryKey,
+  type FeedbackCategorySummaryKey,
+} from "@/lib/constants/feedback-category-summary";
 import type {
   DashboardAip,
   DashboardData,
@@ -22,25 +27,49 @@ export function selectBudgetBySector(
   projects: DashboardProject[],
   sectors: DashboardSector[]
 ): Array<{ sectorCode: string; label: string; amount: number; percentage: number }> {
-  const totals = new Map<string, number>();
+  const totals = new Map<string, number>([
+    ["general", 0],
+    ["social", 0],
+    ["economic", 0],
+    ["other", 0],
+  ]);
+  const labelByCode = new Map(sectors.map((sector) => [sector.code, sector.label.toLowerCase()]));
 
   for (const project of projects) {
-    const key = project.sectorCode || "unknown";
+    const sectorLabel = labelByCode.get(project.sectorCode) ?? "";
+    const key = sectorLabel.includes("general")
+      ? "general"
+      : sectorLabel.includes("social")
+        ? "social"
+        : sectorLabel.includes("economic")
+          ? "economic"
+          : "other";
     const amount = typeof project.total === "number" ? project.total : 0;
     totals.set(key, (totals.get(key) ?? 0) + amount);
   }
 
   const grandTotal = Array.from(totals.values()).reduce((sum, value) => sum + value, 0);
-  const labelByCode = new Map(sectors.map((sector) => [sector.code, sector.label]));
+  const bucketLabels = new Map<string, string>([
+    ["general", "General"],
+    ["social", "Social"],
+    ["economic", "Economic"],
+    ["other", "Other"],
+  ]);
+  const bucketOrder = new Map<string, number>([
+    ["general", 0],
+    ["social", 1],
+    ["economic", 2],
+    ["other", 3],
+  ]);
 
   return Array.from(totals.entries())
     .map(([sectorCode, amount]) => ({
       sectorCode,
-      label: labelByCode.get(sectorCode) ?? sectorCode.toUpperCase(),
+      label: bucketLabels.get(sectorCode) ?? sectorCode,
       amount,
       percentage: grandTotal > 0 ? (amount / grandTotal) * 100 : 0,
     }))
-    .sort((left, right) => right.amount - left.amount);
+    .sort((left, right) => (bucketOrder.get(left.sectorCode) ?? 99) - (bucketOrder.get(right.sectorCode) ?? 99));
 }
 
 export function selectTopFunded(projects: DashboardProject[], limit = 10): DashboardProject[] {
@@ -53,38 +82,18 @@ export function selectTopFunded(projects: DashboardProject[], limit = 10): Dashb
     .slice(0, limit);
 }
 
-export function selectFeedbackTrend(
-  feedback: DashboardFeedback[],
-  days = 7
-): Array<{ dayLabel: string; isoDate: string; count: number }> {
-  const now = new Date();
-  const dayKeys: string[] = [];
-  const counts = new Map<string, number>();
-
-  for (let index = days - 1; index >= 0; index -= 1) {
-    const d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - index);
-    const isoDate = d.toISOString().slice(0, 10);
-    dayKeys.push(isoDate);
-    counts.set(isoDate, 0);
-  }
+export function selectFeedbackCategorySummary(feedback: DashboardFeedback[]) {
+  const counts: Partial<Record<FeedbackCategorySummaryKey, number>> = {};
 
   for (const item of feedback) {
     if (!CITIZEN_KIND_SET.has(item.kind)) continue;
-    const key = item.createdAt.slice(0, 10);
-    if (!counts.has(key)) continue;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (item.parentFeedbackId) continue;
+    if (!isFeedbackCategorySummaryKey(item.kind)) continue;
+
+    counts[item.kind] = (counts[item.kind] ?? 0) + 1;
   }
 
-  return dayKeys.map((isoDate) => {
-    const d = new Date(`${isoDate}T00:00:00`);
-    return {
-      dayLabel: d.toLocaleDateString("en-US", { weekday: "short" }),
-      isoDate,
-      count: counts.get(isoDate) ?? 0,
-    };
-  });
+  return createFeedbackCategorySummary(counts);
 }
 
 function selectProjectsMissingTotal(projects: DashboardProject[]): number {
@@ -316,7 +325,7 @@ export function buildDashboardVm(input: {
     topFundedFiltered,
     citizenFeedbackCount,
     awaitingReplyCount,
-    feedbackTrend: selectFeedbackTrend(input.data.feedback),
+    feedbackCategorySummary: selectFeedbackCategorySummary(input.data.feedback),
     feedbackTargets: selectFeedbackTargets(input.data.feedback),
     statusDistribution: selectStatusDistribution(input.data.allAips),
     pendingReviewAging: selectPendingReviewAging(input.data.allAips),

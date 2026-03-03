@@ -4,8 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import type { FinalCtaVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
-import LandingFooter from "../../components/layout/landing-footer";
+import { cn } from "@/lib/ui/utils";
 import { MOTION_TOKENS, VIEWPORT_ONCE } from "../../components/motion/motion-primitives";
 
 type FinalCtaMotionProps = {
@@ -15,7 +14,6 @@ type FinalCtaMotionProps = {
 export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const [hasStarted, setHasStarted] = useState(false);
-  const [typedSubtitle, setTypedSubtitle] = useState("");
   const [subtitleDone, setSubtitleDone] = useState(false);
 
   const [titleLead, titleTail] = useMemo(() => {
@@ -32,36 +30,20 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
     }
 
     if (reducedMotion) {
-      setTypedSubtitle(vm.subtitle);
       setSubtitleDone(true);
       return;
     }
 
-    setTypedSubtitle("");
     setSubtitleDone(false);
 
-    let index = 0;
-    let typeTimer: ReturnType<typeof setInterval> | null = null;
-    const startTimer = setTimeout(() => {
-      typeTimer = setInterval(() => {
-        index += 1;
-        setTypedSubtitle(vm.subtitle.slice(0, index));
-        if (index >= vm.subtitle.length) {
-          if (typeTimer) {
-            clearInterval(typeTimer);
-          }
-          setSubtitleDone(true);
-        }
-      }, 52);
-    }, 1220);
+    const revealTimer = setTimeout(() => {
+      setSubtitleDone(true);
+    }, 1600);
 
     return () => {
-      clearTimeout(startTimer);
-      if (typeTimer) {
-        clearInterval(typeTimer);
-      }
+      clearTimeout(revealTimer);
     };
-  }, [hasStarted, reducedMotion, vm.subtitle]);
+  }, [hasStarted, reducedMotion]);
 
   return (
     <div className="flex min-h-screen snap-start flex-col supports-[height:100svh]:min-h-[100svh]">
@@ -73,7 +55,7 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
         viewport={VIEWPORT_ONCE}
       >
         <div className="mx-auto w-full max-w-4xl text-center">
-          <h2 className="text-5xl font-bold tracking-tight text-white md:text-6xl">
+          <h2 className="text-6xl font-bold tracking-tight text-[#F2ECE5] md:text-7xl">
             <motion.span
               className="inline"
               initial={{ opacity: 0, y: reducedMotion ? 0 : 14 }}
@@ -106,7 +88,7 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
             ) : null}
           </h2>
           <motion.p
-            className="mt-3 text-base text-white/70 md:text-2xl"
+            className="mt-4 text-2xl text-[#F2ECE5]/85 md:text-4xl"
             initial={{ opacity: 0 }}
             animate={hasStarted ? { opacity: 1 } : { opacity: 0 }}
             transition={{
@@ -115,11 +97,11 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
               ease: MOTION_TOKENS.enterEase,
             }}
           >
-            {typedSubtitle}
+            {vm.subtitle}
           </motion.p>
 
           <motion.div
-            className="mt-10 flex justify-center"
+            className="mt-25 flex justify-center"
             initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.985 }}
             animate={
               subtitleDone
@@ -164,19 +146,6 @@ export default function FinalCtaMotion({ vm }: FinalCtaMotionProps) {
             )}
           </motion.div>
         </div>
-      </motion.div>
-
-      <motion.div
-        className="w-full"
-        initial={{ opacity: 0 }}
-        animate={subtitleDone ? { opacity: 1 } : { opacity: 0 }}
-        transition={{
-          duration: reducedMotion ? 0.28 : 0.5,
-          delay: reducedMotion ? 0.08 : 0.28,
-          ease: MOTION_TOKENS.enterEase,
-        }}
-      >
-        <LandingFooter />
       </motion.div>
     </div>
   );

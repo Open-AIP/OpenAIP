@@ -59,7 +59,7 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
   return (
     <Card className="border-slate-200">
       <CardHeader>
-        <CardTitle className="text-4xl text-slate-900">{aip.title} Details</CardTitle>
+        <CardTitle className="text-2xl text-slate-900">{aip.title} Details</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -158,14 +158,14 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
         </div>
 
         <div className="flex flex-wrap justify-end gap-5 pt-2 text-xs text-slate-600">
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked readOnly className="h-3.5 w-3.5 accent-amber-500" />
+          <div className="inline-flex items-center gap-2">
+            <span className="inline-block h-3.5 w-3.5 rounded-sm bg-amber-500" aria-hidden="true" />
             Has LGU feedback note
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" readOnly className="h-3.5 w-3.5 accent-slate-400" />
+          </div>
+          <div className="inline-flex items-center gap-2">
+            <span className="inline-block h-3.5 w-3.5 rounded-sm border border-slate-400 bg-white" aria-hidden="true" />
             No issues detected
-          </label>
+          </div>
         </div>
       </CardContent>
     </Card>

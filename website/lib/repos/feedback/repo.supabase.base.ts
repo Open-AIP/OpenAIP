@@ -12,7 +12,6 @@ import {
 import type {
   CommentRepo,
   CommentTargetLookup,
-  CreateFeedbackInput,
   FeedbackItem,
   FeedbackRepo,
   FeedbackTarget,
@@ -21,12 +20,41 @@ import type {
 } from "./repo";
 import type { CommentMessage, CommentThread } from "./types";
 
+type SupabaseQueryResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+type SupabaseFilterQueryLike = PromiseLike<SupabaseQueryResult> & {
+  delete: (...args: unknown[]) => SupabaseFilterQueryLike;
+  eq: (...args: unknown[]) => SupabaseFilterQueryLike;
+  filter: (...args: unknown[]) => SupabaseFilterQueryLike;
+  gte: (...args: unknown[]) => SupabaseFilterQueryLike;
+  in: (...args: unknown[]) => SupabaseFilterQueryLike;
+  insert: (...args: unknown[]) => SupabaseFilterQueryLike;
+  is: (...args: unknown[]) => SupabaseFilterQueryLike;
+  limit: (...args: unknown[]) => SupabaseFilterQueryLike;
+  maybeSingle: () => Promise<SupabaseQueryResult>;
+  or: (...args: unknown[]) => SupabaseFilterQueryLike;
+  order: (...args: unknown[]) => SupabaseFilterQueryLike;
+  select: (...args: unknown[]) => SupabaseFilterQueryLike;
+  single: () => Promise<SupabaseQueryResult>;
+  update: (...args: unknown[]) => SupabaseFilterQueryLike;
+};
+
+type SupabaseQueryLike = {
+  delete: (...args: unknown[]) => SupabaseFilterQueryLike;
+  insert: (...args: unknown[]) => SupabaseFilterQueryLike;
+  select: (...args: unknown[]) => SupabaseFilterQueryLike;
+  update: (...args: unknown[]) => SupabaseFilterQueryLike;
+};
+
 type SupabaseClientLike = {
-  from: (table: string) => any;
+  from: (table: string) => SupabaseQueryLike;
   schema?: (name: string) => {
-    from: (table: string) => any;
+    from: (table: string) => SupabaseQueryLike;
   };
-  rpc?: (...args: any[]) => any;
+  rpc?: (fn: string, args: Record<string, unknown>) => Promise<SupabaseQueryResult>;
   auth?: {
     getUser: () => Promise<{
       data: { user: { id: string } | null };
@@ -793,7 +821,8 @@ async function readAppSettingRaw(
       .maybeSingle();
 
     if (error) return null;
-    return typeof data?.value === "string" ? data.value : null;
+    const row = (data as { value?: unknown } | null) ?? null;
+    return typeof row?.value === "string" ? row.value : null;
   } catch {
     return null;
   }
@@ -897,7 +926,8 @@ async function getAipScopeName(
       .eq("id", aip.barangay_id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return typeof data?.name === "string" ? data.name : null;
+    const row = (data as { name?: unknown } | null) ?? null;
+    return typeof row?.name === "string" ? row.name : null;
   }
 
   if (aip.city_id) {
@@ -907,7 +937,8 @@ async function getAipScopeName(
       .eq("id", aip.city_id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return typeof data?.name === "string" ? data.name : null;
+    const row = (data as { name?: unknown } | null) ?? null;
+    return typeof row?.name === "string" ? row.name : null;
   }
 
   if (aip.municipality_id) {
@@ -917,7 +948,8 @@ async function getAipScopeName(
       .eq("id", aip.municipality_id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return typeof data?.name === "string" ? data.name : null;
+    const row = (data as { name?: unknown } | null) ?? null;
+    return typeof row?.name === "string" ? row.name : null;
   }
 
   return null;
@@ -1099,7 +1131,8 @@ export function createFeedbackRepoFromClient(getClient: GetClient): FeedbackRepo
         .eq("aip_id", aipId)
         .order("created_at", { ascending: true });
       if (error) throw new Error(error.message);
-      return (data ?? []).map((row: unknown) =>
+      const rows = (data as unknown[] | null) ?? [];
+      return rows.map((row: unknown) =>
         mapFeedbackRowToItem(row as FeedbackSelectRow)
       );
     },
@@ -1113,7 +1146,8 @@ export function createFeedbackRepoFromClient(getClient: GetClient): FeedbackRepo
         .eq("project_id", projectId)
         .order("created_at", { ascending: true });
       if (error) throw new Error(error.message);
-      return (data ?? []).map((row: unknown) =>
+      const rows = (data as unknown[] | null) ?? [];
+      return rows.map((row: unknown) =>
         mapFeedbackRowToItem(row as FeedbackSelectRow)
       );
     },
@@ -1207,7 +1241,7 @@ export function createFeedbackRepoFromClient(getClient: GetClient): FeedbackRepo
   };
 }
 
-function toTargetFilterQuery(baseQuery: any, target: FeedbackTarget) {
+function toTargetFilterQuery(baseQuery: SupabaseFilterQueryLike, target: FeedbackTarget) {
   if (target.target_type === "project") {
     let query = baseQuery.eq("target_type", "project");
     if (target.project_id) query = query.eq("project_id", target.project_id);
@@ -1234,7 +1268,8 @@ export function createFeedbackThreadsRepoFromClient(
         { ascending: true }
       );
       if (error) throw new Error(error.message);
-      return (data ?? []).map((row: unknown) =>
+      const rows = (data as unknown[] | null) ?? [];
+      return rows.map((row: unknown) =>
         mapFeedbackRowToThreadRow(row as FeedbackSelectRow)
       );
     },

@@ -7,7 +7,7 @@ import DonutChartCitizenDashboard, {
   type DonutChartSegment,
 } from "../../components/chart/donut-chart-citizen-dashboard";
 import { MOTION_TOKENS, VIEWPORT_ONCE } from "../../components/motion/motion-primitives";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type FundsDistributionMotionProps = {
   vm: SectorDistributionVM;
@@ -15,13 +15,33 @@ type FundsDistributionMotionProps = {
 
 type FundsDonutSegment = DonutChartSegment & {
   amount: number;
+  activeCardClass: string;
 };
 
-const COLOR_MAP: Record<string, { colorClass: string; colorHex: string }> = {
-  general: { colorClass: "bg-violet-400 text-violet-300", colorHex: "#A78BFA" },
-  social: { colorClass: "bg-rose-400 text-rose-300", colorHex: "#FB7185" },
-  economic: { colorClass: "bg-cyan-400 text-cyan-300", colorHex: "#22D3EE" },
-  other: { colorClass: "bg-amber-400 text-amber-300", colorHex: "#F59E0B" },
+const COLOR_MAP: Record<
+  string,
+  { colorClass: string; colorHex: string; activeCardClass: string }
+> = {
+  general: {
+    colorClass: "bg-violet-400 text-violet-300",
+    colorHex: "#A78BFA",
+    activeCardClass: "border-violet-300/50 bg-violet-400/12 shadow-[0_0_0_1px_rgba(167,139,250,0.18),0_12px_28px_rgba(167,139,250,0.16)]",
+  },
+  social: {
+    colorClass: "bg-rose-400 text-rose-300",
+    colorHex: "#FB7185",
+    activeCardClass: "border-rose-300/50 bg-rose-400/12 shadow-[0_0_0_1px_rgba(251,113,133,0.16),0_12px_28px_rgba(251,113,133,0.14)]",
+  },
+  economic: {
+    colorClass: "bg-cyan-400 text-cyan-300",
+    colorHex: "#22D3EE",
+    activeCardClass: "border-cyan-300/50 bg-cyan-400/12 shadow-[0_0_0_1px_rgba(34,211,238,0.16),0_12px_28px_rgba(34,211,238,0.14)]",
+  },
+  other: {
+    colorClass: "bg-amber-400 text-amber-300",
+    colorHex: "#F59E0B",
+    activeCardClass: "border-amber-300/50 bg-amber-400/12 shadow-[0_0_0_1px_rgba(245,158,11,0.16),0_12px_28px_rgba(245,158,11,0.14)]",
+  },
 };
 
 function formatCompactPeso(value: number): string {
@@ -47,6 +67,9 @@ export default function FundsDistributionMotion({ vm }: FundsDistributionMotionP
         ...sector,
         colorClass: COLOR_MAP[sector.key]?.colorClass ?? "bg-slate-400 text-slate-300",
         colorHex: COLOR_MAP[sector.key]?.colorHex ?? "#94A3B8",
+        activeCardClass:
+          COLOR_MAP[sector.key]?.activeCardClass ??
+          "border-slate-300/40 bg-slate-400/10 shadow-[0_0_0_1px_rgba(148,163,184,0.12),0_12px_28px_rgba(148,163,184,0.12)]",
       })),
     [vm.sectors]
   );
@@ -120,13 +143,13 @@ export default function FundsDistributionMotion({ vm }: FundsDistributionMotionP
   return (
     <motion.div
       ref={rootRef}
-      className="mx-auto grid w-full max-w-6xl grid-cols-12 items-center gap-10"
+      className="mx-auto grid w-full max-w-6xl grid-cols-12 items-start gap-10"
       initial="hidden"
       animate={isInView ? "visible" : "hidden"}
     >
       <div className="col-span-12 space-y-5 lg:col-span-5">
-        <motion.div className="space-y-3" variants={headerVariants}>
-          <h2 className="text-6xl font-semibold text-white">How Funds Are Distributed</h2>
+        <motion.div className="space-y-3 pb-10" variants={headerVariants}>
+          <h2 className="text-6xl font-semibold text-[#F2ECE5]">How Funds Are Distributed</h2>
           <p className="text-sm text-white/70">
             A clear view of allocations across General, Social, Economic, and Other sectors.
           </p>
@@ -134,14 +157,17 @@ export default function FundsDistributionMotion({ vm }: FundsDistributionMotionP
 
         <motion.div className="space-y-3" variants={pillsContainerVariants}>
           {segments.map((sector) => {
-            const isActive = activeKey ? activeKey === sector.key : true;
+            const isActive = activeKey === sector.key;
+            const isDimmed = activeKey ? activeKey !== sector.key : false;
             return (
               <motion.div
                 key={sector.key}
                 variants={pillItemVariants}
                 className={cn(
-                  "flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-3 transition",
-                  isActive ? "opacity-100" : "opacity-50"
+                  "flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-3 transition-all duration-200",
+                  isActive
+                    ? cn("translate-x-1 opacity-100", sector.activeCardClass)
+                    : cn("translate-x-0", isDimmed ? "opacity-50" : "opacity-100 hover:bg-white/8")
                 )}
                 onMouseEnter={() => setActiveKey(sector.key)}
                 onMouseLeave={() => setActiveKey(null)}
@@ -158,7 +184,7 @@ export default function FundsDistributionMotion({ vm }: FundsDistributionMotionP
       </div>
 
       <motion.div className="col-span-12 lg:col-span-7" variants={donutContainerVariants}>
-        <div className="mx-auto flex w-full max-w-3xl min-h-[520px] items-center justify-center rounded-2xl border border-white/10 bg-[#14141C] p-10 shadow-[0_18px_45px_rgba(8,16,24,0.35)] sm:p-12">
+        <div className="mx-auto flex w-full max-w-3xl min-h-[460px] items-center justify-center rounded-2xl border border-white/10 bg-[#14141C] p-10 shadow-[0_18px_45px_rgba(8,16,24,0.35)] sm:p-12">
           <div className="aspect-square w-full max-w-[340px]">
             <DonutChartCitizenDashboard
               total={vm.total}

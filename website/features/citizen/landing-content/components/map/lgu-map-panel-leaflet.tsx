@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LguOverviewVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import { buildDashboardScopeHref } from "./map-scope-query";
 
 const DEFAULT_MARKER_ICON = {

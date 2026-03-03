@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 export type DonutChartSegment = {
   key: string;
@@ -25,9 +25,14 @@ type DonutChartCitizenDashboardProps = {
 };
 
 function formatCompactTotal(total: number, unitLabel?: string): string {
-  if (unitLabel || total >= 1_000_000) {
-    return (total / 1_000_000).toFixed(1);
+  if (total >= 1_000_000_000) {
+    return `${(total / 1_000_000_000).toFixed(1)}B`;
   }
+
+  if (total >= 1_000_000 || unitLabel) {
+    return `${(total / 1_000_000).toFixed(1)}M`;
+  }
+
   return total.toFixed(1);
 }
 
@@ -239,7 +244,9 @@ export default function DonutChartCitizenDashboard({
               onMouseLeave={() => onHover(null)}
             >
               <span className={cn("h-2 w-2 rounded-full", segment.colorClass.split(" ")[0])} />
-              <span className="whitespace-nowrap">{segment.label}</span>
+              <span className="max-w-[140px] whitespace-normal break-words leading-tight">
+                {segment.label}
+              </span>
             </div>
           );
         })}

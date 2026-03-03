@@ -4,9 +4,8 @@ import { Suspense, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { CitizenAuthModalHost } from "@/features/citizen/auth";
 import CitizenFooter from "@/features/citizen/components/citizen-footer";
-import FloatingChatButton from "@/features/citizen/components/floating-chat-button";
 import CitizenTopNav from "@/features/citizen/components/citizen-top-nav";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 const CitizenLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
@@ -23,7 +22,7 @@ const CitizenLayout = ({ children }: { children: ReactNode }) => {
           "mx-auto w-full flex-1 min-h-0",
           isLandingDashboard
             ? "m-0 max-w-none p-0"
-            : "flex flex-col max-w-screen-2xl px-4 py-6 md:px-8 md:py-8"
+            : "flex flex-col max-w-6xl px-4 py-6 md:px-8 md:py-8"
         )}
       >
         {children}
@@ -32,7 +31,6 @@ const CitizenLayout = ({ children }: { children: ReactNode }) => {
         <CitizenAuthModalHost />
       </Suspense>
       <CitizenFooter />
-      <FloatingChatButton />
     </div>
   );
 };

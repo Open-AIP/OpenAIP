@@ -101,7 +101,7 @@ export function AipDetailsTableCard({
 
   return (
     <Card className="border-slate-200">
-      <CardContent className="p-6">
+      <CardContent className="px-6">
         {showCommentingNote && !canComment && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             <strong>Note:</strong> Commenting on projects is only available when the AIP status is Draft or For Revision.
@@ -110,7 +110,7 @@ export function AipDetailsTableCard({
         
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-lg font-bold text-slate-900">
               Annual Investment Plan {year} Details
             </h3>
 

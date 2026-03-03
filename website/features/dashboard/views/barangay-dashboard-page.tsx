@@ -1,11 +1,9 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2 } from "lucide-react";
 import { DashboardHeader, DateCard, WorkingOnCard } from "@/features/dashboard/components/dashboard-header-widgets";
 import { KpiRow } from "@/features/dashboard/components/dashboard-metric-cards";
 import { BudgetBreakdownSection } from "@/features/dashboard/components/dashboard-budget-allocation";
 import { TopFundedProjectsSection } from "@/features/dashboard/components/dashboard-projects-overview";
-import { AipCoverageCard, PublicationTimelineCard, AipsByYearTable } from "@/features/dashboard/components/dashboard-aip-publication-status";
+import { AipCoverageCard, AipsByYearTable } from "@/features/dashboard/components/dashboard-aip-publication-status";
 import { CitizenEngagementPulseColumn } from "@/features/dashboard/components/dashboard-feedback-insights";
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "@/features/dashboard/components/dashboard-activity-updates";
 import { replyBarangayFeedbackAction, createBarangayDraftAipAction } from "@/features/dashboard/actions/barangay-dashboard-actions";
@@ -34,16 +32,12 @@ export function BarangayDashboardPage({
     day: "numeric",
   });
 
-  const totalAips = data.allAips.length;
   const pendingReviewCount = data.allAips.filter((aip) => aip.status === "pending_review").length;
   const underReviewCount = data.allAips.filter((aip) => aip.status === "under_review").length;
   const forRevisionCount = data.allAips.filter((aip) => aip.status === "for_revision").length;
-
-  const publicationYears = data.allAips
-    .map((aip) => aip.fiscalYear)
-    .sort((left, right) => right - left)
-    .slice(0, 5)
-    .map((year) => ({ year, count: data.allAips.filter((aip) => aip.fiscalYear === year && aip.status === "published").length }));
+  const healthProjectsCount = vm.projects.filter((project) => project.category === "health").length;
+  const infraProjectsCount = vm.projects.filter((project) => project.category === "infrastructure").length;
+  const projectBreakdownText = `Health: ${healthProjectsCount} | Infra: ${infraProjectsCount}`;
 
   return (
     <div className="space-y-6">
@@ -58,51 +52,43 @@ export function BarangayDashboardPage({
         kpiMode={queryState.kpiMode}
       />
 
-      {!data.selectedAip ? (
-        <Card className="border-slate-200 py-0 shadow-sm">
-          <CardHeader><CardTitle className="text-xl">No AIP for {data.selectedFiscalYear}</CardTitle></CardHeader>
-          <CardContent className="space-y-4 pb-6">
-            <p className="text-sm text-slate-600">There is no barangay AIP record for fiscal year {data.selectedFiscalYear}. You can create a draft if policy permits.</p>
-            <form action={createBarangayDraftAipAction} className="flex items-center gap-3">
-              <input type="hidden" name="fiscalYear" value={data.selectedFiscalYear} />
-              <Button type="submit" className="bg-[#0B6477] hover:bg-[#095565]">Create Draft AIP</Button>
-              <Link href="/barangay/aips" className="text-sm text-[#0B6477] underline underline-offset-2">Open AIP Management</Link>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <KpiRow selectedAip={data.selectedAip} totalProjects={vm.projects.length} totalBudget={toCurrency(vm.totalBudget)} missingTotalCount={vm.missingTotalCount} citizenFeedbackCount={vm.citizenFeedbackCount} awaitingReplyCount={vm.awaitingReplyCount} mode={queryState.kpiMode} pendingReviewCount={pendingReviewCount} underReviewCount={underReviewCount} forRevisionCount={forRevisionCount} totalAips={totalAips} oldestPendingDays={vm.oldestPendingDays} />
+      <KpiRow selectedAip={data.selectedAip} totalProjects={vm.projects.length} totalBudget={toCurrency(vm.totalBudget)} citizenFeedbackCount={vm.citizenFeedbackCount} awaitingReplyCount={vm.awaitingReplyCount} hiddenCount={vm.lguNotesPosted} pendingReviewCount={pendingReviewCount} underReviewCount={underReviewCount} forRevisionCount={forRevisionCount} oldestPendingDays={vm.oldestPendingDays} fiscalYear={data.selectedFiscalYear} projectBreakdownText={projectBreakdownText} />
 
-          <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-stretch">
-            <div className="min-w-0 w-full">
-              <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={`/barangay/aips/${data.selectedAip.id}`} />
-            </div>
-            <div className="min-w-0 w-full flex flex-col gap-4">
-              <DateCard label={today} />
-              <WorkingOnCard items={vm.workingOnItems} />
-            </div>
-            <div className="min-w-0 w-full">
-              <TopFundedProjectsSection queryState={queryState} sectors={data.sectors} projects={vm.projects} />
-            </div>
-            <div className="min-w-0 w-full flex flex-col items-stretch">
-              <RecentProjectUpdatesCard logs={data.projectUpdateLogs} />
-            </div>
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[3fr_1fr] xl:items-stretch">
+        <div className="min-w-0 w-full">
+          <BudgetBreakdownSection totalBudget={toCurrency(vm.totalBudget)} items={vm.budgetBySector} detailsHref={data.selectedAip ? `/barangay/aips/${data.selectedAip.id}` : undefined} scope="barangay" />
+        </div>
+        <div className="min-w-0 w-full flex flex-col gap-4">
+          <DateCard label={today} />
+          <WorkingOnCard items={vm.workingOnItems} />
+        </div>
+        <div className="min-w-0 w-full">
+          <TopFundedProjectsSection queryState={queryState} sectors={data.sectors} projects={vm.projects} />
+        </div>
+        <div className="min-w-0 w-full flex flex-col items-stretch">
+          <RecentProjectUpdatesCard logs={data.projectUpdateLogs} />
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-[#0B6477]" />
+            <h2 className="text-xl font-semibold text-slate-900">Barangay AIP Status</h2>
           </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-semibold text-slate-900">Barangay AIP Status</h2>
-              <AipCoverageCard selectedAip={data.selectedAip} />
-              <PublicationTimelineCard years={publicationYears} />
-              <AipsByYearTable rows={data.allAips} basePath="/barangay" />
-            </div>
-            <CitizenEngagementPulseColumn newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackTrend={vm.feedbackTrend} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyBarangayFeedbackAction} />
-          </div>
-
-          <RecentActivityFeed logs={recentActivityLogs} auditHref="/barangay/audit" />
-        </>
-      )}
+          <AipCoverageCard
+            selectedAip={data.selectedAip}
+            scope="barangay"
+            fiscalYear={data.selectedFiscalYear}
+            createDraftAction={createBarangayDraftAipAction}
+          />
+          <AipsByYearTable rows={data.allAips} basePath="/barangay" />
+          <RecentActivityFeed logs={recentActivityLogs} auditHref="/barangay/audit" compact />
+        </div>
+        <CitizenEngagementPulseColumn selectedFiscalYear={data.selectedFiscalYear} newThisWeek={vm.newThisWeek} awaitingReply={vm.awaitingReplyCount} lguNotesPosted={vm.lguNotesPosted} feedbackCategorySummary={vm.feedbackCategorySummary} feedbackTargets={vm.feedbackTargets} recentFeedback={vm.recentCitizenFeedback} replyAction={replyBarangayFeedbackAction} />
+      </div>
     </div>
   );
 }
+
+

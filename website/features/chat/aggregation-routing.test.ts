@@ -4,6 +4,7 @@ import type { ChatMessage, ChatSession } from "@/lib/repos/chat/types";
 const mockGetActorContext = vi.fn();
 const mockResolveRetrievalScope = vi.fn();
 const mockRequestPipelineQueryEmbedding = vi.fn();
+const mockRequestPipelineIntentClassify = vi.fn();
 const mockRequestPipelineChatAnswer = vi.fn();
 const mockSupabaseServer = vi.fn();
 const mockSupabaseAdmin = vi.fn();
@@ -84,10 +85,13 @@ function createServerClient() {
 
             const applyFilters = () => {
               let rows = Object.values(lineItemsById);
-              if (ilikeFilter) {
+              const activeIlikeFilter = ilikeFilter;
+              if (activeIlikeFilter) {
                 rows = rows.filter((row) => {
-                  const candidate = String((row as Record<string, unknown>)[ilikeFilter.field] ?? "");
-                  return candidate.toLowerCase() === ilikeFilter.value.toLowerCase();
+                  const candidate = String(
+                    (row as Record<string, unknown>)[activeIlikeFilter.field] ?? ""
+                  );
+                  return candidate.toLowerCase() === activeIlikeFilter.value.toLowerCase();
                 });
               }
               for (const filter of eqFilters) {
@@ -495,6 +499,8 @@ vi.mock("@/lib/chat/scope-resolver.server", () => ({
 vi.mock("@/lib/chat/pipeline-client", () => ({
   requestPipelineQueryEmbedding: (...args: unknown[]) =>
     mockRequestPipelineQueryEmbedding(...args),
+  requestPipelineIntentClassify: (...args: unknown[]) =>
+    mockRequestPipelineIntentClassify(...args),
   requestPipelineChatAnswer: (...args: unknown[]) => mockRequestPipelineChatAnswer(...args),
 }));
 
@@ -662,8 +668,17 @@ describe("aggregation routing", () => {
     mockIsUserBlocked.mockReset();
     mockRequestPipelineChatAnswer.mockReset();
     mockRequestPipelineQueryEmbedding.mockReset();
+    mockRequestPipelineIntentClassify.mockReset();
     mockRouteSqlFirstTotals.mockReset();
     routePostHandler = null;
+    mockRequestPipelineIntentClassify.mockResolvedValue({
+      intent: "UNKNOWN",
+      confidence: 0,
+      top2_intent: null,
+      top2_confidence: null,
+      margin: 0,
+      method: "none",
+    });
 
     mockGetActorContext.mockResolvedValue({
       userId: "user-1",

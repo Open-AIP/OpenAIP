@@ -48,7 +48,7 @@ export default function CitizenAipProjectDetailView({
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 AIP Project Detail
               </p>
-              <CardTitle className="text-3xl text-slate-900">{project.title}</CardTitle>
+              <CardTitle className="text-2xl text-slate-900">{project.title}</CardTitle>
               <p className="text-sm text-slate-600">{aip.lguLabel} | FY {aip.fiscalYear}</p>
             </div>
 

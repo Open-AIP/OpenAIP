@@ -12,6 +12,21 @@ describe("chat intent detection", () => {
     expect(result.intent).toBe("total_investment_program");
   });
 
+  it("treats scope-level budget queries as total investment program intent", () => {
+    const result = detectIntent("What is the budget of Pulo in AIP 2026?");
+    expect(result.intent).toBe("total_investment_program");
+  });
+
+  it("keeps line-item budget lookups out of totals intent", () => {
+    const result = detectIntent("What is the budget for road repair project in FY 2026?");
+    expect(result.intent).toBe("normal");
+  });
+
+  it("keeps aggregation-style budget breakdowns out of totals intent", () => {
+    const result = detectIntent("Show the budget by sector for Pulo in FY 2026.");
+    expect(result.intent).toBe("normal");
+  });
+
   it("returns normal intent for non-total queries", () => {
     const result = detectIntent("How many infrastructure projects are ongoing this year?");
     expect(result.intent).toBe("normal");

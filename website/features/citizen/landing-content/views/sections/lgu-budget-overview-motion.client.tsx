@@ -105,18 +105,19 @@ export default function LguBudgetOverviewMotion({
         <SectionHeader
           align="center"
           title="LGU Budget Overview"
+          titleClassName="font-bold text-[#0B4E7B]"
           subtitle="Explore local government units and view their allocated budgets, project count, and AIP publication status."
         />
       </motion.div>
 
       <div className="mt-7 grid grid-cols-12 gap-6">
         <div className="col-span-12 space-y-4 lg:col-span-5">
-          <motion.div className="flex items-center gap-3 p-3" variants={lguHeaderVariant}>
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#0E7490]/12 text-[#0E5D6F]">
-              <Building2 className="h-5 w-5" aria-hidden="true" />
+          <motion.div className="flex items-start gap-3 p-3" variants={lguHeaderVariant}>
+            <div className="mt-0.5 grid h-15 w-15 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#0B4E7B] to-[#5EB3E4] text-white shadow-[0_10px_24px_rgba(11,78,123,0.2)]">
+              <Building2 className="h-8 w-8" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-4xl font-bold leading-none text-[#0C4F78]">{vm.lguName}</p>
+              <p className="text-3xl font-bold leading-none text-[#0C4F78]">{vm.lguName}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <span className="rounded-sm bg-[#0b4e7b] px-2.5 py-1 text-[11px] font-medium text-white">
                   {vm.scopeLabel}
@@ -132,7 +133,7 @@ export default function LguBudgetOverviewMotion({
             <motion.div variants={kpiPrimaryVariant}>
               <Card className="rounded-2xl border-slate-200 bg-white py-0">
                 <CardContent className="space-y-3 p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Total Budget</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Total Budget</p>
                   <p className="text-4xl font-bold leading-none text-[#0C2C3A]">{formatPeso(vm.totalBudget)}</p>
                   {vm.budgetDeltaLabel ? (
                     <div className="inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
@@ -146,11 +147,11 @@ export default function LguBudgetOverviewMotion({
             <div className="grid grid-cols-2 items-stretch gap-3">
               <motion.div className="h-full" variants={kpiItemVariant}>
                 <Card className="h-full rounded-2xl border-slate-200 bg-white py-0">
-                  <CardContent className="flex h-full min-h-[126px] flex-col justify-between p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Total Projects</p>
-                    <p className="text-4xl font-semibold leading-none text-[#0C2C3A]">{formatNumber(vm.projectCount)}</p>
+                  <CardContent className="flex h-full min-h-[126px] flex-col p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Total Projects</p>
+                    <p className="mt-5 text-4xl font-semibold leading-none text-[#0C2C3A]">{formatNumber(vm.projectCount)}</p>
                     {vm.projectDeltaLabel ? (
-                      <span className="inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
+                      <span className="mt-4 inline-flex rounded-md bg-[#10B981]/10 px-2 py-1 text-xs font-medium text-[#0D7B62]">
                         {vm.projectDeltaLabel}
                       </span>
                     ) : null}
@@ -160,10 +161,10 @@ export default function LguBudgetOverviewMotion({
 
               <motion.div className="h-full" variants={kpiItemVariant}>
                 <Card className="h-full rounded-2xl border-slate-200 bg-white py-0">
-                  <CardContent className="flex h-full min-h-[126px] flex-col justify-between p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">AIP Status</p>
-                    <div className="inline-flex items-center gap-2 text-3xl font-semibold leading-none text-[#0C2C3A]">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#0EA97B]" />
+                  <CardContent className="flex h-full min-h-[126px] flex-col p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">AIP Status</p>
+                    <div className="mt-5 inline-flex items-start gap-2 text-xl font-semibold leading-none text-[#0C2C3A]">
+                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#0EA97B]" />
                       {vm.aipStatus}
                     </div>
                   </CardContent>
@@ -174,9 +175,9 @@ export default function LguBudgetOverviewMotion({
             <motion.div variants={kpiItemVariant}>
               <Card className="rounded-2xl border-slate-200 bg-white py-0">
                 <CardContent className="p-4">
-                  <div className="space-y-2">
+                  <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">OpenAIP Users</p>
-                    <p className="text-4xl font-semibold leading-none text-[#0C2C3A]">{formatNumber(vm.activeUsers)}</p>
+                    <p className="mt-5 text-4xl font-semibold leading-none text-[#0C2C3A]">{formatNumber(vm.activeUsers)}</p>
                   </div>
                 </CardContent>
               </Card>

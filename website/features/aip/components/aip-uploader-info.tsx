@@ -8,8 +8,8 @@ import { peso } from "../utils";
 export function AipUploaderInfo({ aip }: { aip: AipHeader }) {
   return (
     <Card className="border-slate-200">
-      <CardContent className="p-6">
-        <h3 className="text-base font-semibold text-slate-900">Uploader Information</h3>
+      <CardContent className="px-6">
+        <h3 className="text-lg font-semibold text-slate-900">Uploader Information</h3>
 
         <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-y-3 text-sm">
           <div className="flex gap-2">

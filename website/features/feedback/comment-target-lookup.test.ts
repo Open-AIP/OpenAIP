@@ -38,7 +38,13 @@ describe("createCommentTargetLookupFromClient", () => {
       },
     };
 
-    const lookup = createCommentTargetLookupFromClient(async () => fakeClient as any);
+    type CommentTargetLookupClient = Awaited<
+      ReturnType<Parameters<typeof createCommentTargetLookupFromClient>[0]>
+    >;
+
+    const lookup = createCommentTargetLookupFromClient(
+      async () => fakeClient as CommentTargetLookupClient
+    );
     const result = await lookup.getProject("9000-01");
 
     expect(result).toMatchObject({

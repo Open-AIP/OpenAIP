@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import {
   type AipFeedbackDisplayKind,
   type AipFeedbackItem,

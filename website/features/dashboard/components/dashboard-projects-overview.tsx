@@ -78,14 +78,14 @@ export function TopFundedProjectsSection({
   }, [searchText, category, sector]);
 
   return (
-    <Card className="bg-card text-card-foreground border border-border rounded-xl py-0">
-      <CardHeader className="border-b border-border px-5 py-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
+    <Card className="bg-card text-card-foreground border border-border rounded-xl py-4">
+      <CardHeader className="grid-rows-[auto] items-center gap-0 border-b border-border px-5">
+        <CardTitle className="flex items-center gap-2 leading-none text-lg font-medium text-foreground">
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
           Top Funded Projects
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-5 space-y-4">
+      <CardContent className="px-5 space-y-3">
         <TopProjectsFilters
           sectors={sectors}
           searchText={searchText}
@@ -239,29 +239,29 @@ export function TopProjectsTable({
               <td className="px-3 py-2 text-muted-foreground">{index + 1}</td>
               <td className="px-3 py-2"><div className="max-w-[300px] truncate">{project.programProjectDescription}</div></td>
               <td className="px-3 py-2">
+                {(() => {
+                  const categoryLabel = resolveCategoryLabel(project);
+                  const categoryClass =
+                    categoryLabel === "Economic"
+                      ? "bg-mediumseagreen-200 text-mediumseagreen-100"
+                      : categoryLabel === "Social"
+                        ? "bg-dodgerblue-200 text-dodgerblue-100"
+                        : categoryLabel === "General"
+                          ? "bg-[#DCE5E8] text-[#1A677D]"
+                          : "bg-secondary text-foreground";
+
+                  return (
+                    <Badge className={`rounded-md border border-transparent text-xs font-medium ${categoryClass}`}>
+                      {categoryLabel}
+                    </Badge>
+                  );
+                })()}
+              </td>
+              <td className="px-3 py-2">
                 <Badge className="rounded-md border border-border bg-card text-xs text-muted-foreground">
                   {isHealthType(resolveTypeLabel(project)) ? <Heart className="mr-1 h-3 w-3" /> : <Building2 className="mr-1 h-3 w-3" />}
                   {resolveTypeLabel(project)}
                 </Badge>
-              </td>
-              <td className="px-3 py-2">
-                {(() => {
-                  const type = resolveCategoryLabel(project);
-                  const typeClass =
-                    type === "Economic"
-                      ? "bg-mediumseagreen-200 text-mediumseagreen-100"
-                      : type === "Social"
-                        ? "bg-dodgerblue-200 text-dodgerblue-100"
-                        : type === "General"
-                          ? "bg-darkslategray-200 text-darkslategray-100"
-                          : "bg-secondary text-foreground";
-
-                  return (
-                    <Badge className={`rounded-md border border-transparent text-xs font-medium ${typeClass}`}>
-                      {type}
-                    </Badge>
-                  );
-                })()}
               </td>
               <td className="px-3 py-2 text-right font-semibold tabular-nums">{toCurrency(project.total ?? 0)}</td>
               <td className="px-3 py-2">

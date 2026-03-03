@@ -39,6 +39,7 @@ export default function InfrastructureProjectsView({
       <CitizenPageHero
         title="Infrastructure Projects"
         subtitle="Explore infrastructure projects funded by AIPs, including roads, drainage, public facilities, and community upgrades."
+        imageSrc="/citizen-dashboard/hero2.svg"
         eyebrow="OpenAIP"
       />
 

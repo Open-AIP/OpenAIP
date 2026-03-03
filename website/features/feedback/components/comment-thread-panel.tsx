@@ -4,7 +4,7 @@ import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 import { formatCommentDate } from "../lib/format";
 import { getCommentRepo } from "@/lib/repos/feedback/repo";

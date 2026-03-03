@@ -1,6 +1,7 @@
 import { selectRepo } from "@/lib/repos/_shared/selector";
 import { createMockCitizenChatRepo } from "./repo.mock";
 import { createSupabaseCitizenChatRepo } from "./repo.supabase";
+import type { Json } from "@/lib/contracts/databasev2";
 
 export type {
   CitizenChatEvidenceItem,
@@ -18,7 +19,7 @@ export interface CitizenChatRepo {
   getSession(sessionId: string): Promise<CitizenChatSession | null>;
   createSession(
     userId: string,
-    payload?: { title?: string; context?: Record<string, unknown> }
+    payload?: { title?: string; context?: { [key: string]: Json } }
   ): Promise<CitizenChatSession>;
   renameSession(sessionId: string, title: string): Promise<CitizenChatSession | null>;
   deleteSession(sessionId: string): Promise<boolean>;

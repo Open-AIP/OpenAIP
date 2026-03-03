@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Monitor } from "lucide-react";
 import type { SystemBannerDraft } from "@/lib/repos/system-administration/types";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 const severityStyles: Record<SystemBannerDraft["severity"], string> = {
   Info: "bg-blue-50 text-blue-700 border-blue-200",

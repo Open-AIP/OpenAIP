@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type CitizenAuthSplitShellProps = {
   open: boolean;

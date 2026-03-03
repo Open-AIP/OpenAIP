@@ -1,6 +1,9 @@
 import type { Json, RoleType } from "@/lib/contracts/databasev2";
 import type { RetrievalScopePayload, RetrievalScopeTarget } from "@/lib/chat/types";
-import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
+import {
+  requestPipelineChatAnswer,
+  requestPipelineIntentClassify,
+} from "@/lib/chat/pipeline-client";
 import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import { enforceCsrfProtection } from "@/lib/security/csrf";
 import { assertPrivilegedWriteAccess, isInvariantError } from "@/lib/security/invariants";
@@ -319,6 +322,16 @@ export async function POST(request: Request) {
       profile,
       admin,
     });
+    let intentClassification: Awaited<ReturnType<typeof requestPipelineIntentClassify>> | null = null;
+    try {
+      intentClassification = await requestPipelineIntentClassify({
+        text: userMessage,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Pipeline intent classification failed.";
+      console.warn("[citizen-chat] intent classification failed:", message);
+    }
 
     const pipeline = await requestPipelineChatAnswer({
       question: userMessage,
@@ -343,6 +356,7 @@ export async function POST(request: Request) {
       sessionTitle: session.title,
       context: session.context,
       suggestedFollowUps,
+      ...(intentClassification ? { intentClassification } : {}),
     } as Json;
 
     const inserted = (await insertAssistantChatMessage({

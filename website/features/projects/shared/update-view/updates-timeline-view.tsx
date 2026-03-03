@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import type { ProjectUpdateUi } from "@/features/projects/types";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 type ViewerState = {
   open: boolean;

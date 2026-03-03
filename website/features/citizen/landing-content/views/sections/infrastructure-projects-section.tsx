@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProjectHighlightVM } from "@/lib/domain/landing-content";
 import CardShell from "../../components/atoms/card-shell";
@@ -63,8 +63,8 @@ function formatCompactCount(value: number): string {
 
 function getStackStyle(delta: number) {
   const abs = Math.abs(delta);
-  const x = abs === 0 ? 0 : 200;
-  const scale = abs === 0 ? 1 : 0.75;
+  const x = abs === 0 ? 0 : 184;
+  const scale = abs === 0 ? 1 : 0.78;
   const opacity = abs === 0 ? 1 : 0.62;
   const zIndex = abs === 0 ? 50 : 40;
   const signedX = delta < 0 ? -x : x;
@@ -204,12 +204,12 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
       const localX = event.clientX - rect.left;
 
       if (localX <= edgeHoverWidth) {
-        startEdgeScroll(-1);
+        startEdgeScroll(1);
         return;
       }
 
       if (localX >= rect.width - edgeHoverWidth) {
-        startEdgeScroll(1);
+        startEdgeScroll(-1);
         return;
       }
 
@@ -259,9 +259,10 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
       <ProjectShowcaseCard
         project={item.project}
         budgetLabel={item.project.budgetLabel ?? formatCompactPeso(item.project.budget)}
+        className="border-[#B7D7EA] bg-[#F4FBFF] shadow-[0_12px_30px_rgba(14,93,111,0.14)]"
         tagChipClassName="bg-[#0E5D6F]/90"
-        budgetChipClassName="text-[#0E5D6F]"
-        ctaClassName="border-[#2D6F8F] text-[#1F5D79]"
+        budgetChipClassName="bg-[#E8F6FE] text-[#0E5D6F]"
+        ctaClassName="border-[#2D6F8F] bg-[#EAF7FF] text-[#1F5D79] hover:bg-[#DDF1FE]"
         ctaHref={`/projects/infrastructure/${item.project.id}`}
       />
     );
@@ -317,9 +318,16 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
   };
 
   return (
-    <FullScreenSection id="infrastructure-projects" className="bg-[#F2ECE5]">
+    <FullScreenSection
+      id="infrastructure-projects"
+      className="relative"
+    >
+      <div
+        className="pointer-events-none absolute inset-0 bg-[url('/citizen-dashboard/infrastrucutre-bg.svg')] bg-cover bg-center opacity-10"
+        aria-hidden="true"
+      />
       <motion.div
-        className="grid grid-cols-12 items-center gap-10 lg:gap-24 xl:gap-28"
+        className="relative z-10 grid grid-cols-12 items-center gap-6 lg:gap-8 xl:gap-10"
         initial="hidden"
         whileInView="visible"
         viewport={VIEWPORT_ONCE}
@@ -328,7 +336,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
           <div className="relative w-full lg:max-w-[920px]">
             <div className="relative overflow-hidden rounded-2xl" onMouseLeave={stopEdgeScroll}>
               <div
-                className="relative h-[546px] sm:h-[588px]"
+                className="relative h-[500px] sm:h-[540px]"
                 onMouseMove={handleStageMouseMove}
                 onWheel={() => {
                   stopEdgeScroll();
@@ -337,8 +345,8 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
               >
                 {previousItem ? (
                   <div
-                    className="absolute left-1/2 top-1/2 w-[400px] will-change-transform transition-transform transition-opacity duration-300 ease-out"
-                    style={getStackStyle(-1)}
+                    className="absolute left-1/2 top-1/2 w-[360px] will-change-transform transition-transform transition-opacity duration-300 ease-out"
+                    style={getStackStyle(1)}
                     onClick={() => setActiveIndex(effectiveActiveIndex - 1)}
                   >
                     {renderCarouselItem(previousItem, false)}
@@ -347,8 +355,8 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
 
                 {nextItem ? (
                   <div
-                    className="absolute left-1/2 top-1/2 w-[400px] will-change-transform transition-transform transition-opacity duration-300 ease-out"
-                    style={getStackStyle(1)}
+                    className="absolute left-1/2 top-1/2 w-[360px] will-change-transform transition-transform transition-opacity duration-300 ease-out"
+                    style={getStackStyle(-1)}
                     onClick={() => setActiveIndex(effectiveActiveIndex + 1)}
                   >
                     {renderCarouselItem(nextItem, false)}
@@ -358,7 +366,7 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
                 {activeItem ? (
                   <div
                     key={activeItem.id}
-                    className="absolute left-1/2 top-1/2 z-[56] w-[400px]"
+                    className="absolute left-1/2 top-1/2 z-[56] w-[360px]"
                     style={{ transform: "translate(-50%, -50%)" }}
                   >
                     {renderCarouselItem(activeItem, true)}
@@ -367,17 +375,6 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
 
                 <div
                   className="absolute inset-y-0 left-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
-                  onMouseEnter={() => startEdgeScroll(-1)}
-                  onMouseLeave={stopEdgeScroll}
-                  onPointerDown={onEdgePointerDown(-1)}
-                  onPointerUp={onEdgePointerUp}
-                  onPointerCancel={onEdgePointerUp}
-                  onPointerLeave={onEdgePointerUp}
-                  onLostPointerCapture={onEdgePointerUp}
-                />
-
-                <div
-                  className="absolute inset-y-0 right-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
                   onMouseEnter={() => startEdgeScroll(1)}
                   onMouseLeave={stopEdgeScroll}
                   onPointerDown={onEdgePointerDown(1)}
@@ -386,29 +383,23 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
                   onPointerLeave={onEdgePointerUp}
                   onLostPointerCapture={onEdgePointerUp}
                 />
+
+                <div
+                  className="absolute inset-y-0 right-0 z-[55] w-10 sm:w-12 md:w-16 lg:w-20 pointer-events-auto touch-none"
+                  onMouseEnter={() => startEdgeScroll(-1)}
+                  onMouseLeave={stopEdgeScroll}
+                  onPointerDown={onEdgePointerDown(-1)}
+                  onPointerUp={onEdgePointerUp}
+                  onPointerCancel={onEdgePointerUp}
+                  onPointerLeave={onEdgePointerUp}
+                  onLostPointerCapture={onEdgePointerUp}
+                />
               </div>
             </div>
 
-            <div className="pointer-events-none absolute inset-y-0 -left-[43px] -right-[43px] z-[70] hidden items-center justify-between lg:flex">
+            <div className="pointer-events-none absolute inset-y-0 left-[30px] right-[30px] z-[70] hidden items-center justify-between lg:flex">
               <motion.div
-                whileHover={reducedMotion ? undefined : { x: -2, scale: 1.03 }}
-                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
-                transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
-              >
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Previous project"
-                  disabled={!hasMultipleItems || effectiveActiveIndex <= 0}
-                  className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
-                  onClick={goToPrevious}
-                >
-                  <ArrowLeft className="h-14 w-14 stroke-[1.6]" />
-                </Button>
-              </motion.div>
-              <motion.div
-                whileHover={reducedMotion ? undefined : { x: 2, scale: 1.03 }}
+                whileHover={reducedMotion ? undefined : { x: -2, scale: 1.04 }}
                 whileTap={reducedMotion ? undefined : { scale: 0.98 }}
                 transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
               >
@@ -418,10 +409,27 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
                   variant="ghost"
                   aria-label="Next project"
                   disabled={!hasMultipleItems || effectiveActiveIndex >= carouselItems.length - 1}
-                  className="pointer-events-auto h-16 w-16 rounded-none border-0 bg-transparent text-[#1F2937] shadow-none hover:bg-transparent disabled:opacity-30"
+                  className="pointer-events-auto h-14 w-14 rounded-full border border-[#C5CCD3] bg-white/95 text-[#56616B] shadow-[0_10px_24px_rgba(15,23,42,0.14)] hover:bg-white disabled:opacity-30"
                   onClick={goToNext}
                 >
-                  <ArrowRight className="h-14 w-14 stroke-[1.6]" />
+                  <ChevronLeft className="h-7 w-7 stroke-[2.8]" />
+                </Button>
+              </motion.div>
+              <motion.div
+                whileHover={reducedMotion ? undefined : { x: 2, scale: 1.04 }}
+                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: "easeInOut" }}
+              >
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Previous project"
+                  disabled={!hasMultipleItems || effectiveActiveIndex <= 0}
+                  className="pointer-events-auto h-14 w-14 rounded-full border border-[#C5CCD3] bg-white/95 text-[#56616B] shadow-[0_10px_24px_rgba(15,23,42,0.14)] hover:bg-white disabled:opacity-30"
+                  onClick={goToPrevious}
+                >
+                  <ChevronRight className="h-7 w-7 stroke-[2.8]" />
                 </Button>
               </motion.div>
             </div>
@@ -437,21 +445,21 @@ export default function InfrastructureProjectsSection({ vm }: InfrastructureProj
           </motion.div>
 
           <motion.div className="grid gap-4 sm:grid-cols-2" variants={kpiContainerVariants}>
-            <motion.div variants={kpiItemVariants}>
-              <CardShell className="py-0">
-                <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                  <p className="text-3xl font-bold leading-none text-[#1F2937] sm:text-3xl">{formatCompactPeso(primaryValue)}</p>
-                  <p className="text-base font-medium text-slate-500">{vm.primaryKpiLabel}</p>
+            <motion.div className="h-full" variants={kpiItemVariants}>
+              <CardShell className="flex h-full min-h-[152px] py-0">
+                <div className="flex h-full flex-col justify-between space-y-2 px-5 py-5 sm:px-6 sm:py-6">
+                  <p className="text-3xl font-bold leading-none text-[#0B4E7B] sm:text-3xl">{formatCompactPeso(primaryValue)}</p>
+                  <p className="text-sm font-medium text-slate-500">{vm.primaryKpiLabel}</p>
                 </div>
               </CardShell>
             </motion.div>
-            <motion.div variants={kpiItemVariants}>
-              <CardShell className="py-0">
-                <div className="space-y-2 px-5 py-5 sm:px-6 sm:py-6">
-                  <p className="text-4xl font-bold leading-none text-[#1F2937] sm:text-4xl">
+            <motion.div className="h-full" variants={kpiItemVariants}>
+              <CardShell className="flex h-full min-h-[152px] py-0">
+                <div className="flex h-full flex-col justify-between space-y-2 px-5 py-5 sm:px-6 sm:py-6">
+                  <p className="text-3xl font-bold leading-none text-[#0B4E7B] sm:text-3xl">
                     {formatCompactCount(vm.secondaryKpiValue)}
                   </p>
-                  <p className="text-base font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
+                  <p className="text-sm font-medium text-slate-500">{vm.secondaryKpiLabel}</p>
                 </div>
               </CardShell>
             </motion.div>

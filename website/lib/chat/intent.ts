@@ -1,7 +1,13 @@
+import { detectAggregationIntent } from "@/lib/chat/aggregation-intent";
+import { isLineItemSpecificQuery } from "@/lib/chat/line-item-routing";
+
 export type ChatIntent = "total_investment_program" | "normal";
 
 const TOTAL_KEYWORDS = ["total investment program", "total investment", "grand total"] as const;
 const YEAR_PATTERN = /\b(20\d{2})\b/;
+const STRICT_LINE_ITEM_REF_PATTERN = /\b\d{4}-\d{3}-\d{3}-\d{3}\b/i;
+const HYBRID_LINE_ITEM_REF_PATTERN = /\b\d{4}-[a-z0-9]+(?:-[a-z0-9]+)+\b/i;
+const QUOTED_TITLE_PATTERN = /"[^"]{3,}"|'[^']{3,}'/;
 
 function normalizeIntentText(message: string): string {
   return message
@@ -19,14 +25,39 @@ export function extractFiscalYear(message: string): number | null {
   return parsed;
 }
 
+function looksLikeScopeBudgetQuery(message: string, normalized: string): boolean {
+  if (!normalized.includes("budget")) {
+    return false;
+  }
+
+  if (
+    STRICT_LINE_ITEM_REF_PATTERN.test(message) ||
+    HYBRID_LINE_ITEM_REF_PATTERN.test(message) ||
+    QUOTED_TITLE_PATTERN.test(message)
+  ) {
+    return false;
+  }
+
+  if (isLineItemSpecificQuery(message)) {
+    return false;
+  }
+
+  if (detectAggregationIntent(message).intent !== "none") {
+    return false;
+  }
+
+  return true;
+}
+
 export function detectIntent(message: string): { intent: ChatIntent } {
   const normalized = normalizeIntentText(message);
   const hasTotalsKeyword = TOTAL_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  const hasBudgetTotalsCue = looksLikeScopeBudgetQuery(message, normalized);
   const hasYearToken = extractFiscalYear(message) !== null;
 
   // Phase 1 default: missing FY can still route to SQL-first using latest published AIP in scope.
   const hasImpliedFiscalYearSelection = true;
-  if (hasTotalsKeyword && (hasYearToken || hasImpliedFiscalYearSelection)) {
+  if ((hasTotalsKeyword || hasBudgetTotalsCue) && (hasYearToken || hasImpliedFiscalYearSelection)) {
     return { intent: "total_investment_program" };
   }
 

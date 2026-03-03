@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
-import { DashboardHeader } from "./dashboard-header-widgets";
+import { DashboardHeader, GlobalSearchWidget } from "./dashboard-header-widgets";
 import { TopFundedProjectsSection } from "./dashboard-projects-overview";
 import { BudgetBreakdownSection } from "./dashboard-budget-allocation";
-import { AipsByYearTable } from "./dashboard-aip-publication-status";
+import { AipCoverageCard, AipsByYearTable } from "./dashboard-aip-publication-status";
+import { FeedbackTargetsCard } from "./dashboard-feedback-insights";
 import { RecentActivityFeed, RecentProjectUpdatesCard } from "./dashboard-activity-updates";
 import type { DashboardQueryState } from "@/features/dashboard/types/dashboard-types";
 
@@ -87,22 +88,18 @@ describe("DashboardHeader interactions", () => {
     );
   });
 
-  it("submits global search on Enter and blur", () => {
+  it("submits global search through the form handler", () => {
+    const onSubmit = vi.fn();
+
     render(
-      <DashboardHeader
-        title="Welcome to OpenAIP"
-        q={queryState.q}
-        selectedFiscalYear={2026}
-        availableFiscalYears={[2026]}
-      />
+      <GlobalSearchWidget value={queryState.q} onSubmit={onSubmit} />
     );
 
     const searchInput = screen.getByLabelText("Global search");
-    fireEvent.keyDown(searchInput, { key: "Enter" });
     fireEvent.change(searchInput, { target: { value: "new query" } });
-    fireEvent.blur(searchInput);
+    fireEvent.submit(searchInput.closest("form") as HTMLFormElement);
 
-    expect(requestSubmitMock).toHaveBeenCalledTimes(2);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -321,11 +318,12 @@ describe("Dashboard links and actions", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps only View AIP Details in budget breakdown", () => {
+  it("renders both budget breakdown actions when an AIP is available", () => {
     render(
       <BudgetBreakdownSection
         totalBudget="PHP 1,000,000"
         detailsHref="/barangay/aips/aip-1"
+        scope="barangay"
         items={[
           {
             sectorCode: "3000",
@@ -341,7 +339,63 @@ describe("Dashboard links and actions", () => {
       "href",
       "/barangay/aips/aip-1"
     );
-    expect(screen.queryByRole("link", { name: "View All Projects" })).toBeNull();
+    expect(screen.getByRole("link", { name: "View All Projects" })).toHaveAttribute(
+      "href",
+      "/barangay/projects"
+    );
+  });
+
+  it("disables the primary budget breakdown action when no AIP details route exists", () => {
+    render(
+      <BudgetBreakdownSection
+        totalBudget="PHP 0"
+        scope="city"
+        items={[
+          {
+            sectorCode: "general",
+            label: "General",
+            amount: 0,
+            percentage: 0,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "View AIP Details" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "View All Projects" })).toHaveAttribute(
+      "href",
+      "/city/projects"
+    );
+  });
+
+  it("renders a scope-aware missing AIP action with fiscal year payload", () => {
+    const createDraftAction = vi.fn(async () => undefined);
+
+    render(
+      <AipCoverageCard
+        selectedAip={null}
+        scope="barangay"
+        fiscalYear={2026}
+        createDraftAction={createDraftAction}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Upload Barangay AIP" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("2026")).toHaveAttribute("name", "fiscalYear");
+  });
+
+  it("renders neutral feedback target bars when all values are zero", () => {
+    render(
+      <FeedbackTargetsCard
+        targets={[
+          { label: "AIP", value: 0 },
+          { label: "Projects", value: 0 },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId("feedback-target-bar-aip")).toHaveClass("bg-slate-300");
+    expect(screen.getByTestId("feedback-target-bar-projects")).toHaveClass("bg-slate-300");
   });
 
   it("routes AIPs-by-year row View action to scope-specific AIP details", () => {

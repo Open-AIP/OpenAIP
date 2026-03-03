@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical, Eye } from "lucide-react";
 import type { AipMonitoringRow, AipMonitoringStatus } from "../types/monitoring.types";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 
 function statusBadgeClass(status: AipMonitoringStatus) {
   switch (status) {

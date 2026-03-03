@@ -12,23 +12,25 @@ import {
   createFeedbackThreadsRepoFromClient,
 } from "./repo.supabase.base";
 
+type FeedbackClientFactory = Parameters<typeof createCommentRepoFromClient>[0];
+
 async function getBrowserClient() {
   return supabaseBrowser();
 }
 
 export function createSupabaseCommentRepoClient(): CommentRepo {
-  return createCommentRepoFromClient(getBrowserClient);
+  return createCommentRepoFromClient(getBrowserClient as unknown as FeedbackClientFactory);
 }
 
 export function createSupabaseCommentTargetLookupClient(): CommentTargetLookup {
-  return createCommentTargetLookupFromClient(getBrowserClient);
+  return createCommentTargetLookupFromClient(getBrowserClient as unknown as FeedbackClientFactory);
 }
 
 export function createSupabaseFeedbackRepoClient(): FeedbackRepo {
-  return createFeedbackRepoFromClient(getBrowserClient);
+  return createFeedbackRepoFromClient(getBrowserClient as unknown as FeedbackClientFactory);
 }
 
 export function createSupabaseFeedbackThreadsRepoClient(): FeedbackThreadsRepo {
-  return createFeedbackThreadsRepoFromClient(getBrowserClient);
+  return createFeedbackThreadsRepoFromClient(getBrowserClient as unknown as FeedbackClientFactory);
 }
 

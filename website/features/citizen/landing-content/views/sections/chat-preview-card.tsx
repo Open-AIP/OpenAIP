@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Bot, MessageCircle } from "lucide-react";
 import type { ChatPreviewVM } from "@/lib/domain/landing-content";
-import { cn } from "@/ui/utils";
+import { cn } from "@/lib/ui/utils";
 import { MOTION_TOKENS } from "../../components/motion/motion-primitives";
 
 type ChatPreviewCardProps = {

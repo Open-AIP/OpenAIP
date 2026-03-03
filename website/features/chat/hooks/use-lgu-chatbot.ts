@@ -304,7 +304,10 @@ export function useLguChatbot(routePrefix = "/api/barangay/chat") {
   }, [activeSessionId, messagesBySession, visibleSessions]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
-  const activeMessages = activeSessionId ? messagesBySession[activeSessionId] ?? [] : [];
+  const activeMessages = useMemo(
+    () => (activeSessionId ? messagesBySession[activeSessionId] ?? [] : []),
+    [activeSessionId, messagesBySession]
+  );
 
   const handleSelect = useCallback((id: string) => {
     setActiveSessionId(id);

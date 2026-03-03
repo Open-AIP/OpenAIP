@@ -12,6 +12,9 @@ export async function GET(request: Request) {
     if (authFailure) {
       return NextResponse.json({ message: authFailure.message }, { status: authFailure.status });
     }
+    if (!actor) {
+      return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
+    }
 
     assertPrivilegedWriteAccess({
       actor,
@@ -53,6 +56,9 @@ export async function POST(request: Request) {
     const authFailure = getLguChatAuthFailure("city", actor, "sessions");
     if (authFailure) {
       return NextResponse.json({ message: authFailure.message }, { status: authFailure.status });
+    }
+    if (!actor) {
+      return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
     }
 
     assertPrivilegedWriteAccess({

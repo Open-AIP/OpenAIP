@@ -12,7 +12,6 @@ import {
   listBarangayIdsInCity,
   resolveCityByNameExact,
   selectPublishedCityAip,
-  type CityRef,
   type CityScopeResult,
 } from "@/lib/chat/city-scope";
 import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
@@ -189,12 +188,6 @@ type RpcTotalsByFundSourceRow = {
   fund_source: string | null;
   fund_total: number | string | null;
   count_items: number | string | null;
-};
-
-type RpcCompareFiscalYearTotalsRow = {
-  year_a_total: number | string | null;
-  year_b_total: number | string | null;
-  delta: number | string | null;
 };
 
 type TotalsAssistantPayload = {
@@ -427,11 +420,6 @@ function inferAggregationIntentFromPipelineClassification(input: {
   }
 
   return input.detected;
-}
-
-function isMissingConsumeQuotaRpcError(message: string): boolean {
-  const normalized = message.toLowerCase();
-  return normalized.includes("consume_chat_quota") && normalized.includes("schema cache");
 }
 
 function toScopeResolution(input: {
@@ -868,18 +856,6 @@ function toTotalsByFundSourceRows(value: unknown): RpcTotalsByFundSourceRow[] {
     });
   }
   return rows;
-}
-
-function toCompareTotalsRow(value: unknown): RpcCompareFiscalYearTotalsRow | null {
-  if (!Array.isArray(value) || value.length === 0) return null;
-  const first = value[0];
-  if (!first || typeof first !== "object") return null;
-  const typed = first as Partial<RpcCompareFiscalYearTotalsRow>;
-  return {
-    year_a_total: typed.year_a_total ?? null,
-    year_b_total: typed.year_b_total ?? null,
-    delta: typed.delta ?? null,
-  };
 }
 
 function formatScheduleRange(startDate: string | null, endDate: string | null): string {

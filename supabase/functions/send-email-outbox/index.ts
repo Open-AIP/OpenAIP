@@ -159,15 +159,63 @@ function readString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function isSafeInternalPath(value: string): boolean {
+  if (!value.startsWith("/")) return false;
+  if (value.startsWith("//")) return false;
+  if (value.startsWith("/\\")) return false;
+  return true;
+}
+
+function toInternalTargetPath(actionUrl: string, appBaseUrl: string): string | null {
+  const normalizedAction = actionUrl.trim();
+  if (!normalizedAction) return null;
+
+  if (normalizedAction.startsWith("http://") || normalizedAction.startsWith("https://")) {
+    try {
+      const absoluteUrl = new URL(normalizedAction);
+      const baseUrl = new URL(appBaseUrl);
+      if (absoluteUrl.origin !== baseUrl.origin) return null;
+      const targetPath = `${absoluteUrl.pathname}${absoluteUrl.search}${absoluteUrl.hash}`;
+      return isSafeInternalPath(targetPath) ? targetPath : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:/.test(normalizedAction)) return null;
+  if (normalizedAction.startsWith("//")) return null;
+  const normalizedPath = normalizedAction.startsWith("/")
+    ? normalizedAction
+    : `/${normalizedAction}`;
+  return isSafeInternalPath(normalizedPath) ? normalizedPath : null;
+}
+
 function resolveActionUrl(payload: Record<string, unknown>, appBaseUrl: string): string | null {
   const actionUrl = readString(payload.action_url) ?? readString(payload.actionUrl);
   if (!actionUrl) return null;
+
+  const normalizedBase = appBaseUrl.replace(/\/+$/, "");
+  const targetPath = toInternalTargetPath(actionUrl, normalizedBase);
+  const notificationRef =
+    readString(payload.notification_ref) ?? readString(payload.notificationRef);
+
+  if (targetPath && notificationRef) {
+    const trackedParams = new URLSearchParams({
+      dedupe: notificationRef,
+      next: targetPath,
+    });
+    return `${normalizedBase}/api/notifications/open?${trackedParams.toString()}`;
+  }
+
+  if (targetPath) {
+    return `${normalizedBase}${targetPath}`;
+  }
+
   if (actionUrl.startsWith("http://") || actionUrl.startsWith("https://")) {
     return actionUrl;
   }
-  const normalizedBase = appBaseUrl.replace(/\/+$/, "");
-  const normalizedPath = actionUrl.startsWith("/") ? actionUrl : `/${actionUrl}`;
-  return `${normalizedBase}${normalizedPath}`;
+
+  return null;
 }
 
 export function renderTemplateHtml(

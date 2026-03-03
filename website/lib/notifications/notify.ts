@@ -398,6 +398,7 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
           title: template.title,
           message: template.message,
           action_url: actionUrl,
+          notification_ref: dedupeKey,
           event_type: input.eventType,
           metadata,
         },

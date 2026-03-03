@@ -133,6 +133,9 @@ describe("notify()", () => {
     expect(notificationUpserts[0].rows[0].dedupe_key).toBe(
       "OUTBOX_FAILURE_THRESHOLD_REACHED:system:none:2026-03-03T05"
     );
+    expect(emailUpserts[0].rows[0].payload).toMatchObject({
+      notification_ref: "OUTBOX_FAILURE_THRESHOLD_REACHED:system:none:2026-03-03T05",
+    });
   });
 
   it("respects preference rows and keeps missing rows enabled by default", async () => {

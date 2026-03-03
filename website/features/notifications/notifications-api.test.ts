@@ -12,6 +12,7 @@ vi.mock("@/lib/security/csrf", () => ({
 }));
 
 import { GET as listNotifications } from "@/app/api/notifications/route";
+import { GET as openTrackedNotification } from "@/app/api/notifications/open/route";
 import { POST as markAllRead } from "@/app/api/notifications/read-all/route";
 import { PATCH as markOneRead } from "@/app/api/notifications/[notificationId]/read/route";
 
@@ -102,5 +103,121 @@ describe("notifications api routes", () => {
     expect(response.status).toBe(200);
     expect(eqNotificationId).toHaveBeenCalledWith("id", "notif-abc");
     expect(eqUser).toHaveBeenCalledWith("recipient_user_id", "user-999");
+  });
+
+  it("tracked-open marks by notification id for authenticated user and redirects", async () => {
+    const eqUser = vi.fn(async () => ({ error: null }));
+    const eqNotificationId = vi.fn(() => ({
+      eq: eqUser,
+    }));
+    const update = vi.fn(() => ({
+      eq: eqNotificationId,
+    }));
+
+    mockSupabaseServer.mockResolvedValue({
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from: () => ({
+        update,
+      }),
+    });
+
+    const response = await openTrackedNotification(
+      new Request(
+        "http://localhost/api/notifications/open?next=%2Fcity%2Faips%2Faip-1&notificationId=notif-1"
+      )
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/city/aips/aip-1");
+    expect(eqNotificationId).toHaveBeenCalledWith("id", "notif-1");
+    expect(eqUser).toHaveBeenCalledWith("recipient_user_id", "user-1");
+  });
+
+  it("tracked-open marks by dedupe key for authenticated user and redirects", async () => {
+    const isUnread = vi.fn(async () => ({ error: null }));
+    const eqUser = vi.fn(() => ({
+      is: isUnread,
+    }));
+    const eqDedupe = vi.fn(() => ({
+      eq: eqUser,
+    }));
+    const update = vi.fn(() => ({
+      eq: eqDedupe,
+    }));
+
+    mockSupabaseServer.mockResolvedValue({
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: "user-2" } },
+          error: null,
+        }),
+      },
+      from: () => ({
+        update,
+      }),
+    });
+
+    const response = await openTrackedNotification(
+      new Request(
+        "http://localhost/api/notifications/open?next=%2Faips%2Faip-2&dedupe=AIP_PUBLISHED%3Aaip%3Aaip-2%3Adraft-%3Epublished"
+      )
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/aips/aip-2");
+    expect(eqDedupe).toHaveBeenCalledWith(
+      "dedupe_key",
+      "AIP_PUBLISHED:aip:aip-2:draft->published"
+    );
+    expect(eqUser).toHaveBeenCalledWith("recipient_user_id", "user-2");
+    expect(isUnread).toHaveBeenCalledWith("read_at", null);
+  });
+
+  it("tracked-open redirects without marking when user is unauthenticated", async () => {
+    const fromSpy = vi.fn();
+
+    mockSupabaseServer.mockResolvedValue({
+      auth: {
+        getUser: async () => ({
+          data: { user: null },
+          error: { message: "Unauthorized." },
+        }),
+      },
+      from: fromSpy,
+    });
+
+    const response = await openTrackedNotification(
+      new Request(
+        "http://localhost/api/notifications/open?next=%2Fnotifications&notificationId=notif-9"
+      )
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/notifications");
+    expect(fromSpy).not.toHaveBeenCalled();
+  });
+
+  it("tracked-open falls back to root for unsafe next", async () => {
+    mockSupabaseServer.mockResolvedValue({
+      auth: {
+        getUser: async () => ({
+          data: { user: null },
+          error: { message: "Unauthorized." },
+        }),
+      },
+      from: vi.fn(),
+    });
+
+    const response = await openTrackedNotification(
+      new Request("http://localhost/api/notifications/open?next=https%3A%2F%2Fevil.com")
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/");
   });
 });

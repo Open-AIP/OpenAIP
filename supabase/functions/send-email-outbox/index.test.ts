@@ -4,6 +4,7 @@ import {
   handleRequest,
   isAuthorizedRequest,
   processOutboxBatch,
+  renderTemplateHtml,
   type OutboxRow,
 } from "./index.ts";
 
@@ -146,4 +147,25 @@ Deno.test("buildOutboxFailureThresholdNotifications builds deduped hourly admin 
   );
   assertEquals(notifications[0].event_type, "OUTBOX_FAILURE_THRESHOLD_REACHED");
   assertEquals(notifications[1].dedupe_key, notifications[0].dedupe_key);
+});
+
+Deno.test("renderTemplateHtml wraps internal action links with tracked-open route", () => {
+  const html = renderTemplateHtml(
+    "AIP_PUBLISHED",
+    "AIP Published",
+    {
+      title: "AIP Published",
+      message: "AIP has been published.",
+      action_url: "/aips/aip-1",
+      notification_ref: "AIP_PUBLISHED:aip:aip-1:draft->published",
+    },
+    "https://openaip.example.com"
+  );
+
+  assertEquals(
+    html.includes(
+      "/api/notifications/open?dedupe=AIP_PUBLISHED%3Aaip%3Aaip-1%3Adraft-%3Epublished&next=%2Faips%2Faip-1"
+    ),
+    true
+  );
 });

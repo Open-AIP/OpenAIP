@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import CitizenAuthBrandPanel from "@/features/citizen/auth/components/citizen-auth-brand-panel";
 import CitizenAuthSplitShell from "@/features/citizen/auth/components/citizen-auth-split-shell";
 import CitizenCompleteProfileStep from "@/features/citizen/auth/components/steps/citizen-complete-profile-step";

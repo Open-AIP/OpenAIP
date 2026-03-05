@@ -541,7 +541,12 @@ class PipelineRepository:
                     existing_by_ref[ref_key] = inserted[0]
             except HTTPError as error:
                 if error.code != 409:
-                    raise
+                    raise RuntimeError(
+                        (
+                            "Failed to insert project row. "
+                            f"aip_id={aip_id} aip_ref_code={ref_code} error={error}"
+                        )
+                    ) from error
                 conflict_rows = self.client.select(
                     "projects",
                     select="id,aip_ref_code,is_human_edited",
@@ -549,7 +554,12 @@ class PipelineRepository:
                     limit=1,
                 )
                 if not conflict_rows:
-                    raise
+                    raise RuntimeError(
+                        (
+                            "Project insert returned HTTP 409 but lookup found no conflicting row. "
+                            f"aip_id={aip_id} aip_ref_code={ref_code} error={error}"
+                        )
+                    ) from error
                 conflict_row = conflict_rows[0]
                 existing_by_ref[ref_key] = conflict_row
                 if bool(conflict_row.get("is_human_edited")):

@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 from urllib.error import HTTPError
 
+import pytest
+
 from openaip_pipeline.adapters.supabase.repositories import PipelineRepository
 
 
@@ -184,3 +186,45 @@ def test_upsert_projects_keeps_human_edited_row_on_insert_conflict() -> None:
 
     project_updates = [call for call in fake_client.update_calls if call["table"] == "projects"]
     assert project_updates == []
+
+
+def test_upsert_projects_conflict_without_lookup_row_surfaces_context() -> None:
+    class _MissingConflictClient(_FakeProjectsClient):
+        def insert(
+            self,
+            table: str,
+            row: dict[str, Any],
+            *,
+            select: str | None = None,
+            on_conflict: str | None = None,
+            upsert: bool = False,
+        ) -> list[dict[str, Any]]:
+            del row, select, on_conflict, upsert
+            if table == "projects":
+                raise HTTPError(
+                    url="http://example.test",
+                    code=409,
+                    msg=(
+                        "Conflict | code=23503 | "
+                        "message=insert violates foreign key constraint \"fk_projects_sector\" | "
+                        "details=Key (sector_code)=(A101) is not present in table \"sectors\"."
+                    ),
+                    hdrs=None,
+                    fp=None,
+                )
+            return []
+
+    repo = PipelineRepository(_MissingConflictClient())  # type: ignore[arg-type]
+
+    with pytest.raises(RuntimeError) as error_info:
+        repo.upsert_projects(
+            aip_id="aip-123",
+            extraction_artifact_id="artifact-1",
+            projects=[_sample_project("A101-01", "Will fail with FK")],
+        )
+
+    message = str(error_info.value)
+    assert "lookup found no conflicting row" in message
+    assert "aip_id=aip-123" in message
+    assert "aip_ref_code=A101-01" in message
+    assert "fk_projects_sector" in message

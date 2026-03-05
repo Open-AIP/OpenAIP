@@ -15,7 +15,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { RotateCw, Send, X } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDashed,
+  Loader2,
+  RotateCw,
+  Send,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 
 import type {
   AipHeader,
@@ -46,7 +54,11 @@ import {
   useExtractionRunsRealtime,
   type ExtractionRunRealtimeEvent,
 } from "../hooks/use-extraction-runs-realtime";
-import { isEmbedSkipNoArtifactMessage } from "@/lib/constants/embedding";
+import {
+  getAipChatbotReadinessStatus,
+  type AipChatbotReadinessKind,
+  type AipChatbotReadinessTone,
+} from "../lib/chatbot-readiness";
 import { withCsrfHeader } from "@/lib/security/csrf";
 
 const PIPELINE_STAGES: PipelineStageUi[] = [
@@ -79,45 +91,25 @@ const FINALIZE_PROGRESS_MESSAGE =
 const LIVE_STATUS_UNAVAILABLE_NOTICE =
   "Live extraction updates are unavailable right now. Refresh this page to check the latest status.";
 
-function isEmbeddingSkipped(embedding: AipHeader["embedding"]): boolean {
-  return Boolean(
-    embedding &&
-      embedding.status === "succeeded" &&
-      isEmbedSkipNoArtifactMessage(embedding.progressMessage)
-  );
+function getChatbotStatusToneClass(tone: AipChatbotReadinessTone): string {
+  switch (tone) {
+    case "success":
+      return "text-emerald-600";
+    case "info":
+      return "text-sky-600";
+    case "danger":
+      return "text-rose-600";
+    case "warning":
+    default:
+      return "text-amber-600";
+  }
 }
 
-function getEmbeddingStatusMessage(embedding: AipHeader["embedding"]): string {
-  if (!embedding) {
-    return "Indexing has not started yet.";
-  }
-  if (embedding.status === "queued") {
-    return embedding.progressMessage ?? "Indexing for search...";
-  }
-  if (embedding.status === "running") {
-    return embedding.progressMessage ?? "Indexing for search...";
-  }
-  if (embedding.status === "succeeded") {
-    if (isEmbeddingSkipped(embedding)) {
-      return "Indexing was skipped because no categorize artifact was available. You can embed for search now.";
-    }
-    return embedding.progressMessage ?? "Search index is ready.";
-  }
-  return embedding.errorMessage ?? "Indexing failed. You can retry indexing.";
-}
-
-function getEmbeddingStatusTitle(embedding: AipHeader["embedding"]): string {
-  if (!embedding) return "Search Index Pending";
-  if (embedding.status === "queued" || embedding.status === "running") {
-    return "Search Indexing In Progress";
-  }
-  if (embedding.status === "succeeded") {
-    if (isEmbeddingSkipped(embedding)) {
-      return "Search Index Pending";
-    }
-    return "Search Index Ready";
-  }
-  return "Search Indexing Failed";
+function ChatbotStatusIcon({ kind }: { kind: AipChatbotReadinessKind }) {
+  if (kind === "chatbot_ready") return <CheckCircle2 className="h-4 w-4" />;
+  if (kind === "embedding") return <Loader2 className="h-4 w-4 animate-spin" />;
+  if (kind === "failed") return <TriangleAlert className="h-4 w-4" />;
+  return <CircleDashed className="h-4 w-4" />;
 }
 
 type RunStatusPayload = {
@@ -345,17 +337,23 @@ export default function AipDetailView({
   const [cityPublishConfirmOpen, setCityPublishConfirmOpen] = useState(false);
   const [deleteDraftConfirmOpen, setDeleteDraftConfirmOpen] = useState(false);
   const lastHydratedRunIdRef = useRef<string | null>(null);
-  const isEmbedMissing = !aip.embedding;
-  const isEmbedFailed = aip.embedding?.status === "failed";
-  const isEmbedRunning =
-    aip.embedding?.status === "queued" || aip.embedding?.status === "running";
-  const isEmbedSkipped = isEmbeddingSkipped(aip.embedding);
+  const chatbotReadiness =
+    aip.status === "published" ? getAipChatbotReadinessStatus(aip.embedding) : null;
+  const isEmbedFailed = chatbotReadiness?.kind === "failed";
+  const isEmbedRunning = chatbotReadiness?.kind === "embedding";
   const canManualEmbedDispatch =
     aip.status === "published" &&
     (isBarangayScope || isCityScope) &&
     !isEmbedRunning &&
-    (isEmbedMissing || isEmbedFailed || isEmbedSkipped);
-  const embedActionButtonLabel = isEmbedFailed ? "Retry Indexing" : "Embed for Search";
+    Boolean(chatbotReadiness) &&
+    (chatbotReadiness.kind === "failed" ||
+      chatbotReadiness.kind === "needs_embedding");
+  const embedActionButtonLabel = isEmbedFailed
+    ? "Retry Embedding"
+    : "Start Embedding";
+  const embedActionButtonClass = isEmbedFailed
+    ? "w-full bg-rose-600 hover:bg-rose-700"
+    : "w-full bg-[#022437] hover:bg-[#022437]/90";
 
   const focusedRowId = searchParams.get("focus") ?? undefined;
 
@@ -684,13 +682,17 @@ export default function AipDetailView({
         reason?: "missing" | "failed" | "skipped";
       };
       if (!response.ok) {
-        throw new Error(payload.message ?? "Failed to dispatch search indexing.");
+        throw new Error(payload.message ?? "Failed to dispatch embedding.");
       }
-      setEmbeddingRetrySuccess(payload.message ?? "Search indexing job dispatched.");
+      const successMessage =
+        payload.reason === "failed"
+          ? "Embedding retry dispatched."
+          : "Embedding job dispatched.";
+      setEmbeddingRetrySuccess(successMessage);
       router.refresh();
     } catch (error) {
       setEmbeddingRetryError(
-        error instanceof Error ? error.message : "Failed to dispatch search indexing."
+        error instanceof Error ? error.message : "Failed to dispatch embedding."
       );
     } finally {
       setIsRetryingEmbedding(false);
@@ -1504,25 +1506,22 @@ export default function AipDetailView({
               <AipStatusInfoCard status={aip.status} reviewerMessage={aip.feedback} />
                 ) : null}
 
-                {aip.status === "published" ? (
+                {aip.status === "published" && chatbotReadiness ? (
                   <Card className="border-slate-200">
                     <CardContent className="space-y-3 px-5">
-                      <div className="text-sm font-semibold text-slate-900">
-                        {getEmbeddingStatusTitle(aip.embedding)}
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <span className={getChatbotStatusToneClass(chatbotReadiness.tone)}>
+                          <ChatbotStatusIcon kind={chatbotReadiness.kind} />
+                        </span>
+                        {chatbotReadiness.title}
                       </div>
                       <div className="text-xs text-slate-600">
-                        {getEmbeddingStatusMessage(aip.embedding)}
+                        {chatbotReadiness.message}
                       </div>
-                      {typeof aip.embedding?.overallProgressPct === "number" &&
-                      (aip.embedding.status === "queued" ||
-                        aip.embedding.status === "running") ? (
+                      {chatbotReadiness.kind === "embedding" &&
+                      typeof chatbotReadiness.progressPct === "number" ? (
                         <div className="text-xs text-slate-500">
-                          Progress:{" "}
-                          {Math.max(
-                            0,
-                            Math.min(100, Math.round(aip.embedding.overallProgressPct))
-                          )}
-                          %
+                          Progress: {chatbotReadiness.progressPct}%
                         </div>
                       ) : null}
                       {embeddingRetrySuccess ? (
@@ -1537,7 +1536,7 @@ export default function AipDetailView({
                       ) : null}
                       {canManualEmbedDispatch ? (
                         <Button
-                          className="w-full bg-rose-600 hover:bg-rose-700"
+                          className={embedActionButtonClass}
                           onClick={() => {
                             void handleRetryEmbedding();
                           }}

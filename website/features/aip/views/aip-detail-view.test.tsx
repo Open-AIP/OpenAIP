@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AipDetailView from "./aip-detail-view";
 import type { AipHeader, AipStatus } from "../types";
 import type { AipRevisionFeedbackCycle } from "@/lib/repos/aip/repo";
+import { EMBED_SKIP_NO_ARTIFACT_MESSAGE } from "@/lib/constants/embedding";
 import type {
   ExtractionRunRealtimeEvent,
   UseExtractionRunsRealtimeInput,
@@ -355,6 +356,120 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.getByText("Publication Details")).toBeInTheDocument();
     expect(screen.getByText(/City Reviewer/)).toBeInTheDocument();
     expect(screen.getByText("Reviewer Feedback History")).toBeInTheDocument();
+  });
+
+  it("shows Chatbot Ready status for published AIP with successful embedding", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          embedding: {
+            runId: "run-ready",
+            status: "succeeded",
+            progressMessage: null,
+            errorMessage: null,
+            overallProgressPct: null,
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Chatbot Ready")).toBeInTheDocument();
+    expect(
+      screen.getByText("This AIP is embedded and can now be queried through the chatbot.")
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry Embedding" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start Embedding" })).not.toBeInTheDocument();
+  });
+
+  it("shows Currently Embedding status and progress for active embedding run", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          embedding: {
+            runId: "run-embedding",
+            status: "running",
+            progressMessage: null,
+            errorMessage: null,
+            overallProgressPct: 48,
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Currently Embedding")).toBeInTheDocument();
+    expect(screen.getByText("Progress: 48%")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry Embedding" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start Embedding" })).not.toBeInTheDocument();
+  });
+
+  it("shows Failed to Embed status with retry action", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          embedding: {
+            runId: "run-failed",
+            status: "failed",
+            progressMessage: null,
+            errorMessage: "Embedding pipeline timeout.",
+            overallProgressPct: null,
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Failed to Embed")).toBeInTheDocument();
+    expect(screen.getByText("Embedding pipeline timeout.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry Embedding" })).toBeInTheDocument();
+  });
+
+  it("shows Needs Embedding status and start action when no embedding run exists", async () => {
+    render(<AipDetailView aip={baseAip("published", { embedding: undefined })} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Needs Embedding")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Embedding" })).toBeInTheDocument();
+  });
+
+  it("maps skipped embedding to Needs Embedding with start action", async () => {
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          embedding: {
+            runId: "run-skipped",
+            status: "succeeded",
+            progressMessage: EMBED_SKIP_NO_ARTIFACT_MESSAGE,
+            errorMessage: null,
+            overallProgressPct: null,
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Needs Embedding")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Embedding" })).toBeInTheDocument();
   });
 
   it("hides reviewer feedback history for published AIP with no feedback cycles", async () => {

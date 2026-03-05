@@ -19,6 +19,7 @@ import {
   type CitizenDashboardContentValue,
   type CitizenDashboardScopePinValue,
 } from "@/lib/settings/app-settings";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { LandingContentRepo } from "./repo";
 
@@ -67,7 +68,6 @@ type FeedbackRow = {
   parent_feedback_id: string | null;
   kind: string;
   source: "human" | "ai";
-  author_id: string | null;
   created_at: string;
 };
 
@@ -97,7 +97,6 @@ type FeedbackMetrics = {
   categorySummary: FeedbackCategorySummaryItem[];
   responseRate: number;
   avgResponseTimeDays: number;
-  activeUsers: number;
 };
 
 const FALLBACK_PROJECT_IMAGE = "/brand/logo3.svg";
@@ -525,6 +524,52 @@ function scopeColumnOf(scopeType: LandingScopeType): "city_id" | "barangay_id" {
   return scopeType === "city" ? "city_id" : "barangay_id";
 }
 
+async function countActiveCitizensByBarangayId(barangayId: string): Promise<number> {
+  const admin = supabaseAdmin();
+  const { count, error } = await admin
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "citizen")
+    .eq("is_active", true)
+    .eq("barangay_id", barangayId);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+async function countActiveCitizensByCityId(cityId: string): Promise<number> {
+  const admin = supabaseAdmin();
+  const { data: barangays, error: barangaysError } = await admin
+    .from("barangays")
+    .select("id")
+    .eq("city_id", cityId);
+
+  if (barangaysError) throw new Error(barangaysError.message);
+
+  const barangayIds = ((barangays ?? []) as Array<{ id: string }>).map((row) => row.id);
+  if (barangayIds.length === 0) return 0;
+
+  const { count, error } = await admin
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "citizen")
+    .eq("is_active", true)
+    .in("barangay_id", barangayIds);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+async function countCitizenProfilesForScope(input: {
+  scopeType: LandingScopeType;
+  scopeId: string;
+}): Promise<number> {
+  if (input.scopeType === "barangay") {
+    return countActiveCitizensByBarangayId(input.scopeId);
+  }
+  return countActiveCitizensByCityId(input.scopeId);
+}
+
 async function listAvailableFiscalYears(
   scopeType: LandingScopeType,
   scopeId: string | null
@@ -825,21 +870,21 @@ async function listFeedbackRowsByTargets(input: {
   const rows: FeedbackRow[] = [];
 
   if (input.aipIds.length > 0) {
-    const { data, error } = await client
-      .from("feedback")
-      .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,author_id,created_at")
-      .eq("target_type", "aip")
-      .in("aip_id", input.aipIds);
+      const { data, error } = await client
+        .from("feedback")
+        .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,created_at")
+        .eq("target_type", "aip")
+        .in("aip_id", input.aipIds);
     if (error) throw new Error(error.message);
     rows.push(...((data ?? []) as FeedbackRow[]));
   }
 
   if (input.projectIds.length > 0) {
-    const { data, error } = await client
-      .from("feedback")
-      .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,author_id,created_at")
-      .eq("target_type", "project")
-      .in("project_id", input.projectIds);
+      const { data, error } = await client
+        .from("feedback")
+        .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,created_at")
+        .eq("target_type", "project")
+        .in("project_id", input.projectIds);
     if (error) throw new Error(error.message);
     rows.push(...((data ?? []) as FeedbackRow[]));
   }
@@ -886,7 +931,6 @@ function buildFeedbackMetrics(input: {
   }
 
   const currentRootCitizenRows: FeedbackRow[] = [];
-  const activeCitizenAuthors = new Set<string>();
 
   for (const row of input.feedbackRows) {
     const fiscalYear = fiscalYearByFeedbackId.get(row.id);
@@ -894,10 +938,6 @@ function buildFeedbackMetrics(input: {
 
     const isCitizenKind = row.source === "human" && CITIZEN_FEEDBACK_KIND_SET.has(row.kind);
     if (!isCitizenKind) continue;
-
-    if (fiscalYear === input.selectedFiscalYear && row.author_id) {
-      activeCitizenAuthors.add(row.author_id);
-    }
 
     if (row.parent_feedback_id !== null) continue;
     const createdAt = new Date(row.created_at);
@@ -951,7 +991,6 @@ function buildFeedbackMetrics(input: {
     categorySummary: createFeedbackCategorySummary(categoryCounts),
     responseRate,
     avgResponseTimeDays,
-    activeUsers: activeCitizenAuthors.size,
   };
 }
 
@@ -1052,6 +1091,13 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
               fiscalYear: currentFiscalYear,
             })
           : null;
+      const citizenCount =
+        selectedPin?.scopeId
+          ? await countCitizenProfilesForScope({
+              scopeType: selectedPin.scopeType,
+              scopeId: selectedPin.scopeId,
+            })
+          : 0;
 
       const currentMetrics =
         hasData && selectedPin?.scopeId
@@ -1104,7 +1150,6 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
               categorySummary: createFeedbackCategorySummary({}),
               responseRate: 0,
               avgResponseTimeDays: 0,
-              activeUsers: 0,
             };
 
       const mapCenterPin = selectedPin ??
@@ -1214,7 +1259,7 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
           projectCount: currentMetrics.projectCount,
           projectDeltaLabel,
           aipStatus: hasData ? "Published" : "No published AIP",
-          activeUsers: feedbackMetrics.activeUsers,
+          citizenCount,
           map: {
             center: { lat: mapCenterPin.lat, lng: mapCenterPin.lng },
             zoom: content.defaultZoom,

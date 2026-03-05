@@ -27,6 +27,13 @@ describe("chat intent detection", () => {
     expect(result.intent).toBe("normal");
   });
 
+  it("keeps mixed line-item plus aggregation asks out of totals intent", () => {
+    const result = detectIntent(
+      "What is the fund source for Road Concreting in FY 2026 and show budget totals by sector?"
+    );
+    expect(result.intent).toBe("normal");
+  });
+
   it("returns normal intent for non-total queries", () => {
     const result = detectIntent("How many infrastructure projects are ongoing this year?");
     expect(result.intent).toBe("normal");

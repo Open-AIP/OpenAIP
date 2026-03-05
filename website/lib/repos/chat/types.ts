@@ -126,6 +126,7 @@ export type ChatRetrievalMeta = {
   reason:
     | "ok"
     | "insufficient_evidence"
+    | "partial_evidence"
     | "clarification_needed"
     | "verifier_failed"
     | "ambiguous_scope"

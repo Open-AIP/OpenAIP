@@ -7,6 +7,7 @@ import {
   detectAggregationIntent,
   type AggregationIntentResult,
 } from "@/lib/chat/aggregation-intent";
+import { decideRoute, type RouteDecision } from "@/lib/chat/router-decision";
 import {
   detectExplicitCityMention,
   listBarangayIdsInCity,
@@ -49,6 +50,7 @@ import {
 } from "@/lib/chat/scope";
 import { resolveRetrievalScope } from "@/lib/chat/scope-resolver.server";
 import { routeSqlFirstTotals, buildTotalsMissingMessage } from "@/lib/chat/totals-sql-routing";
+import { detectCompoundAsk, splitIntoSubAsks, shouldClarifyBeforeExecution } from "@/lib/chat/query-planner";
 import type { PipelineChatCitation, PipelineIntentClassification } from "@/lib/chat/types";
 import type { Json } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
@@ -1780,6 +1782,38 @@ function isTotalsDebugEnabled(): boolean {
   return process.env.NODE_ENV !== "production" || process.env.CHATBOT_DEBUG_LOGS === "true";
 }
 
+function isChatRouterV2Enabled(): boolean {
+  return process.env.CHAT_ROUTER_V2_ENABLED === "true";
+}
+
+function isChatMixedIntentEnabled(): boolean {
+  return process.env.CHAT_MIXED_INTENT_ENABLED === "true";
+}
+
+function logRouteDecision(input: {
+  requestId: string;
+  text: string;
+  routeDecision: RouteDecision;
+  mode: "single" | "compound";
+  partIndex?: number;
+}): void {
+  if (!isTotalsDebugEnabled()) return;
+  console.info(
+    JSON.stringify({
+      request_id: input.requestId,
+      event: "router_decision_v2",
+      mode: input.mode,
+      part_index: input.partIndex ?? null,
+      message_preview: input.text.slice(0, 220),
+      chosen_kind: input.routeDecision.kind,
+      confidence: input.routeDecision.confidence,
+      reasons: input.routeDecision.reasons,
+      missing_slots: input.routeDecision.missingSlots,
+      candidates: input.routeDecision.candidates,
+    })
+  );
+}
+
 function logTotalsRouting(payload: TotalsRoutingLogPayload): void {
   if (!isTotalsDebugEnabled()) return;
   const sanitized: TotalsRoutingLogPayload = { ...payload };
@@ -3119,6 +3153,29 @@ export async function POST(request: Request) {
     }
 
     let frontendIntentClassification: PipelineIntentClassification | null = null;
+
+    const repo = getChatRepo();
+    let sessionId = body.sessionId ?? null;
+
+    if (sessionId) {
+      const existing = await repo.getSession(sessionId);
+      if (!existing || existing.userId !== actor.userId) {
+        return NextResponse.json({ message: "Session not found." }, { status: 404 });
+      }
+    }
+
+    const quota = await consumeQuota(
+      privilegedActor,
+      actor.userId,
+      actor.role === "city_official" ? "city_chat_message" : "barangay_chat_message"
+    );
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { message: "Rate limit exceeded. Please try again shortly.", reason: quota.reason },
+        { status: 429 }
+      );
+    }
+
     try {
       frontendIntentClassification = await requestPipelineIntentClassify({
         text: content,
@@ -3146,28 +3203,6 @@ export async function POST(request: Request) {
           })
         );
       }
-    }
-
-    const repo = getChatRepo();
-    let sessionId = body.sessionId ?? null;
-
-    if (sessionId) {
-      const existing = await repo.getSession(sessionId);
-      if (!existing || existing.userId !== actor.userId) {
-        return NextResponse.json({ message: "Session not found." }, { status: 404 });
-      }
-    }
-
-    const quota = await consumeQuota(
-      privilegedActor,
-      actor.userId,
-      actor.role === "city_official" ? "city_chat_message" : "barangay_chat_message"
-    );
-    if (!quota.allowed) {
-      return NextResponse.json(
-        { message: "Rate limit exceeded. Please try again shortly.", reason: quota.reason },
-        { status: 429 }
-      );
     }
 
     if (!sessionId) {
@@ -3314,6 +3349,78 @@ export async function POST(request: Request) {
       unresolvedScopes: scope.scopeResolution.unresolvedScopes,
       ambiguousScopes: scope.scopeResolution.ambiguousScopes,
     });
+
+    const routerDecision = isChatRouterV2Enabled()
+      ? decideRoute({
+          text: content,
+          intentClassification: frontendIntentClassification,
+        })
+      : null;
+    if (routerDecision) {
+      logRouteDecision({
+        requestId,
+        text: content,
+        routeDecision: routerDecision,
+        mode: "single",
+      });
+    }
+
+    if (isChatRouterV2Enabled() && isChatMixedIntentEnabled() && !pendingClarification && detectCompoundAsk(content)) {
+      const subAsks = splitIntoSubAsks(content, 2);
+      const subDecisions = subAsks.map((part) =>
+        decideRoute({
+          text: part.text,
+          intentClassification: frontendIntentClassification,
+        })
+      );
+
+      subDecisions.forEach((decision, index) =>
+        logRouteDecision({
+          requestId,
+          text: subAsks[index]?.text ?? content,
+          routeDecision: decision,
+          mode: "compound",
+          partIndex: index + 1,
+        })
+      );
+
+      if (subDecisions.length > 1 && shouldClarifyBeforeExecution(subDecisions)) {
+        const choices = subAsks.map((part) => `${part.index}. ${part.text}`).join("\n");
+        const assistantMessage = await appendAssistantMessage({
+          actor: privilegedActor,
+          sessionId: session.id,
+          content:
+            "I detected multiple requests in one message. Please choose which part to answer first:\n" +
+            `${choices}\n` +
+            "Reply with 1 or 2.",
+          citations: [
+            makeSystemCitation("Mixed-intent query detected; clarification requested before execution.", {
+              reason: "compound_intent_clarification",
+              sub_ask_count: subAsks.length,
+              decision_kinds: subDecisions.map((decision) => decision.kind),
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "clarification_needed",
+            status: "clarification",
+            scopeResolution,
+            latencyMs: Date.now() - startedAt,
+            intentClassification: frontendIntentClassification ?? undefined,
+          },
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
+    }
+
     const detectedIntent = detectIntent(content).intent;
 
     if (!scope.retrievalScope && detectedIntent !== "total_investment_program") {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
@@ -167,6 +168,69 @@ def _build_refusal(
     }
 
 
+def _partial_mode_enabled() -> bool:
+    value = os.getenv("RAG_PARTIAL_MODE_ENABLED", "false").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _build_partial_evidence(
+    *,
+    question: str,
+    reason: str,
+    docs: list[Any],
+    top_k: int,
+    min_similarity: float,
+    retrieval_scope: dict[str, Any] | None,
+) -> dict[str, Any]:
+    nearest = docs[: min(3, len(docs))]
+    citations = [_build_citation(index, doc, insufficient=True) for index, doc in enumerate(nearest, start=1)]
+    if not citations:
+        return _build_refusal(
+            question=question,
+            reason="insufficient_evidence",
+            docs=docs,
+            top_k=top_k,
+            min_similarity=min_similarity,
+            retrieval_scope=retrieval_scope,
+            verifier_passed=False,
+        )
+
+    bullet_lines: list[str] = []
+    for citation in citations:
+        source_id = str(citation.get("source_id") or "S0")
+        snippet = str(citation.get("snippet") or "").strip()
+        if snippet:
+            bullet_lines.append(f"- [{source_id}] {snippet}")
+
+    answer_lines = [
+        "I found related published AIP records, but the evidence is limited for a fully grounded answer.",
+    ]
+    if bullet_lines:
+        answer_lines.append("Closest records:")
+        answer_lines.extend(bullet_lines)
+    answer_lines.append(
+        "Please narrow the request (exact fiscal year, scope, or ref code) so I can provide a fully verified answer."
+    )
+
+    return {
+        "question": question,
+        "answer": "\n".join(answer_lines).strip(),
+        "refused": False,
+        "citations": citations,
+        "sources": [citation.get("metadata", {}) for citation in citations],
+        "context_count": len(docs),
+        "retrieval_meta": {
+            "reason": reason,
+            "top_k": top_k,
+            "min_similarity": min_similarity,
+            "context_count": len(docs),
+            "verifier_passed": False,
+            "scope_mode": (retrieval_scope or {}).get("mode", "global"),
+            "scope_targets_count": len((retrieval_scope or {}).get("targets") or []),
+        },
+    }
+
+
 def answer_with_rag(
     *,
     supabase_url: str,
@@ -201,6 +265,15 @@ def answer_with_rag(
         if (_safe_float((getattr(doc, "metadata", {}) or {}).get("similarity")) or 0.0) >= min_similarity
     ]
     if not strong_docs:
+        if docs and _partial_mode_enabled():
+            return _build_partial_evidence(
+                question=question,
+                reason="partial_evidence",
+                docs=docs,
+                top_k=top_k,
+                min_similarity=min_similarity,
+                retrieval_scope=resolved_scope,
+            )
         return _build_refusal(
             question=question,
             reason="insufficient_evidence",
@@ -312,6 +385,15 @@ def answer_with_rag(
     parsed_verifier = _extract_json(str(getattr(verifier_response, "content", "")) or "")
     verifier_passed = bool(parsed_verifier and parsed_verifier.get("supported") is True)
     if not verifier_passed:
+        if _partial_mode_enabled():
+            return _build_partial_evidence(
+                question=question,
+                reason="partial_evidence",
+                docs=strong_docs,
+                top_k=top_k,
+                min_similarity=min_similarity,
+                retrieval_scope=resolved_scope,
+            )
         return _build_refusal(
             question=question,
             reason="verifier_failed",

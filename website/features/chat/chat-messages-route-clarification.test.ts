@@ -607,4 +607,26 @@ describe("chat messages clarification state machine", () => {
     expect(mockRequestPipelineQueryEmbedding).toHaveBeenCalledTimes(1);
     expect(mockMatchLineItemsRpc).toHaveBeenCalledTimes(1);
   });
+
+  it("asks mixed-intent clarification before executing different route kinds", async () => {
+    const prevRouterV2 = process.env.CHAT_ROUTER_V2_ENABLED;
+    const prevMixed = process.env.CHAT_MIXED_INTENT_ENABLED;
+    process.env.CHAT_ROUTER_V2_ENABLED = "true";
+    process.env.CHAT_MIXED_INTENT_ENABLED = "true";
+
+    try {
+      const { payload } = await callMessagesRoute({
+        sessionId: "session-1",
+        content: "What is the total investment program for FY 2026 and list top 3 projects?",
+      });
+
+      expect(payload.status).toBe("clarification");
+      const assistant = payload.assistantMessage as { content: string };
+      expect(assistant.content).toContain("multiple requests");
+      expect(assistant.content).toContain("Reply with 1 or 2.");
+    } finally {
+      process.env.CHAT_ROUTER_V2_ENABLED = prevRouterV2;
+      process.env.CHAT_MIXED_INTENT_ENABLED = prevMixed;
+    }
+  });
 });

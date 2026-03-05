@@ -71,6 +71,7 @@ export type PipelineChatAnswer = {
     reason:
       | "ok"
       | "insufficient_evidence"
+      | "partial_evidence"
       | "verifier_failed"
       | "ambiguous_scope"
       | "pipeline_error"

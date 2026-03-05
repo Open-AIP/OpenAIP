@@ -1,11 +1,7 @@
 import "server-only";
 
 import { DBV2_SECTOR_CODES, getSectorLabel, type DashboardSectorCode } from "@/lib/constants/dashboard";
-import {
-  createFeedbackCategorySummary,
-  isFeedbackCategorySummaryKey,
-  type FeedbackCategorySummaryItem,
-} from "@/lib/constants/feedback-category-summary";
+import { createFeedbackCategorySummary } from "@/lib/constants/feedback-category-summary";
 import type {
   LandingContentQuery,
   LandingContentResult,
@@ -21,6 +17,12 @@ import {
 } from "@/lib/settings/app-settings";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
+import {
+  buildFeedbackMetrics,
+  FEEDBACK_MONTHS,
+  type FeedbackMetrics,
+  type LandingFeedbackMetricsRow,
+} from "./feedback-metrics";
 import type { LandingContentRepo } from "./repo";
 
 type ScopeRow = {
@@ -60,17 +62,6 @@ type ProjectLinkRow = {
   aip_id: string;
 };
 
-type FeedbackRow = {
-  id: string;
-  target_type: "aip" | "project";
-  aip_id: string | null;
-  project_id: string | null;
-  parent_feedback_id: string | null;
-  kind: string;
-  source: "human" | "ai";
-  created_at: string;
-};
-
 type ResolvedScopePin = {
   markerId: string;
   scopeType: LandingScopeType;
@@ -91,20 +82,8 @@ type ScopeYearMetrics = {
   infraProjects: ScopeProjectRow[];
 };
 
-type FeedbackMetrics = {
-  months: string[];
-  series: Array<{ key: string; label: string; points: number[] }>;
-  categorySummary: FeedbackCategorySummaryItem[];
-  responseRate: number;
-  avgResponseTimeDays: number;
-};
-
 const FALLBACK_PROJECT_IMAGE = "/brand/logo3.svg";
 const SUPABASE_PAGE_SIZE = 1_000;
-
-const FEEDBACK_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"] as const;
-
-const CITIZEN_FEEDBACK_KIND_SET = new Set(["question", "suggestion", "concern", "commend"]);
 
 const SECTOR_KEY_BY_CODE: Record<DashboardSectorCode, string> = {
   "1000": "general",
@@ -865,133 +844,31 @@ async function listProjectLinksByAipIds(aipIds: string[]): Promise<ProjectLinkRo
 async function listFeedbackRowsByTargets(input: {
   aipIds: string[];
   projectIds: string[];
-}): Promise<FeedbackRow[]> {
+}): Promise<LandingFeedbackMetricsRow[]> {
   const client = await supabaseServer();
-  const rows: FeedbackRow[] = [];
+  const rows: LandingFeedbackMetricsRow[] = [];
 
   if (input.aipIds.length > 0) {
-      const { data, error } = await client
-        .from("feedback")
-        .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,created_at")
-        .eq("target_type", "aip")
-        .in("aip_id", input.aipIds);
+    const { data, error } = await client
+      .from("feedback")
+      .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,created_at")
+      .eq("target_type", "aip")
+      .in("aip_id", input.aipIds);
     if (error) throw new Error(error.message);
-    rows.push(...((data ?? []) as FeedbackRow[]));
+    rows.push(...((data ?? []) as LandingFeedbackMetricsRow[]));
   }
 
   if (input.projectIds.length > 0) {
-      const { data, error } = await client
-        .from("feedback")
-        .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,created_at")
-        .eq("target_type", "project")
-        .in("project_id", input.projectIds);
+    const { data, error } = await client
+      .from("feedback")
+      .select("id,target_type,aip_id,project_id,parent_feedback_id,kind,source,created_at")
+      .eq("target_type", "project")
+      .in("project_id", input.projectIds);
     if (error) throw new Error(error.message);
-    rows.push(...((data ?? []) as FeedbackRow[]));
+    rows.push(...((data ?? []) as LandingFeedbackMetricsRow[]));
   }
 
   return rows;
-}
-
-function buildFeedbackMetrics(input: {
-  feedbackRows: FeedbackRow[];
-  selectedFiscalYear: number;
-  previousFiscalYear: number;
-  fiscalYearByAipId: Map<string, number>;
-  aipIdByProjectId: Map<string, string>;
-}): FeedbackMetrics {
-  const currentSeries = [0, 0, 0, 0, 0, 0];
-  const priorSeries = [0, 0, 0, 0, 0, 0];
-  const lguReplyDateByParentId = new Map<string, Date>();
-  const categoryCounts: Partial<Record<FeedbackCategorySummaryItem["key"], number>> = {};
-
-  const fiscalYearByFeedbackId = new Map<string, number>();
-  for (const row of input.feedbackRows) {
-    let fiscalYear: number | null = null;
-    if (row.target_type === "aip" && row.aip_id) {
-      fiscalYear = input.fiscalYearByAipId.get(row.aip_id) ?? null;
-    } else if (row.target_type === "project" && row.project_id) {
-      const aipId = input.aipIdByProjectId.get(row.project_id) ?? null;
-      if (aipId) {
-        fiscalYear = input.fiscalYearByAipId.get(aipId) ?? null;
-      }
-    }
-
-    if (typeof fiscalYear === "number") {
-      fiscalYearByFeedbackId.set(row.id, fiscalYear);
-    }
-
-    if (row.parent_feedback_id && row.kind === "lgu_note" && fiscalYear !== null) {
-      const replyDate = new Date(row.created_at);
-      if (Number.isNaN(replyDate.getTime())) continue;
-      const existing = lguReplyDateByParentId.get(row.parent_feedback_id);
-      if (!existing || replyDate.getTime() < existing.getTime()) {
-        lguReplyDateByParentId.set(row.parent_feedback_id, replyDate);
-      }
-    }
-  }
-
-  const currentRootCitizenRows: FeedbackRow[] = [];
-
-  for (const row of input.feedbackRows) {
-    const fiscalYear = fiscalYearByFeedbackId.get(row.id);
-    if (typeof fiscalYear !== "number") continue;
-
-    const isCitizenKind = row.source === "human" && CITIZEN_FEEDBACK_KIND_SET.has(row.kind);
-    if (!isCitizenKind) continue;
-
-    if (row.parent_feedback_id !== null) continue;
-    const createdAt = new Date(row.created_at);
-    if (Number.isNaN(createdAt.getTime())) continue;
-    const monthIndex = createdAt.getUTCMonth();
-    if (monthIndex < 0 || monthIndex >= FEEDBACK_MONTHS.length) continue;
-
-    if (fiscalYear === input.selectedFiscalYear) {
-      currentSeries[monthIndex] += 1;
-      if (isFeedbackCategorySummaryKey(row.kind)) {
-        categoryCounts[row.kind] = (categoryCounts[row.kind] ?? 0) + 1;
-      }
-      currentRootCitizenRows.push(row);
-    } else if (fiscalYear === input.previousFiscalYear) {
-      priorSeries[monthIndex] += 1;
-    }
-  }
-
-  let respondedCount = 0;
-  let totalResponseDays = 0;
-  for (const root of currentRootCitizenRows) {
-    const replyDate = lguReplyDateByParentId.get(root.id);
-    if (!replyDate) continue;
-    const rootDate = new Date(root.created_at);
-    if (Number.isNaN(rootDate.getTime())) continue;
-    const diffDays = Math.max(0, (replyDate.getTime() - rootDate.getTime()) / 86_400_000);
-    respondedCount += 1;
-    totalResponseDays += diffDays;
-  }
-
-  const responseRate =
-    currentRootCitizenRows.length > 0
-      ? Math.round((respondedCount / currentRootCitizenRows.length) * 100)
-      : 0;
-  const avgResponseTimeDays = respondedCount > 0 ? Number((totalResponseDays / respondedCount).toFixed(1)) : 0;
-
-  return {
-    months: [...FEEDBACK_MONTHS],
-    series: [
-      {
-        key: String(input.previousFiscalYear),
-        label: String(input.previousFiscalYear),
-        points: priorSeries,
-      },
-      {
-        key: String(input.selectedFiscalYear),
-        label: String(input.selectedFiscalYear),
-        points: currentSeries,
-      },
-    ],
-    categorySummary: createFeedbackCategorySummary(categoryCounts),
-    responseRate,
-    avgResponseTimeDays,
-  };
 }
 
 async function computeFeedbackMetrics(input: {

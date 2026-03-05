@@ -126,6 +126,14 @@ type ActiveRunLookupPayload = {
     errorMessage: string | null;
     createdAt: string | null;
   } | null;
+  failedRun?: {
+    runId: string;
+    aipId: string;
+    stage: PipelineStageUi;
+    status: "failed";
+    errorMessage: string | null;
+    createdAt: string | null;
+  } | null;
 };
 
 type RunSnapshotPayload = {
@@ -282,7 +290,6 @@ export default function AipDetailView({
     runId: string;
     message: string | null;
   } | null>(null);
-  const [dismissedFailedRunId, setDismissedFailedRunId] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [isFinalizingAfterSuccess, setIsFinalizingAfterSuccess] = useState(false);
@@ -372,12 +379,22 @@ export default function AipDetailView({
           setProcessingState("processing");
           setIsFinalizingAfterSuccess(false);
           setFailedRun(null);
-          setDismissedFailedRunId(null);
           setRetryError(null);
           setFinalizingNotice(null);
+        } else if (payload.failedRun?.runId) {
+          setActiveRunId(null);
+          setProcessingState("idle");
+          setIsFinalizingAfterSuccess(false);
+          setFinalizingNotice(null);
+          setFailedRun({
+            runId: payload.failedRun.runId,
+            message: payload.failedRun.errorMessage,
+          });
+          setRetryError(null);
         } else {
           setActiveRunId(null);
           setProcessingState("idle");
+          setFailedRun(null);
         }
       } catch {
         if (cancelled) return;
@@ -456,7 +473,6 @@ export default function AipDetailView({
       if (nextState === "complete") {
         setActiveRunId(null);
         setFailedRun(null);
-        setDismissedFailedRunId(null);
         setRetryError(null);
         setRunNotice(null);
         setProcessingState("processing");
@@ -485,7 +501,6 @@ export default function AipDetailView({
         runId: payload.runId,
         message: payload.errorMessage ?? payload.progressMessage ?? null,
       });
-      setDismissedFailedRunId(null);
       setRetryError(null);
       if (runIdFromQuery) {
         clearRunQuery();
@@ -566,11 +581,6 @@ export default function AipDetailView({
     },
     onStatusChange: handleRealtimeStatusChange,
   });
-
-  useEffect(() => {
-    if (!activeRunId) return;
-    setDismissedFailedRunId(null);
-  }, [activeRunId]);
 
   useEffect(() => {
     if (!isFinalizingAfterSuccess) return;
@@ -679,7 +689,6 @@ export default function AipDetailView({
       }
 
       setFailedRun(null);
-      setDismissedFailedRunId(null);
       setActiveRunId(payload.runId);
       setProcessingState("processing");
       setIsFinalizingAfterSuccess(false);
@@ -999,8 +1008,8 @@ export default function AipDetailView({
       isFinalizingAfterSuccess ||
       (Boolean(activeRunId) && processingState === "processing"));
 
-  const failedNoticeRun =
-    failedRun && dismissedFailedRunId !== failedRun.runId ? failedRun : null;
+  const failedNoticeRun = failedRun;
+  const shouldShowFailedRunOnly = !shouldBlockWithProcessingUi && Boolean(failedNoticeRun);
 
   return (
     <div className="space-y-6">
@@ -1030,48 +1039,7 @@ export default function AipDetailView({
             </CardContent>
           </Card>
 
-          {runNotice ? (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertDescription className="text-amber-800">{runNotice}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {workflowError ? (
-            <Alert className="border-rose-200 bg-rose-50">
-              <AlertDescription className="text-rose-800">
-                {workflowError}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {workflowSuccess ? (
-            <Alert className="border-emerald-200 bg-emerald-50">
-              <AlertDescription className="text-emerald-800">
-                {workflowSuccess}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {finalizingNotice ? (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertTitle className="text-amber-900">Processing Complete</AlertTitle>
-              <AlertDescription className="space-y-3 text-amber-800">
-                <p>{finalizingNotice}</p>
-                <div className="flex justify-start">
-                  <Button
-                    variant="outline"
-                    className="border-amber-300 text-amber-900 hover:bg-amber-100"
-                    onClick={handleManualRefresh}
-                    disabled={isManualRefreshing}
-                  >
-                    {isManualRefreshing ? "Refreshing..." : "Refresh now"}
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
-          {failedNoticeRun ? (
+          {shouldShowFailedRunOnly && failedNoticeRun ? (
             <Alert className="border-rose-200 bg-rose-50">
               <AlertTitle className="text-rose-900">Extraction Failed</AlertTitle>
               <AlertDescription className="space-y-3 text-rose-800">
@@ -1088,48 +1056,84 @@ export default function AipDetailView({
                   >
                     {isRetrying ? "Retrying..." : "Retry Extraction"}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setDismissedFailedRunId(failedNoticeRun.runId)}
-                    disabled={isRetrying}
-                  >
-                    Dismiss
-                  </Button>
                 </div>
               </AlertDescription>
             </Alert>
-          ) : null}
+          ) : (
+            <>
+              {runNotice ? (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertDescription className="text-amber-800">{runNotice}</AlertDescription>
+                </Alert>
+              ) : null}
 
-          {(isBarangayScope || isCityScope) &&
-          (aip.status === "draft" || aip.status === "for_revision") &&
-          submitBlockedReason ? (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertDescription className="text-amber-800">
-                {submitBlockedReason}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+              {workflowError ? (
+                <Alert className="border-rose-200 bg-rose-50">
+                  <AlertDescription className="text-rose-800">
+                    {workflowError}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
-          {isBarangayScope &&
-          !canManageBarangayWorkflow &&
-          (aip.status === "draft" ||
-            aip.status === "for_revision" ||
-            aip.status === "pending_review") ? (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertDescription className="text-amber-800">
-                {barangayWorkflowLockReason}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+              {workflowSuccess ? (
+                <Alert className="border-emerald-200 bg-emerald-50">
+                  <AlertDescription className="text-emerald-800">
+                    {workflowSuccess}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
-          <div
-            className={
-              showRightSidebar ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]" : "space-y-6"
-            }
-          >
+              {finalizingNotice ? (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertTitle className="text-amber-900">Processing Complete</AlertTitle>
+                  <AlertDescription className="space-y-3 text-amber-800">
+                    <p>{finalizingNotice}</p>
+                    <div className="flex justify-start">
+                      <Button
+                        variant="outline"
+                        className="border-amber-300 text-amber-900 hover:bg-amber-100"
+                        onClick={handleManualRefresh}
+                        disabled={isManualRefreshing}
+                      >
+                        {isManualRefreshing ? "Refreshing..." : "Refresh now"}
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
-            <div className="space-y-6">
-              <AipPdfContainer aip={aip} />
+              {(isBarangayScope || isCityScope) &&
+              (aip.status === "draft" || aip.status === "for_revision") &&
+              submitBlockedReason ? (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertDescription className="text-amber-800">
+                    {submitBlockedReason}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {isBarangayScope &&
+              !canManageBarangayWorkflow &&
+              (aip.status === "draft" ||
+                aip.status === "for_revision" ||
+                aip.status === "pending_review") ? (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertDescription className="text-amber-800">
+                    {barangayWorkflowLockReason}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div
+                className={
+                  showRightSidebar
+                    ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"
+                    : "space-y-6"
+                }
+              >
+
+                <div className="space-y-6">
+                  <AipPdfContainer aip={aip} />
 
               <div className="flex items-center">
                 <Tabs
@@ -1289,8 +1293,8 @@ export default function AipDetailView({
               </div>
             </div>
 
-            {showRightSidebar ? (
-              <div className="h-fit space-y-6 lg:sticky lg:top-4">
+                {showRightSidebar ? (
+                  <div className="h-fit space-y-6 lg:sticky lg:top-4">
                 {showRevisionWorkflowSidebar ? (
                   <>
                     <Card className="border-slate-200">
@@ -1492,9 +1496,11 @@ export default function AipDetailView({
                     emptyRepliesLabel="No official reply saved for this cycle yet."
                   />
                 ) : null}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
+            </>
+          )}
         </>
       )}
       <Dialog open={cityPublishConfirmOpen} onOpenChange={setCityPublishConfirmOpen}>

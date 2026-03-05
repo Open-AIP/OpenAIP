@@ -150,6 +150,16 @@ function revisionCycle(overrides: Partial<AipRevisionFeedbackCycle> = {}): AipRe
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe("AipDetailView sidebar behavior", () => {
   beforeEach(() => {
     lastDetailsTableProps = null;
@@ -538,6 +548,53 @@ describe("AipDetailView sidebar behavior", () => {
     expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeDisabled();
   });
 
+  it("shows failed-run notice from active lookup and hides city detail UI", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/city/aips/aip-001/runs/active")) {
+          return new Response(
+            JSON.stringify({
+              run: null,
+              failedRun: {
+                runId: "run-failed-001",
+                aipId: "aip-001",
+                stage: "extract",
+                status: "failed",
+                errorMessage: "Extraction exceeded timeout (1800.00s) after 91 page(s).",
+                createdAt: "2026-02-21T00:04:00.000Z",
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null, failedRun: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(<AipDetailView aip={baseAip("draft", { scope: "city" })} scope="city" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("breadcrumb-nav")).toBeInTheDocument();
+    expect(screen.getByText("Annual Investment Program 2026")).toBeInTheDocument();
+    expect(screen.getByText("Extraction Failed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry Extraction" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aip-pdf-container")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aip-details-table-view")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit & Publish" })).not.toBeInTheDocument();
+  });
+
   it("tracks run updates via realtime and clears run query after success", async () => {
     mockSearchParams = new URLSearchParams("run=run-001");
     vi.stubGlobal(
@@ -630,6 +687,163 @@ describe("AipDetailView sidebar behavior", () => {
         scroll: false,
       });
     });
+  });
+
+  it("shows failed-run focused layout with retry-only actions", async () => {
+    mockSearchParams = new URLSearchParams("run=run-001");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/barangay/aips/runs/run-001")) {
+          return new Response(
+            JSON.stringify({
+              runId: "run-001",
+              aipId: "aip-001",
+              stage: "extract",
+              status: "running",
+              errorMessage: null,
+              overallProgressPct: 10,
+              stageProgressPct: 25,
+              progressMessage: "Extracting from snapshot...",
+              progressUpdatedAt: "2026-02-21T00:00:30.000Z",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(latestRealtimeArgs?.enabled).toBe(true);
+    });
+
+    act(() => {
+      latestRealtimeArgs?.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-001",
+          aip_id: "aip-001",
+          stage: "extract",
+          status: "failed",
+          error_message: "Extraction exceeded timeout (1800.00s) after 91 page(s).",
+          overall_progress_pct: 36,
+          stage_progress_pct: 91,
+          progress_message: "Extraction exceeded timeout (1800.00s) after 91 page(s).",
+          progress_updated_at: "2026-02-21T00:04:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Extraction Failed")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("breadcrumb-nav")).toBeInTheDocument();
+    expect(screen.getByText("Annual Investment Program 2026")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry Extraction" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aip-pdf-container")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aip-details-table-view")).not.toBeInTheDocument();
+  });
+
+  it("keeps retry flow working from failed-run focused layout", async () => {
+    mockSearchParams = new URLSearchParams("run=run-001");
+    const retryResponse = createDeferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/barangay/aips/runs/run-001/retry")) {
+          return retryResponse.promise;
+        }
+        if (url.includes("/api/barangay/aips/runs/run-001")) {
+          return new Response(
+            JSON.stringify({
+              runId: "run-001",
+              aipId: "aip-001",
+              stage: "extract",
+              status: "running",
+              errorMessage: null,
+              overallProgressPct: 10,
+              stageProgressPct: 25,
+              progressMessage: "Extracting from snapshot...",
+              progressUpdatedAt: "2026-02-21T00:00:30.000Z",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(<AipDetailView aip={baseAip("draft")} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(latestRealtimeArgs?.enabled).toBe(true);
+    });
+
+    act(() => {
+      latestRealtimeArgs?.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-001",
+          aip_id: "aip-001",
+          stage: "extract",
+          status: "failed",
+          error_message: "Extraction exceeded timeout (1800.00s) after 91 page(s).",
+          overall_progress_pct: 36,
+          stage_progress_pct: 91,
+          progress_message: "Extraction exceeded timeout (1800.00s) after 91 page(s).",
+          progress_updated_at: "2026-02-21T00:04:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Retry Extraction" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry Extraction" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Retrying..." })).toBeInTheDocument();
+    });
+
+    retryResponse.resolve(
+      new Response(
+        JSON.stringify({
+          runId: "run-002",
+          status: "queued",
+          aipId: "aip-001",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aip-processing-inline-status")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
   });
 
   it("shows a non-blocking notice when realtime status tracking fails", async () => {

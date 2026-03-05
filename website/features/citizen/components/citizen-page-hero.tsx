@@ -58,6 +58,11 @@ export default function CitizenPageHero({
           )}
 
           {/* ✅ Align hero content with your page width (6xl) */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.08)_42%,rgba(0,0,0,0.6)_100%)]"
+            aria-hidden
+          />
+
           <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col justify-center px-4 text-center sm:px-6 lg:px-8">
             {eyebrow ? (
               <p className="text-xs uppercase tracking-[0.2em] text-slate-100/80">
@@ -79,3 +84,4 @@ export default function CitizenPageHero({
     </section>
   );
 }
+

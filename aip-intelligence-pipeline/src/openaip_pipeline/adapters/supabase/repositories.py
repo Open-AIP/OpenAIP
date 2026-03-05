@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any
+from urllib.error import HTTPError
 
 from openaip_pipeline.adapters.supabase.client import SupabaseRestClient
 from openaip_pipeline.adapters.supabase.dto import ExtractionRunDTO, UploadedFileDTO
@@ -417,7 +418,7 @@ class PipelineRepository:
             filters={"aip_id": f"eq.{aip_id}"},
         )
         existing_by_ref = {
-            row["aip_ref_code"]: row
+            row["aip_ref_code"].lower(): row
             for row in existing_rows
             if isinstance(row.get("aip_ref_code"), str) and row.get("aip_ref_code")
         }
@@ -427,7 +428,8 @@ class PipelineRepository:
             ref_code = str(raw.get("aip_ref_code") or "").strip()
             if not ref_code:
                 continue
-            existing = existing_by_ref.get(ref_code)
+            ref_key = ref_code.lower()
+            existing = existing_by_ref.get(ref_key)
             if existing and bool(existing.get("is_human_edited")):
                 continue
             amounts = raw.get("amounts") if isinstance(raw.get("amounts"), dict) else {}
@@ -473,7 +475,26 @@ class PipelineRepository:
                 continue
             create_payload = dict(payload)
             create_payload["aip_id"] = aip_id
-            self.client.insert("projects", create_payload)
+            try:
+                inserted = self.client.insert("projects", create_payload, select="id,aip_ref_code,is_human_edited")
+                if inserted:
+                    existing_by_ref[ref_key] = inserted[0]
+            except HTTPError as error:
+                if error.code != 409:
+                    raise
+                conflict_rows = self.client.select(
+                    "projects",
+                    select="id,aip_ref_code,is_human_edited",
+                    filters={"aip_id": f"eq.{aip_id}", "aip_ref_code": f"eq.{ref_code}"},
+                    limit=1,
+                )
+                if not conflict_rows:
+                    raise
+                conflict_row = conflict_rows[0]
+                existing_by_ref[ref_key] = conflict_row
+                if bool(conflict_row.get("is_human_edited")):
+                    continue
+                self.client.update("projects", payload, filters={"id": f"eq.{conflict_row['id']}"})
 
     def upsert_aip_line_items(self, *, aip_id: str, projects: Any) -> list[dict[str, Any]]:
         if not isinstance(projects, list) or not projects:

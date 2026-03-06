@@ -404,6 +404,7 @@ Recommended workflow:
    - `website/docs/sql/2026-03-03_embed_categorize_signed_dispatch.sql`
    - `website/docs/sql/2026-03-03_notifications_outbox_tables_rls.sql`
    - `website/docs/sql/2026-03-03_notifications_admin_pipeline_outbox_alerts.sql`
+   - `website/docs/sql/2026-03-06_aip_upload_validation_gating.sql`
    - Note: `2026-02-26_projects_status_proposed_rename.sql` renames existing `projects.status` values from `planning` to `proposed`.
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)

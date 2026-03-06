@@ -365,6 +365,14 @@ def process_run(*, repo: PipelineRepository, settings: Settings, run: dict[str, 
                     stage_progress_pct=pct,
                     progress_message=message,
                 )
+                print(
+                    (
+                        "[WORKER][VALIDATE] "
+                        f"run={run_id} done={done_projects}/{total_projects} "
+                        f"chunk={batch_no}/{total_batches} message={message}"
+                    ),
+                    flush=True,
+                )
 
             validation_res = validation_fn(
                 json.dumps(extraction_payload, ensure_ascii=False),

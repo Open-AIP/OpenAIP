@@ -217,6 +217,40 @@ def _patch_pipeline_fns(
     def fake_validate(extraction_json_str: str, **kwargs: Any) -> Any:
         call_counts["validate"] += 1
         payload = validate_payload or _validate_payload()
+        progress_cb = kwargs.get("on_progress")
+        if callable(progress_cb):
+            project_count = (
+                len(payload.get("projects"))
+                if isinstance(payload.get("projects"), list)
+                else 0
+            )
+            progress_cb(
+                0,
+                project_count,
+                0,
+                1,
+                (
+                    "Validation preflight: "
+                    f"{project_count} project(s) planned across 1 chunk(s)."
+                ),
+            )
+            progress_cb(
+                0,
+                project_count,
+                1,
+                1,
+                (
+                    "Validation chunk start: "
+                    f"processing chunk 1/1 with {project_count} project(s)."
+                ),
+            )
+            progress_cb(
+                project_count,
+                project_count,
+                1,
+                1,
+                f"Validating projects {project_count}/{project_count} (chunk 1/1)...",
+            )
         return SimpleNamespace(validated_obj=payload, validated_json_str=json.dumps(payload, ensure_ascii=False))
 
     def fake_summarize(validated_json_str: str, **kwargs: Any) -> Any:
@@ -270,6 +304,44 @@ def test_resume_from_validate_skips_extraction(monkeypatch) -> None:
     assert "extract" not in inserted_types
     assert inserted_types[:3] == ["validate", "summarize", "categorize"]
     assert repo.upsert_totals_calls
+
+
+def test_validate_stage_writes_intermediate_progress_and_logs(monkeypatch, capsys) -> None:
+    calls = {"extract": 0, "validate": 0, "summarize": 0, "categorize": 0}
+    _patch_pipeline_fns(monkeypatch, call_counts=calls)
+
+    repo = _FakeRepo(
+        lineage={"run-new": "run-old"},
+        artifacts={("run-old", "extract"): _extract_payload()},
+        scope="city",
+    )
+    run = {
+        "id": "run-new",
+        "aip_id": "aip-001",
+        "uploaded_file_id": "file-001",
+        "resume_from_stage": "validate",
+        "model_name": "gpt-5.2",
+    }
+
+    processor_module.process_run(repo=repo, settings=_settings(), run=run)
+
+    validate_messages = [
+        message
+        for stage, _, message in repo.progress_calls
+        if stage == "validate" and isinstance(message, str)
+    ]
+    assert validate_messages
+    assert any("Validation preflight:" in message for message in validate_messages)
+    assert any("Validation chunk start:" in message for message in validate_messages)
+    assert "Validation complete." in validate_messages
+    preflight_index = next(
+        idx for idx, message in enumerate(validate_messages) if "Validation preflight:" in message
+    )
+    complete_index = validate_messages.index("Validation complete.")
+    assert preflight_index < complete_index
+
+    captured = capsys.readouterr()
+    assert "[WORKER][VALIDATE] run=run-new" in captured.out
 
 
 def test_resume_from_summarize_skips_extract_and_validate(monkeypatch) -> None:

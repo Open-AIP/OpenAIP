@@ -87,16 +87,29 @@ class _ValidationClient:
 def test_small_input_uses_single_chunk() -> None:
     payload = _extract_payload(2, description_length=120)
     client = _ValidationClient()
+    progress_events: list[tuple[int, int, int, int, str]] = []
 
     result = validate_projects_json_str(
         json.dumps(payload),
         model="gpt-5.2",
         batch_size=None,
+        on_progress=lambda done, total, chunk_no, total_chunks, msg: progress_events.append(
+            (done, total, chunk_no, total_chunks, msg)
+        ),
         client=client,
     )
 
     assert client.responses.success_sizes == [2]
     assert result.usage == {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
+    assert progress_events
+    assert "preflight" in progress_events[0][4].lower()
+    assert any("chunk start" in event[4].lower() for event in progress_events)
+    assert any(
+        event[0] < event[1]
+        for event in progress_events[:-1]
+    )
+    assert progress_events[-1][0] == 2
+    assert "chunk" in progress_events[-1][4].lower()
     refs = [row.get("aip_ref_code") for row in result.validated_obj["projects"]]
     model_errors = [row.get("errors") for row in result.validated_obj["projects"]]
     assert model_errors == [[f"MODEL_ERR:{ref}"] for ref in refs]
@@ -132,16 +145,21 @@ def test_large_input_chunks_by_token_budget(monkeypatch) -> None:
 def test_context_overflow_splits_and_recovers() -> None:
     payload = _extract_payload(6, description_length=220)
     client = _ValidationClient(max_projects_per_call=1)
+    progress_events: list[tuple[int, int, int, int, str]] = []
 
     result = validate_projects_json_str(
         json.dumps(payload),
         model="gpt-5.2",
         batch_size=None,
+        on_progress=lambda done, total, chunk_no, total_chunks, msg: progress_events.append(
+            (done, total, chunk_no, total_chunks, msg)
+        ),
         client=client,
     )
 
     assert len(client.responses.attempt_sizes) > len(client.responses.success_sizes)
     assert client.responses.success_sizes == [1, 1, 1, 1, 1, 1]
+    assert any("chunk split" in event[4].lower() for event in progress_events)
     assert result.usage == {"input_tokens": 60, "output_tokens": 30, "total_tokens": 90}
     assert all(isinstance(project.get("errors"), list) for project in result.validated_obj["projects"])
 

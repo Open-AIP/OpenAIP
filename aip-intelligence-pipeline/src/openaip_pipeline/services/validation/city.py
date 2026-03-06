@@ -229,6 +229,18 @@ def validate_projects_json_str(
         completed_chunks = 0
         done_projects = 0
 
+        if on_progress:
+            on_progress(
+                0,
+                total_projects,
+                0,
+                total_chunks_planned,
+                (
+                    "Validation preflight: "
+                    f"{total_projects} project(s) planned across {total_chunks_planned} chunk(s)."
+                ),
+            )
+
         overall_start = time.perf_counter()
         chunk_usages: list[dict[str, Any]] = []
         chunk_times: list[float] = []
@@ -242,6 +254,19 @@ def validate_projects_json_str(
             payload_obj = _build_chunk_payload(
                 static_payload, chunk_indices, flattened_projects
             )
+            current_chunk_no = completed_chunks + 1
+            if on_progress:
+                on_progress(
+                    min(done_projects, total_projects),
+                    total_projects,
+                    current_chunk_no,
+                    total_chunks_planned,
+                    (
+                        "Validation chunk start: "
+                        f"processing chunk {current_chunk_no}/{total_chunks_planned} "
+                        f"with {chunk_size} project(s)."
+                    ),
+                )
             batch_start = time.perf_counter()
             try:
                 response = resolved_client.responses.create(
@@ -274,6 +299,18 @@ def validate_projects_json_str(
                 chunk_queue.appendleft(right_chunk)
                 chunk_queue.appendleft(left_chunk)
                 total_chunks_planned += 1
+                if on_progress:
+                    on_progress(
+                        min(done_projects, total_projects),
+                        total_projects,
+                        current_chunk_no,
+                        total_chunks_planned,
+                        (
+                            "Validation chunk split: "
+                            f"chunk {current_chunk_no} exceeded context and was split into "
+                            f"{len(left_chunk)}+{len(right_chunk)} project(s)."
+                        ),
+                    )
                 continue
 
             batch_elapsed = round(time.perf_counter() - batch_start, 4)

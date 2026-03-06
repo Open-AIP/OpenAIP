@@ -5,6 +5,7 @@ import { getLguChatAuthFailure } from "@/lib/chat/lgu-route-auth";
 import { detectMetadataIntent } from "@/lib/chat/metadata-intent";
 import { resolveMetadataSqlPayload } from "@/lib/chat/metadata-sql-routing";
 import { buildRefusalMessage } from "@/lib/chat/refusal";
+import { maybeRewriteFollowUpQuery } from "@/lib/chat/contextual-query-rewrite";
 import {
   detectAggregationIntent,
   type AggregationIntentResult,
@@ -1805,6 +1806,32 @@ function isChatSplitVerifierPolicyEnabled(): boolean {
   return process.env.CHAT_SPLIT_VERIFIER_POLICY_ENABLED !== "false";
 }
 
+function isChatContextualRewriteEnabled(): boolean {
+  return process.env.CHAT_CONTEXTUAL_REWRITE_ENABLED === "true";
+}
+
+function logRewriteDecision(input: {
+  requestId: string;
+  originalQuery: string;
+  result:
+    | { kind: "unchanged"; reason: string; query: string }
+    | { kind: "rewritten"; reason: string; query: string }
+    | { kind: "clarify"; reason: string; prompt: string };
+}): void {
+  if (!isTotalsDebugEnabled()) return;
+  console.info(
+    JSON.stringify({
+      request_id: input.requestId,
+      event: "contextual_query_rewrite",
+      rewrite_triggered: input.result.kind === "rewritten",
+      rewrite_outcome: input.result.kind,
+      rewrite_reason: input.result.reason,
+      original_query_preview: input.originalQuery.slice(0, 220),
+      rewritten_query_preview: input.result.kind === "rewritten" ? input.result.query.slice(0, 220) : null,
+    })
+  );
+}
+
 function logRouteDecision(input: {
   requestId: string;
   text: string;
@@ -3189,9 +3216,10 @@ export async function POST(request: Request) {
       sessionId?: string;
       content?: string;
     };
-    const content = normalizeUserMessage(body.content);
+    const originalContent = normalizeUserMessage(body.content);
+    let content = originalContent;
     const requestId = randomUUID();
-    if (!content) {
+    if (!originalContent) {
       return NextResponse.json({ message: "Message cannot be empty." }, { status: 400 });
     }
 
@@ -3221,7 +3249,7 @@ export async function POST(request: Request) {
 
     try {
       frontendIntentClassification = await requestPipelineIntentClassify({
-        text: content,
+        text: originalContent,
       });
       if (isTotalsDebugEnabled()) {
         console.info(
@@ -3258,9 +3286,82 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Session not found." }, { status: 404 });
     }
 
-    const userMessage = await repo.appendUserMessage(session.id, content);
+    const userMessage = await repo.appendUserMessage(session.id, originalContent);
     const pendingClarification = await getLatestPendingClarification(session.id);
     const startedAt = Date.now();
+    let queryRewriteApplied = false;
+    let queryRewriteReason: string | null = null;
+    if (!pendingClarification && isChatContextualRewriteEnabled()) {
+      const messages = await repo.listMessages(session.id);
+      const rewrite = maybeRewriteFollowUpQuery({
+        message: originalContent,
+        messages,
+        currentMessageId: userMessage.id,
+      });
+      logRewriteDecision({
+        requestId,
+        originalQuery: originalContent,
+        result:
+          rewrite.kind === "clarify"
+            ? { kind: "clarify", reason: rewrite.reason, prompt: rewrite.prompt }
+            : rewrite,
+      });
+      if (rewrite.kind === "rewritten") {
+        content = rewrite.query;
+        queryRewriteApplied = true;
+        queryRewriteReason = rewrite.reason;
+      } else if (rewrite.kind === "clarify") {
+        const assistantMessage = await appendAssistantMessage({
+          actor: privilegedActor,
+          sessionId: session.id,
+          content: rewrite.prompt,
+          citations: [
+            makeSystemCitation("Contextual follow-up rewrite requested clarification.", {
+              reason: rewrite.reason,
+            }),
+          ],
+          retrievalMeta: {
+            refused: false,
+            reason: "clarification_needed",
+            status: "clarification",
+            scopeResolution: {
+              mode: "global",
+              requestedScopes: [],
+              resolvedTargets: [],
+              unresolvedScopes: [],
+              ambiguousScopes: [],
+            },
+            latencyMs: Date.now() - startedAt,
+            queryRewriteApplied: false,
+            queryRewriteReason: rewrite.reason,
+          },
+        });
+        logNonTotalsRouting({
+          request_id: requestId,
+          intent: "clarification_needed",
+          route: "pipeline_fallback",
+          fiscal_year_parsed: extractFiscalYear(originalContent),
+          scope_reason: "unknown",
+          barangay_id_used: null,
+          match_count_used: null,
+          top_candidate_ids: [],
+          top_candidate_distances: [],
+          answered: false,
+          vector_called: false,
+          status: "clarification",
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
+    }
+
     const frontendIntent = frontendIntentClassification?.intent;
     const confidence = frontendIntentClassification?.confidence ?? null;
     const domainCues = containsDomainCues(content);
@@ -6523,9 +6624,21 @@ export async function POST(request: Request) {
         verifierPassed: pipeline.retrieval_meta?.verifier_passed,
         verifierMode: pipeline.retrieval_meta?.verifier_mode ?? "retrieval",
         verifierPolicyPassed: pipeline.retrieval_meta?.verifier_policy_passed,
+        denseCandidateCount: pipeline.retrieval_meta?.dense_candidate_count,
+        keywordCandidateCount: pipeline.retrieval_meta?.keyword_candidate_count,
+        fusedCandidateCount: pipeline.retrieval_meta?.fused_candidate_count,
+        denseFinalCount: pipeline.retrieval_meta?.dense_final_count,
+        keywordFinalCount: pipeline.retrieval_meta?.keyword_final_count,
+        denseContributedToFinal: pipeline.retrieval_meta?.dense_contributed_to_final,
+        keywordContributedToFinal: pipeline.retrieval_meta?.keyword_contributed_to_final,
+        evidenceGateDecision: pipeline.retrieval_meta?.evidence_gate_decision,
+        evidenceGateReason: pipeline.retrieval_meta?.evidence_gate_reason,
+        generationSkippedByGate: pipeline.retrieval_meta?.generation_skipped_by_gate,
         latencyMs: Date.now() - startedAt,
         scopeResolution,
         intentClassification: frontendIntentClassification ?? undefined,
+        queryRewriteApplied,
+        queryRewriteReason: queryRewriteReason ?? undefined,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Pipeline chat request failed.";
@@ -6539,6 +6652,8 @@ export async function POST(request: Request) {
         latencyMs: Date.now() - startedAt,
         intentClassification: frontendIntentClassification ?? undefined,
         verifierMode: "retrieval",
+        queryRewriteApplied,
+        queryRewriteReason: queryRewriteReason ?? undefined,
       };
     }
 

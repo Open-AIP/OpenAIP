@@ -50,8 +50,16 @@ def test_answer_with_rag_returns_partial_evidence_when_enabled(monkeypatch) -> N
 
     docs = [_FakeDoc(source_id="S1", similarity=0.22, content="Limited matching context.")]
     monkeypatch.setattr(
-        "openaip_pipeline.services.rag.rag.retrieve_docs",
-        lambda **_kwargs: docs,
+        "openaip_pipeline.services.rag.rag.run_hybrid_retrieval",
+        lambda **_kwargs: {
+            "hybrid_enabled": False,
+            "keyword_enabled": False,
+            "rrf_enabled": False,
+            "dense_docs": docs,
+            "keyword_docs": [],
+            "fused_docs": docs,
+            "strong_docs": [],
+        },
     )
 
     result = answer_with_rag(

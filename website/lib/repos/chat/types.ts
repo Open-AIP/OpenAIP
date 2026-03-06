@@ -163,6 +163,18 @@ export type ChatRetrievalMeta = {
   intentClassification?: PipelineIntentClassification;
   verifierMode?: "structured" | "retrieval" | "mixed";
   verifierPolicyPassed?: boolean;
+  denseCandidateCount?: number;
+  keywordCandidateCount?: number;
+  fusedCandidateCount?: number;
+  denseFinalCount?: number;
+  keywordFinalCount?: number;
+  denseContributedToFinal?: boolean;
+  keywordContributedToFinal?: boolean;
+  evidenceGateDecision?: "allow" | "clarify" | "refuse";
+  evidenceGateReason?: string;
+  generationSkippedByGate?: boolean;
+  queryRewriteApplied?: boolean;
+  queryRewriteReason?: string;
 };
 
 export const ChatRepoErrors = {

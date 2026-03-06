@@ -89,5 +89,15 @@ export type PipelineChatAnswer = {
     strong_count?: number;
     selected_count?: number;
     diversity_selection_enabled?: boolean;
+    dense_candidate_count?: number;
+    keyword_candidate_count?: number;
+    fused_candidate_count?: number;
+    dense_final_count?: number;
+    keyword_final_count?: number;
+    dense_contributed_to_final?: boolean;
+    keyword_contributed_to_final?: boolean;
+    evidence_gate_decision?: "allow" | "clarify" | "refuse";
+    evidence_gate_reason?: string;
+    generation_skipped_by_gate?: boolean;
   };
 };

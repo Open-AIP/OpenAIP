@@ -57,6 +57,31 @@ describe("verifier policy", () => {
     expect(result.passed).toBe(true);
   });
 
+  it("fails mixed mode when structured snapshot mismatches", () => {
+    const result = evaluateVerifierPolicy({
+      mode: "mixed",
+      citations: [sampleCitation],
+      structuredExpected: [{ value: 1200 }],
+      structuredActual: [{ value: 1500 }],
+    });
+    expect(result.passed).toBe(false);
+  });
+
+  it("allows mixed response with no narrative section when flagged as structured-only partial", () => {
+    const result = evaluateVerifierPolicy({
+      mode: "mixed",
+      citations: [],
+      retrievalMeta: {
+        refused: false,
+        reason: "partial_evidence",
+        mixedNarrativeIncluded: false,
+      },
+      structuredExpected: [{ value: 1200 }],
+      structuredActual: [{ value: 1200 }],
+    });
+    expect(result.passed).toBe(true);
+  });
+
   it("verifies structured claims helper directly", () => {
     expect(verifyStructuredClaims({ expected: ["A", "B"], actual: ["A", "B"] })).toBe(true);
     expect(verifyStructuredClaims({ expected: ["A", "B"], actual: ["A"] })).toBe(false);

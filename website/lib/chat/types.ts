@@ -99,5 +99,8 @@ export type PipelineChatAnswer = {
     evidence_gate_decision?: "allow" | "clarify" | "refuse";
     evidence_gate_reason?: string;
     generation_skipped_by_gate?: boolean;
+    multi_query_triggered?: boolean;
+    multi_query_variant_count?: number;
+    multi_query_reason?: string;
   };
 };

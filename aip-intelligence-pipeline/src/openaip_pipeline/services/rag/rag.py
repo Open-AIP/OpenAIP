@@ -7,6 +7,11 @@ import hashlib
 from typing import Any
 
 from openaip_pipeline.core.resources import read_text
+from openaip_pipeline.services.rag.multi_query import (
+    build_multi_query_variants,
+    merge_multi_query_candidates,
+    should_retry_multi_query,
+)
 from openaip_pipeline.services.rag.retriever import (
     fuse_docs_rrf,
     retrieve_dense_docs,
@@ -101,6 +106,10 @@ def _evidence_gate_enabled() -> bool:
     return _bool_env("RAG_EVIDENCE_GATE_ENABLED", False)
 
 
+def _selective_multi_query_enabled() -> bool:
+    return _bool_env("RAG_SELECTIVE_MULTI_QUERY_ENABLED", False)
+
+
 def _hybrid_dense_k() -> int:
     return _int_env("RAG_HYBRID_DENSE_K", 20, minimum=1, maximum=60)
 
@@ -119,6 +128,10 @@ def _gate_min_final_docs() -> int:
 
 def _gate_require_year_match() -> bool:
     return _bool_env("RAG_GATE_REQUIRE_YEAR_MATCH", True)
+
+
+def _selective_multi_query_max_variants() -> int:
+    return _int_env("RAG_SELECTIVE_MULTI_QUERY_MAX_VARIANTS", 3, minimum=1, maximum=3)
 
 
 def _diversity_selection_enabled() -> bool:
@@ -562,6 +575,9 @@ def _attach_selection_meta(
     evidence_gate_decision: str | None = None,
     evidence_gate_reason: str | None = None,
     generation_skipped_by_gate: bool | None = None,
+    multi_query_triggered: bool | None = None,
+    multi_query_variant_count: int | None = None,
+    multi_query_reason: str | None = None,
     extra_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     metadata = dict(result.get("retrieval_meta") or {})
@@ -591,6 +607,12 @@ def _attach_selection_meta(
         metadata["evidence_gate_reason"] = evidence_gate_reason
     if generation_skipped_by_gate is not None:
         metadata["generation_skipped_by_gate"] = generation_skipped_by_gate
+    if multi_query_triggered is not None:
+        metadata["multi_query_triggered"] = multi_query_triggered
+    if multi_query_variant_count is not None:
+        metadata["multi_query_variant_count"] = multi_query_variant_count
+    if multi_query_reason is not None:
+        metadata["multi_query_reason"] = multi_query_reason
     if isinstance(extra_meta, dict):
         metadata.update(extra_meta)
     result["retrieval_meta"] = metadata
@@ -740,7 +762,12 @@ def answer_with_rag(
     gate_reason = "gate_not_evaluated"
     gate_metrics: dict[str, Any] = {}
     generation_skipped_by_gate = False
+    multi_query_triggered = False
+    multi_query_variant_count = 0
+    multi_query_reason = "not_attempted"
     selected_docs: list[Any] = []
+    effective_strong_docs = list(strong_docs)
+    effective_docs = list(docs)
 
     def attach(
         result: dict[str, Any],
@@ -756,8 +783,8 @@ def answer_with_rag(
             dense_final_count, keyword_final_count = _count_channel_contribution(selected_docs)
         return _attach_selection_meta(
             result,
-            retrieved_count=len(docs),
-            strong_count=strong_count_override if strong_count_override is not None else len(strong_docs),
+            retrieved_count=len(effective_docs),
+            strong_count=strong_count_override if strong_count_override is not None else len(effective_strong_docs),
             selected_count=selected_count,
             diversity_selection_enabled=diversity_enabled,
             dense_candidate_count=dense_candidate_count,
@@ -772,10 +799,13 @@ def answer_with_rag(
                 if generation_skipped_override is not None
                 else generation_skipped_by_gate
             ),
+            multi_query_triggered=multi_query_triggered,
+            multi_query_variant_count=multi_query_variant_count,
+            multi_query_reason=multi_query_reason,
             extra_meta=extra_meta,
         )
 
-    if not strong_docs:
+    if not effective_strong_docs:
         if docs and _partial_mode_enabled():
             return attach(
                 _build_partial_evidence(
@@ -804,9 +834,9 @@ def answer_with_rag(
         )
 
     selected_docs = (
-        _select_diverse_docs(strong_docs, max_docs=6, min_docs=4)
+        _select_diverse_docs(effective_strong_docs, max_docs=6, min_docs=4)
         if diversity_enabled
-        else strong_docs[: min(6, len(strong_docs))]
+        else effective_strong_docs[: min(6, len(effective_strong_docs))]
     )
 
     if _evidence_gate_enabled():
@@ -814,6 +844,55 @@ def answer_with_rag(
         gate_decision = str(gate.get("decision") or "clarify")
         gate_reason = str(gate.get("reason") or "gate_blocked")
         gate_metrics = dict(gate.get("metrics") or {})
+        if gate_decision != "allow" and _selective_multi_query_enabled():
+            should_retry, retry_reason = should_retry_multi_query(
+                gate_decision=gate_decision,
+                gate_reason=gate_reason,
+            )
+            if should_retry:
+                variants = build_multi_query_variants(
+                    question=question,
+                    max_variants=_selective_multi_query_max_variants(),
+                )
+                if variants:
+                    multi_query_triggered = True
+                    multi_query_variant_count = len(variants)
+                    multi_query_reason = retry_reason or "retryable_low_confidence"
+
+                    variant_docs: list[Any] = []
+                    for variant in variants:
+                        variant_bundle = run_hybrid_retrieval(
+                            supabase=supabase,
+                            embeddings_model=embeddings_model,
+                            question=variant,
+                            retrieval_scope=resolved_scope,
+                            top_k=top_k,
+                            min_similarity=min_similarity,
+                        )
+                        variant_strong_docs = list(variant_bundle.get("strong_docs") or [])
+                        if variant_strong_docs:
+                            variant_docs.extend(variant_strong_docs)
+
+                    if variant_docs:
+                        max_candidates = max(12, min(60, len(effective_strong_docs) + len(variant_docs)))
+                        effective_strong_docs = merge_multi_query_candidates(
+                            base_docs=effective_strong_docs,
+                            variant_docs=variant_docs,
+                            max_candidates=max_candidates,
+                        )
+                        effective_docs = list(effective_strong_docs)
+                        selected_docs = (
+                            _select_diverse_docs(effective_strong_docs, max_docs=6, min_docs=4)
+                            if diversity_enabled
+                            else effective_strong_docs[: min(6, len(effective_strong_docs))]
+                        )
+                        gate = evaluate_evidence_gate(question=question, selected_docs=selected_docs)
+                        gate_decision = str(gate.get("decision") or "clarify")
+                        gate_reason = str(gate.get("reason") or "gate_blocked")
+                        gate_metrics = dict(gate.get("metrics") or {})
+                else:
+                    multi_query_reason = "no_variants_generated"
+
         if gate_decision != "allow":
             generation_skipped_by_gate = True
             if gate_decision == "clarify":

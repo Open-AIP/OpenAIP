@@ -175,6 +175,17 @@ export type ChatRetrievalMeta = {
   generationSkippedByGate?: boolean;
   queryRewriteApplied?: boolean;
   queryRewriteReason?: string;
+  queryPlanMode?: "structured_only" | "semantic_only" | "mixed";
+  queryPlanStructuredTaskCount?: number;
+  queryPlanSemanticTaskCount?: number;
+  queryPlanClarificationRequired?: boolean;
+  queryPlanDiagnostics?: string[];
+  semanticConditioningApplied?: boolean;
+  semanticConditioningHintCount?: number;
+  mixedResponseMode?: "full" | "partial" | "clarify" | "refuse";
+  mixedNarrativeIncluded?: boolean;
+  selectiveMultiQueryTriggered?: boolean;
+  selectiveMultiQueryVariantCount?: number;
 };
 
 export const ChatRepoErrors = {

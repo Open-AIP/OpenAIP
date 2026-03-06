@@ -58,6 +58,14 @@ import {
 import { resolveRetrievalScope } from "@/lib/chat/scope-resolver.server";
 import { routeSqlFirstTotals, buildTotalsMissingMessage } from "@/lib/chat/totals-sql-routing";
 import { detectCompoundAsk, splitIntoSubAsks, shouldClarifyBeforeExecution } from "@/lib/chat/query-planner";
+import { buildQueryPlan } from "@/lib/chat/query-plan-builder";
+import { executeMixedPlan } from "@/lib/chat/query-plan-executor";
+import type {
+  QueryPlanSemanticTask,
+  QueryPlanStructuredTask,
+  SemanticTaskExecutionResult,
+  StructuredTaskExecutionResult,
+} from "@/lib/chat/query-plan-types";
 import type { PipelineChatCitation, PipelineIntentClassification } from "@/lib/chat/types";
 import type { Json } from "@/lib/contracts/databasev2";
 import type { ActorContext } from "@/lib/domain/actor-context";
@@ -1810,6 +1818,14 @@ function isChatContextualRewriteEnabled(): boolean {
   return process.env.CHAT_CONTEXTUAL_REWRITE_ENABLED === "true";
 }
 
+function isChatMixedQueryPlannerEnabled(): boolean {
+  return process.env.CHAT_MIXED_QUERY_PLANNER_ENABLED === "true";
+}
+
+function isChatMixedQueryExecutionEnabled(): boolean {
+  return process.env.CHAT_MIXED_QUERY_EXECUTION_ENABLED === "true";
+}
+
 function logRewriteDecision(input: {
   requestId: string;
   originalQuery: string;
@@ -1852,6 +1868,30 @@ function logRouteDecision(input: {
       reasons: input.routeDecision.reasons,
       missing_slots: input.routeDecision.missingSlots,
       candidates: input.routeDecision.candidates,
+    })
+  );
+}
+
+function logQueryPlanDecision(input: {
+  requestId: string;
+  effectiveQuery: string;
+  mode: "structured_only" | "semantic_only" | "mixed";
+  structuredTaskCount: number;
+  semanticTaskCount: number;
+  clarificationRequired: boolean;
+  diagnostics: string[];
+}): void {
+  if (!isTotalsDebugEnabled()) return;
+  console.info(
+    JSON.stringify({
+      request_id: input.requestId,
+      event: "query_plan_selected",
+      query_plan_mode: input.mode,
+      query_plan_structured_task_count: input.structuredTaskCount,
+      query_plan_semantic_task_count: input.semanticTaskCount,
+      query_plan_clarification_required: input.clarificationRequired,
+      query_plan_diagnostics: input.diagnostics,
+      effective_query_preview: input.effectiveQuery.slice(0, 220),
     })
   );
 }
@@ -3176,6 +3216,488 @@ async function resolveTotalsAssistantPayload(input: {
   };
 }
 
+function toMixedTaskCitations(citations: ChatCitation[]): StructuredTaskExecutionResult["citations"] {
+  return citations.map((citation) => ({
+    sourceId: citation.sourceId,
+    snippet: citation.snippet,
+    metadata: citation.metadata,
+  }));
+}
+
+function takeUniqueHints(values: string[], maxHints = 8): string[] {
+  const out: string[] = [];
+  for (const value of values) {
+    const normalized = value.trim();
+    if (!normalized) continue;
+    if (out.includes(normalized)) continue;
+    out.push(normalized);
+    if (out.length >= maxHints) break;
+  }
+  return out;
+}
+
+function mapSemanticReasonToStatus(reason: string | undefined): SemanticTaskExecutionResult["status"] {
+  if (reason === "ok") return "ok";
+  if (reason === "partial_evidence") return "partial";
+  if (reason === "clarification_needed") return "clarify";
+  if (reason === "insufficient_evidence") return "refuse";
+  if (reason === "verifier_failed" || reason === "validation_failed") return "refuse";
+  if (reason === "pipeline_error") return "error";
+  return "error";
+}
+
+async function executeStructuredTaskForMixed(input: {
+  task: QueryPlanStructuredTask;
+  actor: ActorContext;
+  scopeResolution: ChatScopeResolution;
+  userBarangay: BarangayRef | null;
+  requestId: string;
+}): Promise<StructuredTaskExecutionResult> {
+  if (input.task.routeKind === "SQL_TOTAL") {
+    const totals = await resolveTotalsAssistantPayload({
+      actor: input.actor,
+      message: input.task.subquery,
+      scopeResolution: input.scopeResolution,
+      requestId: input.requestId,
+    });
+    const status: StructuredTaskExecutionResult["status"] =
+      totals.retrievalMeta.status === "clarification"
+        ? "clarify"
+        : totals.retrievalMeta.refused
+          ? "empty"
+          : "ok";
+
+    const amountHints = totals.citations
+      .map((citation) => {
+        const metadata = (citation.metadata ?? {}) as Record<string, unknown>;
+        const fiscalYear = typeof metadata.fiscal_year === "number" ? metadata.fiscal_year : null;
+        if (fiscalYear === null) return null;
+        return `FY ${fiscalYear}`;
+      })
+      .filter((value): value is string => Boolean(value));
+
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status,
+      summary: totals.content,
+      citations: toMixedTaskCitations(totals.citations),
+      structuredSnapshot: totals.citations.map((citation) => citation.metadata ?? null),
+      conditioningHints: takeUniqueHints(amountHints),
+      clarificationPrompt:
+        totals.retrievalMeta.status === "clarification"
+          ? totals.content
+          : undefined,
+    };
+  }
+
+  if (input.task.routeKind === "SQL_METADATA") {
+    const metadata = await resolveMetadataSqlPayload({
+      message: input.task.subquery,
+      scopeResolution: input.scopeResolution,
+    });
+    if (!metadata) {
+      return {
+        taskId: input.task.id,
+        kind: input.task.kind,
+        status: "empty",
+        summary: "No structured metadata values were found.",
+        citations: [],
+        structuredSnapshot: [],
+        conditioningHints: [],
+      };
+    }
+
+    const hints = Array.isArray(metadata.structuredValues)
+      ? metadata.structuredValues.map((value) => String(value))
+      : [];
+
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: metadata.structuredValues.length > 0 ? "ok" : "empty",
+      summary: metadata.content,
+      citations: toMixedTaskCitations(metadata.citations),
+      structuredSnapshot: metadata.structuredValues,
+      conditioningHints: takeUniqueHints(hints),
+    };
+  }
+
+  if (input.task.routeKind === "ROW_LOOKUP") {
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: "clarify",
+      summary: "Mixed line-item execution requires a specific reference code or project title.",
+      citations: [],
+      structuredSnapshot: [],
+      conditioningHints: [],
+      clarificationPrompt:
+        "Please specify the exact line-item ref code (for example, Ref 8000-003-002-006) before I run a mixed answer.",
+    };
+  }
+
+  const aggregationIntent = detectAggregationIntent(input.task.subquery);
+  if (aggregationIntent.intent === "none") {
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: "clarify",
+      summary: "I could not determine the aggregation task from the mixed query.",
+      citations: [],
+      structuredSnapshot: [],
+      conditioningHints: [],
+      clarificationPrompt:
+        "Please restate the computed part of the request (for example: compare FY 2024 vs FY 2025, or top 5 projects in FY 2025).",
+    };
+  }
+
+  const aggregationScope = await resolveAggregationScopeDecision({
+    message: input.task.subquery,
+    scopeResolution: input.scopeResolution,
+    userBarangay: input.userBarangay,
+  });
+
+  if (aggregationScope.unsupportedScopeType) {
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: "clarify",
+      summary: "The mixed structured task needs a barangay or global scope.",
+      citations: [],
+      structuredSnapshot: [],
+      conditioningHints: [],
+      clarificationPrompt:
+        "Please use a barangay scope (or remove the city-only scope) for the computed part of this mixed request.",
+    };
+  }
+
+  if (aggregationScope.clarificationMessage) {
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: "clarify",
+      summary: aggregationScope.clarificationMessage,
+      citations: [],
+      structuredSnapshot: [],
+      conditioningHints: [],
+      clarificationPrompt: aggregationScope.clarificationMessage,
+    };
+  }
+
+  const fiscalYearForAggregation =
+    aggregationIntent.intent === "compare_years" ? null : extractFiscalYear(input.task.subquery);
+  const scopeLabel = aggregationScope.barangayName
+    ? normalizeBarangayLabel(aggregationScope.barangayName)
+    : "All barangays";
+  const fiscalLabel =
+    fiscalYearForAggregation === null ? "All fiscal years" : `FY ${fiscalYearForAggregation}`;
+  const client = await supabaseServer();
+
+  if (aggregationIntent.intent === "top_projects") {
+    const limit = aggregationIntent.limit ?? 10;
+    const { data, error } = await client.rpc("get_top_projects", {
+      p_limit: limit,
+      p_fiscal_year: fiscalYearForAggregation,
+      p_barangay_id: aggregationScope.barangayIdUsed,
+    });
+    if (error) throw new Error(error.message);
+    const rows = toTopProjectRows(data);
+    if (rows.length === 0) {
+      return {
+        taskId: input.task.id,
+        kind: input.task.kind,
+        status: "empty",
+        summary: "No published AIP line items matched the selected top-project filters.",
+        citations: [
+          {
+            sourceId: "A0",
+            snippet: "No top projects found from published AIP line items.",
+            metadata: {
+              aggregate_type: "top_projects",
+              fiscal_year_filter: fiscalYearForAggregation,
+              barangay_id_filter: aggregationScope.barangayIdUsed,
+            },
+          },
+        ],
+        structuredSnapshot: [],
+        conditioningHints: [],
+      };
+    }
+
+    const summaryLines = rows.map((row, index) => {
+      const total = formatPhpAmount(toNumberOrNull(row.total));
+      const ref = row.aip_ref_code ? `Ref ${row.aip_ref_code}` : "Ref N/A";
+      return `${index + 1}. ${row.program_project_title} (${total}; ${ref})`;
+    });
+    const hints = rows.flatMap((row) => {
+      const values = [row.program_project_title];
+      if (row.aip_ref_code) values.push(`Ref ${row.aip_ref_code}`);
+      return values;
+    });
+
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: "ok",
+      summary: `Top ${rows.length} projects by total (${scopeLabel}; ${fiscalLabel}):\n${summaryLines.join("\n")}`,
+      citations: [
+        {
+          sourceId: "A1",
+          snippet: "Top projects computed from published AIP line items.",
+          metadata: {
+            aggregate_type: "top_projects",
+            fiscal_year_filter: fiscalYearForAggregation,
+            barangay_id_filter: aggregationScope.barangayIdUsed,
+            limit,
+          },
+        },
+      ],
+      structuredSnapshot: rows.map((row) => ({
+        line_item_id: row.line_item_id,
+        program_project_title: row.program_project_title,
+        aip_ref_code: row.aip_ref_code,
+        fiscal_year: row.fiscal_year,
+        total: toNumberOrNull(row.total),
+      })),
+      conditioningHints: takeUniqueHints(hints),
+    };
+  }
+
+  if (aggregationIntent.intent === "totals_by_sector") {
+    const { data, error } = await client.rpc("get_totals_by_sector", {
+      p_fiscal_year: fiscalYearForAggregation,
+      p_barangay_id: aggregationScope.barangayIdUsed,
+    });
+    if (error) throw new Error(error.message);
+    const rows = toTotalsBySectorRows(data);
+    const lines =
+      rows.length === 0
+        ? ["No sectors matched the selected filters."]
+        : rows.map((row, index) => {
+            const label = [row.sector_code, row.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
+            return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.sector_total))}`;
+          });
+    const hints = rows
+      .map((row) => (row.sector_name ?? "").trim())
+      .filter((value): value is string => Boolean(value));
+
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: rows.length > 0 ? "ok" : "empty",
+      summary: `Budget totals by sector (${scopeLabel}; ${fiscalLabel}):\n${lines.join("\n")}`,
+      citations: [
+        {
+          sourceId: "A1",
+          snippet: "Sector totals computed from published AIP line items.",
+          metadata: {
+            aggregate_type: "totals_by_sector",
+            fiscal_year_filter: fiscalYearForAggregation,
+            barangay_id_filter: aggregationScope.barangayIdUsed,
+          },
+        },
+      ],
+      structuredSnapshot: rows.map((row) => ({
+        sector_code: row.sector_code,
+        sector_name: row.sector_name,
+        sector_total: toNumberOrNull(row.sector_total),
+        count_items: parseInteger(row.count_items),
+      })),
+      conditioningHints: takeUniqueHints(hints),
+    };
+  }
+
+  if (aggregationIntent.intent === "totals_by_fund_source") {
+    const { data, error } = await client.rpc("get_totals_by_fund_source", {
+      p_fiscal_year: fiscalYearForAggregation,
+      p_barangay_id: aggregationScope.barangayIdUsed,
+    });
+    if (error) throw new Error(error.message);
+    const rows = toTotalsByFundSourceRows(data);
+    const lines =
+      rows.length === 0
+        ? ["No fund sources matched the selected filters."]
+        : rows.map((row, index) => {
+            const label = (row.fund_source ?? "Unspecified").trim() || "Unspecified";
+            return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.fund_total))}`;
+          });
+    const hints = rows
+      .map((row) => (row.fund_source ?? "").trim())
+      .filter((value): value is string => Boolean(value));
+
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: rows.length > 0 ? "ok" : "empty",
+      summary: `Budget totals by fund source (${scopeLabel}; ${fiscalLabel}):\n${lines.join("\n")}`,
+      citations: [
+        {
+          sourceId: "A1",
+          snippet: "Fund source totals computed from published AIP line items.",
+          metadata: {
+            aggregate_type: "totals_by_fund_source",
+            fiscal_year_filter: fiscalYearForAggregation,
+            barangay_id_filter: aggregationScope.barangayIdUsed,
+          },
+        },
+      ],
+      structuredSnapshot: rows.map((row) => ({
+        fund_source: row.fund_source,
+        fund_total: toNumberOrNull(row.fund_total),
+        count_items: parseInteger(row.count_items),
+      })),
+      conditioningHints: takeUniqueHints(hints),
+    };
+  }
+
+  const yearA = aggregationIntent.yearA ?? null;
+  const yearB = aggregationIntent.yearB ?? null;
+  if (yearA === null || yearB === null) {
+    return {
+      taskId: input.task.id,
+      kind: input.task.kind,
+      status: "clarify",
+      summary: "Two fiscal years are required for compare-years structured tasks.",
+      citations: [],
+      structuredSnapshot: [],
+      conditioningHints: [],
+      clarificationPrompt:
+        "Please provide two fiscal years for comparison (for example: FY 2024 vs FY 2025).",
+    };
+  }
+
+  const scopeMode: "global_barangays" | "single_barangay" =
+    aggregationScope.barangayIdUsed === null ? "global_barangays" : "single_barangay";
+  const yearAResult = await fetchTotalInvestmentProgramTotalsByYear({
+    year: yearA,
+    scopeMode,
+    barangayId: aggregationScope.barangayIdUsed,
+    barangayName: aggregationScope.barangayName,
+  });
+  const yearBResult = await fetchTotalInvestmentProgramTotalsByYear({
+    year: yearB,
+    scopeMode,
+    barangayId: aggregationScope.barangayIdUsed,
+    barangayName: aggregationScope.barangayName,
+  });
+  const compareVerbose = buildCompareYearsVerboseAnswer({
+    yearA,
+    yearB,
+    scopeLabel,
+    sourceNote:
+      scopeMode === "single_barangay"
+        ? `Using sum of barangay totals (aip_totals) for ${scopeLabel}.`
+        : "Using sum of barangay totals (aip_totals) across all barangays.",
+    yearAResult,
+    yearBResult,
+  });
+
+  return {
+    taskId: input.task.id,
+    kind: input.task.kind,
+    status: "ok",
+    summary: compareVerbose.content,
+    citations: [
+      {
+        sourceId: "A1",
+        snippet: "Compare-years totals computed from aip_totals.",
+        metadata: {
+          aggregate_type: "compare_years_verbose",
+          year_a: yearA,
+          year_b: yearB,
+          scope_mode: scopeMode,
+          barangay_id_filter: aggregationScope.barangayIdUsed,
+        },
+      },
+    ],
+    structuredSnapshot: {
+      year_a: yearAResult.total,
+      year_b: yearBResult.total,
+      covered_count_year_a: yearAResult.coveredCount,
+      covered_count_year_b: yearBResult.coveredCount,
+    },
+    conditioningHints: takeUniqueHints([`FY ${yearA}`, `FY ${yearB}`, ...compareVerbose.coverageBarangays]),
+  };
+}
+
+async function executeSemanticTaskForMixed(input: {
+  task: QueryPlanSemanticTask;
+  retrievalScope: {
+    mode: "global" | "own_barangay" | "named_scopes";
+    targets: Array<{
+      scope_type: "barangay" | "city" | "municipality";
+      scope_id: string;
+      scope_name: string;
+    }>;
+  } | null;
+  conditioningHints: string[];
+}): Promise<SemanticTaskExecutionResult> {
+  if (!input.retrievalScope) {
+    return {
+      taskId: input.task.id,
+      status: "clarify",
+      answer: "Please clarify the scope before I run the cited narrative portion.",
+      citations: [],
+      retrievalMeta: {
+        reason: "clarification_needed",
+      },
+    };
+  }
+
+  const boundedHints = input.conditioningHints.slice(0, 6);
+  const conditionedQuery =
+    boundedHints.length === 0
+      ? input.task.subquery
+      : `${input.task.subquery}\n\nFocus entities from computed results: ${boundedHints.join("; ")}`;
+
+  try {
+    const pipeline = await requestPipelineChatAnswer({
+      question: conditionedQuery,
+      retrievalScope: input.retrievalScope,
+      topK: 8,
+      minSimilarity: 0.3,
+    });
+
+    const status = mapSemanticReasonToStatus(pipeline.retrieval_meta?.reason);
+    return {
+      taskId: input.task.id,
+      status,
+      answer: pipeline.answer.trim(),
+      citations: normalizePipelineCitations(pipeline.citations).map((citation) => ({
+        sourceId: citation.sourceId,
+        snippet: citation.snippet,
+        metadata: citation.metadata,
+      })),
+      retrievalMeta: {
+        reason: pipeline.retrieval_meta?.reason,
+        multiQueryTriggered: pipeline.retrieval_meta?.multi_query_triggered,
+        multiQueryVariantCount: pipeline.retrieval_meta?.multi_query_variant_count,
+      },
+      conditionedQuery,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Semantic branch failed.";
+    return {
+      taskId: input.task.id,
+      status: "error",
+      answer:
+        "I couldn't complete the narrative evidence branch due to a temporary system issue.",
+      citations: [
+        {
+          sourceId: "S0",
+          snippet: "Semantic branch request failed.",
+          metadata: { error: message },
+        },
+      ],
+      retrievalMeta: {
+        reason: "pipeline_error",
+      },
+      conditionedQuery,
+    };
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const csrf = enforceCsrfProtection(request);
@@ -3507,6 +4029,246 @@ export async function POST(request: Request) {
         routeDecision: routerDecision,
         mode: "single",
       });
+    }
+
+    const plannerEnabled =
+      isChatRouterV2Enabled() &&
+      isChatMixedQueryPlannerEnabled() &&
+      !pendingClarification;
+    if (plannerEnabled) {
+      const queryPlan = buildQueryPlan({
+        text: content,
+        intentClassification: frontendIntentClassification,
+      });
+      logQueryPlanDecision({
+        requestId,
+        effectiveQuery: queryPlan.effectiveQuery,
+        mode: queryPlan.mode,
+        structuredTaskCount: queryPlan.structuredTasks.length,
+        semanticTaskCount: queryPlan.semanticTasks.length,
+        clarificationRequired: queryPlan.clarificationRequired,
+        diagnostics: queryPlan.diagnostics,
+      });
+
+      if (queryPlan.mode === "mixed") {
+        if (queryPlan.clarificationRequired) {
+          const assistantMessage = await appendAssistantMessage({
+            actor: privilegedActor,
+            sessionId: session.id,
+            content:
+              queryPlan.clarificationPrompt ??
+              "Please clarify missing scope/year details before I run the mixed request.",
+            citations: [
+              makeSystemCitation(
+                "Mixed query plan requires missing slots before execution.",
+                {
+                  query_plan_mode: queryPlan.mode,
+                  diagnostics: queryPlan.diagnostics,
+                }
+              ),
+            ],
+            retrievalMeta: {
+              refused: false,
+              reason: "clarification_needed",
+              status: "clarification",
+              scopeResolution,
+              latencyMs: Date.now() - startedAt,
+              intentClassification: frontendIntentClassification ?? undefined,
+              queryRewriteApplied,
+              queryRewriteReason: queryRewriteReason ?? undefined,
+              queryPlanMode: queryPlan.mode,
+              queryPlanStructuredTaskCount: queryPlan.structuredTasks.length,
+              queryPlanSemanticTaskCount: queryPlan.semanticTasks.length,
+              queryPlanClarificationRequired: true,
+              queryPlanDiagnostics: queryPlan.diagnostics,
+              mixedResponseMode: "clarify",
+              mixedNarrativeIncluded: false,
+              verifierMode: "structured",
+            },
+            verifierInput: {
+              mode: "structured",
+            },
+          });
+
+          logNonTotalsRouting({
+            request_id: requestId,
+            intent: "clarification_needed",
+            route: "pipeline_fallback",
+            fiscal_year_parsed: requestedFiscalYear,
+            scope_reason: "unknown",
+            barangay_id_used: null,
+            match_count_used: null,
+            top_candidate_ids: [],
+            top_candidate_distances: [],
+            answered: false,
+            vector_called: false,
+            status: "clarification",
+          });
+
+          return NextResponse.json(
+            chatResponsePayload({
+              sessionId: session.id,
+              userMessage,
+              assistantMessage,
+            }),
+            { status: 200 }
+          );
+        }
+
+        if (isChatMixedQueryExecutionEnabled()) {
+          try {
+            const userBarangay = await resolveUserBarangay(actor);
+            const mixedResult = await executeMixedPlan({
+              plan: queryPlan,
+              executeStructuredTask: (task) =>
+                executeStructuredTaskForMixed({
+                  task,
+                  actor,
+                  scopeResolution,
+                  userBarangay,
+                  requestId,
+                }),
+              executeSemanticTask: (task, hints) =>
+                executeSemanticTaskForMixed({
+                  task,
+                  retrievalScope: scope.retrievalScope,
+                  conditioningHints: hints,
+                }),
+            });
+
+            const mixedReason: ChatRetrievalMeta["reason"] =
+              mixedResult.responseMode === "full"
+                ? "ok"
+                : mixedResult.responseMode === "partial"
+                  ? "partial_evidence"
+                  : mixedResult.responseMode === "clarify"
+                    ? "clarification_needed"
+                    : "insufficient_evidence";
+            const mixedStatus: ChatResponseStatus =
+              mixedResult.responseMode === "clarify"
+                ? "clarification"
+                : mixedResult.responseMode === "refuse"
+                  ? "refusal"
+                  : "answer";
+
+            const assistantMessage = await appendAssistantMessage({
+              actor: privilegedActor,
+              sessionId: session.id,
+              content: mixedResult.content,
+              citations: mixedResult.citations,
+              retrievalMeta: {
+                refused: mixedResult.responseMode === "refuse",
+                reason: mixedReason,
+                status: mixedStatus,
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+                intentClassification: frontendIntentClassification ?? undefined,
+                queryRewriteApplied,
+                queryRewriteReason: queryRewriteReason ?? undefined,
+                queryPlanMode: queryPlan.mode,
+                queryPlanStructuredTaskCount: queryPlan.structuredTasks.length,
+                queryPlanSemanticTaskCount: queryPlan.semanticTasks.length,
+                queryPlanClarificationRequired: false,
+                queryPlanDiagnostics: [...queryPlan.diagnostics, ...mixedResult.diagnostics],
+                semanticConditioningApplied: mixedResult.semanticConditioningApplied,
+                semanticConditioningHintCount: mixedResult.semanticConditioningHintCount,
+                mixedResponseMode: mixedResult.responseMode,
+                mixedNarrativeIncluded: mixedResult.narrativeIncluded,
+                selectiveMultiQueryTriggered: mixedResult.selectiveMultiQueryTriggered,
+                selectiveMultiQueryVariantCount: mixedResult.selectiveMultiQueryVariantCount,
+                verifierMode: mixedResult.verifierMode,
+              },
+              verifierInput: {
+                mode: mixedResult.verifierMode,
+                structuredExpected:
+                  mixedResult.verifierMode === "retrieval"
+                    ? undefined
+                    : mixedResult.structuredSnapshot,
+                structuredActual:
+                  mixedResult.verifierMode === "retrieval"
+                    ? undefined
+                    : mixedResult.structuredSnapshot,
+              },
+            });
+
+            logNonTotalsRouting({
+              request_id: requestId,
+              intent: "pipeline_fallback",
+              route: "pipeline_fallback",
+              fiscal_year_parsed: requestedFiscalYear,
+              scope_reason: "unknown",
+              barangay_id_used: null,
+              match_count_used: null,
+              top_candidate_ids: [],
+              top_candidate_distances: [],
+              answered: mixedResult.responseMode !== "refuse",
+              vector_called: false,
+              status: mixedStatus,
+            });
+
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "Mixed query execution failed.";
+            const assistantMessage = await appendAssistantMessage({
+              actor: privilegedActor,
+              sessionId: session.id,
+              content:
+                "I couldn't complete the mixed structured + narrative request due to a temporary system issue.",
+              citations: [makeSystemCitation("Mixed query execution failed.", { error: message })],
+              retrievalMeta: {
+                refused: true,
+                reason: "pipeline_error",
+                status: "refusal",
+                scopeResolution,
+                latencyMs: Date.now() - startedAt,
+                intentClassification: frontendIntentClassification ?? undefined,
+                queryRewriteApplied,
+                queryRewriteReason: queryRewriteReason ?? undefined,
+                queryPlanMode: queryPlan.mode,
+                queryPlanStructuredTaskCount: queryPlan.structuredTasks.length,
+                queryPlanSemanticTaskCount: queryPlan.semanticTasks.length,
+                queryPlanClarificationRequired: false,
+                queryPlanDiagnostics: queryPlan.diagnostics,
+                mixedResponseMode: "refuse",
+                mixedNarrativeIncluded: false,
+                verifierMode: "mixed",
+              },
+            });
+
+            logNonTotalsRouting({
+              request_id: requestId,
+              intent: "pipeline_fallback",
+              route: "pipeline_fallback",
+              fiscal_year_parsed: requestedFiscalYear,
+              scope_reason: "unknown",
+              barangay_id_used: null,
+              match_count_used: null,
+              top_candidate_ids: [],
+              top_candidate_distances: [],
+              answered: false,
+              vector_called: false,
+              status: "refusal",
+            });
+
+            return NextResponse.json(
+              chatResponsePayload({
+                sessionId: session.id,
+                userMessage,
+                assistantMessage,
+              }),
+              { status: 200 }
+            );
+          }
+        }
+      }
     }
 
     if (isChatRouterV2Enabled() && isChatMixedIntentEnabled() && !pendingClarification && detectCompoundAsk(content)) {
@@ -6634,6 +7396,8 @@ export async function POST(request: Request) {
         evidenceGateDecision: pipeline.retrieval_meta?.evidence_gate_decision,
         evidenceGateReason: pipeline.retrieval_meta?.evidence_gate_reason,
         generationSkippedByGate: pipeline.retrieval_meta?.generation_skipped_by_gate,
+        selectiveMultiQueryTriggered: pipeline.retrieval_meta?.multi_query_triggered,
+        selectiveMultiQueryVariantCount: pipeline.retrieval_meta?.multi_query_variant_count,
         latencyMs: Date.now() - startedAt,
         scopeResolution,
         intentClassification: frontendIntentClassification ?? undefined,

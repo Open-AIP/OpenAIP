@@ -69,11 +69,20 @@ export function evaluateVerifierPolicy(input: VerifierPolicyInput): VerifierPoli
   if (input.mode === "structured") {
     return { mode: input.mode, passed: structuredPassed };
   }
+
   if (input.mode === "retrieval") {
     return { mode: input.mode, passed: retrievalPassed };
   }
+
+  const hasStructuredSnapshot =
+    input.structuredExpected !== undefined && input.structuredActual !== undefined;
+  const requireNarrativeGrounding = input.retrievalMeta?.mixedNarrativeIncluded !== false;
+
   return {
     mode: input.mode,
-    passed: structuredPassed && retrievalPassed,
+    passed:
+      hasStructuredSnapshot &&
+      structuredPassed &&
+      (requireNarrativeGrounding ? retrievalPassed : true),
   };
 }

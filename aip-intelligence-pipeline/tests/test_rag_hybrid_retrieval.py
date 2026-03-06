@@ -1,7 +1,22 @@
 from __future__ import annotations
 
+import sys
+import types
+
 from openaip_pipeline.services.rag.rag import run_hybrid_retrieval
 from openaip_pipeline.services.rag.retriever import fuse_docs_rrf
+
+
+class _FakeDocument:
+    def __init__(self, *, page_content: str, metadata: dict):
+        self.page_content = page_content
+        self.metadata = metadata
+
+
+sys.modules.setdefault(
+    "langchain_core.documents",
+    types.SimpleNamespace(Document=_FakeDocument),
+)
 
 
 class _FakeDoc:

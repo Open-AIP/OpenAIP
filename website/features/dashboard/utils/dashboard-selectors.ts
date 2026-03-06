@@ -25,7 +25,8 @@ const CITIZEN_KIND_SET = new Set<string>(CITIZEN_FEEDBACK_KINDS);
 
 export function selectBudgetBySector(
   projects: DashboardProject[],
-  sectors: DashboardSector[]
+  sectors: DashboardSector[],
+  displayTotalBudget?: number | null
 ): Array<{ sectorCode: string; label: string; amount: number; percentage: number }> {
   const totals = new Map<string, number>([
     ["general", 0],
@@ -49,6 +50,11 @@ export function selectBudgetBySector(
   }
 
   const grandTotal = Array.from(totals.values()).reduce((sum, value) => sum + value, 0);
+  const denominator =
+    typeof displayTotalBudget === "number" &&
+    Number.isFinite(displayTotalBudget)
+      ? displayTotalBudget
+      : grandTotal;
   const bucketLabels = new Map<string, string>([
     ["general", "General"],
     ["social", "Social"],
@@ -67,7 +73,7 @@ export function selectBudgetBySector(
       sectorCode,
       label: bucketLabels.get(sectorCode) ?? sectorCode,
       amount,
-      percentage: grandTotal > 0 ? (amount / grandTotal) * 100 : 0,
+      percentage: denominator > 0 ? (amount / denominator) * 100 : 0,
     }))
     .sort((left, right) => (bucketOrder.get(left.sectorCode) ?? 99) - (bucketOrder.get(right.sectorCode) ?? 99));
 }
@@ -310,8 +316,13 @@ export function buildDashboardVm(input: {
     sectorCode: input.tableSector,
   });
 
-  const budgetBySector = selectBudgetBySector(projects, input.data.sectors);
-  const totalBudget = selectProjectTotalBudget(projects);
+  const projectTotalBudget = selectProjectTotalBudget(projects);
+  const totalBudget =
+    typeof input.data.selectedAip?.totalInvestmentProgram === "number" &&
+    Number.isFinite(input.data.selectedAip.totalInvestmentProgram)
+      ? input.data.selectedAip.totalInvestmentProgram
+      : projectTotalBudget;
+  const budgetBySector = selectBudgetBySector(projects, input.data.sectors, totalBudget);
   const missingTotalCount = selectProjectsMissingTotal(projects);
 
   const citizenFeedbackCount = selectCitizenFeedbackCount(input.data.feedback);

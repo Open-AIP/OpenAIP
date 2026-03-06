@@ -2,6 +2,10 @@ import "server-only";
 
 import type { Json, RoleType } from "@/lib/contracts/databasev2";
 import { selectRepo } from "@/lib/repos/_shared/selector";
+import {
+  fetchAipFileTotalsByAipIds,
+  resolveAipDisplayTotal,
+} from "@/lib/repos/_shared/aip-totals";
 import { normalizeProjectErrors } from "@/lib/repos/aip/project-review";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -240,6 +244,7 @@ function buildListRecord(input: {
   aip: AipRow;
   projects: ProjectRow[];
   summary: string | null;
+  budgetTotal?: number | null;
   parentCityByBarangayId?: Map<string, BarangayParentCityScope>;
 }): CitizenAipListRecord {
   const lguLabel = toLguLabel(input.aip);
@@ -273,7 +278,10 @@ function buildListRecord(input: {
       `Annual Investment Plan for ${lguLabel} covering fiscal year ${fiscalYear}.`,
     fiscalYear,
     publishedAt: input.aip.published_at,
-    budgetTotal: sumProjectBudget(input.projects),
+    budgetTotal:
+      typeof input.budgetTotal === "number" && Number.isFinite(input.budgetTotal)
+        ? input.budgetTotal
+        : sumProjectBudget(input.projects),
     projectsCount: input.projects.length,
   };
 }
@@ -522,17 +530,27 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
 
       const aips = (data ?? []) as AipRow[];
       const aipIds = aips.map((row) => row.id);
-      const [projectsByAipId, summariesByAipId, parentCityByBarangayId] = await Promise.all([
+      const [projectsByAipId, summariesByAipId, fileTotalsByAipId, parentCityByBarangayId] =
+        await Promise.all([
         getProjectsByAipIds(aipIds),
         getLatestSummariesByAipIds(aipIds),
+        fetchAipFileTotalsByAipIds(client, aipIds),
         getParentCityScopeByBarangayId(aips),
       ]);
+      const projectTotalsByAipId = new Map<string, number>(
+        aipIds.map((aipId) => [aipId, sumProjectBudget(projectsByAipId.get(aipId) ?? [])])
+      );
 
       return aips.map((aip) =>
         buildListRecord({
           aip,
           projects: projectsByAipId.get(aip.id) ?? [],
           summary: parseSummary(summariesByAipId.get(aip.id)),
+          budgetTotal: resolveAipDisplayTotal({
+            aipId: aip.id,
+            fileTotalsByAipId,
+            fallbackTotalsByAipId: projectTotalsByAipId,
+          }),
           parentCityByBarangayId,
         })
       );
@@ -552,10 +570,18 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
 
       const aip = data as AipRow;
 
-      const [projectsByAipId, summariesByAipId, currentFilesByAipId, reviews, feedbackCountResult] = await Promise.all([
+      const [
+        projectsByAipId,
+        summariesByAipId,
+        currentFilesByAipId,
+        fileTotalsByAipId,
+        reviews,
+        feedbackCountResult,
+      ] = await Promise.all([
         getProjectsByAipIds([aip.id]),
         getLatestSummariesByAipIds([aip.id]),
         getCurrentFilesByAipIds([aip.id]),
+        fetchAipFileTotalsByAipIds(client, [aip.id]),
         getReviewsByAipId(aip.id),
         client
           .from("feedback")
@@ -591,6 +617,11 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
         aip,
         projects,
         summary: summaryText,
+        budgetTotal: resolveAipDisplayTotal({
+          aipId: aip.id,
+          fileTotalsByAipId,
+          fallbackTotalsByAipId: new Map([[aip.id, sumProjectBudget(projects)]]),
+        }),
       });
 
       return {

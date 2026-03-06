@@ -11,6 +11,12 @@ import type {
 } from "@/lib/domain/landing-content";
 import { toProjectCoverProxyUrl } from "@/lib/projects/media";
 import {
+  buildProjectTotalsByAipId,
+  fetchAipFileTotalsByAipIds,
+  resolveAipDisplayTotalsByAipId,
+  sumAipDisplayTotals,
+} from "@/lib/repos/_shared/aip-totals";
+import {
   getTypedAppSetting,
   type CitizenDashboardContentValue,
   type CitizenDashboardScopePinValue,
@@ -573,11 +579,11 @@ async function listAvailableFiscalYears(
   return Array.from(seen).sort((left, right) => right - left);
 }
 
-async function getPublishedAipIdByScopeYear(input: {
+async function listPublishedAipsByScopeYear(input: {
   scopeType: LandingScopeType;
   scopeId: string;
   fiscalYear: number;
-}): Promise<string | null> {
+}): Promise<AipPickRow[]> {
   const client = await supabaseServer();
   const scopeColumn = scopeColumnOf(input.scopeType);
   const { data, error } = await client
@@ -587,12 +593,19 @@ async function getPublishedAipIdByScopeYear(input: {
     .eq(scopeColumn, input.scopeId)
     .eq("fiscal_year", input.fiscalYear)
     .order("published_at", { ascending: false, nullsFirst: false })
-    .order("updated_at", { ascending: false })
-    .limit(1);
+    .order("updated_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  const row = ((data ?? []) as AipPickRow[])[0] ?? null;
-  return row?.id ?? null;
+  return (data ?? []) as AipPickRow[];
+}
+
+async function getPublishedAipIdByScopeYear(input: {
+  scopeType: LandingScopeType;
+  scopeId: string;
+  fiscalYear: number;
+}): Promise<string | null> {
+  const rows = await listPublishedAipsByScopeYear(input);
+  return rows[0]?.id ?? null;
 }
 
 function resolveFiscalYear(input: {
@@ -682,7 +695,10 @@ async function listScopeProjectsByFiscalYear(input: {
   return rows;
 }
 
-function summarizeScopeYearMetrics(projects: ScopeProjectRow[]): ScopeYearMetrics {
+function summarizeScopeYearMetrics(
+  projects: ScopeProjectRow[],
+  options?: { displayTotalBudget?: number | null }
+): ScopeYearMetrics {
   const sectorTotals: Record<DashboardSectorCode, number> = {
     "1000": 0,
     "3000": 0,
@@ -690,15 +706,20 @@ function summarizeScopeYearMetrics(projects: ScopeProjectRow[]): ScopeYearMetric
     "9000": 0,
   };
 
-  let totalBudget = 0;
+  let projectTotalBudget = 0;
   for (const row of projects) {
     const amount = toAmount(row.total);
-    totalBudget += amount;
+    projectTotalBudget += amount;
     const code = toDashboardSectorCode(row.sector_code);
     if (code) {
       sectorTotals[code] += amount;
     }
   }
+  const totalBudget =
+    typeof options?.displayTotalBudget === "number" &&
+    Number.isFinite(options.displayTotalBudget)
+      ? options.displayTotalBudget
+      : projectTotalBudget;
 
   const healthProjects = projects
     .filter((row) => row.category === "health")
@@ -799,6 +820,49 @@ function toProjectCards(input: {
   });
 }
 
+async function resolveScopeYearDisplayTotal(input: {
+  scopeType: LandingScopeType;
+  scopeId: string;
+  fiscalYear: number;
+  projects?: ScopeProjectRow[];
+}): Promise<number> {
+  const [aipRows, projects] = await Promise.all([
+    listPublishedAipsByScopeYear({
+      scopeType: input.scopeType,
+      scopeId: input.scopeId,
+      fiscalYear: input.fiscalYear,
+    }),
+    input.projects
+      ? Promise.resolve(input.projects)
+      : listScopeProjectsByFiscalYear({
+          scopeType: input.scopeType,
+          scopeId: input.scopeId,
+          fiscalYear: input.fiscalYear,
+        }),
+  ]);
+
+  const aipIds = aipRows.map((row) => row.id);
+  if (aipIds.length === 0) return 0;
+
+  const client = await supabaseServer();
+  const fileTotalsByAipId = await fetchAipFileTotalsByAipIds(client, aipIds);
+  const fallbackTotalsByAipId = buildProjectTotalsByAipId(
+    projects.map((row) => ({
+      aip_id: row.aip_id,
+      total: row.total,
+    }))
+  );
+  const displayTotalsByAipId = resolveAipDisplayTotalsByAipId({
+    aipIds,
+    fileTotalsByAipId,
+    fallbackTotalsByAipId,
+  });
+  return sumAipDisplayTotals({
+    aipIds,
+    displayTotalsByAipId,
+  });
+}
+
 async function listMarkerBudgetsByYear(
   pins: ResolvedScopePin[],
   fiscalYear: number
@@ -807,12 +871,11 @@ async function listMarkerBudgetsByYear(
   const budgetEntries = await Promise.all(
     selectablePins.map(async (pin) => {
       const scopeId = pin.scopeId as string;
-      const projects = await listScopeProjectsByFiscalYear({
+      const totalBudget = await resolveScopeYearDisplayTotal({
         scopeType: pin.scopeType,
         scopeId,
         fiscalYear,
       });
-      const totalBudget = projects.reduce((sum, row) => sum + toAmount(row.total), 0);
       return [toScopeKey(pin.scopeType, scopeId), totalBudget] as const;
     })
   );
@@ -955,6 +1018,8 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
       const resolvedScopeId = selectedPin?.scopeId ?? "";
       const resolvedScopePsgc = selectedPin?.scopePsgc ?? content.defaultCityPsgc;
       const currentFiscalYear = new Date().getFullYear();
+      const selectedScopeId = selectedPin?.scopeId ?? null;
+      const selectedScopeType = selectedPin?.scopeType ?? null;
 
       const availableFiscalYears =
         selectedPin && selectedPin.scopeId
@@ -987,27 +1052,51 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
               scopeId: selectedPin.scopeId,
             })
           : 0;
-
+      const currentProjects =
+        hasData && selectedPin?.scopeId
+          ? await listScopeProjectsByFiscalYear({
+              scopeType: selectedPin.scopeType,
+              scopeId: selectedPin.scopeId,
+              fiscalYear: resolvedFiscalYear,
+            })
+          : [];
+      const currentDisplayTotal =
+        hasData && selectedPin?.scopeId
+          ? await resolveScopeYearDisplayTotal({
+              scopeType: selectedPin.scopeType,
+              scopeId: selectedPin.scopeId,
+              fiscalYear: resolvedFiscalYear,
+              projects: currentProjects,
+            })
+          : 0;
       const currentMetrics =
         hasData && selectedPin?.scopeId
-          ? summarizeScopeYearMetrics(
-              await listScopeProjectsByFiscalYear({
-                scopeType: selectedPin.scopeType,
-                scopeId: selectedPin.scopeId,
-                fiscalYear: resolvedFiscalYear,
-              })
-            )
+          ? summarizeScopeYearMetrics(currentProjects, {
+              displayTotalBudget: currentDisplayTotal,
+            })
           : buildEmptyMetrics();
 
       const previousMetrics =
-        hasData && selectedPin?.scopeId && typeof previousPublishedFiscalYear === "number"
-          ? summarizeScopeYearMetrics(
-              await listScopeProjectsByFiscalYear({
-                scopeType: selectedPin.scopeType,
-                scopeId: selectedPin.scopeId,
+        hasData &&
+        selectedScopeType &&
+        selectedScopeId &&
+        typeof previousPublishedFiscalYear === "number"
+          ? await (async () => {
+              const previousProjects = await listScopeProjectsByFiscalYear({
+                scopeType: selectedScopeType,
+                scopeId: selectedScopeId,
                 fiscalYear: previousPublishedFiscalYear,
-              })
-            )
+              });
+              const previousDisplayTotal = await resolveScopeYearDisplayTotal({
+                scopeType: selectedScopeType,
+                scopeId: selectedScopeId,
+                fiscalYear: previousPublishedFiscalYear,
+                projects: previousProjects,
+              });
+              return summarizeScopeYearMetrics(previousProjects, {
+                displayTotalBudget: previousDisplayTotal,
+              });
+            })()
           : null;
 
       const markerBudgetByScope = await listMarkerBudgetsByYear(
@@ -1016,10 +1105,10 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
       );
 
       const feedbackMetrics =
-        hasData && selectedPin?.scopeId
+        hasData && selectedScopeType && selectedScopeId
           ? await computeFeedbackMetrics({
-              scopeType: selectedPin.scopeType,
-              scopeId: selectedPin.scopeId,
+              scopeType: selectedScopeType,
+              scopeId: selectedScopeId,
               selectedFiscalYear: resolvedFiscalYear,
             })
           : {

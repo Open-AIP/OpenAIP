@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseFeedbackThreadsRepo } from "@/lib/repos/feedback/repo.supabase";
+import { fetchAipFileTotalsByAipIds } from "@/lib/repos/_shared/aip-totals";
 import { supabaseServer } from "@/lib/supabase/server";
 import { applyAipUploaderMetadata, resolveDefaultFiscalYear, resolveSelectedFiscalYear } from "./mappers";
 import type { DashboardRepo } from "./repo";
@@ -122,6 +123,7 @@ function mapAipRow(row: AipRow): DashboardAip {
   return {
     id: row.id,
     fiscalYear: row.fiscal_year,
+    totalInvestmentProgram: null,
     status: row.status,
     statusUpdatedAt: row.status_updated_at,
     submittedAt: row.submitted_at,
@@ -587,12 +589,20 @@ export function createSupabaseDashboardRepo(): DashboardRepo {
         scope: input.scope,
         scopeId: input.scopeId,
       });
+      const aipTotalsByAipId = await fetchAipFileTotalsByAipIds(
+        client,
+        baseAips.map((aip) => aip.id)
+      );
+      const baseAipsWithTotals = baseAips.map((aip) => ({
+        ...aip,
+        totalInvestmentProgram: aipTotalsByAipId.get(aip.id) ?? null,
+      }));
 
       const aipMetadata = await listAipUploaderMetadata(
         client,
         baseAips.map((aip) => aip.id)
       );
-      const allAips = applyAipUploaderMetadata(baseAips, aipMetadata);
+      const allAips = applyAipUploaderMetadata(baseAipsWithTotals, aipMetadata);
 
       const availableFiscalYears = Array.from(
         new Set(allAips.map((aip) => aip.fiscalYear))

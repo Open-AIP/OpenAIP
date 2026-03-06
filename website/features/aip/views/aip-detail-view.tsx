@@ -1263,6 +1263,7 @@ export default function AipDetailView({
                     year={aip.year}
                     aipStatus={aip.status}
                     scope={scope}
+                    displayTotalBudget={aip.budget}
                     focusedRowId={focusedRowId}
                     enablePagination
                     onProjectsStateChange={handleProjectsStateChange}

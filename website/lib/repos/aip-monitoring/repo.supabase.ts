@@ -2,9 +2,15 @@ import { getAuthenticatedBrowserClient } from "@/lib/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AipMonitoringRepo, AipMonitoringSeedData } from "./repo";
 import type { AipMonitoringDetail } from "@/mocks/fixtures/admin/aip-monitoring/aipMonitoring.mock";
+import {
+  buildProjectTotalsByAipId,
+  fetchAipFileTotalsByAipIds,
+  resolveAipDisplayTotalsByAipId,
+} from "@/lib/repos/_shared/aip-totals";
 
 type NameRow = { id: string; name: string };
 type ProfileNameRow = { id: string; full_name: string | null };
+type ProjectBudgetRow = { aip_id: string; total: number | string | null };
 
 function formatIsoDate(value: string | null | undefined): string {
   if (!value) return new Date().toISOString().slice(0, 10);
@@ -96,6 +102,32 @@ async function loadSeedData(): Promise<AipMonitoringSeedData> {
   const aips = (aipsResult.data ?? []) as AipMonitoringSeedData["aips"];
   const reviews = (reviewsResult.data ?? []) as AipMonitoringSeedData["reviews"];
   const activity = (activityResult.data ?? []) as AipMonitoringSeedData["activity"];
+  const aipIds = aips.map((aip) => aip.id);
+
+  let budgetTotalByAipId: Record<string, number> = {};
+  if (aipIds.length > 0) {
+    const { data: projectRowsData, error: projectRowsError } = await client
+      .from("projects")
+      .select("aip_id,total")
+      .in("aip_id", aipIds);
+    if (projectRowsError) throw new Error(projectRowsError.message);
+
+    const projectTotalsByAipId = buildProjectTotalsByAipId(
+      ((projectRowsData ?? []) as ProjectBudgetRow[]).map((row) => ({
+        aip_id: row.aip_id,
+        total: row.total,
+      }))
+    );
+    const fileTotalsByAipId = await fetchAipFileTotalsByAipIds(client, aipIds);
+    const displayTotalsByAipId = resolveAipDisplayTotalsByAipId({
+      aipIds,
+      fileTotalsByAipId,
+      fallbackTotalsByAipId: projectTotalsByAipId,
+    });
+    budgetTotalByAipId = Object.fromEntries(
+      aipIds.map((aipId) => [aipId, displayTotalsByAipId.get(aipId) ?? 0])
+    );
+  }
 
   const [cityMap, municipalityMap, barangayMap] = await Promise.all([
     loadNameMap(
@@ -153,6 +185,7 @@ async function loadSeedData(): Promise<AipMonitoringSeedData> {
     reviews,
     activity,
     details,
+    budgetTotalByAipId,
     lguNameByAipId,
     reviewerDirectory,
   };

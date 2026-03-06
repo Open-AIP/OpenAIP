@@ -3,6 +3,10 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { Json } from "@/lib/contracts/databasev2";
+import {
+  fetchAipFileTotalsByAipIds,
+  resolveAipDisplayTotal,
+} from "@/lib/repos/_shared/aip-totals";
 import { assertFeedbackUsageAllowed, type FeedbackQueryClient } from "@/lib/feedback/usage-guards";
 import type { AipProjectRepo, AipRepo } from "./repo";
 import {
@@ -839,6 +843,7 @@ function buildAipHeader(input: {
   currentFile?: UploadedFileSelectRow;
   summary?: string;
   projects: ProjectSelectRow[];
+  displayBudget?: number | null;
   uploader?: ProfileRow;
   pdfUrl?: string;
   revisionNote?: string;
@@ -865,7 +870,11 @@ function buildAipHeader(input: {
     workflowPermissions,
   } = input;
 
-  const budget = projects.reduce((acc, p) => acc + (p.total ?? 0), 0);
+  const projectBudget = projects.reduce((acc, p) => acc + (p.total ?? 0), 0);
+  const budget =
+    typeof input.displayBudget === "number" && Number.isFinite(input.displayBudget)
+      ? input.displayBudget
+      : projectBudget;
   const sectors = Array.from(new Set(projects.map((p) => toSectorLabel(p.sector_code)).filter((s) => s !== "Unknown")));
   const detailedBullets = projects
     .map((p) => p.program_project_description?.trim())
@@ -964,6 +973,7 @@ export function createSupabaseAipRepo(): AipRepo {
       const [
         filesByAip,
         projectsByAip,
+        fileTotalsByAipId,
         summariesByAip,
         revisionRemarks,
         revisionReplies,
@@ -973,6 +983,7 @@ export function createSupabaseAipRepo(): AipRepo {
       ] = await Promise.all([
         getCurrentFiles(aipIds),
         getProjectsByAipIds(aipIds),
+        fetchAipFileTotalsByAipIds(client, aipIds),
         getLatestSummaries(aipIds),
         getRevisionRemarksByAipIds(aipIds),
         getBarangayAipRepliesByAipIds(aipIds),
@@ -998,6 +1009,12 @@ export function createSupabaseAipRepo(): AipRepo {
         remarks: revisionRemarks,
         replies: revisionReplies,
       });
+      const projectTotalsByAipId = new Map<string, number>(
+        aipIds.map((aipId) => [
+          aipId,
+          (projectsByAip.get(aipId) ?? []).reduce((sum, row) => sum + (row.total ?? 0), 0),
+        ])
+      );
 
       return aips.map((aip) => {
         const summary = parseSummary(summariesByAip.get(aip.id));
@@ -1028,6 +1045,11 @@ export function createSupabaseAipRepo(): AipRepo {
           aip,
           currentFile: file,
           projects: projectsByAip.get(aip.id) ?? [],
+          displayBudget: resolveAipDisplayTotal({
+            aipId: aip.id,
+            fileTotalsByAipId,
+            fallbackTotalsByAipId: projectTotalsByAipId,
+          }),
           summary,
           uploader: (() => {
             return file ? profilesById.get(file.uploaded_by) : undefined;
@@ -1060,6 +1082,7 @@ export function createSupabaseAipRepo(): AipRepo {
       const [
         filesByAip,
         projectsByAip,
+        fileTotalsByAipId,
         summariesByAip,
         revisionRemarks,
         revisionReplies,
@@ -1069,6 +1092,7 @@ export function createSupabaseAipRepo(): AipRepo {
         await Promise.all([
           getCurrentFiles([aipId]),
           getProjectsByAipIds([aipId]),
+          fetchAipFileTotalsByAipIds(client, [aipId]),
           getLatestSummaries([aipId]),
           getRevisionRemarksByAipIds([aipId]),
           getBarangayAipRepliesByAipIds([aipId]),
@@ -1105,11 +1129,19 @@ export function createSupabaseAipRepo(): AipRepo {
         canManageBarangayWorkflow: permission.canManageBarangayWorkflow,
         lockReason: permission.lockReason,
       };
+      const projectTotalsByAipId = new Map<string, number>([
+        [aipId, (projectsByAip.get(aipId) ?? []).reduce((sum, row) => sum + (row.total ?? 0), 0)],
+      ]);
 
       return buildAipHeader({
         aip,
         currentFile: file,
         projects: projectsByAip.get(aipId) ?? [],
+        displayBudget: resolveAipDisplayTotal({
+          aipId,
+          fileTotalsByAipId,
+          fallbackTotalsByAipId: projectTotalsByAipId,
+        }),
         summary: parseSummary(summariesByAip.get(aipId)),
         uploader: file ? profilesById.get(file.uploaded_by) : undefined,
         pdfUrl,

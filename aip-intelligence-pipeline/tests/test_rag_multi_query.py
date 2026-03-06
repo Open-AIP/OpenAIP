@@ -133,5 +133,6 @@ def test_answer_with_rag_triggers_selective_multi_query(monkeypatch) -> None:
     assert len(calls) > 1
     assert result["retrieval_meta"]["multi_query_triggered"] is True
     assert result["retrieval_meta"]["multi_query_variant_count"] >= 1
+    assert result["retrieval_meta"]["multi_query_reason_code"] == "retry_low_confidence"
     if result["retrieval_meta"]["evidence_gate_decision"] != "allow":
         assert result["retrieval_meta"]["generation_skipped_by_gate"] is True

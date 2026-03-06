@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import json
 import random
 import time
 from dataclasses import dataclass
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
-import httpx
+try:
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover - exercised in environments without httpx
+    httpx = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -33,6 +39,7 @@ class WebsiteChatClient:
         self.max_retries = max_retries
         self.backoff_base_s = backoff_base_s
         self.backoff_cap_s = backoff_cap_s
+        self.timeout_s = timeout_s
 
         headers = {"Content-Type": "application/json"}
         if bearer_token:
@@ -40,14 +47,19 @@ class WebsiteChatClient:
         if cookie_header:
             headers["Cookie"] = cookie_header
 
-        self._client = httpx.Client(
-            timeout=httpx.Timeout(timeout_s),
-            headers=headers,
-            follow_redirects=True,
-        )
+        self._headers = headers
+        if httpx is not None:
+            self._client = httpx.Client(
+                timeout=httpx.Timeout(timeout_s),
+                headers=headers,
+                follow_redirects=True,
+            )
+        else:
+            self._client = None
 
     def close(self) -> None:
-        self._client.close()
+        if self._client is not None:
+            self._client.close()
 
     def __enter__(self) -> "WebsiteChatClient":
         return self
@@ -66,23 +78,11 @@ class WebsiteChatClient:
 
         for attempt in range(1, self.max_retries + 2):
             try:
-                response = self._client.post(endpoint, json=payload)
-                status = response.status_code
+                status, body, text_body = self._post(endpoint=endpoint, payload=payload)
 
                 if status in {429, 502, 503, 504} and attempt <= self.max_retries:
                     self._sleep_with_backoff(attempt)
                     continue
-
-                body: dict[str, Any] | None = None
-                text_body: str | None = None
-                try:
-                    parsed = response.json()
-                    if isinstance(parsed, dict):
-                        body = parsed
-                    else:
-                        text_body = response.text
-                except ValueError:
-                    text_body = response.text
 
                 return HttpCallResult(
                     http_status=status,
@@ -92,7 +92,7 @@ class WebsiteChatClient:
                     attempts=attempt,
                     timing_ms=(time.perf_counter() - started) * 1000,
                 )
-            except (httpx.TimeoutException, httpx.TransportError) as exc:
+            except Exception as exc:  # noqa: BLE001
                 last_error = str(exc)
                 if attempt <= self.max_retries:
                     self._sleep_with_backoff(attempt)
@@ -119,4 +119,42 @@ class WebsiteChatClient:
         backoff = min(self.backoff_cap_s, self.backoff_base_s * (2 ** (attempt - 1)))
         jitter = random.uniform(0, backoff * 0.2)
         time.sleep(backoff + jitter)
+
+    def _post(self, *, endpoint: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any] | None, str | None]:
+        if self._client is not None:
+            response = self._client.post(endpoint, json=payload)
+            status = int(response.status_code)
+            try:
+                parsed = response.json()
+                if isinstance(parsed, dict):
+                    return status, parsed, None
+            except ValueError:
+                pass
+            return status, None, response.text
+
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib_request.Request(endpoint, data=data, headers=self._headers, method="POST")
+        try:
+            with urllib_request.urlopen(req, timeout=self.timeout_s) as response:
+                status = int(response.getcode())
+                raw_text = response.read().decode("utf-8", errors="replace")
+                try:
+                    parsed = json.loads(raw_text)
+                    if isinstance(parsed, dict):
+                        return status, parsed, None
+                except json.JSONDecodeError:
+                    pass
+                return status, None, raw_text
+        except urllib_error.HTTPError as exc:
+            status = int(exc.code)
+            raw_bytes = exc.read() if exc.fp is not None else b""
+            raw_text = raw_bytes.decode("utf-8", errors="replace") if raw_bytes else None
+            if raw_text:
+                try:
+                    parsed = json.loads(raw_text)
+                    if isinstance(parsed, dict):
+                        return status, parsed, None
+                except json.JSONDecodeError:
+                    pass
+            return status, None, raw_text
 

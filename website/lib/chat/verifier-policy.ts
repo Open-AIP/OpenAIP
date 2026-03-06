@@ -13,6 +13,13 @@ export type VerifierPolicyInput = {
 export type VerifierPolicyResult = {
   mode: VerifierMode;
   passed: boolean;
+  reasonCode:
+    | "structured_match"
+    | "structured_mismatch"
+    | "narrative_grounded"
+    | "narrative_ungrounded"
+    | "mixed_pass"
+    | "mixed_fail";
 };
 
 function sortObjectKeys(value: unknown): unknown {
@@ -67,22 +74,33 @@ export function evaluateVerifierPolicy(input: VerifierPolicyInput): VerifierPoli
   });
 
   if (input.mode === "structured") {
-    return { mode: input.mode, passed: structuredPassed };
+    return {
+      mode: input.mode,
+      passed: structuredPassed,
+      reasonCode: structuredPassed ? "structured_match" : "structured_mismatch",
+    };
   }
 
   if (input.mode === "retrieval") {
-    return { mode: input.mode, passed: retrievalPassed };
+    return {
+      mode: input.mode,
+      passed: retrievalPassed,
+      reasonCode: retrievalPassed ? "narrative_grounded" : "narrative_ungrounded",
+    };
   }
 
   const hasStructuredSnapshot =
     input.structuredExpected !== undefined && input.structuredActual !== undefined;
   const requireNarrativeGrounding = input.retrievalMeta?.mixedNarrativeIncluded !== false;
 
+  const passed =
+    hasStructuredSnapshot &&
+    structuredPassed &&
+    (requireNarrativeGrounding ? retrievalPassed : true);
+
   return {
     mode: input.mode,
-    passed:
-      hasStructuredSnapshot &&
-      structuredPassed &&
-      (requireNarrativeGrounding ? retrievalPassed : true),
+    passed,
+    reasonCode: passed ? "mixed_pass" : "mixed_fail",
   };
 }

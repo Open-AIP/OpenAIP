@@ -6,6 +6,7 @@ import { detectMetadataIntent } from "@/lib/chat/metadata-intent";
 import { resolveMetadataSqlPayload } from "@/lib/chat/metadata-sql-routing";
 import { buildRefusalMessage } from "@/lib/chat/refusal";
 import { maybeRewriteFollowUpQuery } from "@/lib/chat/contextual-query-rewrite";
+import { getChatStrategyConfigSnapshot } from "@/lib/chat/chat-strategy-config";
 import {
   detectAggregationIntent,
   type AggregationIntentResult,
@@ -60,6 +61,14 @@ import { routeSqlFirstTotals, buildTotalsMissingMessage } from "@/lib/chat/total
 import { detectCompoundAsk, splitIntoSubAsks, shouldClarifyBeforeExecution } from "@/lib/chat/query-planner";
 import { buildQueryPlan } from "@/lib/chat/query-plan-builder";
 import { executeMixedPlan } from "@/lib/chat/query-plan-executor";
+import {
+  inferRouteFamily,
+  inferSemanticRetrievalAttempted,
+  mapPlannerReasonCode,
+  mapResponseModeReasonCode,
+  mapRewriteReasonCode,
+  mapVerifierReasonCode,
+} from "@/lib/chat/telemetry-reason-codes";
 import type {
   QueryPlanRecentDomainContext,
   QueryPlanSemanticTask,
@@ -2055,6 +2064,17 @@ async function appendAssistantMessage(params: {
   };
 }): Promise<ChatMessage> {
   const normalizedMeta = normalizeRetrievalMetaStatus(params.retrievalMeta);
+  const configSnapshot = getChatStrategyConfigSnapshot();
+  const routeFamily = normalizedMeta.routeFamily ?? inferRouteFamily(normalizedMeta, params.citations);
+  const semanticRetrievalAttempted =
+    normalizedMeta.semanticRetrievalAttempted ??
+    inferSemanticRetrievalAttempted(
+      {
+        ...normalizedMeta,
+        routeFamily,
+      },
+      params.citations
+    );
   const verifierMode: VerifierMode =
     params.verifierInput?.mode ??
     normalizedMeta.verifierMode ??
@@ -2071,12 +2091,44 @@ async function appendAssistantMessage(params: {
     : {
         mode: verifierMode,
         passed: true,
+        reasonCode:
+          verifierMode === "structured"
+            ? "structured_match"
+            : verifierMode === "retrieval"
+              ? "narrative_grounded"
+              : "mixed_pass",
       };
 
-  const verifiedMeta: ChatRetrievalMeta = {
+  const verifiedMetaBase: ChatRetrievalMeta = {
     ...normalizedMeta,
+    routeFamily,
     verifierMode: verifierResult.mode,
     verifierPolicyPassed: verifierResult.passed,
+    clarificationEmitted:
+      normalizedMeta.status === "clarification" || normalizedMeta.kind === "clarification",
+    refusalEmitted: normalizedMeta.status === "refusal" || normalizedMeta.refused === true,
+    activeChatFlags: normalizedMeta.activeChatFlags ?? configSnapshot.flags,
+    chatStrategyCalibration: normalizedMeta.chatStrategyCalibration ?? configSnapshot.calibration,
+    stageLatencyMs:
+      normalizedMeta.stageLatencyMs ??
+      (typeof normalizedMeta.latencyMs === "number" ? { total: normalizedMeta.latencyMs } : undefined),
+    semanticRetrievalAttempted,
+    rewriteReasonCode:
+      normalizedMeta.rewriteReasonCode ?? mapRewriteReasonCode(normalizedMeta.queryRewriteReason),
+    plannerReasonCode:
+      normalizedMeta.plannerReasonCode ??
+      mapPlannerReasonCode({
+        queryPlanMode: normalizedMeta.queryPlanMode,
+        queryPlanClarificationRequired: normalizedMeta.queryPlanClarificationRequired,
+        queryPlanDiagnostics: normalizedMeta.queryPlanDiagnostics,
+      }),
+    responseModeReasonCode: normalizedMeta.responseModeReasonCode ?? mapResponseModeReasonCode(normalizedMeta),
+    verifierPolicyReasonCode: normalizedMeta.verifierPolicyReasonCode ?? verifierResult.reasonCode,
+  };
+  const verifiedMeta: ChatRetrievalMeta = {
+    ...verifiedMetaBase,
+    verifierPolicyReasonCode:
+      verifiedMetaBase.verifierPolicyReasonCode ?? mapVerifierReasonCode(verifiedMetaBase),
   };
   const inserted = await insertAssistantChatMessage({
     actor: params.actor ?? null,
@@ -7478,9 +7530,16 @@ export async function POST(request: Request) {
         keywordContributedToFinal: pipeline.retrieval_meta?.keyword_contributed_to_final,
         evidenceGateDecision: pipeline.retrieval_meta?.evidence_gate_decision,
         evidenceGateReason: pipeline.retrieval_meta?.evidence_gate_reason,
+        evidenceGateReasonCode:
+          pipeline.retrieval_meta?.evidence_gate_reason_code ?? pipeline.retrieval_meta?.evidence_gate_reason,
         generationSkippedByGate: pipeline.retrieval_meta?.generation_skipped_by_gate,
         selectiveMultiQueryTriggered: pipeline.retrieval_meta?.multi_query_triggered,
         selectiveMultiQueryVariantCount: pipeline.retrieval_meta?.multi_query_variant_count,
+        multiQueryReasonCode:
+          pipeline.retrieval_meta?.multi_query_reason_code ?? pipeline.retrieval_meta?.multi_query_reason,
+        activeRagFlags: pipeline.retrieval_meta?.active_rag_flags,
+        ragCalibration: pipeline.retrieval_meta?.rag_calibration,
+        stageLatencyMs: pipeline.retrieval_meta?.stage_latency_ms,
         latencyMs: Date.now() - startedAt,
         scopeResolution,
         intentClassification: frontendIntentClassification ?? undefined,

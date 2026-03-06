@@ -722,11 +722,26 @@ describe("metadata routing", () => {
     });
 
     expect(payload.status).toBe("answer");
-    const assistant = payload.assistantMessage as { content: string; retrievalMeta?: { verifierMode?: string } };
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: {
+        verifierMode?: string;
+        routeFamily?: string;
+        chatStrategyCalibration?: {
+          rewrite_max_user_turns: number;
+          rewrite_max_assistant_turns: number;
+          mixed_max_structured_tasks: number;
+          mixed_max_semantic_tasks: number;
+        };
+      };
+    };
     expect(assistant.content).toContain("Available fiscal years");
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
     expect(mockServerRpc).not.toHaveBeenCalled();
     expect(assistant.retrievalMeta?.verifierMode).toBe("structured");
+    expect(assistant.retrievalMeta?.routeFamily).toBe("metadata_sql");
+    expect(assistant.retrievalMeta?.chatStrategyCalibration?.rewrite_max_user_turns).toBeGreaterThan(0);
+    expect(assistant.retrievalMeta?.chatStrategyCalibration?.mixed_max_structured_tasks).toBeGreaterThan(0);
 
     const log = parseJsonLogs().find((entry) => entry.route === "metadata_sql");
     expect(log).toBeDefined();

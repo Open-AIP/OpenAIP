@@ -29,8 +29,8 @@ type RecentTurns = {
   assistantTurns: ChatMessage[];
 };
 
-const MAX_USER_TURNS = 3;
-const MAX_ASSISTANT_TURNS = 2;
+export const CONTEXTUAL_REWRITE_MAX_USER_TURNS = 3;
+export const CONTEXTUAL_REWRITE_MAX_ASSISTANT_TURNS = 2;
 
 function normalize(text: string): string {
   return text
@@ -110,14 +110,20 @@ function getRecentTurns(input: {
 
   for (let index = eligible.length - 1; index >= 0; index -= 1) {
     const message = eligible[index];
-    if (message.role === "user" && userTurns.length < MAX_USER_TURNS) {
+    if (message.role === "user" && userTurns.length < CONTEXTUAL_REWRITE_MAX_USER_TURNS) {
       userTurns.push(message);
       continue;
     }
-    if (message.role === "assistant" && assistantTurns.length < MAX_ASSISTANT_TURNS) {
+    if (
+      message.role === "assistant" &&
+      assistantTurns.length < CONTEXTUAL_REWRITE_MAX_ASSISTANT_TURNS
+    ) {
       assistantTurns.push(message);
     }
-    if (userTurns.length >= MAX_USER_TURNS && assistantTurns.length >= MAX_ASSISTANT_TURNS) {
+    if (
+      userTurns.length >= CONTEXTUAL_REWRITE_MAX_USER_TURNS &&
+      assistantTurns.length >= CONTEXTUAL_REWRITE_MAX_ASSISTANT_TURNS
+    ) {
       break;
     }
   }

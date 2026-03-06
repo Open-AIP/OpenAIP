@@ -18,6 +18,7 @@ describe("verifier policy", () => {
       structuredActual: [{ value: 1200 }],
     });
     expect(result.passed).toBe(true);
+    expect(result.reasonCode).toBe("structured_match");
   });
 
   it("fails structured mismatch", () => {
@@ -28,6 +29,7 @@ describe("verifier policy", () => {
       structuredActual: [{ value: 900 }],
     });
     expect(result.passed).toBe(false);
+    expect(result.reasonCode).toBe("structured_mismatch");
   });
 
   it("fails retrieval verification when no citations are present", () => {
@@ -55,6 +57,7 @@ describe("verifier policy", () => {
     });
     expect(result.mode).toBe("mixed");
     expect(result.passed).toBe(true);
+    expect(result.reasonCode).toBe("mixed_pass");
   });
 
   it("fails mixed mode when structured snapshot mismatches", () => {
@@ -65,6 +68,7 @@ describe("verifier policy", () => {
       structuredActual: [{ value: 1500 }],
     });
     expect(result.passed).toBe(false);
+    expect(result.reasonCode).toBe("mixed_fail");
   });
 
   it("allows mixed response with no narrative section when flagged as structured-only partial", () => {
@@ -80,6 +84,7 @@ describe("verifier policy", () => {
       structuredActual: [{ value: 1200 }],
     });
     expect(result.passed).toBe(true);
+    expect(result.reasonCode).toBe("mixed_pass");
   });
 
   it("verifies structured claims helper directly", () => {

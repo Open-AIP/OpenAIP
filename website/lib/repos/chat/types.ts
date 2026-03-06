@@ -132,6 +132,7 @@ export type ChatRetrievalMeta = {
     | "ambiguous_scope"
     | "pipeline_error"
     | "validation_failed"
+    | "conversational_shortcut"
     | "unknown";
   topK?: number;
   minSimilarity?: number;
@@ -172,6 +173,7 @@ export type ChatRetrievalMeta = {
   keywordContributedToFinal?: boolean;
   evidenceGateDecision?: "allow" | "clarify" | "refuse";
   evidenceGateReason?: string;
+  evidenceGateReasonCode?: string;
   generationSkippedByGate?: boolean;
   queryRewriteApplied?: boolean;
   queryRewriteReason?: string;
@@ -186,6 +188,33 @@ export type ChatRetrievalMeta = {
   mixedNarrativeIncluded?: boolean;
   selectiveMultiQueryTriggered?: boolean;
   selectiveMultiQueryVariantCount?: number;
+  multiQueryReasonCode?: string;
+  activeRagFlags?: Record<string, boolean>;
+  ragCalibration?: Record<string, number | boolean>;
+  routeFamily?:
+    | "sql_totals"
+    | "aggregate_sql"
+    | "row_sql"
+    | "metadata_sql"
+    | "pipeline_fallback"
+    | "mixed_plan"
+    | "conversational"
+    | "unknown";
+  rewriteReasonCode?: string;
+  plannerReasonCode?: string;
+  responseModeReasonCode?: string;
+  verifierPolicyReasonCode?: string;
+  clarificationEmitted?: boolean;
+  refusalEmitted?: boolean;
+  activeChatFlags?: Record<string, boolean>;
+  chatStrategyCalibration?: {
+    rewrite_max_user_turns: number;
+    rewrite_max_assistant_turns: number;
+    mixed_max_structured_tasks: number;
+    mixed_max_semantic_tasks: number;
+  };
+  stageLatencyMs?: Record<string, number>;
+  semanticRetrievalAttempted?: boolean;
 };
 
 export const ChatRepoErrors = {

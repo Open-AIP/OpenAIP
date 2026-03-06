@@ -76,6 +76,7 @@ export type PipelineChatAnswer = {
       | "ambiguous_scope"
       | "pipeline_error"
       | "validation_failed"
+      | "conversational_shortcut"
       | "unknown";
     top_k?: number;
     min_similarity?: number;
@@ -102,5 +103,10 @@ export type PipelineChatAnswer = {
     multi_query_triggered?: boolean;
     multi_query_variant_count?: number;
     multi_query_reason?: string;
+    evidence_gate_reason_code?: string;
+    multi_query_reason_code?: string;
+    active_rag_flags?: Record<string, boolean>;
+    rag_calibration?: Record<string, number | boolean>;
+    stage_latency_ms?: Record<string, number>;
   };
 };

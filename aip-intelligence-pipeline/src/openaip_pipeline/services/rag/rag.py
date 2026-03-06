@@ -4,11 +4,13 @@ import json
 import os
 import re
 import hashlib
+import time
 from typing import Any
 
 from openaip_pipeline.core.resources import read_text
 from openaip_pipeline.services.rag.multi_query import (
     build_multi_query_variants,
+    multi_query_reason_code,
     merge_multi_query_candidates,
     should_retry_multi_query,
 )
@@ -137,6 +139,42 @@ def _selective_multi_query_max_variants() -> int:
 def _diversity_selection_enabled() -> bool:
     value = os.getenv("RAG_DIVERSITY_SELECTION_ENABLED", "true").strip().lower()
     return value in {"1", "true", "yes", "on"}
+
+
+def _active_rag_flags() -> dict[str, bool]:
+    return {
+        "RAG_HYBRID_RETRIEVAL_ENABLED": _hybrid_retrieval_enabled(),
+        "RAG_KEYWORD_RETRIEVAL_ENABLED": _keyword_retrieval_enabled(),
+        "RAG_RRF_FUSION_ENABLED": _rrf_fusion_enabled(),
+        "RAG_EVIDENCE_GATE_ENABLED": _evidence_gate_enabled(),
+        "RAG_SELECTIVE_MULTI_QUERY_ENABLED": _selective_multi_query_enabled(),
+        "RAG_DIVERSITY_SELECTION_ENABLED": _diversity_selection_enabled(),
+    }
+
+
+def _rag_calibration_snapshot() -> dict[str, int | bool]:
+    return {
+        "RAG_HYBRID_DENSE_K": _hybrid_dense_k(),
+        "RAG_HYBRID_KEYWORD_K": _hybrid_keyword_k(),
+        "RAG_RRF_K": _rrf_k(),
+        "RAG_GATE_MIN_FINAL_DOCS": _gate_min_final_docs(),
+        "RAG_GATE_REQUIRE_YEAR_MATCH": _gate_require_year_match(),
+        "RAG_SELECTIVE_MULTI_QUERY_MAX_VARIANTS": _selective_multi_query_max_variants(),
+    }
+
+
+def _evidence_gate_reason_code(reason: str) -> str:
+    normalized = (reason or "").strip().lower()
+    if normalized == "sufficient_final_evidence":
+        return "allow_strong_evidence"
+    if normalized in {"insufficient_final_candidates", "weak_topic_overlap"}:
+        return "clarify_partial_evidence"
+    if normalized == "no_final_candidates":
+        return "refuse_no_evidence"
+    if normalized == "explicit_year_not_found":
+        return "refuse_misaligned_evidence"
+    return "retry_low_confidence"
+
 
 
 def _normalize_content(text: str) -> str:
@@ -574,10 +612,15 @@ def _attach_selection_meta(
     keyword_final_count: int | None = None,
     evidence_gate_decision: str | None = None,
     evidence_gate_reason: str | None = None,
+    evidence_gate_reason_code: str | None = None,
     generation_skipped_by_gate: bool | None = None,
     multi_query_triggered: bool | None = None,
     multi_query_variant_count: int | None = None,
     multi_query_reason: str | None = None,
+    multi_query_reason_code: str | None = None,
+    active_rag_flags: dict[str, bool] | None = None,
+    rag_calibration: dict[str, int | bool] | None = None,
+    stage_latency_ms: dict[str, float] | None = None,
     extra_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     metadata = dict(result.get("retrieval_meta") or {})
@@ -605,6 +648,8 @@ def _attach_selection_meta(
         metadata["evidence_gate_decision"] = evidence_gate_decision
     if evidence_gate_reason is not None:
         metadata["evidence_gate_reason"] = evidence_gate_reason
+    if evidence_gate_reason_code is not None:
+        metadata["evidence_gate_reason_code"] = evidence_gate_reason_code
     if generation_skipped_by_gate is not None:
         metadata["generation_skipped_by_gate"] = generation_skipped_by_gate
     if multi_query_triggered is not None:
@@ -613,6 +658,14 @@ def _attach_selection_meta(
         metadata["multi_query_variant_count"] = multi_query_variant_count
     if multi_query_reason is not None:
         metadata["multi_query_reason"] = multi_query_reason
+    if multi_query_reason_code is not None:
+        metadata["multi_query_reason_code"] = multi_query_reason_code
+    if active_rag_flags is not None:
+        metadata["active_rag_flags"] = active_rag_flags
+    if rag_calibration is not None:
+        metadata["rag_calibration"] = rag_calibration
+    if stage_latency_ms is not None:
+        metadata["stage_latency_ms"] = stage_latency_ms
     if isinstance(extra_meta, dict):
         metadata.update(extra_meta)
     result["retrieval_meta"] = metadata
@@ -737,8 +790,13 @@ def answer_with_rag(
     from langchain_openai import ChatOpenAI
     from supabase.client import create_client
 
+    started_at = time.perf_counter()
+    stage_latency_ms: dict[str, float] = {}
+    active_rag_flags = _active_rag_flags()
+    rag_calibration = _rag_calibration_snapshot()
     resolved_scope = retrieval_scope or {"mode": "global", "targets": []}
     supabase = create_client(supabase_url, supabase_service_key)
+    retrieval_started_at = time.perf_counter()
     retrieval_bundle = run_hybrid_retrieval(
         supabase=supabase,
         embeddings_model=embeddings_model,
@@ -747,6 +805,7 @@ def answer_with_rag(
         top_k=top_k,
         min_similarity=min_similarity,
     )
+    stage_latency_ms["retrieval_ms"] = round((time.perf_counter() - retrieval_started_at) * 1000.0, 3)
 
     dense_docs = list(retrieval_bundle.get("dense_docs") or [])
     keyword_docs = list(retrieval_bundle.get("keyword_docs") or [])
@@ -760,11 +819,13 @@ def answer_with_rag(
 
     gate_decision = "allow"
     gate_reason = "gate_not_evaluated"
+    gate_reason_code = "allow_strong_evidence"
     gate_metrics: dict[str, Any] = {}
     generation_skipped_by_gate = False
     multi_query_triggered = False
     multi_query_variant_count = 0
     multi_query_reason = "not_attempted"
+    multi_query_reason_code_value = "not_attempted"
     selected_docs: list[Any] = []
     effective_strong_docs = list(strong_docs)
     effective_docs = list(docs)
@@ -777,6 +838,8 @@ def answer_with_rag(
         generation_skipped_override: bool | None = None,
         extra_meta: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        stage_latency_snapshot = dict(stage_latency_ms)
+        stage_latency_snapshot["total_ms"] = round((time.perf_counter() - started_at) * 1000.0, 3)
         dense_final_count = 0
         keyword_final_count = 0
         if selected_count > 0 and selected_docs:
@@ -794,6 +857,7 @@ def answer_with_rag(
             keyword_final_count=keyword_final_count,
             evidence_gate_decision=gate_decision,
             evidence_gate_reason=gate_reason,
+            evidence_gate_reason_code=gate_reason_code,
             generation_skipped_by_gate=(
                 generation_skipped_override
                 if generation_skipped_override is not None
@@ -802,6 +866,10 @@ def answer_with_rag(
             multi_query_triggered=multi_query_triggered,
             multi_query_variant_count=multi_query_variant_count,
             multi_query_reason=multi_query_reason,
+            multi_query_reason_code=multi_query_reason_code_value,
+            active_rag_flags=active_rag_flags,
+            rag_calibration=rag_calibration,
+            stage_latency_ms=stage_latency_snapshot,
             extra_meta=extra_meta,
         )
 
@@ -833,16 +901,20 @@ def answer_with_rag(
             strong_count_override=0,
         )
 
+    selection_started_at = time.perf_counter()
     selected_docs = (
         _select_diverse_docs(effective_strong_docs, max_docs=6, min_docs=4)
         if diversity_enabled
         else effective_strong_docs[: min(6, len(effective_strong_docs))]
     )
+    stage_latency_ms["selection_ms"] = round((time.perf_counter() - selection_started_at) * 1000.0, 3)
 
     if _evidence_gate_enabled():
+        gate_started_at = time.perf_counter()
         gate = evaluate_evidence_gate(question=question, selected_docs=selected_docs)
         gate_decision = str(gate.get("decision") or "clarify")
         gate_reason = str(gate.get("reason") or "gate_blocked")
+        gate_reason_code = _evidence_gate_reason_code(gate_reason)
         gate_metrics = dict(gate.get("metrics") or {})
         if gate_decision != "allow" and _selective_multi_query_enabled():
             should_retry, retry_reason = should_retry_multi_query(
@@ -858,6 +930,7 @@ def answer_with_rag(
                     multi_query_triggered = True
                     multi_query_variant_count = len(variants)
                     multi_query_reason = retry_reason or "retryable_low_confidence"
+                    multi_query_reason_code_value = multi_query_reason_code(multi_query_reason)
 
                     variant_docs: list[Any] = []
                     for variant in variants:
@@ -889,9 +962,12 @@ def answer_with_rag(
                         gate = evaluate_evidence_gate(question=question, selected_docs=selected_docs)
                         gate_decision = str(gate.get("decision") or "clarify")
                         gate_reason = str(gate.get("reason") or "gate_blocked")
+                        gate_reason_code = _evidence_gate_reason_code(gate_reason)
                         gate_metrics = dict(gate.get("metrics") or {})
                 else:
                     multi_query_reason = "no_variants_generated"
+                    multi_query_reason_code_value = multi_query_reason_code(multi_query_reason)
+        stage_latency_ms["gate_ms"] = round((time.perf_counter() - gate_started_at) * 1000.0, 3)
 
         if gate_decision != "allow":
             generation_skipped_by_gate = True
@@ -940,12 +1016,14 @@ def answer_with_rag(
         f"Context:\n{_format_context(selected_docs)}\n\n"
         f"{generation_instruction}"
     )
+    generation_started_at = time.perf_counter()
     generation_response = llm.invoke(
         [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": generation_user_prompt},
         ]
     )
+    stage_latency_ms["generation_ms"] = round((time.perf_counter() - generation_started_at) * 1000.0, 3)
     parsed_generation = _extract_json(str(getattr(generation_response, "content", "")) or "")
     if not parsed_generation:
         return attach(
@@ -1032,12 +1110,14 @@ def answer_with_rag(
         f"Allowed Sources:\n{_format_source_list(selected_docs)}\n\n"
         f"Context:\n{_format_context(selected_docs)}"
     )
+    verifier_started_at = time.perf_counter()
     verifier_response = llm.invoke(
         [
             {"role": "system", "content": verifier_prompt},
             {"role": "user", "content": verifier_user_prompt},
         ]
     )
+    stage_latency_ms["verification_ms"] = round((time.perf_counter() - verifier_started_at) * 1000.0, 3)
     parsed_verifier = _extract_json(str(getattr(verifier_response, "content", "")) or "")
     verifier_passed = bool(parsed_verifier and parsed_verifier.get("supported") is True)
     if not verifier_passed:

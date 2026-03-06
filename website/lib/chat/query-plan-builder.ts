@@ -58,6 +58,16 @@ function maxSemanticTasks(): number {
   return Math.min(3, Math.max(1, raw));
 }
 
+export function getMixedTaskCaps(): {
+  mixed_max_structured_tasks: number;
+  mixed_max_semantic_tasks: number;
+} {
+  return {
+    mixed_max_structured_tasks: maxStructuredTasks(),
+    mixed_max_semantic_tasks: maxSemanticTasks(),
+  };
+}
+
 function normalizePart(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }

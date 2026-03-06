@@ -143,4 +143,5 @@ def test_answer_with_rag_skips_generation_when_gate_blocks(monkeypatch) -> None:
     )
 
     assert result["retrieval_meta"]["evidence_gate_decision"] == "clarify"
+    assert result["retrieval_meta"]["evidence_gate_reason_code"] == "clarify_partial_evidence"
     assert result["retrieval_meta"]["generation_skipped_by_gate"] is True

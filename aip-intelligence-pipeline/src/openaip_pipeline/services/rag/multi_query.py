@@ -74,6 +74,21 @@ def should_retry_multi_query(*, gate_decision: str, gate_reason: str) -> tuple[b
     return False, reason or "non_retryable_reason"
 
 
+def multi_query_reason_code(reason: str) -> str:
+    normalized = (reason or "").strip().lower()
+    if normalized in {"insufficient_final_candidates", "weak_topic_overlap", "retryable_low_confidence"}:
+        return "retry_low_confidence"
+    if normalized == "already_allowed":
+        return "allow_strong_evidence"
+    if normalized == "not_attempted":
+        return "not_attempted"
+    if normalized in {"no_final_candidates", "explicit_year_not_found", "non_retryable_reason"}:
+        return "refuse_no_evidence"
+    if normalized == "no_variants_generated":
+        return "clarify_partial_evidence"
+    return "retry_low_confidence"
+
+
 def _doc_key(doc: Any) -> str:
     metadata = getattr(doc, "metadata", {}) or {}
     chunk_id = str(metadata.get("chunk_id") or "").strip()

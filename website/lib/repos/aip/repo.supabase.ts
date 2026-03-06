@@ -409,6 +409,8 @@ function buildAipProcessing(input: {
       overallProgressPct: clampProgress(run.overall_progress_pct, 0),
       message: toProgressMessage(run.progress_message),
       runId: run.id,
+      stage: run.stage,
+      status: run.status,
     };
   }
 
@@ -418,6 +420,8 @@ function buildAipProcessing(input: {
       overallProgressPct: 100,
       message: toProgressMessage(run.progress_message) ?? FINALIZING_PROGRESS_MESSAGE,
       runId: run.id,
+      stage: run.stage,
+      status: run.status,
     };
   }
 

@@ -82,6 +82,8 @@ describe("use-extraction-runs-realtime helpers", () => {
       overallProgressPct: 0,
       message: null,
       runId: "run-003",
+      stage: "extract",
+      status: "queued",
     });
 
     expect(
@@ -101,6 +103,8 @@ describe("use-extraction-runs-realtime helpers", () => {
       overallProgressPct: 100,
       message: "validating...",
       runId: "run-004",
+      stage: "validate",
+      status: "running",
     });
   });
 

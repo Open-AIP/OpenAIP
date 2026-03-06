@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import inspect
 import json
 import logging
 import os
@@ -122,7 +123,18 @@ async def _require_chat_signed_auth(request: Request) -> None:
     _log_chat_auth_verified(request=request, aud=aud, ts=ts)
 
 
-router = APIRouter(prefix="/v1/chat", tags=["chat"], dependencies=[Depends(_require_chat_signed_auth)])
+def _require_internal_token(request: Request) -> Any:
+    # Backward-compatible auth hook kept patchable in tests.
+    return _require_chat_signed_auth(request)
+
+
+async def _chat_auth_dependency(request: Request) -> None:
+    result = _require_internal_token(request)
+    if inspect.isawaitable(result):
+        await result
+
+
+router = APIRouter(prefix="/v1/chat", tags=["chat"], dependencies=[Depends(_chat_auth_dependency)])
 logger = logging.getLogger(__name__)
 _INTENT_ROUTER = IntentRouter()
 

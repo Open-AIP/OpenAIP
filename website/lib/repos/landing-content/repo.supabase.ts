@@ -46,10 +46,10 @@ type AipPickRow = {
 type ScopeProjectRow = {
   id: string;
   aip_id: string;
-  aip_ref_code: string;
+  aip_ref_code: string | null;
   program_project_description: string;
   category: "health" | "infrastructure" | "other";
-  sector_code: string;
+  sector_code: string | null;
   total: number | null;
   implementing_agency: string | null;
   expected_output: string | null;
@@ -635,11 +635,17 @@ function toAmount(value: number | null): number {
   return value;
 }
 
-function toDashboardSectorCode(value: string): DashboardSectorCode | null {
-  if (DBV2_SECTOR_CODES.includes(value as DashboardSectorCode)) {
-    return value as DashboardSectorCode;
+function toDashboardSectorCode(value: string | null | undefined): DashboardSectorCode | null {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (DBV2_SECTOR_CODES.includes(normalized as DashboardSectorCode)) {
+    return normalized as DashboardSectorCode;
   }
   return null;
+}
+
+function toDisplayRefCode(value: string | null | undefined): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized.length > 0 ? normalized : "Unspecified";
 }
 
 async function listScopeProjectsByFiscalYear(input: {
@@ -779,15 +785,16 @@ function toProjectCards(input: {
         : FALLBACK_PROJECT_IMAGE;
 
     const budget = toAmount(project.total);
+    const displayRefCode = toDisplayRefCode(project.aip_ref_code);
     return {
       id: project.id,
-      title: project.program_project_description || project.aip_ref_code,
+      title: project.program_project_description || displayRefCode,
       subtitle: projectSubtitleOf(project),
       tagLabel: input.tagLabel,
       budget,
       budgetLabel: formatCompactPeso(budget),
       imageSrc,
-      meta: [project.aip_ref_code],
+      meta: [displayRefCode],
     };
   });
 }

@@ -37,11 +37,11 @@ type AipRow = {
 type ProjectRow = {
   id: string;
   aip_id: string;
-  aip_ref_code: string;
+  aip_ref_code: string | null;
   program_project_description: string;
   total: number | null;
   category: "health" | "infrastructure" | "other";
-  sector_code: string;
+  sector_code: string | null;
   errors: Json | null;
   implementing_agency: string | null;
   source_of_funds: string | null;
@@ -148,12 +148,18 @@ function formatRoleLabel(role: RoleType | null): string {
   return "Official";
 }
 
-function toSectorLabel(sectorCode: string): CitizenAipProjectSector {
-  if (sectorCode.startsWith("1000")) return "General Sector";
-  if (sectorCode.startsWith("3000")) return "Social Sector";
-  if (sectorCode.startsWith("8000")) return "Economic Sector";
-  if (sectorCode.startsWith("9000")) return "Other Services";
+function toSectorLabel(sectorCode: string | null | undefined): CitizenAipProjectSector {
+  const value = String(sectorCode ?? "").trim();
+  if (value.startsWith("1000")) return "General Sector";
+  if (value.startsWith("3000")) return "Social Sector";
+  if (value.startsWith("8000")) return "Economic Sector";
+  if (value.startsWith("9000")) return "Other Services";
   return "Unknown";
+}
+
+function toDisplayRefCode(value: string | null | undefined): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized.length > 0 ? normalized : "Unspecified";
 }
 
 function toScopeType(row: AipRow): CitizenAipScopeType {
@@ -204,7 +210,7 @@ function toProjectRow(row: ProjectRow, hasLguNote: boolean): CitizenAipDetailPro
     aipId: row.aip_id,
     category: row.category,
     sector: toSectorLabel(row.sector_code),
-    projectRefCode: row.aip_ref_code,
+    projectRefCode: toDisplayRefCode(row.aip_ref_code),
     programDescription: row.program_project_description,
     totalAmount: typeof row.total === "number" && Number.isFinite(row.total) ? row.total : 0,
     hasLguNote,
@@ -631,7 +637,7 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
         projectId: row.id,
         category: row.category,
         sector: toSectorLabel(row.sector_code),
-        projectRefCode: row.aip_ref_code,
+        projectRefCode: toDisplayRefCode(row.aip_ref_code),
         title: row.program_project_description,
         description: row.program_project_description,
         implementingAgency: row.implementing_agency,

@@ -101,7 +101,7 @@ type ScopeNameMaps = {
 type ProjectLookupRow = {
   id: string;
   aip_id: string;
-  aip_ref_code: string;
+  aip_ref_code: string | null;
   program_project_description: string;
   category: string;
   start_date: string | null;

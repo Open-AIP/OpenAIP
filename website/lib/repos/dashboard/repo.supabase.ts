@@ -48,10 +48,10 @@ type ProfileRow = {
 type ProjectRow = {
   id: string;
   aip_id: string;
-  aip_ref_code: string;
+  aip_ref_code: string | null;
   program_project_description: string;
   category: DashboardProject["category"];
-  sector_code: string;
+  sector_code: string | null;
   total: number | null;
   personal_services: number | null;
   maintenance_and_other_operating_expenses: number | null;
@@ -133,13 +133,21 @@ function mapAipRow(row: AipRow): DashboardAip {
 }
 
 function mapProjectRow(row: ProjectRow, healthProgramName: string | null): DashboardProject {
+  const aipRefCode =
+    typeof row.aip_ref_code === "string" && row.aip_ref_code.trim().length > 0
+      ? row.aip_ref_code.trim()
+      : "Unspecified";
+  const sectorCode =
+    typeof row.sector_code === "string" && row.sector_code.trim().length > 0
+      ? row.sector_code.trim()
+      : "unknown";
   return {
     id: row.id,
     aipId: row.aip_id,
-    aipRefCode: row.aip_ref_code,
+    aipRefCode,
     programProjectDescription: row.program_project_description,
     category: row.category,
-    sectorCode: row.sector_code,
+    sectorCode,
     total: row.total,
     personalServices: row.personal_services,
     maintenanceAndOtherOperatingExpenses: row.maintenance_and_other_operating_expenses,

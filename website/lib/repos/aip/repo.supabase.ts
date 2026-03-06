@@ -68,7 +68,7 @@ type ArtifactSelectRow = {
 type ProjectSelectRow = {
   id: string;
   aip_id: string;
-  aip_ref_code: string;
+  aip_ref_code: string | null;
   program_project_description: string;
   implementing_agency: string | null;
   start_date: string | null;
@@ -85,7 +85,7 @@ type ProjectSelectRow = {
   cc_topology_code: string | null;
   prm_ncr_lgu_rm_objective_results_indicator: string | null;
   category: ProjectCategory;
-  sector_code: string;
+  sector_code: string | null;
   errors: Json | null;
   is_human_edited?: boolean;
   edited_by?: string | null;
@@ -188,12 +188,20 @@ function roleLabel(role: ProfileRow["role"]): string {
   return "Citizen";
 }
 
-function toSectorLabel(sectorCode: string): "General Sector" | "Social Sector" | "Economic Sector" | "Other Services" | "Unknown" {
-  if (sectorCode.startsWith("1000")) return "General Sector";
-  if (sectorCode.startsWith("3000")) return "Social Sector";
-  if (sectorCode.startsWith("8000")) return "Economic Sector";
-  if (sectorCode.startsWith("9000")) return "Other Services";
+function toSectorLabel(
+  sectorCode: string | null | undefined
+): "General Sector" | "Social Sector" | "Economic Sector" | "Other Services" | "Unknown" {
+  const value = String(sectorCode ?? "").trim();
+  if (value.startsWith("1000")) return "General Sector";
+  if (value.startsWith("3000")) return "Social Sector";
+  if (value.startsWith("8000")) return "Economic Sector";
+  if (value.startsWith("9000")) return "Other Services";
   return "Unknown";
+}
+
+function toDisplayRefCode(value: string | null | undefined): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized.length > 0 ? normalized : "Unspecified";
 }
 
 const PROJECT_SELECT_COLUMNS = [
@@ -269,6 +277,7 @@ function mapProjectSelectRowToAipProjectRow(
   row: ProjectSelectRow,
   officialComment?: string
 ): AipProjectRow {
+  const displayRefCode = toDisplayRefCode(row.aip_ref_code);
   const errors = normalizeProjectErrors(row.errors);
   const aiIssues = errors ?? undefined;
   const reviewStatus = officialComment
@@ -281,7 +290,7 @@ function mapProjectSelectRowToAipProjectRow(
     id: row.id,
     aipId: row.aip_id,
 
-    aipRefCode: row.aip_ref_code,
+    aipRefCode: displayRefCode,
     programProjectDescription: row.program_project_description,
     implementingAgency: row.implementing_agency,
     startDate: row.start_date,
@@ -302,9 +311,9 @@ function mapProjectSelectRowToAipProjectRow(
     errors,
 
     // Compatibility aliases
-    projectRefCode: row.aip_ref_code,
+    projectRefCode: displayRefCode,
     kind: row.category,
-    sector: deriveSectorFromRefCode(row.aip_ref_code),
+    sector: deriveSectorFromRefCode(row.aip_ref_code ?? row.sector_code),
     amount: row.total ?? 0,
     aipDescription: row.program_project_description,
     aiIssues,
@@ -318,7 +327,9 @@ function mapEditPatchToProjectUpdateColumns(
 ): Record<string, unknown> {
   const update: Record<string, unknown> = {};
 
-  if ("aipRefCode" in patch) update.aip_ref_code = patch.aipRefCode;
+  if ("aipRefCode" in patch) {
+    update.aip_ref_code = String(patch.aipRefCode ?? "").trim() || null;
+  }
   if ("programProjectDescription" in patch) {
     update.program_project_description = patch.programProjectDescription;
   }

@@ -69,6 +69,7 @@ const HIDDEN_PROJECT_UPDATE_PLACEHOLDER =
 const PROJECT_SELECT_COLUMNS = [
   "id",
   "aip_id",
+  "project_key",
   "extraction_artifact_id",
   "aip_ref_code",
   "program_project_description",
@@ -110,6 +111,11 @@ function toDateLabel(value: string): string {
     month: "long",
     day: "numeric",
   });
+}
+
+function toDisplayRefCode(value: string | null | undefined): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized.length > 0 ? normalized : "Unspecified";
 }
 
 function hasBarangayScopeHint(options?: ProjectReadOptions): boolean {
@@ -436,7 +442,7 @@ function mapProjectToUiModel(
   const infra = details.infraByProjectId.get(row.id) ?? null;
   const updates = (updatesByProjectId.get(row.id) ?? []).map((update) => ({
     ...update,
-    projectRefCode: row.aip_ref_code,
+    projectRefCode: toDisplayRefCode(row.aip_ref_code),
   }));
 
   const mapped = mapProjectRowToUiModel(row, health, infra, {

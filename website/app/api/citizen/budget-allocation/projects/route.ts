@@ -13,11 +13,18 @@ type ProjectsErrorCode = "BAD_REQUEST" | "NOT_FOUND" | "INTERNAL_ERROR";
 
 type ProjectRow = {
   id: string;
-  aip_ref_code: string;
+  aip_ref_code: string | null;
   program_project_description: string;
   source_of_funds: string | null;
   total: number | null;
 };
+
+const UNSPECIFIED_REF_CODE = "Unspecified";
+
+function toDisplayRefCode(value: string | null | undefined): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized.length > 0 ? normalized : UNSPECIFIED_REF_CODE;
+}
 
 function errorResponse(status: number, code: ProjectsErrorCode, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -81,8 +88,7 @@ function buildProjectQuery(input: {
     )
     .eq("aips.status", "published")
     .eq("aips.fiscal_year", input.fiscalYear)
-    .eq(`aips.${input.scopeColumn}`, input.scopeId)
-    .in("sector_code", [...DBV2_SECTOR_CODES]);
+    .eq(`aips.${input.scopeColumn}`, input.scopeId);
 
   if (input.sectorCode) {
     query = query.eq("sector_code", input.sectorCode);
@@ -152,7 +158,7 @@ export async function GET(request: Request) {
 
     const items = (data ?? []).map((row) => ({
       project_id: row.id,
-      aip_ref_code: row.aip_ref_code,
+      aip_ref_code: toDisplayRefCode(row.aip_ref_code),
       program_project_description: row.program_project_description,
       source_of_funds: row.source_of_funds,
       total: typeof row.total === "number" ? row.total : 0,

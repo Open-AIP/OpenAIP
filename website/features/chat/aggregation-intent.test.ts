@@ -44,4 +44,9 @@ describe("aggregation intent detection", () => {
     const result = detectAggregationIntent("List fund sources for Barangay Mamatid.");
     expect(result.intent).toBe("none");
   });
+
+  it("detects sector totals aggregation for lowest allocated budget phrasing", () => {
+    const result = detectAggregationIntent("sector that have lowest allocated budget");
+    expect(result.intent).toBe("totals_by_sector");
+  });
 });

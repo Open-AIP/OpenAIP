@@ -1740,6 +1740,26 @@ function hasScopeComparisonCue(message: string): boolean {
   );
 }
 
+function detectSectorExtremumPreference(message: string): "lowest" | "highest" | null {
+  const normalized = message.toLowerCase();
+  const hasSectorTopic = normalized.includes("sector") || normalized.includes("sectors");
+  if (!hasSectorTopic) return null;
+
+  const hasBudgetContext =
+    /\b(allocated|allocation|budget|spending|total|totals)\b/.test(normalized) ||
+    normalized.includes("by sector") ||
+    normalized.includes("per sector");
+  if (!hasBudgetContext) return null;
+
+  if (/\b(lowest|least|min(?:imum)?)\b/.test(normalized)) {
+    return "lowest";
+  }
+  if (/\b(highest|most|max(?:imum)?)\b/.test(normalized)) {
+    return "highest";
+  }
+  return null;
+}
+
 function detectMentionedBarangayTargetsFromKnownNames(
   message: string,
   barangays: BarangayRef[]
@@ -5414,7 +5434,19 @@ export async function POST(request: Request) {
               coveredBarangayIds: coveredRows.map((row) => row.barangay_id),
               fiscalLabel,
             });
-            const rows = toTotalsBySectorRows(fallbackData);
+            const sectorPreference = detectSectorExtremumPreference(content);
+            const rows =
+              sectorPreference === "lowest"
+                ? toTotalsBySectorRows(fallbackData).sort(
+                    (a, b) =>
+                      (toNumberOrNull(a.sector_total) ?? Number.POSITIVE_INFINITY) -
+                      (toNumberOrNull(b.sector_total) ?? Number.POSITIVE_INFINITY)
+                  )
+                : toTotalsBySectorRows(fallbackData).sort(
+                    (a, b) =>
+                      (toNumberOrNull(b.sector_total) ?? Number.NEGATIVE_INFINITY) -
+                      (toNumberOrNull(a.sector_total) ?? Number.NEGATIVE_INFINITY)
+                  );
             const contentLines =
               rows.length === 0
                 ? ["No published AIP line items matched the selected filters."]
@@ -5423,11 +5455,24 @@ export async function POST(request: Request) {
                       [row.sector_code, row.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
                     return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.sector_total))} (${parseInteger(row.count_items) ?? 0} items)`;
                   });
+            const topRow = rows[0] ?? null;
+            const topLabel =
+              topRow === null
+                ? null
+                : [topRow.sector_code, topRow.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
+            const orderedHeader =
+              sectorPreference === "lowest" ? "lowest to highest" : "highest to lowest";
+            const sectorHeader =
+              sectorPreference !== null && topRow !== null
+                ? `Sector with ${sectorPreference} allocated budget (All barangays in ${cityLabel}; ${fiscalLabel}):\n` +
+                  `1. ${topLabel}: ${formatPhpAmount(toNumberOrNull(topRow.sector_total))} (${parseInteger(topRow.count_items) ?? 0} items)\n\n` +
+                  `Budget totals by sector (All barangays in ${cityLabel}; ${fiscalLabel}) ranked ${orderedHeader}:`
+                : `Budget totals by sector (All barangays in ${cityLabel}; ${fiscalLabel}):`;
             const assistantMessage = await appendAssistantMessage({
         actor: privilegedActor,
               sessionId: session.id,
               content:
-                `Budget totals by sector (All barangays in ${cityLabel}; ${fiscalLabel}):\n` +
+                `${sectorHeader}\n` +
                 `${coverage.line}\n` +
                 "Aggregated from published AIP line items of covered barangays.\n" +
                 contentLines.join("\n"),
@@ -5440,6 +5485,7 @@ export async function POST(request: Request) {
                   }),
                   aggregate_type: "totals_by_sector",
                   fiscal_year_filter: fiscalYearParsed,
+                  sector_rank_order: orderedHeader,
                 }),
               ],
               retrievalMeta: {
@@ -6332,7 +6378,11 @@ export async function POST(request: Request) {
             current.count += 1;
             sectorMap.set(key, current);
           }
-          const rows = Array.from(sectorMap.values()).sort((a, b) => b.total - a.total);
+          const sectorPreference = detectSectorExtremumPreference(content);
+          const rows =
+            sectorPreference === "lowest"
+              ? Array.from(sectorMap.values()).sort((a, b) => a.total - b.total)
+              : Array.from(sectorMap.values()).sort((a, b) => b.total - a.total);
           const contentLines =
             rows.length === 0
               ? ["No published AIP line items matched the selected filters."]
@@ -6340,10 +6390,23 @@ export async function POST(request: Request) {
                   const label = [row.code, row.name].filter(Boolean).join(" - ") || "Unspecified sector";
                   return `${index + 1}. ${label}: ${formatPhpAmount(row.total)} (${row.count} items)`;
                 });
+          const topRow = rows[0] ?? null;
+          const topLabel =
+            topRow === null
+              ? null
+              : [topRow.code, topRow.name].filter(Boolean).join(" - ") || "Unspecified sector";
+          const orderedHeader =
+            sectorPreference === "lowest" ? "lowest to highest" : "highest to lowest";
+          const contentHeader =
+            sectorPreference !== null && topRow !== null
+              ? `Sector with ${sectorPreference} allocated budget (${cityScopeLabel}; ${cityFiscalLabel}):\n` +
+                `1. ${topLabel}: ${formatPhpAmount(topRow.total)} (${topRow.count} items)\n\n` +
+                `Budget totals by sector (${cityScopeLabel}; ${cityFiscalLabel}) ranked ${orderedHeader}:`
+              : `Budget totals by sector (${cityScopeLabel}; ${cityFiscalLabel}):`;
           const assistantMessage = await appendAssistantMessage({
         actor: privilegedActor,
             sessionId: session.id,
-            content: `Budget totals by sector (${cityScopeLabel}; ${cityFiscalLabel}):\n${contentLines.join("\n")}`,
+            content: `${contentHeader}\n${contentLines.join("\n")}`,
             citations: [
               makeAggregateCitation("Aggregated from published AIP line items.", {
                 aggregated: true,
@@ -6351,6 +6414,7 @@ export async function POST(request: Request) {
                 aggregate_type: "totals_by_sector",
                 city_id_filter: explicitCityScope.city.id,
                 city_aip_id: cityAip.aipId,
+                sector_rank_order: orderedHeader,
               }),
             ],
             retrievalMeta: {
@@ -6728,18 +6792,44 @@ export async function POST(request: Request) {
           }
 
           const rows = toTotalsBySectorRows(data);
+          const sectorPreference = detectSectorExtremumPreference(content);
+          const rankedRows =
+            sectorPreference === "lowest"
+              ? [...rows].sort(
+                  (a, b) =>
+                    (toNumberOrNull(a.sector_total) ?? Number.POSITIVE_INFINITY) -
+                    (toNumberOrNull(b.sector_total) ?? Number.POSITIVE_INFINITY)
+                )
+              : [...rows].sort(
+                  (a, b) =>
+                    (toNumberOrNull(b.sector_total) ?? Number.NEGATIVE_INFINITY) -
+                    (toNumberOrNull(a.sector_total) ?? Number.NEGATIVE_INFINITY)
+                );
           const contentLines =
-            rows.length === 0
+            rankedRows.length === 0
               ? ["No published AIP line items matched the selected filters."]
-              : rows.map((row, index) => {
+              : rankedRows.map((row, index) => {
                   const label = [row.sector_code, row.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
                   return `${index + 1}. ${label}: ${formatPhpAmount(toNumberOrNull(row.sector_total))} (${parseInteger(row.count_items) ?? 0} items)`;
                 });
+          const topRow = rankedRows[0] ?? null;
+          const topLabel =
+            topRow === null
+              ? null
+              : [topRow.sector_code, topRow.sector_name].filter(Boolean).join(" - ") || "Unspecified sector";
+          const orderedHeader =
+            sectorPreference === "lowest" ? "lowest to highest" : "highest to lowest";
+          const contentHeader =
+            sectorPreference !== null && topRow !== null
+              ? `Sector with ${sectorPreference} allocated budget (${scopeLabel}; ${fiscalLabel}):\n` +
+                `1. ${topLabel}: ${formatPhpAmount(toNumberOrNull(topRow.sector_total))} (${parseInteger(topRow.count_items) ?? 0} items)\n\n` +
+                `Budget totals by sector (${scopeLabel}; ${fiscalLabel}) ranked ${orderedHeader}:`
+              : `Budget totals by sector (${scopeLabel}; ${fiscalLabel}):`;
 
           const assistantMessage = await appendAssistantMessage({
         actor: privilegedActor,
             sessionId: session.id,
-            content: `Budget totals by sector (${scopeLabel}; ${fiscalLabel}):\n${contentLines.join("\n")}`,
+            content: `${contentHeader}\n${contentLines.join("\n")}`,
             citations: [
               makeAggregateCitation("Aggregated from published AIP line items.", {
                 aggregated: true,
@@ -6747,6 +6837,7 @@ export async function POST(request: Request) {
                 aggregate_type: "totals_by_sector",
                 fiscal_year_filter: fiscalYearForAggregation,
                 barangay_id_filter: aggregationScope.barangayIdUsed,
+                sector_rank_order: orderedHeader,
               }),
             ],
             retrievalMeta: {

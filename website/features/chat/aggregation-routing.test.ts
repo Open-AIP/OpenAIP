@@ -1282,6 +1282,43 @@ describe("aggregation routing", () => {
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
+  it("answers lowest allocated sector budget as structured sector aggregation", async () => {
+    rpcResponses.get_totals_by_sector = [
+      {
+        sector_code: "INFRA",
+        sector_name: "Infrastructure",
+        sector_total: 2500000,
+        count_items: 3,
+      },
+      {
+        sector_code: "HEALTH",
+        sector_name: "Health",
+        sector_total: 500000,
+        count_items: 2,
+      },
+      {
+        sector_code: "GEN",
+        sector_name: "General Services",
+        sector_total: 1200000,
+        count_items: 4,
+      },
+    ];
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "sector that have lowest allocated budget",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("Sector with lowest allocated budget");
+    expect(assistant.content).toContain("HEALTH - Health");
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_sector")
+    ).toBe(true);
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
   it("applies explicit barangay scope for possessive compare query", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,

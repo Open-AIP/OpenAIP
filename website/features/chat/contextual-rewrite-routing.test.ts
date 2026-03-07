@@ -333,4 +333,35 @@ describe("contextual rewrite routing", () => {
     );
     expect(String(rewriteLog?.rewritten_query_preview ?? "").toLowerCase()).toContain("citations");
   });
+
+  it("rewrites shorthand scope follow-up using the most recent domain anchor", async () => {
+    await callMessagesRoute({
+      sessionId: session.id,
+      content: "Total amount per fund source in FY 2026.",
+    });
+
+    await callMessagesRoute({
+      sessionId: session.id,
+      content: "for pulo only",
+    });
+
+    const rewriteLog = mockConsoleInfo.mock.calls
+      .map((call) => {
+        try {
+          return JSON.parse(String(call[0])) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is Record<string, unknown> => Boolean(entry))
+      .find((entry) => entry.event === "contextual_query_rewrite" && entry.rewrite_triggered === true);
+
+    expect(rewriteLog).toBeDefined();
+    expect(String(rewriteLog?.rewritten_query_preview ?? "").toLowerCase()).toContain(
+      "total amount per fund source"
+    );
+    expect(String(rewriteLog?.rewritten_query_preview ?? "").toLowerCase()).toContain(
+      "barangay pulo"
+    );
+  });
 });

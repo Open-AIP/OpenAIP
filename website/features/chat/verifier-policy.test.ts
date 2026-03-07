@@ -48,6 +48,31 @@ describe("verifier policy", () => {
     ).toBe(true);
   });
 
+  it("fails retrieval verification when pipeline marks verifier_failed", () => {
+    expect(
+      verifyRetrievalGrounding({
+        citations: [sampleCitation],
+        retrievalMeta: {
+          refused: true,
+          reason: "verifier_failed",
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("fails retrieval verification when verifier_passed is false", () => {
+    expect(
+      verifyRetrievalGrounding({
+        citations: [sampleCitation],
+        retrievalMeta: {
+          refused: true,
+          reason: "insufficient_evidence",
+          verifierPassed: false,
+        },
+      })
+    ).toBe(false);
+  });
+
   it("keeps mixed mode available but requires both checks", () => {
     const result = evaluateVerifierPolicy({
       mode: "mixed",

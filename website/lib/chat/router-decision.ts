@@ -159,6 +159,7 @@ export function decideRoute(input: {
     Boolean(strictRefCode) ||
     lineItemSpecific ||
     (parsedLineItem.isFactQuestion &&
+      (Boolean(strictRefCode) || lineItemSpecific) &&
       totalsIntent !== "total_investment_program" &&
       aggregationIntent.intent === "none");
 

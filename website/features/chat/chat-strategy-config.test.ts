@@ -11,6 +11,7 @@ import {
 describe("chat strategy config snapshot", () => {
   it("returns active flags and calibration tunables", () => {
     process.env.CHAT_CONTEXTUAL_REWRITE_ENABLED = "true";
+    process.env.CHAT_SEMANTIC_REPEAT_CACHE_ENABLED = "true";
     process.env.CHAT_METADATA_SQL_ROUTE_ENABLED = "true";
     process.env.CHAT_SPLIT_VERIFIER_POLICY_ENABLED = "true";
     process.env.CHAT_MIXED_QUERY_PLANNER_ENABLED = "true";
@@ -21,6 +22,7 @@ describe("chat strategy config snapshot", () => {
     const snapshot: ChatStrategyConfigSnapshot = getChatStrategyConfigSnapshot();
 
     expect(snapshot.flags.CHAT_CONTEXTUAL_REWRITE_ENABLED).toBe(true);
+    expect(snapshot.flags.CHAT_SEMANTIC_REPEAT_CACHE_ENABLED).toBe(true);
     expect(snapshot.flags.CHAT_METADATA_SQL_ROUTE_ENABLED).toBe(true);
     expect(snapshot.flags.CHAT_SPLIT_VERIFIER_POLICY_ENABLED).toBe(true);
     expect(snapshot.flags.CHAT_MIXED_QUERY_PLANNER_ENABLED).toBe(true);

@@ -65,6 +65,30 @@ describe("contextual query rewrite", () => {
     expect(result.query.toLowerCase()).toContain("drainage");
   });
 
+  it("rewrites shorthand scope follow-up into explicit barangay scope", () => {
+    const messages: ChatMessage[] = [
+      message({
+        id: "u1",
+        role: "user",
+        content: "Total amount per fund source in FY 2026.",
+      }),
+      message({
+        id: "a1",
+        role: "assistant",
+        content: "Budget totals by fund source ...",
+      }),
+    ];
+
+    const result = maybeRewriteFollowUpQuery({
+      message: "for pulo only",
+      messages,
+    });
+    expect(result.kind).toBe("rewritten");
+    if (result.kind !== "rewritten") return;
+    expect(result.reason).toBe("safe_scope_follow_up");
+    expect(result.query.toLowerCase()).toContain("barangay pulo");
+  });
+
   it("keeps standalone metadata query unchanged", () => {
     const result = maybeRewriteFollowUpQuery({
       message: "What fund sources exist in Barangay Mamatid?",
@@ -110,5 +134,39 @@ describe("contextual query rewrite", () => {
       messages,
     });
     expect(result.kind).toBe("clarify");
+  });
+
+  it("uses latest domain anchor for safe scope follow-up even with mixed prior topics", () => {
+    const messages: ChatMessage[] = [
+      message({
+        id: "u1",
+        role: "user",
+        content: "What does the AIP mention about disaster preparedness projects in Pulo?",
+      }),
+      message({
+        id: "a1",
+        role: "assistant",
+        content: "Disaster preparedness details...",
+      }),
+      message({
+        id: "u2",
+        role: "user",
+        content: "What does the AIP say about women's welfare and GAD projects in Pulo?",
+      }),
+      message({
+        id: "a2",
+        role: "assistant",
+        content: "GAD details...",
+      }),
+    ];
+
+    const result = maybeRewriteFollowUpQuery({
+      message: "And for Barangay Mamatid?",
+      messages,
+    });
+    expect(result.kind).toBe("rewritten");
+    if (result.kind !== "rewritten") return;
+    expect(result.query.toLowerCase()).toContain("women");
+    expect(result.query.toLowerCase()).toContain("barangay mamatid");
   });
 });

@@ -108,5 +108,8 @@ export type PipelineChatAnswer = {
     active_rag_flags?: Record<string, boolean>;
     rag_calibration?: Record<string, number | boolean>;
     stage_latency_ms?: Record<string, number>;
+    borderline_detected?: boolean;
+    borderline_reason_code?: string;
+    response_mode_source?: string;
   };
 };

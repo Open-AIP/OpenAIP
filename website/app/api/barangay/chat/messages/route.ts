@@ -933,6 +933,22 @@ function isFundSourceListQuery(message: string): boolean {
     normalized.includes("sources of funds");
   if (!hasFundTopic) return false;
 
+  const hasAggregationCue =
+    normalized.includes("total") ||
+    normalized.includes("totals") ||
+    normalized.includes("amount") ||
+    normalized.includes("sum") ||
+    normalized.includes("breakdown") ||
+    normalized.includes("distribution") ||
+    normalized.includes("by fund source") ||
+    normalized.includes("per fund source") ||
+    normalized.includes("compare") ||
+    normalized.includes("comparison") ||
+    normalized.includes("difference") ||
+    normalized.includes("vs") ||
+    normalized.includes("versus");
+  if (hasAggregationCue) return false;
+
   return (
     normalized.includes("exist") ||
     normalized.includes("available") ||
@@ -1683,6 +1699,51 @@ function parseLooseScopeName(message: string): string | null {
   return stripped || null;
 }
 
+function hasScopeComparisonCue(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    /\bcompare\b/.test(normalized) ||
+    /\bvs\b/.test(normalized) ||
+    /\bversus\b/.test(normalized) ||
+    /\bhigher\b/.test(normalized) ||
+    /\bwhich\s+barangay\b/.test(normalized)
+  );
+}
+
+function detectMentionedBarangayTargetsFromKnownNames(
+  message: string,
+  barangays: BarangayRef[]
+): TotalsScopeTarget[] {
+  const normalizedMessage = normalizeBarangayNameForMatch(message);
+  if (!normalizedMessage) return [];
+
+  const matches = barangays
+    .map((barangay) => {
+      const normalizedName = normalizeBarangayNameForMatch(barangay.name);
+      if (!normalizedName) return null;
+      const escapedName = normalizedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`\\b${escapedName}\\b`, "i");
+      if (!regex.test(normalizedMessage)) return null;
+      return {
+        target: {
+          scopeType: "barangay" as const,
+          scopeId: barangay.id,
+          scopeName: barangay.name,
+        },
+        position: normalizedMessage.indexOf(normalizedName),
+      };
+    })
+    .filter((match): match is { target: TotalsScopeTarget; position: number } => Boolean(match))
+    .sort((a, b) => a.position - b.position);
+
+  const unique: TotalsScopeTarget[] = [];
+  for (const match of matches) {
+    if (unique.some((target) => target.scopeId === match.target.scopeId)) continue;
+    unique.push(match.target);
+  }
+  return unique;
+}
+
 function parseAmount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "string") return null;
@@ -1787,6 +1848,9 @@ function detectDocLimitFieldFromQuery(
 function isUnsupportedRequestQuery(queryText: string): boolean {
   const normalized = queryText.toLowerCase();
   return (
+    (/\bdo you think\b/.test(normalized) &&
+      /\b(inflated|overpriced|overprice|suspicious|anomal(y|ies)|too high)\b/.test(normalized) &&
+      /\bbudget(s)?\b/.test(normalized)) ||
     /\bwho stole\b/.test(normalized) ||
     /\bembezzl/.test(normalized) ||
     /\bcorrupt(ion)?\b/.test(normalized) ||
@@ -1847,6 +1911,71 @@ function isChatMixedQueryPlannerEnabled(): boolean {
 
 function isChatMixedQueryExecutionEnabled(): boolean {
   return process.env.CHAT_MIXED_QUERY_EXECUTION_ENABLED === "true";
+}
+
+function isChatSemanticRepeatCacheEnabled(): boolean {
+  return process.env.CHAT_SEMANTIC_REPEAT_CACHE_ENABLED === "true";
+}
+
+function getChatSemanticRepeatCacheTtlSec(): number {
+  const raw = process.env.CHAT_SEMANTIC_REPEAT_CACHE_TTL_SEC;
+  if (!raw) return 600;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return 600;
+  return Math.max(30, Math.min(parsed, 3600));
+}
+
+function normalizeSemanticStabilityQuery(query: string): string {
+  return query
+    .toLowerCase()
+    .trim()
+    .replace(/[.!?,;:]+$/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function buildSemanticStabilityKey(input: {
+  query: string;
+  scopeResolution: ChatScopeResolution;
+  fiscalYear: number | null;
+}): string {
+  const normalizedQuery = normalizeSemanticStabilityQuery(input.query);
+  const scopeMode = input.scopeResolution.mode;
+  const targets = [...input.scopeResolution.resolvedTargets]
+    .map((target) => `${target.scopeType}:${target.scopeId}`.toLowerCase())
+    .sort((a, b) => a.localeCompare(b))
+    .join("|");
+  const yearPart = input.fiscalYear === null ? "fy:none" : `fy:${input.fiscalYear}`;
+  return `${normalizedQuery}||mode:${scopeMode}||targets:${targets || "none"}||${yearPart}`;
+}
+
+function isSemanticRepeatCacheEligible(meta: ChatRetrievalMeta | null | undefined): boolean {
+  if (!meta) return false;
+  if (meta.status === "clarification" || meta.kind === "clarification") return false;
+  if (meta.status === "refusal" || meta.refused) return false;
+  return meta.responseModeSource === "pipeline_generated" || meta.responseModeSource === "pipeline_partial";
+}
+
+function findSemanticRepeatCacheHit(input: {
+  messages: ChatMessage[];
+  stabilityKey: string;
+  ttlSec: number;
+}): ChatMessage | null {
+  const now = Date.now();
+  for (let index = input.messages.length - 1; index >= 0; index -= 1) {
+    const message = input.messages[index];
+    if (message.role !== "assistant") continue;
+    const meta = message.retrievalMeta ?? null;
+    if (!isSemanticRepeatCacheEligible(meta)) continue;
+    if (meta?.semanticStabilityKey !== input.stabilityKey) continue;
+
+    const createdAt = Date.parse(message.createdAt);
+    if (Number.isFinite(createdAt)) {
+      const ageSec = (now - createdAt) / 1000;
+      if (ageSec > input.ttlSec) continue;
+    }
+    return message;
+  }
+  return null;
 }
 
 function logRewriteDecision(input: {
@@ -2803,12 +2932,24 @@ async function resolveTotalsAssistantPayload(input: {
     };
   }
 
-  const multiBarangayTargets =
+  const requestedMultiBarangayTargets =
     input.scopeResolution.mode === "named_scopes" &&
     input.scopeResolution.resolvedTargets.length > 1 &&
     input.scopeResolution.resolvedTargets.every((target) => target.scopeType === "barangay")
       ? input.scopeResolution.resolvedTargets
       : null;
+
+  const inferredMultiBarangayTargets =
+    requestedMultiBarangayTargets === null && hasScopeComparisonCue(input.message)
+      ? detectMentionedBarangayTargetsFromKnownNames(
+          input.message,
+          await fetchActiveBarangaysForMatching()
+        )
+      : [];
+
+  const multiBarangayTargets =
+    requestedMultiBarangayTargets ??
+    (inferredMultiBarangayTargets.length > 1 ? inferredMultiBarangayTargets : null);
 
   if (multiBarangayTargets) {
     if (requestedFiscalYear === null) {
@@ -2984,6 +3125,83 @@ async function resolveTotalsAssistantPayload(input: {
         aggregation_source: "aip_totals_total_investment_program",
       })
     );
+
+    if (hasScopeComparisonCue(input.message)) {
+      const totalsByAipId = new Map<string, number>();
+      for (const row of totalsRows ?? []) {
+        const typed = row as { aip_id?: unknown; total_investment_program?: unknown };
+        const aipId = typeof typed.aip_id === "string" ? typed.aip_id : null;
+        const amount = parseAmount(typed.total_investment_program);
+        if (aipId && amount !== null) {
+          totalsByAipId.set(aipId, amount);
+        }
+      }
+
+      const byBarangay = multiBarangayTargets.map((target) => {
+        const publishedAip = publishedBarangayAips.find((row) => row.barangay_id === target.scopeId) ?? null;
+        const amount = publishedAip ? totalsByAipId.get(publishedAip.id) ?? null : null;
+        return {
+          barangayId: target.scopeId,
+          barangayName: normalizeBarangayLabel(target.scopeName),
+          aipId: publishedAip?.id ?? null,
+          amount,
+        };
+      });
+
+      const comparable = byBarangay.filter(
+        (row): row is { barangayId: string; barangayName: string; aipId: string; amount: number } =>
+          row.aipId !== null && row.amount !== null
+      );
+
+      const comparisonLines = byBarangay.map((row) => {
+        if (row.aipId === null) return `- ${row.barangayName}: No published AIP`;
+        if (row.amount === null) return `- ${row.barangayName}: Published AIP found, but no extracted Total Investment Program total`;
+        return `- ${row.barangayName}: ${formatPhp(row.amount)}`;
+      });
+
+      let higherLine =
+        "Unable to determine which barangay has a higher total because at least one selected barangay has no comparable extracted total.";
+      if (comparable.length >= 2) {
+        const sortedComparable = [...comparable].sort((a, b) => b.amount - a.amount);
+        const first = sortedComparable[0];
+        const second = sortedComparable[1];
+        const delta = first.amount - second.amount;
+        higherLine =
+          delta === 0
+            ? `Highest total: Tie between ${first.barangayName} and ${second.barangayName} (${formatPhp(first.amount)}).`
+            : `Higher total: ${first.barangayName} by ${formatPhp(delta)} over ${second.barangayName}.`;
+      }
+
+      return {
+        content:
+          `Budget comparison for FY ${requestedFiscalYear} (${combinedScopeLabel}):\n` +
+          `${comparisonLines.join("\n")}\n` +
+          `${higherLine}\n` +
+          `Coverage: ${coveredCount} of ${totalCount} selected barangays have published AIPs.` +
+          (missingNames.length > 0 ? ` Missing: ${missingNames.join(", ")}.` : ""),
+        citations: [
+          makeAggregateCitation(
+            "Computed from aip_totals (Total Investment Program) for the selected barangays.",
+            {
+              aggregate_type: "multi_barangay_total_investment_program_compare",
+              aggregation_source: "aip_totals_total_investment_program",
+              fiscal_year: requestedFiscalYear,
+              barangay_ids: barangayIds,
+              requested_barangays: requestedBarangayNames,
+              covered_barangays: coverageNames,
+              missing_barangays: missingNames,
+              contributing_aip_ids: formatIdSample(uniqueContributingAipIds),
+              contributing_aip_ids_count: uniqueContributingAipIds.length,
+            }
+          ),
+        ],
+        retrievalMeta: {
+          refused: false,
+          reason: "ok",
+          scopeResolution: input.scopeResolution,
+        },
+      };
+    }
 
     return {
       content:
@@ -6792,7 +7010,17 @@ export async function POST(request: Request) {
       );
     }
 
-    if (parsedLineItemQuestion.isFactQuestion && metadataIntentDetected.intent === "none") {
+    const hasExplicitLineItemFactCue = /\b(?:how much is allocated for|what is allocated for|how much for|amount for|schedule for|implementing agency for|expected output for)\b/i.test(
+      content
+    );
+    const hasDeterministicLineItemTarget =
+      Boolean(extractAipRefCode(content)) || isLineItemSpecificQuery(content) || hasExplicitLineItemFactCue;
+
+    if (
+      parsedLineItemQuestion.isFactQuestion &&
+      metadataIntentDetected.intent === "none" &&
+      hasDeterministicLineItemTarget
+    ) {
       let vectorRpcCalled = false;
       try {
         const barangayFilterId = lineItemScope.barangayIdUsed;
@@ -6872,11 +7100,92 @@ export async function POST(request: Request) {
               hadVectorSearch: false,
               foundCandidates: 0,
             });
+            let refusalContent = refusal.message;
+            if (refCode) {
+              const { data: diagnosticRows, error: diagnosticError } = await client
+                .from("aip_line_items")
+                .select("id,aip_id,fiscal_year,barangay_id,aip_ref_code,program_project_title")
+                .ilike("aip_ref_code", refCode)
+                .limit(200);
+              if (diagnosticError) {
+                throw new Error(diagnosticError.message);
+              }
+
+              const diagnosticLineItems = toLineItemRows(diagnosticRows);
+              const diagnosticAipIds = diagnosticLineItems
+                .map((row) => row.aip_id)
+                .filter((aipId, index, all) => Boolean(aipId) && all.indexOf(aipId) === index);
+              let publishedDiagnosticRows: LineItemRowRecord[] = [];
+              if (diagnosticAipIds.length > 0) {
+                const { data: publishedDiagnosticAips, error: publishedDiagnosticError } = await supabaseAdmin()
+                  .from("aips")
+                  .select("id")
+                  .in("id", diagnosticAipIds)
+                  .eq("status", "published");
+                if (publishedDiagnosticError) {
+                  throw new Error(publishedDiagnosticError.message);
+                }
+                const publishedDiagnosticAipIds = new Set(
+                  (publishedDiagnosticAips ?? [])
+                    .map((row) => (row as { id?: string }).id ?? null)
+                    .filter((id): id is string => Boolean(id))
+                );
+                publishedDiagnosticRows = diagnosticLineItems.filter((row) =>
+                  publishedDiagnosticAipIds.has(row.aip_id)
+                );
+              }
+
+              if (diagnosticLineItems.length > 0) {
+                if (publishedDiagnosticRows.length === 0) {
+                  refusalContent =
+                    `${refusal.message} I found this Ref in extracted records, ` +
+                    "but not in published AIPs for answering.";
+                } else {
+                  const detailParts: string[] = [];
+                  const availableYears = publishedDiagnosticRows
+                    .map((row) => row.fiscal_year)
+                    .filter((year, index, all) => Number.isInteger(year) && all.indexOf(year) === index)
+                    .sort((a, b) => a - b);
+                  const availableBarangayIds = publishedDiagnosticRows
+                    .map((row) => row.barangay_id)
+                    .filter((id, index, all): id is string => Boolean(id) && all.indexOf(id) === index);
+                  const availableBarangayNameMap = await fetchBarangayNameMap(availableBarangayIds);
+                  const availableBarangays = availableBarangayIds
+                    .map((id) => availableBarangayNameMap.get(id))
+                    .filter((name): name is string => Boolean(name))
+                    .map((name) => normalizeBarangayLabel(name));
+
+                  if (
+                    requestedFiscalYear !== null &&
+                    availableYears.length > 0 &&
+                    !availableYears.includes(requestedFiscalYear)
+                  ) {
+                    detailParts.push(
+                      `available fiscal years for this Ref: ${availableYears.map((year) => `FY ${year}`).join(", ")}`
+                    );
+                  }
+
+                  if (
+                    barangayFilterId !== null &&
+                    availableBarangayIds.length > 0 &&
+                    !availableBarangayIds.includes(barangayFilterId)
+                  ) {
+                    detailParts.push(
+                      `available barangays for this Ref: ${availableBarangays.join(", ")}`
+                    );
+                  }
+
+                  if (detailParts.length > 0) {
+                    refusalContent = `${refusal.message} I found published entries for this Ref, but not for the requested filters: ${detailParts.join("; ")}.`;
+                  }
+                }
+              }
+            }
 
             const assistantMessage = await appendAssistantMessage({
         actor: privilegedActor,
               sessionId: session.id,
-              content: refusal.message,
+              content: refusalContent,
               citations: [
                 makeSystemCitation("No published line item matched the requested Ref code.", {
                   reason: refusal.reason,
@@ -7551,75 +7860,153 @@ export async function POST(request: Request) {
 
     let assistantContent = "";
     let assistantCitations: ChatCitation[] = [];
+    const semanticStabilityKey = buildSemanticStabilityKey({
+      query: content,
+      scopeResolution,
+      fiscalYear: requestedFiscalYear,
+    });
+    const semanticRepeatCacheTtlSec = getChatSemanticRepeatCacheTtlSec();
     let assistantMeta: ChatRetrievalMeta = {
       refused: true,
       reason: "unknown",
       scopeResolution,
       verifierMode: "retrieval",
       routeFamily: "pipeline_fallback",
+      semanticStabilityKey,
+      responseModeSource: "pipeline_refusal",
+      responseStabilizedFromCache: false,
+      semanticRepeatCacheHit: false,
     };
 
-    try {
-      const pipeline = await requestPipelineChatAnswer({
-        question: content,
-        retrievalScope: scope.retrievalScope,
-        topK: 8,
-        minSimilarity: 0.3,
+    let repeatCacheMessage: ChatMessage | null = null;
+    if (isChatSemanticRepeatCacheEnabled()) {
+      const messages = await getSessionMessages();
+      repeatCacheMessage = findSemanticRepeatCacheHit({
+        messages,
+        stabilityKey: semanticStabilityKey,
+        ttlSec: semanticRepeatCacheTtlSec,
       });
+    }
 
-      assistantContent = pipeline.answer.trim();
-      assistantCitations = normalizePipelineCitations(pipeline.citations);
+    if (repeatCacheMessage) {
+      assistantContent = repeatCacheMessage.content.trim();
+      assistantCitations = repeatCacheMessage.citations ?? [];
+      const cachedMeta = repeatCacheMessage.retrievalMeta ?? null;
       assistantMeta = {
-        refused: Boolean(pipeline.refused),
-        reason: pipeline.retrieval_meta?.reason ?? "unknown",
-        topK: pipeline.retrieval_meta?.top_k,
-        minSimilarity: pipeline.retrieval_meta?.min_similarity,
-        contextCount: pipeline.retrieval_meta?.context_count,
-        verifierPassed: pipeline.retrieval_meta?.verifier_passed,
-        verifierMode: pipeline.retrieval_meta?.verifier_mode ?? "retrieval",
-        verifierPolicyPassed: pipeline.retrieval_meta?.verifier_policy_passed,
-        denseCandidateCount: pipeline.retrieval_meta?.dense_candidate_count,
-        keywordCandidateCount: pipeline.retrieval_meta?.keyword_candidate_count,
-        fusedCandidateCount: pipeline.retrieval_meta?.fused_candidate_count,
-        denseFinalCount: pipeline.retrieval_meta?.dense_final_count,
-        keywordFinalCount: pipeline.retrieval_meta?.keyword_final_count,
-        denseContributedToFinal: pipeline.retrieval_meta?.dense_contributed_to_final,
-        keywordContributedToFinal: pipeline.retrieval_meta?.keyword_contributed_to_final,
-        evidenceGateDecision: pipeline.retrieval_meta?.evidence_gate_decision,
-        evidenceGateReason: pipeline.retrieval_meta?.evidence_gate_reason,
-        evidenceGateReasonCode:
-          pipeline.retrieval_meta?.evidence_gate_reason_code ?? pipeline.retrieval_meta?.evidence_gate_reason,
-        generationSkippedByGate: pipeline.retrieval_meta?.generation_skipped_by_gate,
-        selectiveMultiQueryTriggered: pipeline.retrieval_meta?.multi_query_triggered,
-        selectiveMultiQueryVariantCount: pipeline.retrieval_meta?.multi_query_variant_count,
-        multiQueryReasonCode:
-          pipeline.retrieval_meta?.multi_query_reason_code ?? pipeline.retrieval_meta?.multi_query_reason,
-        activeRagFlags: pipeline.retrieval_meta?.active_rag_flags,
-        ragCalibration: pipeline.retrieval_meta?.rag_calibration,
-        stageLatencyMs: pipeline.retrieval_meta?.stage_latency_ms,
-        latencyMs: Date.now() - startedAt,
+        ...(cachedMeta ?? assistantMeta),
         scopeResolution,
-        intentClassification: frontendIntentClassification ?? undefined,
-        queryRewriteApplied,
-        queryRewriteReason: queryRewriteReason ?? undefined,
-        routeFamily: "pipeline_fallback",
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Pipeline chat request failed.";
-      assistantContent =
-        "I couldn't complete the response due to a temporary system issue. Please try again in a few moments.";
-      assistantCitations = [makeSystemCitation("Pipeline request failed.", { error: message })];
-      assistantMeta = {
-        refused: true,
-        reason: "pipeline_error",
-        scopeResolution,
-        latencyMs: Date.now() - startedAt,
-        intentClassification: frontendIntentClassification ?? undefined,
         verifierMode: "retrieval",
+        routeFamily: "pipeline_fallback",
+        latencyMs: Date.now() - startedAt,
+        intentClassification: frontendIntentClassification ?? undefined,
         queryRewriteApplied,
         queryRewriteReason: queryRewriteReason ?? undefined,
-        routeFamily: "pipeline_fallback",
+        semanticStabilityKey,
+        responseModeSource: "website_repeat_cache",
+        responseStabilizedFromCache: true,
+        semanticRepeatCacheHit: true,
       };
+    } else {
+      try {
+        const pipeline = await requestPipelineChatAnswer({
+          question: content,
+          retrievalScope: scope.retrievalScope,
+          topK: 8,
+          minSimilarity: 0.3,
+        });
+
+        assistantContent = pipeline.answer.trim();
+        assistantCitations = normalizePipelineCitations(pipeline.citations);
+        assistantMeta = {
+          refused: Boolean(pipeline.refused),
+          reason: pipeline.retrieval_meta?.reason ?? "unknown",
+          topK: pipeline.retrieval_meta?.top_k,
+          minSimilarity: pipeline.retrieval_meta?.min_similarity,
+          contextCount: pipeline.retrieval_meta?.context_count,
+          verifierPassed: pipeline.retrieval_meta?.verifier_passed,
+          verifierMode: pipeline.retrieval_meta?.verifier_mode ?? "retrieval",
+          verifierPolicyPassed: pipeline.retrieval_meta?.verifier_policy_passed,
+          denseCandidateCount: pipeline.retrieval_meta?.dense_candidate_count,
+          keywordCandidateCount: pipeline.retrieval_meta?.keyword_candidate_count,
+          fusedCandidateCount: pipeline.retrieval_meta?.fused_candidate_count,
+          denseFinalCount: pipeline.retrieval_meta?.dense_final_count,
+          keywordFinalCount: pipeline.retrieval_meta?.keyword_final_count,
+          denseContributedToFinal: pipeline.retrieval_meta?.dense_contributed_to_final,
+          keywordContributedToFinal: pipeline.retrieval_meta?.keyword_contributed_to_final,
+          evidenceGateDecision: pipeline.retrieval_meta?.evidence_gate_decision,
+          evidenceGateReason: pipeline.retrieval_meta?.evidence_gate_reason,
+          evidenceGateReasonCode:
+            pipeline.retrieval_meta?.evidence_gate_reason_code ?? pipeline.retrieval_meta?.evidence_gate_reason,
+          generationSkippedByGate: pipeline.retrieval_meta?.generation_skipped_by_gate,
+          selectiveMultiQueryTriggered: pipeline.retrieval_meta?.multi_query_triggered,
+          selectiveMultiQueryVariantCount: pipeline.retrieval_meta?.multi_query_variant_count,
+          multiQueryReasonCode:
+            pipeline.retrieval_meta?.multi_query_reason_code ?? pipeline.retrieval_meta?.multi_query_reason,
+          activeRagFlags: pipeline.retrieval_meta?.active_rag_flags,
+          ragCalibration: pipeline.retrieval_meta?.rag_calibration,
+          stageLatencyMs: pipeline.retrieval_meta?.stage_latency_ms,
+          borderlineDetected: pipeline.retrieval_meta?.borderline_detected,
+          borderlineReasonCode: pipeline.retrieval_meta?.borderline_reason_code,
+          responseModeSource:
+            (pipeline.retrieval_meta?.response_mode_source as ChatRetrievalMeta["responseModeSource"]) ??
+            (pipeline.refused
+              ? "pipeline_refusal"
+              : pipeline.retrieval_meta?.reason === "partial_evidence"
+                ? "pipeline_partial"
+                : "pipeline_generated"),
+          semanticStabilityKey,
+          responseStabilizedFromCache: false,
+          semanticRepeatCacheHit: false,
+          latencyMs: Date.now() - startedAt,
+          scopeResolution,
+          intentClassification: frontendIntentClassification ?? undefined,
+          queryRewriteApplied,
+          queryRewriteReason: queryRewriteReason ?? undefined,
+          routeFamily: "pipeline_fallback",
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Pipeline chat request failed.";
+        assistantContent =
+          "I couldn't complete the response due to a temporary system issue. Please try again in a few moments.";
+        assistantCitations = [makeSystemCitation("Pipeline request failed.", { error: message })];
+        assistantMeta = {
+          refused: true,
+          reason: "pipeline_error",
+          scopeResolution,
+          latencyMs: Date.now() - startedAt,
+          intentClassification: frontendIntentClassification ?? undefined,
+          verifierMode: "retrieval",
+          queryRewriteApplied,
+          queryRewriteReason: queryRewriteReason ?? undefined,
+          routeFamily: "pipeline_fallback",
+          semanticStabilityKey,
+          responseModeSource: "pipeline_refusal",
+          responseStabilizedFromCache: false,
+          semanticRepeatCacheHit: false,
+        };
+      }
+    }
+
+    if (!repeatCacheMessage && isTotalsDebugEnabled()) {
+      console.info(
+        JSON.stringify({
+          request_id: requestId,
+          event: "semantic_repeat_cache",
+          semantic_repeat_cache_hit: false,
+          semantic_stability_key_preview: semanticStabilityKey.slice(0, 180),
+          semantic_repeat_cache_ttl_sec: semanticRepeatCacheTtlSec,
+        })
+      );
+    } else if (repeatCacheMessage && isTotalsDebugEnabled()) {
+      console.info(
+        JSON.stringify({
+          request_id: requestId,
+          event: "semantic_repeat_cache",
+          semantic_repeat_cache_hit: true,
+          semantic_stability_key_preview: semanticStabilityKey.slice(0, 180),
+          semantic_repeat_cache_ttl_sec: semanticRepeatCacheTtlSec,
+        })
+      );
     }
 
     if (!assistantContent) {
@@ -7634,6 +8021,50 @@ export async function POST(request: Request) {
         reason: assistantMeta.reason === "ok" ? "validation_failed" : assistantMeta.reason,
         verifierMode: "retrieval",
       };
+    }
+
+    if (isChatSplitVerifierPolicyEnabled() && !assistantMeta.refused) {
+      const preflightVerifier = evaluateVerifierPolicy({
+        mode: "retrieval",
+        citations: assistantCitations,
+        retrievalMeta: assistantMeta,
+      });
+
+      if (!preflightVerifier.passed) {
+        const refusalScopeLabel =
+          lineItemScope.barangayIdUsed !== null
+            ? normalizeBarangayLabel(scopeBarangayName ?? "your barangay")
+            : "All barangays";
+        const refusal = buildRefusalMessage({
+          intent: "pipeline_fallback",
+          queryText: content,
+          fiscalYear: requestedFiscalYear,
+          scopeLabel: refusalScopeLabel,
+          explicitScopeRequested: scopeResolution.requestedScopes.length > 0,
+          scopeResolved: true,
+        });
+
+        assistantContent = refusal.message;
+        assistantCitations = [
+          ...assistantCitations.map((citation) => ({
+            ...citation,
+            insufficient: true,
+          })),
+          makeSystemCitation("Response blocked because retrieval grounding verification failed.", {
+            reason: "verifier_failed",
+            verifier_reason_code: preflightVerifier.reasonCode,
+          }),
+        ];
+        assistantMeta = {
+          ...assistantMeta,
+          refused: true,
+          status: "refusal",
+          reason: "verifier_failed",
+          refusalReason: refusal.reason,
+          suggestions: refusal.suggestions,
+          responseModeSource: "pipeline_refusal",
+        };
+      }
     }
 
     const assistantMessage = await appendAssistantMessage({

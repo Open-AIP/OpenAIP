@@ -6,6 +6,7 @@ import { getMixedTaskCaps } from "@/lib/chat/query-plan-builder";
 
 type StrategyFlags = {
   CHAT_CONTEXTUAL_REWRITE_ENABLED: boolean;
+  CHAT_SEMANTIC_REPEAT_CACHE_ENABLED: boolean;
   CHAT_METADATA_SQL_ROUTE_ENABLED: boolean;
   CHAT_SPLIT_VERIFIER_POLICY_ENABLED: boolean;
   CHAT_MIXED_QUERY_PLANNER_ENABLED: boolean;
@@ -35,6 +36,7 @@ export function getChatStrategyConfigSnapshot(): ChatStrategyConfigSnapshot {
   return {
     flags: {
       CHAT_CONTEXTUAL_REWRITE_ENABLED: boolEnv("CHAT_CONTEXTUAL_REWRITE_ENABLED", false),
+      CHAT_SEMANTIC_REPEAT_CACHE_ENABLED: boolEnv("CHAT_SEMANTIC_REPEAT_CACHE_ENABLED", false),
       CHAT_METADATA_SQL_ROUTE_ENABLED: process.env.CHAT_METADATA_SQL_ROUTE_ENABLED !== "false",
       CHAT_SPLIT_VERIFIER_POLICY_ENABLED: process.env.CHAT_SPLIT_VERIFIER_POLICY_ENABLED !== "false",
       CHAT_MIXED_QUERY_PLANNER_ENABLED: boolEnv("CHAT_MIXED_QUERY_PLANNER_ENABLED", false),

@@ -3,7 +3,11 @@ from __future__ import annotations
 import sys
 import types
 
-from openaip_pipeline.services.rag.rag import answer_with_rag, evaluate_evidence_gate
+from openaip_pipeline.services.rag.rag import (
+    answer_with_rag,
+    evaluate_borderline_semantic_evidence,
+    evaluate_evidence_gate,
+)
 
 
 class _FakeDoc:
@@ -88,6 +92,128 @@ def test_evidence_gate_refuses_year_mismatch() -> None:
     ]
     gate = evaluate_evidence_gate(question="What happened in 2025?", selected_docs=docs)
     assert gate["decision"] == "refuse"
+
+
+def test_borderline_evidence_never_triggers_when_selected_docs_empty() -> None:
+    evaluation = evaluate_borderline_semantic_evidence(
+        question="What does the AIP say about road maintenance in Pulo?",
+        selected_docs=[],
+    )
+    assert evaluation["is_borderline"] is False
+    assert evaluation["reason_code"] == "no_selected_docs"
+    assert evaluation["metrics"]["selected_doc_count"] == 0
+
+
+def test_answer_with_rag_zero_selected_docs_always_refuses(monkeypatch) -> None:
+    monkeypatch.setenv("RAG_PARTIAL_MODE_ENABLED", "true")
+    monkeypatch.setenv("RAG_BORDERLINE_PARTIAL_ENABLED", "true")
+    monkeypatch.setenv("RAG_EVIDENCE_GATE_ENABLED", "false")
+
+    fake_supabase_client_module = types.SimpleNamespace(create_client=lambda *_args, **_kwargs: object())
+    fake_langchain_openai_module = types.SimpleNamespace(ChatOpenAI=object)
+    monkeypatch.setitem(sys.modules, "supabase.client", fake_supabase_client_module)
+    monkeypatch.setitem(sys.modules, "langchain_openai", fake_langchain_openai_module)
+
+    monkeypatch.setattr(
+        "openaip_pipeline.services.rag.rag.run_hybrid_retrieval",
+        lambda **_kwargs: {
+            "hybrid_enabled": False,
+            "keyword_enabled": False,
+            "rrf_enabled": False,
+            "dense_docs": [],
+            "keyword_docs": [],
+            "fused_docs": [],
+            "strong_docs": [],
+        },
+    )
+
+    result = answer_with_rag(
+        supabase_url="https://example.test",
+        supabase_service_key="service-key",
+        openai_api_key="openai-key",
+        embeddings_model="text-embedding-3-large",
+        chat_model="gpt-5.2",
+        question="Explain this budget item",
+        retrieval_scope={"mode": "global", "targets": []},
+        top_k=8,
+        min_similarity=0.3,
+    )
+
+    assert result["refused"] is True
+    assert result["retrieval_meta"]["reason"] == "insufficient_evidence"
+    assert result["retrieval_meta"]["selected_count"] == 0
+    assert result["retrieval_meta"]["response_mode_source"] == "pipeline_refusal"
+
+
+def test_answer_with_rag_borderline_verifier_fail_downgrades_to_partial_when_enabled(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("RAG_BORDERLINE_PARTIAL_ENABLED", "true")
+    monkeypatch.setenv("RAG_PARTIAL_MODE_ENABLED", "false")
+    monkeypatch.setenv("RAG_EVIDENCE_GATE_ENABLED", "false")
+    monkeypatch.setenv("RAG_BORDERLINE_EXPLICIT_MATCH_MIN", "0.20")
+
+    fake_supabase_client_module = types.SimpleNamespace(create_client=lambda *_args, **_kwargs: object())
+    monkeypatch.setitem(sys.modules, "supabase.client", fake_supabase_client_module)
+
+    class _FakeChatOpenAI:
+        def __init__(self, *args, **kwargs):  # noqa: D401, ANN001, ANN003
+            self.calls = 0
+
+        def invoke(self, _messages):  # noqa: ANN001
+            self.calls += 1
+            if self.calls == 1:
+                return types.SimpleNamespace(
+                    content='{"answer":"The AIP mentions infrastructure works [c1].","used_source_ids":["c1"]}'
+                )
+            return types.SimpleNamespace(content='{"supported":false,"issues":["needs explicit match"]}')
+
+    monkeypatch.setitem(sys.modules, "langchain_openai", types.SimpleNamespace(ChatOpenAI=_FakeChatOpenAI))
+
+    docs = [
+        _FakeDoc(
+            chunk_id="c1",
+            similarity=0.76,
+            content=(
+                "Infrastructure category includes rehabilitation of drainages and canal works "
+                "for fiscal year 2026 in Barangay Pulo."
+            ),
+            fiscal_year=2026,
+            channels=["dense"],
+        )
+    ]
+
+    monkeypatch.setattr(
+        "openaip_pipeline.services.rag.rag.run_hybrid_retrieval",
+        lambda **_kwargs: {
+            "hybrid_enabled": True,
+            "keyword_enabled": False,
+            "rrf_enabled": False,
+            "dense_docs": docs,
+            "keyword_docs": [],
+            "fused_docs": docs,
+            "strong_docs": docs,
+        },
+    )
+    monkeypatch.setattr("openaip_pipeline.services.rag.rag._select_diverse_docs", lambda docs, **_kwargs: docs)
+
+    result = answer_with_rag(
+        supabase_url="https://example.test",
+        supabase_service_key="service-key",
+        openai_api_key="openai-key",
+        embeddings_model="text-embedding-3-large",
+        chat_model="gpt-5.2",
+        question="What does the AIP say about road maintenance projects in Barangay Pulo FY 2026?",
+        retrieval_scope={"mode": "global", "targets": []},
+        top_k=8,
+        min_similarity=0.3,
+    )
+
+    assert result["refused"] is False
+    assert result["retrieval_meta"]["reason"] == "partial_evidence"
+    assert result["retrieval_meta"]["response_mode_source"] == "pipeline_partial"
+    assert result["retrieval_meta"]["borderline_detected"] is True
+    assert result["retrieval_meta"]["borderline_reason_code"] == "borderline_no_explicit_match"
 
 
 def test_answer_with_rag_skips_generation_when_gate_blocks(monkeypatch) -> None:

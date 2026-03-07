@@ -147,6 +147,11 @@ function getClearAnchorQuery(turns: RecentTurns): string | null {
   return first;
 }
 
+function getLatestDomainAnchorQuery(turns: RecentTurns): string | null {
+  const candidate = turns.userTurns.find((message) => hasDomainCues(message.content));
+  return candidate?.content ?? null;
+}
+
 function replaceYear(anchor: string, year: number): string {
   const withReplacedYear = anchor.replace(/\b20\d{2}\b/g, String(year));
   if (withReplacedYear !== anchor) return withReplacedYear;
@@ -164,6 +169,19 @@ function rewriteScope(anchor: string, scopePhrase: string): string {
   return `${anchor.replace(/\?+$/, "")} for ${scopePhrase.trim()}`;
 }
 
+function toScopePhrase(anchor: string, rawScope: string): string | null {
+  const cleaned = rawScope.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  if (/^(it|that|this|there|here)$/i.test(cleaned)) return null;
+  if (/^(barangay|brgy\.?|city|municipality)\s+/i.test(cleaned)) {
+    return cleaned.replace(/^brgy\.?\s+/i, "Barangay ");
+  }
+
+  const anchorScopeMatch = anchor.match(/\b(barangay|city|municipality)\b/i);
+  const inferredScopeType = anchorScopeMatch?.[1] ?? "Barangay";
+  return `${inferredScopeType} ${cleaned}`;
+}
+
 export function maybeRewriteFollowUpQuery(input: {
   message: string;
   messages: ChatMessage[];
@@ -179,65 +197,73 @@ export function maybeRewriteFollowUpQuery(input: {
   const normalized = normalize(message);
   const turns = getRecentTurns({ messages: input.messages, currentMessageId: input.currentMessageId });
   const anchor = getClearAnchorQuery(turns);
+  const latestDomainAnchor = getLatestDomainAnchorQuery(turns);
 
   const safeYearMatch = normalized.match(/^(?:how|what)\s+about\s+(?:fy\s*)?(20\d{2})\??$/);
   if (safeYearMatch) {
-    if (!anchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
+    const safeAnchor = anchor ?? latestDomainAnchor;
+    if (!safeAnchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
     const year = Number.parseInt(safeYearMatch[1] ?? "", 10);
     if (!Number.isInteger(year)) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
     return {
       kind: "rewritten",
-      query: replaceYear(anchor, year),
+      query: replaceYear(safeAnchor, year),
       reason: "safe_year_follow_up",
-      anchor,
+      anchor: safeAnchor,
       risky: false,
     };
   }
 
   if (/^(?:can you\s+)?(?:cite(?:\s+it|\s+that|\s+this)?|add citations?|with citations)\??$/.test(normalized)) {
-    if (!anchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
+    const safeAnchor = anchor ?? latestDomainAnchor;
+    if (!safeAnchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
     return {
       kind: "rewritten",
-      query: `${anchor.replace(/\?+$/, "")}. Explain with citations from published AIP chunks.`,
+      query: `${safeAnchor.replace(/\?+$/, "")}. Explain with citations from published AIP chunks.`,
       reason: "safe_citation_follow_up",
-      anchor,
+      anchor: safeAnchor,
       risky: false,
     };
   }
 
-  const safeScopeMatch = normalized.match(/^and\s+for\s+((?:barangay|city|municipality)\s+[a-z0-9.\- ]+)\??$/);
+  const safeScopeMatch = normalized.match(
+    /^(?:and\s+)?for\s+([a-z0-9.\- ]+?)(?:\s+only)?\??$/
+  );
   if (safeScopeMatch) {
-    if (!anchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
-    const scopePhrase = safeScopeMatch[1] ?? "";
+    const safeAnchor = anchor ?? latestDomainAnchor;
+    if (!safeAnchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
+    const scopePhrase = toScopePhrase(safeAnchor, safeScopeMatch[1] ?? "");
+    if (!scopePhrase) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
     return {
       kind: "rewritten",
-      query: rewriteScope(anchor, scopePhrase),
+      query: rewriteScope(safeAnchor, scopePhrase),
       reason: "safe_scope_follow_up",
-      anchor,
+      anchor: safeAnchor,
       risky: false,
     };
   }
 
   if (/^compare\s+(?:it|that|this)\s+with\s+last\s+year\??$/.test(normalized)) {
-    if (!anchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
-    const yearMatch = anchor.match(/\b(20\d{2})\b/);
+    const safeAnchor = anchor ?? latestDomainAnchor;
+    if (!safeAnchor) return { kind: "unchanged", query: input.message, reason: "no_anchor" };
+    const yearMatch = safeAnchor.match(/\b(20\d{2})\b/);
     if (yearMatch) {
       const year = Number.parseInt(yearMatch[1] ?? "", 10);
       if (Number.isInteger(year)) {
         return {
           kind: "rewritten",
-          query: `Compare ${replaceYear(anchor, year)} with FY ${year - 1}.`,
+          query: `Compare ${replaceYear(safeAnchor, year)} with FY ${year - 1}.`,
           reason: "safe_compare_follow_up",
-          anchor,
+          anchor: safeAnchor,
           risky: false,
         };
       }
     }
     return {
       kind: "rewritten",
-      query: `Compare ${anchor.replace(/\?+$/, "")} with last year.`,
+      query: `Compare ${safeAnchor.replace(/\?+$/, "")} with last year.`,
       reason: "safe_compare_follow_up",
-      anchor,
+      anchor: safeAnchor,
       risky: false,
     };
   }

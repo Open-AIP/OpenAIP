@@ -30,6 +30,15 @@ describe("router decision", () => {
     expect(decision.kind).toBe("ROW_LOOKUP");
   });
 
+  it("does not force row lookup for opinionated inflated-budget asks", () => {
+    const decision = decideRoute({
+      text: "Do you think Pulo's FY 2026 AIP has inflated budgets?",
+      intentClassification: null,
+    });
+
+    expect(decision.kind).not.toBe("ROW_LOOKUP");
+  });
+
   it("selects SQL metadata for strict metadata enumeration asks", () => {
     const decision = decideRoute({
       text: "What sectors exist in the AIP?",

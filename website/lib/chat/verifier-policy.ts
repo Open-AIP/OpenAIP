@@ -60,6 +60,15 @@ export function verifyRetrievalGrounding(input: {
   if (input.retrievalMeta.reason === "validation_failed") {
     return false;
   }
+  if (input.retrievalMeta.reason === "verifier_failed") {
+    return false;
+  }
+  if (input.retrievalMeta.verifierPassed === false) {
+    return false;
+  }
+  if (input.retrievalMeta.verifierPolicyPassed === false) {
+    return false;
+  }
   return true;
 }
 

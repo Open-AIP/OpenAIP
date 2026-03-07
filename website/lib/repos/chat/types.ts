@@ -204,6 +204,12 @@ export type ChatRetrievalMeta = {
   plannerReasonCode?: string;
   responseModeReasonCode?: string;
   verifierPolicyReasonCode?: string;
+  responseModeSource?: "pipeline_generated" | "pipeline_partial" | "pipeline_refusal" | "website_repeat_cache";
+  semanticStabilityKey?: string;
+  responseStabilizedFromCache?: boolean;
+  semanticRepeatCacheHit?: boolean;
+  borderlineDetected?: boolean;
+  borderlineReasonCode?: string;
   clarificationEmitted?: boolean;
   refusalEmitted?: boolean;
   activeChatFlags?: Record<string, boolean>;

@@ -133,7 +133,11 @@ export function detectAggregationIntent(message: string): AggregationIntentResul
     normalized.includes("sector breakdown") ||
     normalized.includes("breakdown by sector") ||
     normalized.includes("sector distribution");
-  if (hasSectorCue) {
+  const hasSectorRankingCue =
+    (normalized.includes("sector") || normalized.includes("sectors")) &&
+    /\b(lowest|least|min(?:imum)?|highest|most|max(?:imum)?|rank|ranking)\b/.test(normalized) &&
+    /\b(allocated|allocation|budget|spending|total|totals)\b/.test(normalized);
+  if (hasSectorCue || hasSectorRankingCue) {
     return { intent: "totals_by_sector" };
   }
 

@@ -1282,6 +1282,43 @@ describe("aggregation routing", () => {
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
+  it("answers lowest allocated sector budget as structured sector aggregation", async () => {
+    rpcResponses.get_totals_by_sector = [
+      {
+        sector_code: "INFRA",
+        sector_name: "Infrastructure",
+        sector_total: 2500000,
+        count_items: 3,
+      },
+      {
+        sector_code: "HEALTH",
+        sector_name: "Health",
+        sector_total: 500000,
+        count_items: 2,
+      },
+      {
+        sector_code: "GEN",
+        sector_name: "General Services",
+        sector_total: 1200000,
+        count_items: 4,
+      },
+    ];
+
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "sector that have lowest allocated budget",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string };
+    expect(assistant.content).toContain("Sector with lowest allocated budget");
+    expect(assistant.content).toContain("HEALTH - Health");
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_sector")
+    ).toBe(true);
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
   it("applies explicit barangay scope for possessive compare query", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
@@ -1319,6 +1356,38 @@ describe("aggregation routing", () => {
     };
     expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
     expect(assistant.retrievalMeta?.verifierMode).toBe("retrieval");
+  });
+
+  it("short-circuits 'who are you' as conversational without semantic retrieval", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "who are you?",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: { reason?: string };
+    };
+    expect(assistant.content).toContain("published AIP questions only");
+    expect(assistant.retrievalMeta?.reason).toBe("conversational_shortcut");
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits simple general-knowledge prompt without semantic retrieval", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "what is eggs",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: { reason?: string };
+    };
+    expect(assistant.content).toContain("published AIP questions only");
+    expect(assistant.retrievalMeta?.reason).toBe("conversational_shortcut");
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
   it("reuses semantic fallback response from cache for normalized query variants", async () => {

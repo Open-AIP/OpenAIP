@@ -1321,6 +1321,38 @@ describe("aggregation routing", () => {
     expect(assistant.retrievalMeta?.verifierMode).toBe("retrieval");
   });
 
+  it("short-circuits 'who are you' as conversational without semantic retrieval", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "who are you?",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: { reason?: string };
+    };
+    expect(assistant.content).toContain("published AIP questions only");
+    expect(assistant.retrievalMeta?.reason).toBe("conversational_shortcut");
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits simple general-knowledge prompt without semantic retrieval", async () => {
+    const { payload } = await callMessagesRoute({
+      sessionId: session.id,
+      content: "what is eggs",
+    });
+
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as {
+      content: string;
+      retrievalMeta?: { reason?: string };
+    };
+    expect(assistant.content).toContain("published AIP questions only");
+    expect(assistant.retrievalMeta?.reason).toBe("conversational_shortcut");
+    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+  });
+
   it("reuses semantic fallback response from cache for normalized query variants", async () => {
     process.env.CHAT_SEMANTIC_REPEAT_CACHE_ENABLED = "true";
     process.env.CHAT_SEMANTIC_REPEAT_CACHE_TTL_SEC = "600";

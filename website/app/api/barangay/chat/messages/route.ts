@@ -379,6 +379,36 @@ function containsDomainCues(text: string): boolean {
   return cues.some((cue) => normalized.includes(cue));
 }
 
+function isLikelyGeneralKnowledgeQuery(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!normalized) return false;
+  if (containsDomainCues(normalized)) return false;
+
+  // Keep this narrow: only obvious non-domain/general prompts should shortcut.
+  if (
+    /\b(aip|budget|investment|fund|source|sector|project|barangay|city|municipality|scope|fiscal|year|fy|ref|line item|total|amount|top|compare)\b/.test(
+      normalized
+    )
+  ) {
+    return false;
+  }
+
+  const tokenCount = normalized.split(" ").length;
+  if (tokenCount > 10) return false;
+
+  return (
+    /^who are you\??$/.test(normalized) ||
+    /^what are you\??$/.test(normalized) ||
+    /^what did you eat\??$/.test(normalized) ||
+    /^how are you\??$/.test(normalized) ||
+    /^what is [a-z][a-z\s'-]{1,40}\??$/.test(normalized) ||
+    /^what are [a-z][a-z\s'-]{1,40}\??$/.test(normalized)
+  );
+}
+
 function isConversationalIntent(
   intent?: string
 ): intent is "GREETING" | "THANKS" | "COMPLAINT" | "CLARIFY" | "OUT_OF_SCOPE" {
@@ -4243,7 +4273,12 @@ export async function POST(request: Request) {
     const confidence = frontendIntentClassification?.confidence ?? null;
     const domainCues = containsDomainCues(content);
 
-    if (!pendingClarification && !domainCues && isConversationalIntent(frontendIntent)) {
+    const shouldShortcutConversational =
+      !pendingClarification &&
+      !domainCues &&
+      (isConversationalIntent(frontendIntent) || isLikelyGeneralKnowledgeQuery(content));
+    if (shouldShortcutConversational) {
+      const shortcutIntent = isConversationalIntent(frontendIntent) ? frontendIntent : "OUT_OF_SCOPE";
       const shortcutScopeResolution: ChatScopeResolution = {
         mode: "global",
         requestedScopes: [],
@@ -4254,11 +4289,11 @@ export async function POST(request: Request) {
       const assistantMessage = await appendAssistantMessage({
         actor: privilegedActor,
         sessionId: session.id,
-        content: conversationalReply(frontendIntent),
+        content: conversationalReply(shortcutIntent),
         citations: [
           makeSystemCitation("Conversational shortcut reply. No AIP retrieval was performed.", {
             reason: "conversational_shortcut",
-            intent: frontendIntent,
+            intent: shortcutIntent,
           }),
         ],
         retrievalMeta: {
@@ -4277,7 +4312,7 @@ export async function POST(request: Request) {
           JSON.stringify({
             request_id: requestId,
             event: "frontend_conversational_shortcut",
-            intent: frontendIntent,
+            intent: shortcutIntent,
             confidence,
             method: frontendIntentClassification?.method ?? null,
           })

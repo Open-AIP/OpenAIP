@@ -19,6 +19,7 @@ function buildAipDetails(): AipDetails {
     projectRefCode: `1000-${String(index + 1).padStart(3, "0")}`,
     programDescription: `General Program ${index + 1}`,
     totalAmount: 1000 + index,
+    hasAiIssues: index <= 1,
     hasLguNote: index === 0,
   }));
 
@@ -29,6 +30,7 @@ function buildAipDetails(): AipDetails {
     projectRefCode: `3000-${String(index + 1).padStart(3, "0")}`,
     programDescription: `Social Program ${index + 1}`,
     totalAmount: 2000 + index,
+    hasAiIssues: false,
     hasLguNote: false,
   }));
 
@@ -90,6 +92,31 @@ describe("AipProjectsTable", () => {
 
     expect(rowWithLguNote).toHaveClass("bg-amber-50");
     expect(rowWithoutLguNote).not.toHaveClass("bg-amber-50");
+  });
+
+  it("shows unresolved AI notice when flagged projects have no LGU note", () => {
+    render(<AipProjectsTable aip={buildAipDetails()} />);
+
+    expect(
+      screen.getByText(
+        "Notice: 1 AI-flagged project(s) in this AIP have not been addressed by an LGU feedback note yet."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("hides unresolved AI notice when all AI-flagged projects have LGU notes", () => {
+    const aip = buildAipDetails();
+    aip.projectRows = aip.projectRows.map((row) =>
+      row.hasAiIssues ? { ...row, hasLguNote: true } : row
+    );
+
+    render(<AipProjectsTable aip={aip} />);
+
+    expect(
+      screen.queryByText(
+        /AI-flagged project\(s\) in this AIP have not been addressed by an LGU feedback note yet\./
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("resets offset when search changes", () => {

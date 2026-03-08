@@ -19,6 +19,11 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
   const [activeSector, setActiveSector] = useState<AipProjectSector>('General Sector');
   const [query, setQuery] = useState('');
   const [offset, setOffset] = useState(0);
+  const unresolvedAiCount = useMemo(
+    () =>
+      aip.projectRows.filter((row) => row.hasAiIssues && !row.hasLguNote).length,
+    [aip.projectRows]
+  );
 
   const filteredRows = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase();
@@ -96,6 +101,13 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
           <CircleHelp className="h-3.5 w-3.5" />
           Tip: Select a row to view the project&apos;s full details.
         </div>
+
+        {unresolvedAiCount > 0 ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Notice: {unresolvedAiCount} AI-flagged project(s) in this AIP have not been
+            addressed by an LGU feedback note yet.
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           <Table>

@@ -667,7 +667,7 @@ describe("AipDetailView sidebar behavior", () => {
     });
   });
 
-  it("shows unresolved AI block message for city submit", async () => {
+  it("shows unresolved AI advisory message for city submit", async () => {
     mockProjectsState = {
       rows: [
         flaggedProject("project-001", "REF-001", "Flagged project 1"),
@@ -688,11 +688,13 @@ describe("AipDetailView sidebar behavior", () => {
       expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText(
-        "6 AI-flagged project(s) still need an official response before submission."
-      )
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "6 AI-flagged project(s) have not been addressed with an LGU feedback note yet. You may still continue, but citizens will see these as unaddressed."
+        )
+      ).toBeInTheDocument();
+    });
     expect(screen.getByRole("link", { name: "REF-001" })).toHaveAttribute(
       "href",
       "/city/aips/aip-001/project-001"
@@ -717,7 +719,7 @@ describe("AipDetailView sidebar behavior", () => {
 
     expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "REF-001" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Submit & Publish" })).toBeEnabled();
   });
 
   it("does not show flagged-project pagination controls when unresolved list is 5 or fewer", async () => {
@@ -738,11 +740,13 @@ describe("AipDetailView sidebar behavior", () => {
       expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText(
-        "3 AI-flagged project(s) still need an official response before submission."
-      )
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "3 AI-flagged project(s) have not been addressed with an LGU feedback note yet. You may still continue, but citizens will see these as unaddressed."
+        )
+      ).toBeInTheDocument();
+    });
     expect(screen.getByRole("link", { name: "REF-001" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "REF-003" })).toBeInTheDocument();
     expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();

@@ -220,6 +220,7 @@ function parseSummary(row: ArtifactRow | undefined): string | null {
 }
 
 function toProjectRow(row: ProjectRow, hasLguNote: boolean): CitizenAipDetailProjectRow {
+  const hasAiIssues = (normalizeProjectErrors(row.errors) ?? []).length > 0;
   return {
     id: row.id,
     aipId: row.aip_id,
@@ -228,6 +229,7 @@ function toProjectRow(row: ProjectRow, hasLguNote: boolean): CitizenAipDetailPro
     projectRefCode: toDisplayRefCode(row.aip_ref_code),
     programDescription: row.program_project_description,
     totalAmount: typeof row.total === "number" && Number.isFinite(row.total) ? row.total : 0,
+    hasAiIssues,
     hasLguNote,
   };
 }
@@ -677,6 +679,7 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
       if (!projectData) return null;
 
       const row = projectData as unknown as ProjectRow;
+      const projectIdsWithLguNotes = await getProjectIdsWithPublicLguNotes([row.id]);
       return {
         aipId: input.aipId,
         projectId: row.id,
@@ -692,6 +695,7 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
         completionDate: row.completion_date,
         totalAmount: typeof row.total === "number" && Number.isFinite(row.total) ? row.total : 0,
         aiIssues: normalizeProjectErrors(row.errors) ?? [],
+        hasLguNote: projectIdsWithLguNotes.has(row.id),
       } satisfies CitizenAipProjectDetailRecord;
     },
   };

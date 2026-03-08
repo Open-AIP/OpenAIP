@@ -791,7 +791,6 @@ export default function AipDetailView({
     canManageBarangayWorkflow &&
     !projectsLoading &&
     !projectsError &&
-    unresolvedAiCount === 0 &&
     (!requiresRevisionReply || trimmedRevisionReply.length > 0);
   const canSaveRevisionReply =
     isBarangayScope &&
@@ -806,11 +805,13 @@ export default function AipDetailView({
     ? "Loading project review statuses before submission."
     : projectsError
       ? "Project review statuses are unavailable right now. Please refresh and try again."
-      : unresolvedAiCount > 0
-        ? `${unresolvedAiCount} AI-flagged project(s) still need an official response before submission.`
-        : requiresRevisionReply && trimmedRevisionReply.length === 0
+      : requiresRevisionReply && trimmedRevisionReply.length === 0
           ? "Reply to reviewer remarks is required before resubmission."
-        : null;
+          : null;
+  const unresolvedAiAdvisoryMessage =
+    unresolvedAiCount > 0
+      ? `${unresolvedAiCount} AI-flagged project(s) have not been addressed with an LGU feedback note yet. You may still continue, but citizens will see these as unaddressed.`
+      : null;
   const flaggedProjectsTotalPages = Math.max(
     1,
     Math.ceil(aiFlaggedProjects.length / FLAGGED_PROJECTS_PAGE_SIZE)
@@ -1206,9 +1207,19 @@ export default function AipDetailView({
               (aip.status === "draft" || aip.status === "for_revision") &&
               submitBlockedReason ? (
                 <Alert className="border-amber-200 bg-amber-50">
+                  <AlertDescription className="text-amber-800">
+                    {submitBlockedReason}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {(isBarangayScope || isCityScope) &&
+              (aip.status === "draft" || aip.status === "for_revision") &&
+              unresolvedAiAdvisoryMessage ? (
+                <Alert className="border-amber-200 bg-amber-50">
                   <AlertDescription className="space-y-3 text-amber-800">
-                    <p>{submitBlockedReason}</p>
-                    {unresolvedAiCount > 0 && aiFlaggedProjects.length > 0 ? (
+                    <p>{unresolvedAiAdvisoryMessage}</p>
+                    {aiFlaggedProjects.length > 0 ? (
                       <div className="rounded border border-amber-300 bg-amber-100/50 px-3 py-2">
                         <p className="text-xs font-semibold text-amber-900">
                           Flagged projects:

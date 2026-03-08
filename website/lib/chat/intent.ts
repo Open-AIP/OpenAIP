@@ -72,7 +72,8 @@ export function detectIntent(message: string): { intent: ChatIntent } {
   const hasBudgetTotalsCue = looksLikeScopeBudgetQuery(message, normalized);
   const hasYearToken = extractFiscalYear(message) !== null;
 
-  // Phase 1 default: missing FY can still route to SQL-first using latest published AIP in scope.
+  // RAG-only mode still allows implied fiscal-year phrasing (e.g., "this year")
+  // and lets retrieval/refusal logic handle evidence sufficiency.
   const hasImpliedFiscalYearSelection = true;
   if ((hasTotalsKeyword || hasBudgetTotalsCue) && (hasYearToken || hasImpliedFiscalYearSelection)) {
     return { intent: "total_investment_program" };

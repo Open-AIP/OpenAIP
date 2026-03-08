@@ -54,16 +54,11 @@
       ],
       "properties": {
         "expected_planner_mode": {
-          "enum": ["structured_only", "semantic_only", "mixed", null]
+          "enum": ["semantic_only", null]
         },
         "expected_route_family": {
           "enum": [
-            "sql_totals",
-            "aggregate_sql",
-            "row_sql",
-            "metadata_sql",
             "pipeline_fallback",
-            "mixed_plan",
             "conversational",
             "unknown",
             null
@@ -76,7 +71,7 @@
           "enum": ["full", "partial", "clarify", "refuse", null]
         },
         "expected_verifier_mode": {
-          "enum": ["structured", "retrieval", "mixed", null]
+          "enum": ["retrieval", null]
         },
         "semantic_retrieval_expected": {
           "type": "boolean"

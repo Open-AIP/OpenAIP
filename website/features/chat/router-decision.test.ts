@@ -2,50 +2,50 @@ import { describe, expect, it } from "vitest";
 import { decideRoute } from "@/lib/chat/router-decision";
 
 describe("router decision", () => {
-  it("selects SQL totals for total investment asks", () => {
+  it("routes totals asks to pipeline fallback", () => {
     const decision = decideRoute({
       text: "What is the total investment program for FY 2026 in Barangay Pulo?",
       intentClassification: null,
     });
 
-    expect(decision.kind).toBe("SQL_TOTAL");
-    expect(decision.confidence).toBeGreaterThan(0.9);
+    expect(decision.kind).toBe("PIPELINE_FALLBACK");
+    expect(decision.confidence).toBeGreaterThanOrEqual(0.7);
   });
 
-  it("selects SQL aggregation for category aggregation asks", () => {
+  it("routes aggregation asks to pipeline fallback", () => {
     const decision = decideRoute({
       text: "Show budget totals by fund source for FY 2026 in Barangay Pulo",
       intentClassification: null,
     });
 
-    expect(decision.kind).toBe("SQL_AGG");
+    expect(decision.kind).toBe("PIPELINE_FALLBACK");
   });
 
-  it("selects row lookup for ref-based asks", () => {
+  it("routes ref-based asks to pipeline fallback", () => {
     const decision = decideRoute({
       text: "What is allocated for Ref 8000-003-002-006 in FY 2026?",
       intentClassification: null,
     });
 
-    expect(decision.kind).toBe("ROW_LOOKUP");
+    expect(decision.kind).toBe("PIPELINE_FALLBACK");
   });
 
-  it("does not force row lookup for opinionated inflated-budget asks", () => {
+  it("does not force conversational for opinionated inflated-budget asks", () => {
     const decision = decideRoute({
       text: "Do you think Pulo's FY 2026 AIP has inflated budgets?",
       intentClassification: null,
     });
 
-    expect(decision.kind).not.toBe("ROW_LOOKUP");
+    expect(decision.kind).toBe("PIPELINE_FALLBACK");
   });
 
-  it("selects SQL metadata for strict metadata enumeration asks", () => {
+  it("routes metadata asks to pipeline fallback", () => {
     const decision = decideRoute({
       text: "What sectors exist in the AIP?",
       intentClassification: null,
     });
 
-    expect(decision.kind).toBe("SQL_METADATA");
+    expect(decision.kind).toBe("PIPELINE_FALLBACK");
   });
 
   it("selects conversational shortcut when conversational intent has no domain cues", () => {
@@ -77,6 +77,6 @@ describe("router decision", () => {
       },
     });
 
-    expect(decision.kind).toBe("SQL_TOTAL");
+    expect(decision.kind).toBe("PIPELINE_FALLBACK");
   });
 });

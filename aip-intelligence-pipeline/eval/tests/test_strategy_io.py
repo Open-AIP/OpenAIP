@@ -10,18 +10,18 @@ def test_load_and_validate_strategy_cases(tmp_path: Path) -> None:
     schema_path = Path(__file__).resolve().parents[1] / "schema" / "chat-strategy.schema.json"
     case = {
         "id": "S0001",
-        "category": "structured_only",
+        "category": "semantic_only",
         "conversation_id": None,
         "turn_index": 1,
         "question": "What is the total health budget for 2024?",
         "expected": {
-            "expected_planner_mode": "structured_only",
-            "expected_route_family": "sql_totals",
+            "expected_planner_mode": None,
+            "expected_route_family": "pipeline_fallback",
             "expected_rewrite": False,
             "expected_response_mode": "full",
-            "expected_verifier_mode": "structured",
-            "semantic_retrieval_expected": False,
-            "multi_query_allowed": False,
+            "expected_verifier_mode": "retrieval",
+            "semantic_retrieval_expected": True,
+            "multi_query_allowed": True,
             "expected_status": "answer",
         },
     }
@@ -31,7 +31,7 @@ def test_load_and_validate_strategy_cases(tmp_path: Path) -> None:
     cases = load_and_validate_strategy_cases(input_path=input_path, schema_path=schema_path)
     assert len(cases) == 1
     assert cases[0].id == "S0001"
-    assert cases[0].expected.expected_route_family == "sql_totals"
+    assert cases[0].expected.expected_route_family == "pipeline_fallback"
 
 
 def test_load_strategy_profiles(tmp_path: Path) -> None:

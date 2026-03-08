@@ -40,7 +40,7 @@ def _infer_semantic_attempted(route_family: str | None, retrieval_meta: dict[str
     if explicit is not None:
         return explicit
 
-    if route_family in {"pipeline_fallback", "mixed_plan"}:
+    if route_family == "pipeline_fallback":
         return True
 
     telemetry_keys = [
@@ -233,7 +233,6 @@ def build_strategy_summary(cases: list[StrategyCase], results: list[StrategyEval
             "generation_skipped_by_gate_count": sum(
                 1 for result in results if result.observed.generation_skipped_by_gate
             ),
-            "mixed_plan_count": sum(1 for result in results if result.observed.planner_mode == "mixed"),
             "multi_query_trigger_count": sum(
                 1 for result in results if result.observed.multi_query_triggered
             ),

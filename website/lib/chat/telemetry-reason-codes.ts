@@ -1,12 +1,7 @@
 import type { ChatCitation, ChatRetrievalMeta } from "@/lib/repos/chat/types";
 
 export type RouteFamily =
-  | "sql_totals"
-  | "aggregate_sql"
-  | "row_sql"
-  | "metadata_sql"
   | "pipeline_fallback"
-  | "mixed_plan"
   | "conversational"
   | "unknown";
 
@@ -39,8 +34,7 @@ export function mapPlannerReasonCode(input: {
     }
   }
 
-  if (input.queryPlanMode === "mixed") return "mixed_structured_and_semantic";
-  if (input.queryPlanMode === "structured_only" || input.queryPlanMode === "semantic_only") {
+  if (input.queryPlanMode === "semantic_only") {
     return "single_route_sufficient";
   }
   return undefined;
@@ -70,47 +64,7 @@ export function mapVerifierReasonCode(meta: ChatRetrievalMeta): string | undefin
   return undefined;
 }
 
-function citationMetadata(citation: ChatCitation): Record<string, unknown> {
-  return citation.metadata && typeof citation.metadata === "object"
-    ? (citation.metadata as Record<string, unknown>)
-    : {};
-}
-
-function hasMetadataMarker(citations: ChatCitation[]): boolean {
-  return citations.some((citation) => {
-    if (citation.scopeName === "Structured SQL metadata route") return true;
-    const metadata = citationMetadata(citation);
-    return typeof metadata.metadata_intent === "string";
-  });
-}
-
-function hasAggregationMarker(citations: ChatCitation[]): boolean {
-  return citations.some((citation) => {
-    const metadata = citationMetadata(citation);
-    return typeof metadata.aggregate_type === "string";
-  });
-}
-
-function hasTotalsMarker(citations: ChatCitation[]): boolean {
-  return citations.some((citation) => {
-    const metadata = citationMetadata(citation);
-    if (metadata.type === "aip_total") return true;
-    return (
-      metadata.aggregation_source === "aip_totals_total_investment_program" &&
-      typeof metadata.aggregate_type !== "string"
-    );
-  });
-}
-
-function hasRowMarker(citations: ChatCitation[]): boolean {
-  return citations.some((citation) => {
-    const metadata = citationMetadata(citation);
-    return metadata.type === "aip_line_item" || typeof metadata.line_item_id === "string";
-  });
-}
-
 export function inferRouteFamily(meta: ChatRetrievalMeta, citations: ChatCitation[]): RouteFamily {
-  if (meta.queryPlanMode === "mixed") return "mixed_plan";
   if (meta.reason === "conversational_shortcut") return "conversational";
   if (meta.verifierMode === "retrieval") return "pipeline_fallback";
 
@@ -124,17 +78,15 @@ export function inferRouteFamily(meta: ChatRetrievalMeta, citations: ChatCitatio
     return "pipeline_fallback";
   }
 
-  if (hasMetadataMarker(citations)) return "metadata_sql";
-  if (hasAggregationMarker(citations)) return "aggregate_sql";
-  if (hasTotalsMarker(citations)) return "sql_totals";
-  if (hasRowMarker(citations)) return "row_sql";
+  if (citations.some((citation) => citation.scopeType !== "system")) {
+    return "pipeline_fallback";
+  }
 
   return "unknown";
 }
 
 export function inferSemanticRetrievalAttempted(meta: ChatRetrievalMeta, citations: ChatCitation[]): boolean {
   if (meta.routeFamily === "pipeline_fallback") return true;
-  if (meta.queryPlanMode === "mixed" && meta.mixedNarrativeIncluded) return true;
 
   if (
     meta.denseCandidateCount !== undefined ||

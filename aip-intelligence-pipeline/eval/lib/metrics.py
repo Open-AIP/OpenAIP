@@ -59,8 +59,6 @@ def evaluate_result(question: GoldenQuestion, result: EvalResult) -> EvalResult:
     if expected.supported_type == "totals" and expected.expected_status == "answer" and result.observed_status == "answer":
         if not _contains_currency(content):
             errors.append("Totals answer missing currency-like value (PHP/amount pattern).")
-        if not _passes_totals_route_check(result, content):
-            errors.append("Totals SQL-first route check failed (no metadata or heuristic evidence).")
 
     if (
         expected.supported_type == "aggregate_compare_years"
@@ -69,8 +67,6 @@ def evaluate_result(question: GoldenQuestion, result: EvalResult) -> EvalResult:
     ):
         if "2025" not in content or "2026" not in content:
             errors.append("Compare-years answer must mention both 2025 and 2026.")
-        if not _passes_compare_years_route_check(result):
-            errors.append("Compare-years aggregate route check failed (no metadata or heuristic evidence).")
 
     if (
         expected.supported_type == "line_item_fact"
@@ -214,54 +210,6 @@ def _extract_assistant_content(response_json: dict[str, Any] | None) -> str:
 
 def _contains_currency(content: str) -> bool:
     return bool(CURRENCY_PATTERN.search(content))
-
-
-def _citation_metadata_list(response_json: dict[str, Any] | None) -> list[dict[str, Any]]:
-    if not response_json:
-        return []
-    assistant = response_json.get("assistantMessage")
-    if not isinstance(assistant, dict):
-        return []
-    citations = assistant.get("citations")
-    if not isinstance(citations, list):
-        return []
-
-    metadata_rows: list[dict[str, Any]] = []
-    for citation in citations:
-        if not isinstance(citation, dict):
-            continue
-        metadata = citation.get("metadata")
-        if isinstance(metadata, dict):
-            metadata_rows.append(metadata)
-    return metadata_rows
-
-
-def _passes_totals_route_check(result: EvalResult, content: str) -> bool:
-    if result.route_name == "sql_totals":
-        return True
-
-    metadata_rows = _citation_metadata_list(result.response.get("json_body"))
-    for metadata in metadata_rows:
-        if metadata.get("type") == "aip_total":
-            return True
-        if metadata.get("aggregation_source") == "aip_totals_total_investment_program":
-            return True
-
-    return "total investment program" in content.lower() and _contains_currency(content)
-
-
-def _passes_compare_years_route_check(result: EvalResult) -> bool:
-    if result.route_name == "aggregate_sql":
-        return True
-
-    metadata_rows = _citation_metadata_list(result.response.get("json_body"))
-    for metadata in metadata_rows:
-        if (
-            metadata.get("aggregate_type") == "compare_years_verbose"
-            and metadata.get("aggregation_source") == "aip_totals_total_investment_program"
-        ):
-            return True
-    return False
 
 
 def _status_bucket(status: str | None) -> str:

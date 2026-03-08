@@ -192,12 +192,7 @@ export type ChatRetrievalMeta = {
   activeRagFlags?: Record<string, boolean>;
   ragCalibration?: Record<string, number | boolean>;
   routeFamily?:
-    | "sql_totals"
-    | "aggregate_sql"
-    | "row_sql"
-    | "metadata_sql"
     | "pipeline_fallback"
-    | "mixed_plan"
     | "conversational"
     | "unknown";
   rewriteReasonCode?: string;
@@ -216,11 +211,10 @@ export type ChatRetrievalMeta = {
   chatStrategyCalibration?: {
     rewrite_max_user_turns: number;
     rewrite_max_assistant_turns: number;
-    mixed_max_structured_tasks: number;
-    mixed_max_semantic_tasks: number;
   };
   stageLatencyMs?: Record<string, number>;
   semanticRetrievalAttempted?: boolean;
+  executionPath?: "rag_only";
 };
 
 export const ChatRepoErrors = {

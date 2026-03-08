@@ -57,7 +57,6 @@ def main() -> int:
         "clarify_refuse_mismatch_count": _delta(base, candidate, ["reporting", "clarify_refuse_mismatch_count"]),
         "verifier_mode_mismatch_count": _delta(base, candidate, ["reporting", "verifier_mode_mismatch_count"]),
         "generation_skipped_by_gate_count": _delta(base, candidate, ["reporting", "generation_skipped_by_gate_count"]),
-        "mixed_plan_count": _delta(base, candidate, ["reporting", "mixed_plan_count"]),
         "multi_query_trigger_count": _delta(base, candidate, ["reporting", "multi_query_trigger_count"]),
         "semantic_retrieval_attempted_count": _delta(
             base, candidate, ["reporting", "semantic_retrieval_attempted_count"]

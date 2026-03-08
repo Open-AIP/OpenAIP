@@ -10,18 +10,18 @@ from eval.lib.strategy_types import StrategyCase, StrategyEvalResult, StrategyEx
 
 def _case(**overrides) -> StrategyCase:
     expected = StrategyExpected(
-        expected_planner_mode="structured_only",
-        expected_route_family="sql_totals",
+        expected_planner_mode=None,
+        expected_route_family="pipeline_fallback",
         expected_rewrite=False,
         expected_response_mode="full",
-        expected_verifier_mode="structured",
-        semantic_retrieval_expected=False,
-        multi_query_allowed=False,
+        expected_verifier_mode="retrieval",
+        semantic_retrieval_expected=True,
+        multi_query_allowed=True,
         expected_status="answer",
     )
     return StrategyCase(
         id="S0001",
-        category="structured_only",
+        category="semantic_only",
         conversation_id=None,
         turn_index=1,
         question="Total for 2024?",
@@ -67,12 +67,12 @@ def test_evaluate_strategy_result_detects_route_mismatch() -> None:
     case = _case()
     observed = StrategyObserved(
         status="answer",
-        planner_mode="structured_only",
+        planner_mode=None,
         route_family="unknown",
         rewrite_applied=False,
         response_mode="full",
-        verifier_mode="structured",
-        semantic_retrieval_attempted=False,
+        verifier_mode="retrieval",
+        semantic_retrieval_attempted=True,
         multi_query_triggered=False,
         generation_skipped_by_gate=False,
         rewrite_reason_code=None,
@@ -89,12 +89,12 @@ def test_build_strategy_summary_counts_instrumentation_warnings() -> None:
     case = _case()
     observed = StrategyObserved(
         status="answer",
-        planner_mode="structured_only",
+        planner_mode=None,
         route_family="unknown",
         rewrite_applied=False,
         response_mode="full",
-        verifier_mode="structured",
-        semantic_retrieval_attempted=False,
+        verifier_mode="retrieval",
+        semantic_retrieval_attempted=True,
         multi_query_triggered=False,
         generation_skipped_by_gate=True,
         rewrite_reason_code="no_rewrite_standalone",

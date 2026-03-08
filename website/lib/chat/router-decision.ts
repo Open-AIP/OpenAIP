@@ -1,5 +1,5 @@
 import { detectAggregationIntent } from "@/lib/chat/aggregation-intent";
-import { detectIntent, extractFiscalYear } from "@/lib/chat/intent";
+import { extractFiscalYear } from "@/lib/chat/intent";
 import {
   extractAipRefCode,
   isLineItemSpecificQuery,
@@ -10,10 +10,6 @@ import type { PipelineIntentClassification } from "@/lib/chat/types";
 
 export type RouteKind =
   | "CONVERSATIONAL"
-  | "SQL_TOTAL"
-  | "SQL_AGG"
-  | "ROW_LOOKUP"
-  | "SQL_METADATA"
   | "PIPELINE_FALLBACK"
   | "CLARIFY";
 
@@ -87,7 +83,6 @@ export function decideRoute(input: {
 }): RouteDecision {
   const text = input.text.trim();
   const fiscalYear = extractFiscalYear(text);
-  const totalsIntent = detectIntent(text).intent;
   const aggregationIntent = detectAggregationIntent(text);
   const metadataIntent = detectMetadataIntent(text);
   const parsedLineItem = parseLineItemQuestion(text);
@@ -139,43 +134,31 @@ export function decideRoute(input: {
     }
   }
 
-  if (totalsIntent === "total_investment_program") {
+  if (aggregationIntent.intent !== "none") {
     candidates.push({
-      kind: "SQL_TOTAL",
-      score: 0.96,
-      reason: "detected_total_investment_program_intent",
+      kind: "PIPELINE_FALLBACK",
+      score: 0.9,
+      reason: `detected_aggregation_intent_${aggregationIntent.intent}_rag`,
     });
   }
 
-  if (aggregationIntent.intent !== "none" && !(aggregationIntent.intent === "totals_by_fund_source" && lineItemSpecific)) {
+  if (Boolean(strictRefCode) || lineItemSpecific || parsedLineItem.isFactQuestion) {
     candidates.push({
-      kind: "SQL_AGG",
-      score: aggregationIntent.intent === "compare_years" ? 0.95 : 0.93,
-      reason: `detected_aggregation_intent_${aggregationIntent.intent}`,
-    });
-  }
-
-  const shouldUseRowLookup =
-    Boolean(strictRefCode) ||
-    lineItemSpecific ||
-    (parsedLineItem.isFactQuestion &&
-      (Boolean(strictRefCode) || lineItemSpecific) &&
-      totalsIntent !== "total_investment_program" &&
-      aggregationIntent.intent === "none");
-
-  if (shouldUseRowLookup) {
-    candidates.push({
-      kind: "ROW_LOOKUP",
-      score: strictRefCode ? 0.97 : lineItemSpecific ? 0.9 : 0.75,
-      reason: strictRefCode ? "detected_ref_code_lookup" : "detected_line_item_fact_query",
+      kind: "PIPELINE_FALLBACK",
+      score: 0.88,
+      reason: strictRefCode
+        ? "detected_ref_code_lookup_rag"
+        : lineItemSpecific
+          ? "detected_line_item_specific_query_rag"
+          : "detected_line_item_fact_query_rag",
     });
   }
 
   if (metadataIntent.intent !== "none") {
     candidates.push({
-      kind: "SQL_METADATA",
-      score: 0.72,
-      reason: `detected_metadata_intent_${metadataIntent.intent}`,
+      kind: "PIPELINE_FALLBACK",
+      score: 0.86,
+      reason: `detected_metadata_intent_${metadataIntent.intent}_rag`,
     });
   }
 
@@ -200,11 +183,11 @@ export function decideRoute(input: {
   ) {
     const semanticBoostKind =
       input.intentClassification.intent === "TOTAL_AGGREGATION"
-        ? "SQL_TOTAL"
+        ? "PIPELINE_FALLBACK"
         : input.intentClassification.intent === "CATEGORY_AGGREGATION"
-          ? "SQL_AGG"
+          ? "PIPELINE_FALLBACK"
           : input.intentClassification.intent === "LINE_ITEM_LOOKUP"
-            ? "ROW_LOOKUP"
+            ? "PIPELINE_FALLBACK"
             : null;
 
     if (semanticBoostKind) {

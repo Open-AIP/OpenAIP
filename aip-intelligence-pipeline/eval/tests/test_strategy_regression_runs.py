@@ -34,13 +34,12 @@ class _FakeClient:
                 "status": "answer",
                 "assistantMessage": {
                     "retrievalMeta": {
-                        "routeFamily": "sql_totals",
-                        "queryPlanMode": "structured_only",
+                        "routeFamily": "pipeline_fallback",
                         "queryRewriteApplied": False,
-                        "verifierMode": "structured",
+                        "verifierMode": "retrieval",
                         "responseModeReasonCode": "full_answer",
-                        "verifierPolicyReasonCode": "structured_match",
-                        "semanticRetrievalAttempted": False,
+                        "verifierPolicyReasonCode": "narrative_grounded",
+                        "semanticRetrievalAttempted": True,
                     }
                 },
             }
@@ -50,18 +49,18 @@ class _FakeClient:
 def test_run_strategy_regression_writes_artifacts(tmp_path: Path, monkeypatch) -> None:
     case = {
         "id": "S0001",
-        "category": "structured_only",
+        "category": "semantic_only",
         "conversation_id": None,
         "turn_index": 1,
         "question": "What is the total health budget for 2024?",
         "expected": {
-            "expected_planner_mode": "structured_only",
-            "expected_route_family": "sql_totals",
+            "expected_planner_mode": None,
+            "expected_route_family": "pipeline_fallback",
             "expected_rewrite": False,
             "expected_response_mode": "full",
-            "expected_verifier_mode": "structured",
-            "semantic_retrieval_expected": False,
-            "multi_query_allowed": False,
+            "expected_verifier_mode": "retrieval",
+            "semantic_retrieval_expected": True,
+            "multi_query_allowed": True,
             "expected_status": "answer",
         },
     }

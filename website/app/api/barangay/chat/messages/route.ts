@@ -1949,6 +1949,10 @@ function isChatMetadataSqlRouteEnabled(): boolean {
   return process.env.CHAT_METADATA_SQL_ROUTE_ENABLED !== "false";
 }
 
+function isChatStructuredSqlRoutesEnabled(): boolean {
+  return process.env.CHAT_STRUCTURED_SQL_ROUTES_ENABLED !== "false";
+}
+
 function isChatSplitVerifierPolicyEnabled(): boolean {
   return process.env.CHAT_SPLIT_VERIFIER_POLICY_ENABLED !== "false";
 }
@@ -4443,6 +4447,7 @@ export async function POST(request: Request) {
       });
     }
 
+    const structuredSqlRoutesEnabled = isChatStructuredSqlRoutesEnabled();
     const plannerEnabled = isChatMixedQueryPlannerEnabled() && !pendingClarification;
     if (plannerEnabled) {
       const plannerMessages = await getSessionMessages();
@@ -4844,65 +4849,67 @@ export async function POST(request: Request) {
       );
     }
 
-    const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
-      intent: detectedIntent,
-      resolveTotals: async () =>
-        resolveTotalsAssistantPayload({
-          actor,
-          message: content,
-          scopeResolution,
-          requestId,
-        }),
-      resolveNormal: async () => null,
-    });
-
-    if (intentRoute.path === "totals") {
-      const totalsPayload =
-        intentRoute.value ??
-        ({
-          content: buildTotalsMissingMessage({ fiscalYear: null, scopeLabel: null }),
-          citations: [makeSystemCitation("Totals SQL path returned no payload.")],
-          retrievalMeta: {
-            refused: true,
-            reason: "insufficient_evidence",
+    if (structuredSqlRoutesEnabled) {
+      const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
+        intent: detectedIntent,
+        resolveTotals: async () =>
+          resolveTotalsAssistantPayload({
+            actor,
+            message: content,
             scopeResolution,
-          },
-        } satisfies TotalsAssistantPayload);
-      if (!intentRoute.value) {
-        logTotalsRouting(
-          makeTotalsLogPayload({
-          request_id: requestId,
-          intent: "total_investment_program",
-          route: "sql_totals",
-          fiscal_year_parsed: extractFiscalYear(content),
-          scope_reason: "unknown",
-          barangay_id_used: null,
-          aip_id_selected: null,
-          totals_found: false,
-          vector_called: false,
-          })
-        );
-      }
-
-      const assistantMessage = await appendAssistantMessage({
-        actor: privilegedActor,
-        sessionId: session.id,
-        content: totalsPayload.content,
-        citations: totalsPayload.citations,
-        retrievalMeta: {
-          ...totalsPayload.retrievalMeta,
-          latencyMs: Date.now() - startedAt,
-        },
+            requestId,
+          }),
+        resolveNormal: async () => null,
       });
 
-      return NextResponse.json(
-        chatResponsePayload({
+      if (intentRoute.path === "totals") {
+        const totalsPayload =
+          intentRoute.value ??
+          ({
+            content: buildTotalsMissingMessage({ fiscalYear: null, scopeLabel: null }),
+            citations: [makeSystemCitation("Totals SQL path returned no payload.")],
+            retrievalMeta: {
+              refused: true,
+              reason: "insufficient_evidence",
+              scopeResolution,
+            },
+          } satisfies TotalsAssistantPayload);
+        if (!intentRoute.value) {
+          logTotalsRouting(
+            makeTotalsLogPayload({
+            request_id: requestId,
+            intent: "total_investment_program",
+            route: "sql_totals",
+            fiscal_year_parsed: extractFiscalYear(content),
+            scope_reason: "unknown",
+            barangay_id_used: null,
+            aip_id_selected: null,
+            totals_found: false,
+            vector_called: false,
+            })
+          );
+        }
+
+        const assistantMessage = await appendAssistantMessage({
+          actor: privilegedActor,
           sessionId: session.id,
-          userMessage,
-          assistantMessage,
-        }),
-        { status: 200 }
-      );
+          content: totalsPayload.content,
+          citations: totalsPayload.citations,
+          retrievalMeta: {
+            ...totalsPayload.retrievalMeta,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
     }
 
     if (!scope.retrievalScope) {
@@ -4937,7 +4944,7 @@ export async function POST(request: Request) {
           ? userBarangay?.name ?? explicitBarangayTarget?.scopeName ?? null
           : null;
 
-    if (pendingClarification) {
+    if (structuredSqlRoutesEnabled && pendingClarification) {
       const selection = parseClarificationSelection(content);
 
       if (isCityFallbackClarificationPayload(pendingClarification.payload)) {
@@ -5984,7 +5991,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (aggregationIntent.intent !== "none" && !shouldDeferAggregation) {
+    if (structuredSqlRoutesEnabled && aggregationIntent.intent !== "none" && !shouldDeferAggregation) {
       const explicitCityScope = await resolveExplicitCityScopeFromMessage({
         message: content,
         scopeResolution,
@@ -7081,7 +7088,11 @@ export async function POST(request: Request) {
       }
     }
 
-    if (parsedLineItemQuestion.isUnanswerableFieldQuestion && !parsedLineItemQuestion.isFactQuestion) {
+    if (
+      structuredSqlRoutesEnabled &&
+      parsedLineItemQuestion.isUnanswerableFieldQuestion &&
+      !parsedLineItemQuestion.isFactQuestion
+    ) {
       const refusal = buildRefusalMessage({
         intent: "unanswerable_field",
         queryText: content,
@@ -7145,6 +7156,7 @@ export async function POST(request: Request) {
       Boolean(extractAipRefCode(content)) || isLineItemSpecificQuery(content) || hasExplicitLineItemFactCue;
 
     if (
+      structuredSqlRoutesEnabled &&
       parsedLineItemQuestion.isFactQuestion &&
       metadataIntentDetected.intent === "none" &&
       hasDeterministicLineItemTarget
@@ -7887,7 +7899,11 @@ export async function POST(request: Request) {
       }
     }
 
-    if (isChatMetadataSqlRouteEnabled() && metadataIntentDetected.intent !== "none") {
+    if (
+      structuredSqlRoutesEnabled &&
+      isChatMetadataSqlRouteEnabled() &&
+      metadataIntentDetected.intent !== "none"
+    ) {
       const metadataPayload = await resolveMetadataSqlPayload({
         message: content,
         scopeResolution,

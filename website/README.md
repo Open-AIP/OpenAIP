@@ -50,6 +50,14 @@ npm run dev
 - `AIP_UPLOAD_FAILURE_COOLDOWN_MINUTES`
   - Default: `15`
   - Cooldown period returned as HTTP `429` + `Retry-After` after repeated failures
+- `CHAT_STRUCTURED_SQL_ROUTES_ENABLED`
+  - Default: enabled (`true` unless explicitly set to `false`)
+  - Set to `false` to force chat answers through pipeline RAG and skip SQL-first routes
+    (`sql_totals`, `aggregate_sql`, `row_sql`, `metadata_sql`)
+- `CHAT_METADATA_SQL_ROUTE_ENABLED`
+  - Default: enabled (`true` unless explicitly set to `false`)
+  - Controls only metadata SQL routing; has no effect when
+    `CHAT_STRUCTURED_SQL_ROUTES_ENABLED=false`
 
 Repository selection is centralized in:
 - `lib/config/appEnv.ts`

@@ -1068,7 +1068,6 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
       const resolvedScopeType = selectedPin?.scopeType ?? "city";
       const resolvedScopeId = selectedPin?.scopeId ?? "";
       const resolvedScopePsgc = selectedPin?.scopePsgc ?? content.defaultCityPsgc;
-      const currentFiscalYear = new Date().getFullYear();
       const selectedScopeId = selectedPin?.scopeId ?? null;
       const selectedScopeType = selectedPin?.scopeType ?? null;
 
@@ -1108,12 +1107,12 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
               fiscalYear: previousFeedbackFiscalYear,
             })
           : null;
-      const currentYearAipId =
-        selectedPin?.scopeId
+      const resolvedYearAipId =
+        hasData && selectedPin?.scopeId
           ? await getPublishedAipIdByScopeYear({
               scopeType: selectedPin.scopeType,
               scopeId: selectedPin.scopeId,
-              fiscalYear: currentFiscalYear,
+              fiscalYear: resolvedFiscalYear,
             })
           : null;
       const citizenCount =
@@ -1372,7 +1371,7 @@ export function createSupabaseLandingContentRepo(): LandingContentRepo {
           title: content.finalCta.title,
           subtitle: content.finalCta.subtitle,
           ctaLabel: content.finalCta.ctaLabel,
-          ctaHref: currentYearAipId ? `/aips/${encodeURIComponent(currentYearAipId)}` : undefined,
+          ctaHref: resolvedYearAipId ? `/aips/${encodeURIComponent(resolvedYearAipId)}` : undefined,
         },
       };
 

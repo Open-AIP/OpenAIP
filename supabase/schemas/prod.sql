@@ -4060,7 +4060,15 @@ CREATE INDEX "idx_aips_barangay_id" ON "public"."aips" USING "btree" ("barangay_
 
 
 
+CREATE INDEX "idx_aips_barangay_scope_order" ON "public"."aips" USING "btree" ("barangay_id", "fiscal_year" DESC, "created_at" DESC, "id" DESC) WHERE ("barangay_id" IS NOT NULL);
+
+
+
 CREATE INDEX "idx_aips_city_id" ON "public"."aips" USING "btree" ("city_id");
+
+
+
+CREATE INDEX "idx_aips_city_scope_order" ON "public"."aips" USING "btree" ("city_id", "fiscal_year" DESC, "created_at" DESC, "id" DESC) WHERE ("city_id" IS NOT NULL);
 
 
 
@@ -4073,6 +4081,10 @@ CREATE INDEX "idx_aips_fiscal_year" ON "public"."aips" USING "btree" ("fiscal_ye
 
 
 CREATE INDEX "idx_aips_municipality_id" ON "public"."aips" USING "btree" ("municipality_id");
+
+
+
+CREATE INDEX "idx_aips_municipality_scope_order" ON "public"."aips" USING "btree" ("municipality_id", "fiscal_year" DESC, "created_at" DESC, "id" DESC) WHERE ("municipality_id" IS NOT NULL);
 
 
 
@@ -4176,6 +4188,10 @@ CREATE INDEX "idx_feedback_aip_id" ON "public"."feedback" USING "btree" ("aip_id
 
 
 
+CREATE INDEX "idx_feedback_aip_created_id" ON "public"."feedback" USING "btree" ("aip_id", "created_at", "id") WHERE (("target_type" = 'aip'::"public"."feedback_target_type") AND ("aip_id" IS NOT NULL));
+
+
+
 CREATE INDEX "idx_feedback_created_at" ON "public"."feedback" USING "btree" ("created_at");
 
 
@@ -4188,7 +4204,23 @@ CREATE INDEX "idx_feedback_parent" ON "public"."feedback" USING "btree" ("parent
 
 
 
+CREATE INDEX "idx_feedback_parent_created_id" ON "public"."feedback" USING "btree" ("parent_feedback_id", "created_at", "id") WHERE ("parent_feedback_id" IS NOT NULL);
+
+
+
 CREATE INDEX "idx_feedback_project_id" ON "public"."feedback" USING "btree" ("project_id") WHERE ("project_id" IS NOT NULL);
+
+
+
+CREATE INDEX "idx_feedback_project_created_id" ON "public"."feedback" USING "btree" ("project_id", "created_at", "id") WHERE (("target_type" = 'project'::"public"."feedback_target_type") AND ("project_id" IS NOT NULL));
+
+
+
+CREATE INDEX "idx_feedback_roots_aip_kind_updated" ON "public"."feedback" USING "btree" ("aip_id", "kind", "updated_at" DESC, "id") WHERE (("target_type" = 'aip'::"public"."feedback_target_type") AND ("parent_feedback_id" IS NULL) AND ("aip_id" IS NOT NULL));
+
+
+
+CREATE INDEX "idx_feedback_roots_project_kind_updated" ON "public"."feedback" USING "btree" ("project_id", "kind", "updated_at" DESC, "id") WHERE (("target_type" = 'project'::"public"."feedback_target_type") AND ("parent_feedback_id" IS NULL) AND ("project_id" IS NOT NULL));
 
 
 
@@ -4244,6 +4276,10 @@ CREATE INDEX "idx_project_update_media_update_id" ON "public"."project_update_me
 
 
 
+CREATE INDEX "idx_project_update_media_update_created_id" ON "public"."project_update_media" USING "btree" ("update_id", "created_at", "id");
+
+
+
 CREATE INDEX "idx_project_updates_aip_id" ON "public"."project_updates" USING "btree" ("aip_id");
 
 
@@ -4264,7 +4300,23 @@ CREATE INDEX "idx_project_updates_project_id" ON "public"."project_updates" USIN
 
 
 
+CREATE INDEX "idx_project_updates_project_status_created_id" ON "public"."project_updates" USING "btree" ("project_id", "status", "created_at" DESC, "id");
+
+
+
 CREATE INDEX "idx_projects_aip_id" ON "public"."projects" USING "btree" ("aip_id");
+
+
+
+CREATE INDEX "idx_projects_aip_created_id" ON "public"."projects" USING "btree" ("aip_id", "created_at" DESC, "id");
+
+
+
+CREATE INDEX "idx_projects_aip_id_id" ON "public"."projects" USING "btree" ("aip_id", "id");
+
+
+
+CREATE INDEX "idx_projects_ref_aip_created_id" ON "public"."projects" USING "btree" ("aip_ref_code", "aip_id", "created_at" DESC, "id" DESC);
 
 
 
@@ -6470,7 +6522,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
 
 
 

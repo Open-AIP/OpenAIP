@@ -2,6 +2,10 @@ import "server-only";
 
 import { createSupabaseFeedbackThreadsRepo } from "@/lib/repos/feedback/repo.supabase";
 import { fetchAipFileTotalsByAipIds } from "@/lib/repos/_shared/aip-totals";
+import {
+  chunkArray,
+  SUPABASE_PAGE_SIZE,
+} from "@/lib/repos/_shared/supabase-batching";
 import { supabaseServer } from "@/lib/supabase/server";
 import { applyAipUploaderMetadata, resolveDefaultFiscalYear, resolveSelectedFiscalYear } from "./mappers";
 import type { DashboardRepo } from "./repo";
@@ -114,17 +118,6 @@ type ActivityLogRow = {
 
 const CITIZEN_KIND_SET = new Set<string>(CITIZEN_FEEDBACK_KINDS);
 const PROJECT_UPDATE_ACTION_SET = new Set<string>(["project_info_updated", "project_updated"]);
-const SUPABASE_PAGE_SIZE = 1_000;
-const IN_FILTER_CHUNK_SIZE = 200;
-
-function chunkArray<T>(values: T[], size = IN_FILTER_CHUNK_SIZE): T[][] {
-  if (values.length === 0) return [];
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-  return chunks;
-}
 
 function toTimestamp(value: string | null | undefined): number {
   if (!value) return Number.NEGATIVE_INFINITY;

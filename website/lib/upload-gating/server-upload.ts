@@ -321,11 +321,14 @@ export async function processScopedAipUpload(
         bucketId: UPLOAD_BUCKET_ID,
         objectNames: [objectName],
       }).catch(() => undefined);
-      await client
-        .from("uploaded_files")
-        .delete()
-        .eq("id", fileRow.id as string)
-        .catch(() => undefined);
+      try {
+        await client
+          .from("uploaded_files")
+          .delete()
+          .eq("id", fileRow.id as string);
+      } catch {
+        // best-effort cleanup
+      }
       const failurePayload = buildFailureResponse({
         code: "UPLOAD_INTERNAL_VALIDATION_ERROR",
         message:

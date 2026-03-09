@@ -6,6 +6,12 @@ import {
   fetchAipFileTotalsByAipIds,
   resolveAipDisplayTotal,
 } from "@/lib/repos/_shared/aip-totals";
+import {
+  collectInChunks,
+  collectInChunksPaged,
+  collectPaged,
+  dedupeNonEmptyStrings,
+} from "@/lib/repos/_shared/supabase-batching";
 import { normalizeProjectErrors } from "@/lib/repos/aip/project-review";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -55,6 +61,7 @@ type ProjectRow = {
 };
 
 type UploadedFileRow = {
+  id: string;
   aip_id: string;
   bucket_id: string;
   object_name: string;
@@ -65,6 +72,7 @@ type UploadedFileRow = {
 };
 
 type ArtifactRow = {
+  id: string;
   aip_id: string;
   artifact_json: Json | null;
   artifact_text: string | null;
@@ -124,15 +132,19 @@ const PROJECT_SELECT_COLUMNS = [
 const DEFAULT_SUMMARY =
   "Development and improvement of community infrastructure, social services, and local economic initiatives are prioritized under this annual plan.";
 
-const IN_FILTER_CHUNK_SIZE = 200;
+type OptionalRangeQuery<TData> = PromiseLike<{
+  data: TData | null;
+  error: { message: string } | null;
+}> & {
+  range?: (from: number, to: number) => OptionalRangeQuery<TData>;
+};
 
-function chunkArray<T>(values: T[], size = IN_FILTER_CHUNK_SIZE): T[][] {
-  if (values.length === 0) return [];
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-  return chunks;
+function applyOptionalRange<TData>(
+  query: OptionalRangeQuery<TData>,
+  from: number,
+  to: number
+): OptionalRangeQuery<TData> {
+  return typeof query.range === "function" ? query.range(from, to) : query;
 }
 
 function scopeNameOf(scope: ScopeRow | ScopeRow[] | undefined): string | null {
@@ -300,59 +312,58 @@ function buildListRecord(input: {
 }
 
 async function getParentCityScopeByBarangayId(aips: AipRow[]): Promise<Map<string, BarangayParentCityScope>> {
-  const barangayIds = Array.from(
-    new Set(
-      aips
-        .map((row) => row.barangay_id)
-        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    )
+  const barangayIds = dedupeNonEmptyStrings(
+    aips
+      .map((row) => row.barangay_id)
+      .filter((value): value is string => typeof value === "string")
   );
 
   if (!barangayIds.length) return new Map();
 
   const client = await supabaseServer();
-  const { data: barangayRows, error: barangaysError } = await client
-    .from("barangays")
-    .select("id,city_id,municipality_id")
-    .in("id", barangayIds);
+  const rows = await collectInChunks(barangayIds, async (barangayChunk) => {
+    const { data, error } = await client
+      .from("barangays")
+      .select("id,city_id,municipality_id")
+      .in("id", barangayChunk);
 
-  if (barangaysError) throw new Error(barangaysError.message);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as BarangayParentRow[];
+  });
 
-  const rows = (barangayRows ?? []) as BarangayParentRow[];
-  const cityIds = Array.from(
-    new Set(
-      rows
-        .map((row) => row.city_id)
-        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    )
+  const cityIds = dedupeNonEmptyStrings(
+    rows
+      .map((row) => row.city_id)
+      .filter((value): value is string => typeof value === "string")
   );
 
-  const municipalityIds = Array.from(
-    new Set(
-      rows
-        .map((row) => row.municipality_id)
-        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    )
+  const municipalityIds = dedupeNonEmptyStrings(
+    rows
+      .map((row) => row.municipality_id)
+      .filter((value): value is string => typeof value === "string")
   );
 
-  const [citiesResult, municipalitiesResult] = await Promise.all([
-    cityIds.length > 0
-      ? client.from("cities").select("id,name").in("id", cityIds)
-      : Promise.resolve({ data: [] as LocalityNameRow[], error: null }),
-    municipalityIds.length > 0
-      ? client.from("municipalities").select("id,name").in("id", municipalityIds)
-      : Promise.resolve({ data: [] as LocalityNameRow[], error: null }),
+  const [cityRows, municipalityRows] = await Promise.all([
+    collectInChunks(cityIds, async (cityChunk) => {
+      const { data, error } = await client
+        .from("cities")
+        .select("id,name")
+        .in("id", cityChunk);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as LocalityNameRow[];
+    }),
+    collectInChunks(municipalityIds, async (municipalityChunk) => {
+      const { data, error } = await client
+        .from("municipalities")
+        .select("id,name")
+        .in("id", municipalityChunk);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as LocalityNameRow[];
+    }),
   ]);
 
-  if (citiesResult.error) throw new Error(citiesResult.error.message);
-  if (municipalitiesResult.error) throw new Error(municipalitiesResult.error.message);
-
-  const cityNameById = new Map(
-    ((citiesResult.data ?? []) as LocalityNameRow[]).map((row) => [row.id, row.name])
-  );
-  const municipalityNameById = new Map(
-    ((municipalitiesResult.data ?? []) as LocalityNameRow[]).map((row) => [row.id, row.name])
-  );
+  const cityNameById = new Map(cityRows.map((row) => [row.id, row.name]));
+  const municipalityNameById = new Map(municipalityRows.map((row) => [row.id, row.name]));
 
   const parentCityByBarangayId = new Map<string, BarangayParentCityScope>();
   for (const row of rows) {
@@ -373,72 +384,109 @@ async function getParentCityScopeByBarangayId(aips: AipRow[]): Promise<Map<strin
 }
 
 async function getProfilesByIds(userIds: string[]): Promise<Map<string, ProfileRow>> {
-  const uniqueIds = Array.from(new Set(userIds.filter((value) => value.trim().length > 0)));
+  const uniqueIds = dedupeNonEmptyStrings(userIds);
   if (!uniqueIds.length) return new Map();
 
   try {
     const admin = supabaseAdmin();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("id,full_name,role")
-      .in("id", uniqueIds);
+    const rows = await collectInChunks(uniqueIds, async (idChunk) => {
+      const { data, error } = await admin
+        .from("profiles")
+        .select("id,full_name,role")
+        .in("id", idChunk);
 
-    if (error) throw new Error(error.message);
-    return new Map(((data ?? []) as ProfileRow[]).map((row) => [row.id, row]));
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProfileRow[];
+    });
+    return new Map(rows.map((row) => [row.id, row]));
   } catch {
     const client = await supabaseServer();
-    const { data, error } = await client
-      .from("profiles")
-      .select("id,full_name,role")
-      .in("id", uniqueIds);
+    const rows = await collectInChunks(uniqueIds, async (idChunk) => {
+      const { data, error } = await client
+        .from("profiles")
+        .select("id,full_name,role")
+        .in("id", idChunk);
 
-    if (error) throw new Error(error.message);
-    return new Map(((data ?? []) as ProfileRow[]).map((row) => [row.id, row]));
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProfileRow[];
+    });
+    return new Map(rows.map((row) => [row.id, row]));
   }
 }
 
 async function getProjectsByAipIds(aipIds: string[]): Promise<Map<string, ProjectRow[]>> {
-  if (!aipIds.length) return new Map();
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return new Map();
   const client = await supabaseServer();
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const query = client
+        .from("projects")
+        .select(PROJECT_SELECT_COLUMNS)
+        .in("aip_id", aipIdChunk)
+        .order("id", { ascending: true });
+      const { data, error } = await applyOptionalRange(
+        query as OptionalRangeQuery<ProjectRow[]>,
+        from,
+        to
+      );
 
-  const { data, error } = await client
-    .from("projects")
-    .select(PROJECT_SELECT_COLUMNS)
-    .in("aip_id", aipIds)
-    .order("aip_ref_code", { ascending: true });
-
-  if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as ProjectRow[];
+    }
+  );
 
   const map = new Map<string, ProjectRow[]>();
-  for (const row of (data ?? []) as unknown as ProjectRow[]) {
+  for (const row of rows) {
     const list = map.get(row.aip_id) ?? [];
     list.push(row);
     map.set(row.aip_id, list);
   }
+
+  for (const list of map.values()) {
+    list.sort((left, right) => {
+      const leftRef = (left.aip_ref_code ?? "").toLowerCase();
+      const rightRef = (right.aip_ref_code ?? "").toLowerCase();
+      if (leftRef !== rightRef) return leftRef.localeCompare(rightRef);
+      return left.id.localeCompare(right.id);
+    });
+  }
+
   return map;
 }
 
 async function getProjectIdsWithPublicLguNotes(projectIds: string[]): Promise<Set<string>> {
-  const uniqueProjectIds = Array.from(new Set(projectIds.filter((value) => value.trim().length > 0)));
+  const uniqueProjectIds = dedupeNonEmptyStrings(projectIds);
   if (!uniqueProjectIds.length) return new Set();
 
   const client = await supabaseServer();
   const projectIdsWithLguNotes = new Set<string>();
 
-  for (const projectIdChunk of chunkArray(uniqueProjectIds)) {
-    const { data, error } = await client
-      .from("feedback")
-      .select("project_id")
-      .eq("target_type", "project")
-      .eq("kind", "lgu_note")
-      .in("project_id", projectIdChunk);
+  const rows = await collectInChunksPaged(
+    uniqueProjectIds,
+    async (projectIdChunk, from, to) => {
+      const query = client
+        .from("feedback")
+        .select("id,project_id")
+        .eq("target_type", "project")
+        .eq("kind", "lgu_note")
+        .in("project_id", projectIdChunk)
+        .order("id", { ascending: true });
+      const { data, error } = await applyOptionalRange(
+        query as OptionalRangeQuery<Array<{ project_id: string | null }>>,
+        from,
+        to
+      );
 
-    if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Array<{ project_id: string | null }>;
+    }
+  );
 
-    for (const row of (data ?? []) as Array<{ project_id: string | null }>) {
-      if (typeof row.project_id === "string" && row.project_id.length > 0) {
-        projectIdsWithLguNotes.add(row.project_id);
-      }
+  for (const row of rows) {
+    if (typeof row.project_id === "string" && row.project_id.length > 0) {
+      projectIdsWithLguNotes.add(row.project_id);
     }
   }
 
@@ -446,43 +494,117 @@ async function getProjectIdsWithPublicLguNotes(projectIds: string[]): Promise<Se
 }
 
 async function getLatestSummariesByAipIds(aipIds: string[]): Promise<Map<string, ArtifactRow>> {
-  if (!aipIds.length) return new Map();
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return new Map();
   const client = await supabaseServer();
 
-  const { data, error } = await client
-    .from("extraction_artifacts")
-    .select("aip_id,artifact_json,artifact_text,created_at")
-    .eq("artifact_type", "summarize")
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: false });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const query = client
+        .from("extraction_artifacts")
+        .select("id,aip_id,artifact_json,artifact_text,created_at")
+        .eq("artifact_type", "summarize")
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: false });
+      const { data, error } = await applyOptionalRange(
+        query as OptionalRangeQuery<ArtifactRow[]>,
+        from,
+        to
+      );
 
-  if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ArtifactRow[];
+    }
+  );
+
+  rows.sort((left, right) => {
+    if (left.created_at !== right.created_at) {
+      return left.created_at < right.created_at ? 1 : -1;
+    }
+    return right.id.localeCompare(left.id);
+  });
 
   const map = new Map<string, ArtifactRow>();
-  for (const row of (data ?? []) as ArtifactRow[]) {
+  for (const row of rows) {
     if (!map.has(row.aip_id)) map.set(row.aip_id, row);
   }
   return map;
 }
 
 async function getCurrentFilesByAipIds(aipIds: string[]): Promise<Map<string, UploadedFileRow>> {
-  if (!aipIds.length) return new Map();
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return new Map();
   const client = await supabaseServer();
 
-  const { data, error } = await client
-    .from("uploaded_files")
-    .select("aip_id,bucket_id,object_name,original_file_name,uploaded_by,created_at,is_current")
-    .eq("is_current", true)
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: false });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const query = client
+        .from("uploaded_files")
+        .select(
+          "id,aip_id,bucket_id,object_name,original_file_name,uploaded_by,created_at,is_current"
+        )
+        .eq("is_current", true)
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: false });
+      const { data, error } = await applyOptionalRange(
+        query as OptionalRangeQuery<UploadedFileRow[]>,
+        from,
+        to
+      );
 
-  if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as UploadedFileRow[];
+    }
+  );
+
+  rows.sort((left, right) => {
+    if (left.created_at !== right.created_at) {
+      return left.created_at < right.created_at ? 1 : -1;
+    }
+    return right.id.localeCompare(left.id);
+  });
 
   const map = new Map<string, UploadedFileRow>();
-  for (const row of (data ?? []) as UploadedFileRow[]) {
+  for (const row of rows) {
     if (!map.has(row.aip_id)) map.set(row.aip_id, row);
   }
   return map;
+}
+
+async function listPublishedAipRows(
+  client: Awaited<ReturnType<typeof supabaseServer>>
+): Promise<AipRow[]> {
+  const rows = await collectPaged(async (from, to) => {
+    const query = client
+      .from("aips")
+      .select(AIP_SELECT_COLUMNS)
+      .eq("status", "published")
+      .order("id", { ascending: true });
+    const { data, error } = await applyOptionalRange(
+      query as OptionalRangeQuery<AipRow[]>,
+      from,
+      to
+    );
+
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AipRow[];
+  });
+
+  rows.sort((left, right) => {
+    if (left.fiscal_year !== right.fiscal_year) {
+      return right.fiscal_year - left.fiscal_year;
+    }
+    const leftPublished = left.published_at ?? "";
+    const rightPublished = right.published_at ?? "";
+    if (leftPublished !== rightPublished) {
+      return leftPublished < rightPublished ? 1 : -1;
+    }
+    return left.id.localeCompare(right.id);
+  });
+
+  return rows;
 }
 
 async function getReviewsByAipId(aipId: string): Promise<AipReviewRow[]> {
@@ -535,16 +657,7 @@ function createSupabaseCitizenAipRepo(): CitizenAipRepo {
   return {
     async listPublishedAips() {
       const client = await supabaseServer();
-      const { data, error } = await client
-        .from("aips")
-        .select(AIP_SELECT_COLUMNS)
-        .eq("status", "published")
-        .order("fiscal_year", { ascending: false })
-        .order("published_at", { ascending: false });
-
-      if (error) throw new Error(error.message);
-
-      const aips = (data ?? []) as AipRow[];
+      const aips = await listPublishedAipRows(client);
       const aipIds = aips.map((row) => row.id);
       const [projectsByAipId, summariesByAipId, fileTotalsByAipId, parentCityByBarangayId] =
         await Promise.all([

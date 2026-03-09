@@ -7,6 +7,14 @@ import {
   fetchAipFileTotalsByAipIds,
   resolveAipDisplayTotal,
 } from "@/lib/repos/_shared/aip-totals";
+import {
+  chunkArray,
+  collectInChunks,
+  collectInChunksPaged,
+  collectPaged,
+  dedupeNonEmptyStrings,
+  SUPABASE_PAGE_SIZE,
+} from "@/lib/repos/_shared/supabase-batching";
 import { assertFeedbackUsageAllowed, type FeedbackQueryClient } from "@/lib/feedback/usage-guards";
 import type { AipProjectRepo, AipRepo } from "./repo";
 import {
@@ -235,18 +243,6 @@ const PROJECT_SELECT_COLUMNS = [
   "edited_at",
 ].join(",");
 
-const SUPABASE_PAGE_SIZE = 1_000;
-const IN_FILTER_CHUNK_SIZE = 200;
-
-function chunkArray<T>(values: T[], size = IN_FILTER_CHUNK_SIZE): T[][] {
-  if (values.length === 0) return [];
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-  return chunks;
-}
-
 type DbProjectReviewNoteRow = {
   project_id: string | null;
   body: string;
@@ -471,57 +467,84 @@ async function getViewerScope(): Promise<ViewerScope | null> {
 }
 
 async function getProfilesByIds(userIds: string[]): Promise<Map<string, ProfileRow>> {
-  if (!userIds.length) return new Map();
+  const normalizedUserIds = dedupeNonEmptyStrings(userIds);
+  if (!normalizedUserIds.length) return new Map();
   try {
     const admin = supabaseAdmin();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("id,full_name,role")
-      .in("id", userIds);
-    if (error) throw new Error(error.message);
-    return new Map(((data ?? []) as ProfileRow[]).map((r) => [r.id, r]));
+    const rows = await collectInChunks(normalizedUserIds, async (userIdChunk) => {
+      const { data, error } = await admin
+        .from("profiles")
+        .select("id,full_name,role")
+        .in("id", userIdChunk);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProfileRow[];
+    });
+    return new Map(rows.map((row) => [row.id, row]));
   } catch {
     const client = await supabaseServer();
-    const { data, error } = await client
-      .from("profiles")
-      .select("id,full_name,role")
-      .in("id", userIds);
-    if (error) throw new Error(error.message);
-    return new Map(((data ?? []) as ProfileRow[]).map((r) => [r.id, r]));
+    const rows = await collectInChunks(normalizedUserIds, async (userIdChunk) => {
+      const { data, error } = await client
+        .from("profiles")
+        .select("id,full_name,role")
+        .in("id", userIdChunk);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProfileRow[];
+    });
+    return new Map(rows.map((row) => [row.id, row]));
   }
 }
 
 async function getLatestSummaries(aipIds: string[]): Promise<Map<string, ArtifactSelectRow>> {
-  if (!aipIds.length) return new Map();
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return new Map();
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("extraction_artifacts")
-    .select("aip_id,artifact_json,artifact_text,created_at")
-    .eq("artifact_type", "summarize")
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("extraction_artifacts")
+        .select("id,aip_id,artifact_json,artifact_text,created_at")
+        .eq("artifact_type", "summarize")
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ArtifactSelectRow[];
+    }
+  );
 
   const map = new Map<string, ArtifactSelectRow>();
-  for (const row of (data ?? []) as ArtifactSelectRow[]) {
+  for (const row of rows) {
     if (!map.has(row.aip_id)) map.set(row.aip_id, row);
   }
   return map;
 }
 
 async function getCurrentFiles(aipIds: string[]): Promise<Map<string, UploadedFileSelectRow>> {
-  if (!aipIds.length) return new Map();
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return new Map();
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("uploaded_files")
-    .select("id,aip_id,bucket_id,object_name,original_file_name,uploaded_by,created_at,is_current")
-    .eq("is_current", true)
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("uploaded_files")
+        .select(
+          "id,aip_id,bucket_id,object_name,original_file_name,uploaded_by,created_at,is_current"
+        )
+        .eq("is_current", true)
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as UploadedFileSelectRow[];
+    }
+  );
 
   const map = new Map<string, UploadedFileSelectRow>();
-  for (const row of (data ?? []) as UploadedFileSelectRow[]) {
+  for (const row of rows) {
     if (!map.has(row.aip_id)) map.set(row.aip_id, row);
   }
   return map;
@@ -529,32 +552,30 @@ async function getCurrentFiles(aipIds: string[]): Promise<Map<string, UploadedFi
 
 async function getProjectsByAipIds(aipIds: string[]): Promise<Map<string, ProjectSelectRow[]>> {
   const map = new Map<string, ProjectSelectRow[]>();
-  if (!aipIds.length) return map;
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return map;
 
   const client = await supabaseServer();
-  let from = 0;
-
-  while (true) {
-    const to = from + SUPABASE_PAGE_SIZE - 1;
-    const { data, error } = await client
-      .from("projects")
-      .select(PROJECT_SELECT_COLUMNS)
-      .in("aip_id", aipIds)
-      .order("aip_id", { ascending: true })
-      .order("aip_ref_code", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, to);
-    if (error) throw new Error(error.message);
-
-    const batch = (data ?? []) as unknown as ProjectSelectRow[];
-    for (const row of batch) {
-      const list = map.get(row.aip_id) ?? [];
-      list.push(row);
-      map.set(row.aip_id, list);
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("projects")
+        .select(PROJECT_SELECT_COLUMNS)
+        .in("aip_id", aipIdChunk)
+        .order("aip_id", { ascending: true })
+        .order("aip_ref_code", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as ProjectSelectRow[];
     }
+  );
 
-    if (batch.length < SUPABASE_PAGE_SIZE) break;
-    from += SUPABASE_PAGE_SIZE;
+  for (const row of rows) {
+    const list = map.get(row.aip_id) ?? [];
+    list.push(row);
+    map.set(row.aip_id, list);
   }
   return map;
 }
@@ -589,20 +610,26 @@ function sortByCreatedAtDescThenId(
 async function getRevisionRemarksByAipIds(
   aipIds: string[]
 ): Promise<AipRevisionFeedbackMessageByAip[]> {
-  if (!aipIds.length) return [];
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return [];
 
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("aip_reviews")
-    .select("id,aip_id,note,reviewer_id,created_at")
-    .eq("action", "request_revision")
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("aip_reviews")
+        .select("id,aip_id,note,reviewer_id,created_at")
+        .eq("action", "request_revision")
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
 
-  if (error) throw new Error(error.message);
-
-  const rows = (data ?? []) as AipRevisionReviewSelectRow[];
+      if (error) throw new Error(error.message);
+      return (data ?? []) as AipRevisionReviewSelectRow[];
+    }
+  );
   const reviewerIds = Array.from(
     new Set(
       rows
@@ -630,23 +657,29 @@ async function getRevisionRemarksByAipIds(
 async function getBarangayAipRepliesByAipIds(
   aipIds: string[]
 ): Promise<AipRevisionFeedbackMessageByAip[]> {
-  if (!aipIds.length) return [];
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return [];
 
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("feedback")
-    .select("id,aip_id,body,author_id,created_at")
-    .eq("target_type", "aip")
-    .eq("source", "human")
-    .eq("kind", "lgu_note")
-    .is("parent_feedback_id", null)
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("feedback")
+        .select("id,aip_id,body,author_id,created_at")
+        .eq("target_type", "aip")
+        .eq("source", "human")
+        .eq("kind", "lgu_note")
+        .is("parent_feedback_id", null)
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
 
-  if (error) throw new Error(error.message);
-
-  const rows = (data ?? []) as AipRevisionReplySelectRow[];
+      if (error) throw new Error(error.message);
+      return (data ?? []) as AipRevisionReplySelectRow[];
+    }
+  );
   const authorIds = Array.from(
     new Set(
       rows
@@ -679,20 +712,26 @@ async function getLatestPublishedByByAipIds(
   aipIds: string[]
 ): Promise<Map<string, NonNullable<AipHeader["publishedBy"]>>> {
   const map = new Map<string, NonNullable<AipHeader["publishedBy"]>>();
-  if (!aipIds.length) return map;
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return map;
 
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("aip_reviews")
-    .select("id,aip_id,reviewer_id,created_at")
-    .eq("action", "approve")
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("aip_reviews")
+        .select("id,aip_id,reviewer_id,created_at")
+        .eq("action", "approve")
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
 
-  if (error) throw new Error(error.message);
-
-  const rows = (data ?? []) as AipPublishedReviewSelectRow[];
+      if (error) throw new Error(error.message);
+      return (data ?? []) as AipPublishedReviewSelectRow[];
+    }
+  );
   const reviewerIds = Array.from(new Set(rows.map((row) => row.reviewer_id)));
   const profilesById = await getProfilesByIds(reviewerIds);
 
@@ -814,17 +853,28 @@ function buildRevisionFeedbackCycles(params: {
 
 async function getLatestRunsByAipIds(aipIds: string[]): Promise<Map<string, ExtractionRunSelectRow>> {
   const map = new Map<string, ExtractionRunSelectRow>();
-  if (!aipIds.length) return map;
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return map;
 
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("extraction_runs")
-    .select("id,aip_id,stage,status,overall_progress_pct,progress_message,error_message,progress_updated_at,created_at")
-    .in("aip_id", aipIds)
-    .order("created_at", { ascending: false });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("extraction_runs")
+        .select(
+          "id,aip_id,stage,status,overall_progress_pct,progress_message,error_message,progress_updated_at,created_at"
+        )
+        .in("aip_id", aipIdChunk)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
 
-  if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as ExtractionRunSelectRow[]) {
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ExtractionRunSelectRow[];
+    }
+  );
+  for (const row of rows) {
     if (row.stage === "embed") continue;
     if (!map.has(row.aip_id)) {
       map.set(row.aip_id, row);
@@ -837,18 +887,29 @@ async function getLatestEmbedRunsByAipIds(
   aipIds: string[]
 ): Promise<Map<string, ExtractionRunSelectRow>> {
   const map = new Map<string, ExtractionRunSelectRow>();
-  if (!aipIds.length) return map;
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
+  if (!normalizedAipIds.length) return map;
 
   const client = await supabaseServer();
-  const { data, error } = await client
-    .from("extraction_runs")
-    .select("id,aip_id,stage,status,overall_progress_pct,progress_message,error_message,progress_updated_at,created_at")
-    .in("aip_id", aipIds)
-    .eq("stage", "embed")
-    .order("created_at", { ascending: false });
+  const rows = await collectInChunksPaged(
+    normalizedAipIds,
+    async (aipIdChunk, from, to) => {
+      const { data, error } = await client
+        .from("extraction_runs")
+        .select(
+          "id,aip_id,stage,status,overall_progress_pct,progress_message,error_message,progress_updated_at,created_at"
+        )
+        .in("aip_id", aipIdChunk)
+        .eq("stage", "embed")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
 
-  if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as ExtractionRunSelectRow[]) {
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ExtractionRunSelectRow[];
+    }
+  );
+  for (const row of rows) {
     if (!map.has(row.aip_id)) {
       map.set(row.aip_id, row);
     }
@@ -966,36 +1027,36 @@ export function createSupabaseAipRepo(): AipRepo {
       const scope = input.scope ?? "barangay";
       const visibility = input.visibility ?? "my";
       const client = await supabaseServer();
+      const viewer = visibility === "public" ? null : await getViewerScope();
+      const aips = await collectPaged(async (from, to) => {
+        let query = client
+          .from("aips")
+          .select(
+            "id,fiscal_year,status,created_by,created_at,published_at,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)"
+          )
+          .order("fiscal_year", { ascending: false })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true });
 
-      let query = client
-        .from("aips")
-        .select(
-          "id,fiscal_year,status,created_by,created_at,published_at,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)"
-        )
-        .order("fiscal_year", { ascending: false })
-        .order("created_at", { ascending: false });
+        if (scope === "barangay") {
+          query = query.not("barangay_id", "is", null);
+        } else {
+          query = query.not("city_id", "is", null);
+        }
 
-      if (scope === "barangay") {
-        query = query.not("barangay_id", "is", null);
-      } else {
-        query = query.not("city_id", "is", null);
-      }
-
-      if (visibility === "public") {
-        query = query.neq("status", "draft");
-      } else {
-        const viewer = await getViewerScope();
-        if (scope === "barangay" && viewer?.barangay_id) {
+        if (visibility === "public") {
+          query = query.neq("status", "draft");
+        } else if (scope === "barangay" && viewer?.barangay_id) {
           query = query.eq("barangay_id", viewer.barangay_id);
         } else if (scope === "city" && viewer?.city_id) {
           query = query.eq("city_id", viewer.city_id);
         }
-      }
 
-      const { data, error } = await query;
-      if (error) throw new Error(error.message);
+        const { data, error } = await query.range(from, to);
+        if (error) throw new Error(error.message);
+        return (data ?? []) as AipSelectRow[];
+      });
 
-      const aips = (data ?? []) as AipSelectRow[];
       const aipIds = aips.map((a) => a.id);
 
       const [

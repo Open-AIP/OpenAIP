@@ -1,6 +1,25 @@
+import {
+  collectInChunks,
+  dedupeNonEmptyStrings,
+} from "@/lib/repos/_shared/supabase-batching";
+
 export type AipIdAmountRow = {
   aip_id: string;
   total: unknown;
+};
+
+type AipTotalsQuery = {
+  select: (columns: string) => {
+    eq: (column: string, value: string) => {
+      in: (
+        column: string,
+        values: string[]
+      ) => Promise<{
+        data: unknown;
+        error: { message: string } | null;
+      }>;
+    };
+  };
 };
 
 type AipTotalsSelectRow = {
@@ -100,24 +119,25 @@ export function sumAipDisplayTotals(input: {
 }
 
 export async function fetchAipFileTotalsByAipIds(
-  client: { from: (...args: unknown[]) => any },
+  client: { from: (table: string) => unknown },
   aipIds: string[]
 ): Promise<Map<string, number>> {
-  const normalizedAipIds = Array.from(
-    new Set(aipIds.filter((value) => typeof value === "string" && value.trim().length > 0))
-  );
+  const normalizedAipIds = dedupeNonEmptyStrings(aipIds);
   const totals = new Map<string, number>();
   if (!normalizedAipIds.length) return totals;
 
-  const { data, error } = await client
-    .from("aip_totals")
-    .select("aip_id,total_investment_program")
-    .eq("source_label", "total_investment_program")
-    .in("aip_id", normalizedAipIds);
+  const rows = await collectInChunks(normalizedAipIds, async (aipIdChunk) => {
+    const query = client.from("aip_totals") as AipTotalsQuery;
+    const { data, error } = await query
+      .select("aip_id,total_investment_program")
+      .eq("source_label", "total_investment_program")
+      .in("aip_id", aipIdChunk);
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AipTotalsSelectRow[];
+  });
 
-  for (const row of (data ?? []) as AipTotalsSelectRow[]) {
+  for (const row of rows) {
     const aipId = typeof row.aip_id === "string" ? row.aip_id : "";
     if (!aipId || totals.has(aipId)) continue;
     const amount = parseAipTotalInvestmentProgram(row.total_investment_program);

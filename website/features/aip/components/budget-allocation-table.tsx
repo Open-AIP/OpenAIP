@@ -54,14 +54,16 @@ export function buildBudgetAllocationWithOptions(
   const categories = orderSectors(Array.from(map.keys()));
   const projectTotalBudget = categories.reduce((sum, key) => sum + (map.get(key)?.budget ?? 0), 0);
   const totalProjects = categories.reduce((sum, key) => sum + (map.get(key)?.count ?? 0), 0);
+  const displayTotalBudget = options?.displayTotalBudget;
   const hasDisplayTotalBudget =
-    typeof options?.displayTotalBudget === "number" &&
-    Number.isFinite(options.displayTotalBudget);
-  const denominator = hasDisplayTotalBudget
-    ? options.displayTotalBudget <= 0
-      ? options.displayTotalBudget
-      : Math.max(options.displayTotalBudget, projectTotalBudget)
-    : projectTotalBudget;
+    typeof displayTotalBudget === "number" && Number.isFinite(displayTotalBudget);
+  let denominator = projectTotalBudget;
+  if (hasDisplayTotalBudget) {
+    denominator =
+      displayTotalBudget <= 0
+        ? displayTotalBudget
+        : Math.max(displayTotalBudget, projectTotalBudget);
+  }
 
   if (denominator <= 0) {
     return {

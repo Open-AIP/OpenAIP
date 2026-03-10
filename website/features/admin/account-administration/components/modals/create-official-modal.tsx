@@ -122,6 +122,7 @@ export default function CreateOfficialModal({
               Full Name <span className="text-rose-600">*</span>
             </Label>
             <Input
+              data-testid="admin-create-official-full-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="h-11"
@@ -135,6 +136,7 @@ export default function CreateOfficialModal({
             </Label>
             <Input
               type="email"
+              data-testid="admin-create-official-email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="h-11"
@@ -153,12 +155,16 @@ export default function CreateOfficialModal({
                 setLguKey("");
               }}
             >
-              <SelectTrigger className="h-11">
+              <SelectTrigger data-testid="admin-create-official-role-trigger" className="h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {roleOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
+                  <SelectItem
+                    key={option}
+                    value={option}
+                    data-testid={`admin-create-official-role-option-${option}`}
+                  >
                     {roleLabel(option)}
                   </SelectItem>
                 ))}
@@ -171,12 +177,16 @@ export default function CreateOfficialModal({
               LGU Assignment <span className="text-rose-600">*</span>
             </Label>
             <Select value={lguKey} onValueChange={setLguKey}>
-              <SelectTrigger className="h-11">
+              <SelectTrigger data-testid="admin-create-official-lgu-trigger" className="h-11">
                 <SelectValue placeholder="Select an LGU" />
               </SelectTrigger>
               <SelectContent>
                 {filteredLgus.map((option) => (
-                  <SelectItem key={option.key} value={option.key}>
+                  <SelectItem
+                    key={option.key}
+                    value={option.key}
+                    data-testid={`admin-create-official-lgu-option-${option.key}`}
+                  >
                     {option.label}
                   </SelectItem>
                 ))}
@@ -184,10 +194,15 @@ export default function CreateOfficialModal({
             </Select>
           </div>
 
-          {error ? <div className="text-sm text-rose-600">{error}</div> : null}
+          {error ? (
+            <div data-testid="admin-create-official-error" className="text-sm text-rose-600">
+              {error}
+            </div>
+          ) : null}
 
           <div className="pt-2 flex items-center gap-3">
             <Button
+              data-testid="admin-create-official-submit"
               className="flex-1 bg-teal-700 hover:bg-teal-800"
               onClick={handleSave}
               disabled={loading}

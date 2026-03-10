@@ -1313,6 +1313,7 @@ export default function AipDetailView({
               <h1 className="text-2xl font-bold text-slate-900">{aip.title}</h1>
 
               <Badge
+                data-testid="aip-status-badge"
                 variant="outline"
                 className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
               >
@@ -1382,7 +1383,7 @@ export default function AipDetailView({
 
               {workflowError ? (
                 <Alert className="border-rose-200 bg-rose-50">
-                  <AlertDescription className="text-rose-800">
+                  <AlertDescription data-testid="aip-workflow-error" className="text-rose-800">
                     {workflowError}
                   </AlertDescription>
                 </Alert>
@@ -1390,7 +1391,7 @@ export default function AipDetailView({
 
               {workflowSuccess ? (
                 <Alert className="border-emerald-200 bg-emerald-50">
-                  <AlertDescription className="text-emerald-800">
+                  <AlertDescription data-testid="aip-workflow-success" className="text-emerald-800">
                     {workflowSuccess}
                   </AlertDescription>
                 </Alert>
@@ -1646,6 +1647,7 @@ export default function AipDetailView({
                     ) : null}
                     {isBarangayScope && canManageBarangayWorkflow ? (
                       <Button
+                        data-testid="aip-submit-review-button"
                         className="bg-[#022437] hover:bg-[#022437]/90"
                         onClick={() => {
                           void submitForReview();
@@ -1663,6 +1665,7 @@ export default function AipDetailView({
                 {isCityScope &&
                 (aip.status === "draft" || aip.status === "for_revision") ? (
                     <Button
+                      data-testid="aip-submit-publish-button"
                       className="bg-[#022437] hover:bg-[#022437]/90"
                       onClick={() => {
                         openCityPublishConfirm();
@@ -1703,6 +1706,7 @@ export default function AipDetailView({
                                 </p>
 
                                 <Textarea
+                                  data-testid="aip-revision-reply-input"
                                   value={revisionReplyDraft}
                                   onChange={(event) => {
                                     setRevisionReplyDraft(event.target.value);
@@ -1713,6 +1717,7 @@ export default function AipDetailView({
                                 />
 
                                 <Button
+                                  data-testid="aip-save-revision-reply-button"
                                   className="w-full bg-[#022437] hover:bg-[#022437]/90"
                                   onClick={() => {
                                     void saveRevisionReply();
@@ -1725,6 +1730,7 @@ export default function AipDetailView({
                                 </Button>
 
                                 <Button
+                                  data-testid="aip-resubmit-button"
                                   className="w-full bg-teal-600 hover:bg-teal-700"
                                   onClick={effectiveResubmitHandler}
                                   disabled={!effectiveResubmitHandler}
@@ -1752,6 +1758,7 @@ export default function AipDetailView({
 
                             {canManageBarangayWorkflow ? (
                               <Button
+                                data-testid="aip-cancel-submission-button"
                                 className="w-full bg-rose-600 hover:bg-rose-700"
                                 onClick={effectiveCancelSubmissionHandler}
                                 disabled={!effectiveCancelSubmissionHandler}
@@ -1783,6 +1790,7 @@ export default function AipDetailView({
                                 </p>
 
                                 <Textarea
+                                  data-testid="aip-revision-reply-input"
                                   value={revisionReplyDraft}
                                   onChange={(event) => {
                                     setRevisionReplyDraft(event.target.value);
@@ -1793,6 +1801,7 @@ export default function AipDetailView({
                                 />
 
                                 <Button
+                                  data-testid="aip-save-revision-reply-button"
                                   className="w-full bg-[#022437] hover:bg-[#022437]/90"
                                   onClick={() => {
                                     void saveRevisionReply();
@@ -1911,6 +1920,7 @@ export default function AipDetailView({
                 Cancel
               </Button>
               <Button
+                data-testid="aip-confirm-publish-button"
                 className="bg-teal-600 hover:bg-teal-700"
                 onClick={confirmCityPublish}
                 disabled={isWorkflowBusy || !canSubmitForReview}

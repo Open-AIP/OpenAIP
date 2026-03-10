@@ -100,12 +100,16 @@ export function FeedbackComposer({
           onValueChange={(value) => setKind(value as CitizenProjectFeedbackKind)}
           disabled={disabled}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger data-testid="feedback-kind-trigger" className="w-full">
             <SelectValue placeholder="Select feedback kind" />
           </SelectTrigger>
           <SelectContent>
             {KIND_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                data-testid={`feedback-kind-option-${option.value}`}
+              >
                 {option.label}
               </SelectItem>
             ))}
@@ -116,6 +120,7 @@ export function FeedbackComposer({
       <div className="space-y-1">
         <label className="text-sm font-medium text-slate-700">Message</label>
         <Textarea
+          data-testid="feedback-message-input"
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder={placeholder}
@@ -137,7 +142,7 @@ export function FeedbackComposer({
             Cancel
           </Button>
         ) : null}
-        <Button type="submit" disabled={disabled}>
+        <Button data-testid="feedback-submit-button" type="submit" disabled={disabled}>
           {submitLabel}
         </Button>
       </div>

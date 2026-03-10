@@ -140,7 +140,10 @@ export default function AipCard({
 
   return (
     <Link href={`/${scope}/aips/${aip.id}`} className="block">
-      <Card className="cursor-pointer border-slate-200 py-0 transition-all hover:border-slate-300 hover:shadow-md">
+      <Card
+        data-testid={`aip-card-${aip.id}`}
+        className="cursor-pointer border-slate-200 py-0 transition-all hover:border-slate-300 hover:shadow-md"
+      >
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -224,6 +227,7 @@ export default function AipCard({
 
             {isProcessingCard ? (
               <Badge
+                data-testid={`aip-processing-badge-${aip.id}`}
                 variant="outline"
                 className="h-8 gap-1.5 rounded-full border-[#022437] bg-[#022437] px-3 text-white"
               >
@@ -231,7 +235,11 @@ export default function AipCard({
                 {processingStageLabel}
               </Badge>
             ) : (
-              <Badge variant="outline" className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}>
+              <Badge
+                data-testid={`aip-status-badge-${aip.id}`}
+                variant="outline"
+                className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
+              >
                 {aip.status}
               </Badge>
             )}

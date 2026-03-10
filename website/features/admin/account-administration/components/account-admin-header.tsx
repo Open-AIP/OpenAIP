@@ -21,7 +21,11 @@ export default function AccountAdminHeader({
       </div>
 
       {showCreateOfficial ? (
-        <Button className="bg-teal-700 hover:bg-teal-800" onClick={onCreateOfficial}>
+        <Button
+          data-testid="admin-create-official-account-button"
+          className="bg-teal-700 hover:bg-teal-800"
+          onClick={onCreateOfficial}
+        >
           <Plus className="h-4 w-4" />
           Create Official Account
         </Button>

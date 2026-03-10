@@ -22,7 +22,7 @@ export function AipProcessingInlineStatus({
   errorHint,
 }: Props) {
   return (
-    <div className="mx-auto w-full max-w-[900px]">
+    <div data-testid="aip-processing-inline-status" className="mx-auto w-full max-w-[900px]">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <AipProcessingStatusContent
           run={run}

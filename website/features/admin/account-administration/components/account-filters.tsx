@@ -58,6 +58,7 @@ export default function AccountFilters({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
+            data-testid="admin-account-search"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Search by name or email"

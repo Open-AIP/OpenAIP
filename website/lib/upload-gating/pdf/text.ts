@@ -1,7 +1,7 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import {
   ensurePdfWorkerSrc,
   getPdfSourceErrorDiagnostics,
+  loadPdfJsModule,
   PdfInspectError,
 } from "./inspect";
 
@@ -32,6 +32,11 @@ type PositionedTextItem = {
 type TextLine = {
   y: number;
   tokens: Array<{ x: number; str: string }>;
+};
+
+type PdfLoadingTask = {
+  promise: Promise<any>;
+  destroy: () => Promise<void> | void;
 };
 
 const LINE_Y_TOLERANCE = 2.5;
@@ -139,25 +144,31 @@ export async function extractPdfTextPreview(input: {
   maxPages: number;
   timeoutMs: number;
 }): Promise<PdfTextPreview> {
-  await ensurePdfWorkerSrc();
-
-  const loadingTask = getDocument({
-    data: new Uint8Array(input.fileBuffer),
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    disableFontFace: true,
-    useSystemFonts: false,
-  });
+  let loadingTask: PdfLoadingTask | null = null;
 
   try {
-    const pdf = await withTimeout(loadingTask.promise, input.timeoutMs);
+    const pdfJs = await loadPdfJsModule();
+    await ensurePdfWorkerSrc();
+
+    loadingTask = pdfJs.getDocument({
+      data: new Uint8Array(input.fileBuffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      disableFontFace: true,
+      useSystemFonts: false,
+    });
+
+    const pdf = (await withTimeout(loadingTask.promise, input.timeoutMs)) as any;
     const pageCount = Number(pdf.numPages ?? 0);
     const pagesToRead = Math.max(0, Math.min(pageCount, input.maxPages));
     const pages: PdfPageText[] = [];
 
     for (let pageNumber = 1; pageNumber <= pagesToRead; pageNumber += 1) {
-      const page = await withTimeout(pdf.getPage(pageNumber), input.timeoutMs);
-      const textContent = await withTimeout(page.getTextContent(), input.timeoutMs);
+      const page = (await withTimeout(pdf.getPage(pageNumber), input.timeoutMs)) as any;
+      const textContent = (await withTimeout(
+        page.getTextContent(),
+        input.timeoutMs
+      )) as { items: unknown[] };
       const text = reconstructPdfPageText(
         textContent.items as PdfTextContentItem[]
       );
@@ -205,10 +216,12 @@ export async function extractPdfTextPreview(input: {
       getPdfSourceErrorDiagnostics(error)
     );
   } finally {
-    try {
-      await loadingTask.destroy();
-    } catch {
-      // noop
+    if (loadingTask) {
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // noop
+      }
     }
   }
 }

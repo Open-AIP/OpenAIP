@@ -61,6 +61,11 @@ const PARSER_INCOMPATIBILITY_PATTERNS: RegExp[] = [
   /\bfake worker failed\b/i,
   /\bpdf\.worker\.mjs\b/i,
   /\bcannot find module\b/i,
+  /\bdommatrix\b/i,
+  /\bimagedata\b/i,
+  /\bpath2d\b/i,
+  /@napi-rs\/canvas/i,
+  /\bcannot polyfill\b/i,
 ];
 
 class FileReadError extends Error {

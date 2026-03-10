@@ -1,11 +1,22 @@
 import { createRequire } from "module";
 import { pathToFileURL } from "node:url";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 type PdfInspectErrorReason = "encrypted" | "corrupted" | "timeout";
 type PdfSourceErrorDiagnostics = {
   sourceName?: string;
   sourceMessage?: string;
+};
+
+type PdfLoadingTask = {
+  promise: Promise<any>;
+  destroy: () => Promise<void> | void;
+};
+
+type PdfJsModule = {
+  getDocument: (input: unknown) => PdfLoadingTask;
+  GlobalWorkerOptions: {
+    workerSrc: string;
+  };
 };
 
 export class PdfInspectError extends Error {
@@ -28,6 +39,7 @@ export class PdfInspectError extends Error {
 const nodeRequire = createRequire(import.meta.url);
 let workerSrcConfigured = false;
 let workerBootstrapPromise: Promise<void> | null = null;
+let pdfJsModulePromise: Promise<PdfJsModule> | null = null;
 
 async function ensurePdfWorkerHandler(): Promise<void> {
   const globalWithPdfWorker = globalThis as typeof globalThis & {
@@ -47,28 +59,6 @@ async function ensurePdfWorkerHandler(): Promise<void> {
   } catch {
     // Keep fallback behavior if the worker module cannot be preloaded.
   }
-}
-
-export async function ensurePdfWorkerSrc(): Promise<void> {
-  if (workerBootstrapPromise) {
-    await workerBootstrapPromise;
-    return;
-  }
-
-  workerBootstrapPromise = (async () => {
-    await ensurePdfWorkerHandler();
-
-    if (workerSrcConfigured) return;
-    try {
-      const workerPath = nodeRequire.resolve("pdfjs-dist/build/pdf.worker.mjs");
-      GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
-      workerSrcConfigured = true;
-    } catch {
-      // Keep default worker behavior if explicit worker source resolution fails.
-    }
-  })();
-
-  await workerBootstrapPromise;
 }
 
 function sanitizeSourceValue(value: string, maxLength: number): string {
@@ -95,6 +85,49 @@ export function getPdfSourceErrorDiagnostics(
       : undefined;
 
   return { sourceName, sourceMessage };
+}
+
+export async function loadPdfJsModule(): Promise<PdfJsModule> {
+  if (!pdfJsModulePromise) {
+    pdfJsModulePromise = import(
+      "pdfjs-dist/legacy/build/pdf.mjs"
+    ) as Promise<PdfJsModule>;
+  }
+
+  try {
+    return await pdfJsModulePromise;
+  } catch (error) {
+    // Reset cache so a subsequent attempt can retry after deployment/env changes.
+    pdfJsModulePromise = null;
+    throw new PdfInspectError(
+      "corrupted",
+      "PDF parser runtime could not be loaded.",
+      getPdfSourceErrorDiagnostics(error)
+    );
+  }
+}
+
+export async function ensurePdfWorkerSrc(): Promise<void> {
+  if (!workerBootstrapPromise) {
+    workerBootstrapPromise = (async () => {
+      const pdfJs = await loadPdfJsModule();
+      await ensurePdfWorkerHandler();
+
+      if (workerSrcConfigured) return;
+      try {
+        const workerPath = nodeRequire.resolve("pdfjs-dist/build/pdf.worker.mjs");
+        pdfJs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
+        workerSrcConfigured = true;
+      } catch {
+        // Keep default worker behavior if explicit worker source resolution fails.
+      }
+    })().catch((error) => {
+      workerBootstrapPromise = null;
+      throw error;
+    });
+  }
+
+  await workerBootstrapPromise;
 }
 
 function isPasswordProtectedError(error: unknown): boolean {
@@ -133,17 +166,20 @@ export async function inspectPdf(input: {
   fileBuffer: Buffer;
   timeoutMs: number;
 }): Promise<{ pageCount: number }> {
-  await ensurePdfWorkerSrc();
-
-  const loadingTask = getDocument({
-    data: new Uint8Array(input.fileBuffer),
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    disableFontFace: true,
-    useSystemFonts: false,
-  });
+  let loadingTask: PdfLoadingTask | null = null;
 
   try {
+    const pdfJs = await loadPdfJsModule();
+    await ensurePdfWorkerSrc();
+
+    loadingTask = pdfJs.getDocument({
+      data: new Uint8Array(input.fileBuffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      disableFontFace: true,
+      useSystemFonts: false,
+    });
+
     const pdf = await withTimeout(loadingTask.promise, input.timeoutMs);
     const pageCount = Number(pdf.numPages ?? 0);
     try {
@@ -173,10 +209,12 @@ export async function inspectPdf(input: {
       getPdfSourceErrorDiagnostics(error)
     );
   } finally {
-    try {
-      await loadingTask.destroy();
-    } catch {
-      // noop
+    if (loadingTask) {
+      try {
+        await loadingTask.destroy();
+      } catch {
+        // noop
+      }
     }
   }
 }

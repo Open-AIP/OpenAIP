@@ -11,6 +11,8 @@ const DEFAULT_DEDUPE_TTL_SECONDS = 300;
 const CHUNK_INGESTION_VERSION = 2;
 const DEFAULT_DOCUMENT_TYPE = "AIP";
 const DEFAULT_PUBLICATION_STATUS = "published";
+const ARTIFACT_CHUNK_PAGE_SIZE = 500;
+const EMBEDDING_EXISTENCE_LOOKUP_BATCH_SIZE = 200;
 
 // Process-local cache only. Multi-instance deployments need shared KV (Redis/DB)
 // for strong replay and idempotency guarantees.
@@ -1056,38 +1058,33 @@ async function selectLatestSucceededCategorizeArtifact(
   return null;
 }
 
-function isCategorizeArtifactChunk(
-  chunk: ChunkRow,
-  artifactId: string,
-): boolean {
-  const metadata = chunk.metadata;
-  if (!metadata || typeof metadata !== "object") return false;
-  return (
-    (metadata as Record<string, unknown>).source === "categorize_artifact" &&
-    String((metadata as Record<string, unknown>).artifact_id ?? "") === artifactId
-  );
-}
-
 async function loadArtifactChunks(
   supabase: SupabaseClient,
   aipId: string,
   runId: string,
   artifactId: string,
 ): Promise<ChunkRow[]> {
-  const { data, error } = await supabase
-    .from("aip_chunks")
-    .select("id,chunk_index,chunk_text,metadata")
-    .eq("aip_id", aipId)
-    .eq("run_id", runId)
-    .order("chunk_index", { ascending: true });
+  const chunks: ChunkRow[] = [];
+  for (let offset = 0; ; offset += ARTIFACT_CHUNK_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("aip_chunks")
+      .select("id,chunk_index,chunk_text,metadata")
+      .eq("aip_id", aipId)
+      .eq("run_id", runId)
+      .contains("metadata", { source: "categorize_artifact", artifact_id: artifactId })
+      .order("chunk_index", { ascending: true })
+      .range(offset, offset + ARTIFACT_CHUNK_PAGE_SIZE - 1);
 
-  if (error) {
-    throw new Error(`Failed to load existing chunks: ${error.message}`);
+    if (error) {
+      throw new Error(`Failed to load existing chunks: ${error.message}`);
+    }
+
+    const page = (data ?? []).map((row) => row as ChunkRow);
+    chunks.push(...page);
+    if (page.length < ARTIFACT_CHUNK_PAGE_SIZE) break;
   }
 
-  return (data ?? [])
-    .map((row) => row as ChunkRow)
-    .filter((row) => isCategorizeArtifactChunk(row, artifactId));
+  return chunks;
 }
 
 async function deleteArtifactChunks(
@@ -1099,16 +1096,17 @@ async function deleteArtifactChunks(
   const existing = await loadArtifactChunks(supabase, aipId, runId, artifactId);
   if (existing.length === 0) return 0;
 
-  const ids = existing.map((row) => row.id);
   const { error } = await supabase
     .from("aip_chunks")
     .delete()
-    .in("id", ids);
+    .eq("aip_id", aipId)
+    .eq("run_id", runId)
+    .contains("metadata", { source: "categorize_artifact", artifact_id: artifactId });
 
   if (error) {
     throw new Error(`Failed to replace existing artifact chunks: ${error.message}`);
   }
-  return ids.length;
+  return existing.length;
 }
 
 async function embedTexts(texts: string[]): Promise<number[][]> {
@@ -1159,20 +1157,23 @@ async function insertMissingEmbeddings(
   if (chunks.length === 0) return 0;
 
   const chunkIds = chunks.map((chunk) => chunk.id);
-  const { data: existingEmbeddings, error: existingError } = await supabase
-    .from("aip_chunk_embeddings")
-    .select("chunk_id")
-    .in("chunk_id", chunkIds);
+  const existingSet = new Set<string>();
+  for (let start = 0; start < chunkIds.length; start += EMBEDDING_EXISTENCE_LOOKUP_BATCH_SIZE) {
+    const slice = chunkIds.slice(start, start + EMBEDDING_EXISTENCE_LOOKUP_BATCH_SIZE);
+    const { data: existingEmbeddings, error: existingError } = await supabase
+      .from("aip_chunk_embeddings")
+      .select("chunk_id")
+      .in("chunk_id", slice);
 
-  if (existingError) {
-    throw new Error(`Failed to load existing embeddings: ${existingError.message}`);
+    if (existingError) {
+      throw new Error(`Failed to load existing embeddings: ${existingError.message}`);
+    }
+
+    for (const row of existingEmbeddings ?? []) {
+      const chunkId = normalizeString((row as Record<string, unknown>).chunk_id, "");
+      if (chunkId) existingSet.add(chunkId);
+    }
   }
-
-  const existingSet = new Set<string>(
-    (existingEmbeddings ?? []).map((row) =>
-      normalizeString((row as Record<string, unknown>).chunk_id, ""),
-    ),
-  );
 
   const missing = chunks.filter((chunk) => !existingSet.has(chunk.id));
   if (missing.length === 0) return 0;

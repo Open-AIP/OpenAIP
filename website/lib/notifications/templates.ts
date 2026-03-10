@@ -167,6 +167,39 @@ function pickScopeLabel(metadata: NotificationMetadata): string {
   return scope ?? "System";
 }
 
+function normalizeAipScopeToken(
+  value: string | null | undefined
+): "city" | "municipality" | "barangay" | null {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  if (!normalized) return null;
+  if (normalized === "city" || normalized === "municipality" || normalized === "barangay") {
+    return normalized;
+  }
+  return null;
+}
+
+function resolveCitizenAipPublishedScope(metadata: NotificationMetadata): "city" | "barangay" | "unknown" {
+  const scopeLabel = normalizeAipScopeToken(asString(metadata.scope_label));
+  if (scopeLabel === "city" || scopeLabel === "municipality") return "city";
+  if (scopeLabel === "barangay") return "barangay";
+
+  const scopeType = normalizeAipScopeToken(asString(metadata.scope_type));
+  if (scopeType === "city" || scopeType === "municipality") return "city";
+  if (scopeType === "barangay") return "barangay";
+
+  if (asString(metadata.city_name)) return "city";
+  if (asString(metadata.barangay_name)) return "barangay";
+
+  return "unknown";
+}
+
+function getCitizenAipPublishedDropdownTitle(metadata: NotificationMetadata): string {
+  const scope = resolveCitizenAipPublishedScope(metadata);
+  if (scope === "city") return "New city AIP published.";
+  if (scope === "barangay") return "New barangay AIP published.";
+  return "New AIP published.";
+}
+
 function pickFeedbackKindLabel(metadata: NotificationMetadata): string | null {
   return toTitleCaseToken(asString(metadata.feedback_kind));
 }
@@ -342,11 +375,8 @@ export function buildDisplay(
     }
     case "AIP_PUBLISHED": {
       const isCitizenRecipient = (row.recipient_role ?? "").toLowerCase() === "citizen";
-      const scopeLabel = asString(metadata.scope_label)?.toLowerCase() ?? "";
       const dropdownTitle = isCitizenRecipient
-        ? scopeLabel === "city"
-          ? "New city AIP published."
-          : "New barangay AIP published."
+        ? getCitizenAipPublishedDropdownTitle(metadata)
         : "Your AIP has been published.";
       const actorName = asString(metadata.actor_name);
       return {

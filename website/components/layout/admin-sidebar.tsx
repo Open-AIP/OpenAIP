@@ -14,6 +14,11 @@ function isActive(pathname: string, href: string) {
   return false;
 }
 
+function toAdminSidebarTestId(label: string): string {
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `admin-sidebar-${slug}`;
+}
+
 export default function AdminSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,6 +27,7 @@ export default function AdminSidebar() {
 
   return (
     <aside
+      data-testid="admin-sidebar"
       className={cn(
         "shrink-0 sticky top-0 bg-[#022437] text-white flex flex-col",
         "w-16 md:w-72",
@@ -76,7 +82,7 @@ export default function AdminSidebar() {
 
             return (
               <li key={item.href}>
-                <Link href={href} className={rowClassName}>
+                <Link href={href} data-testid={toAdminSidebarTestId(item.label)} className={rowClassName}>
                   <Icon className="h-4.5 w-4.5 md:h-4 md:w-4 mx-auto md:mx-0" />
                   <span className="hidden md:block font-medium leading-5">{item.label}</span>
                 </Link>

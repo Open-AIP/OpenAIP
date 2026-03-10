@@ -70,7 +70,12 @@ export default function LguTable({
 
         <TableBody>
           {rows.map((lgu) => (
-            <TableRow key={lgu.id} className="hover:bg-slate-50">
+            <TableRow
+              key={lgu.id}
+              data-testid={`admin-lgu-row-${lgu.id}`}
+              data-lgu-code={lgu.code}
+              className="hover:bg-slate-50"
+            >
               <TableCell className="text-sm text-slate-700">
                 {lguTypeLabel(lgu.type)}
               </TableCell>

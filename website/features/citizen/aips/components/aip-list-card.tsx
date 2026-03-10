@@ -9,7 +9,7 @@ import { formatCurrency, formatPublishedDate } from '@/features/citizen/aips/dat
 export default function AipListCard({ item }: { item: AipListItem }) {
   return (
     <Link href={`/aips/${item.id}`} className="block">
-      <Card className="border-slate-200 bg-white transition-shadow hover:shadow-md">
+      <Card data-testid={`citizen-aip-card-${item.id}`} className="border-slate-200 bg-white transition-shadow hover:shadow-md">
         <CardContent className="px-5">
           <div className="flex flex-col gap-4 md:min-h-[170px] md:flex-row md:items-stretch md:justify-between md:gap-6">
             <div className="min-w-0 flex-1 space-y-3">
@@ -49,6 +49,7 @@ export default function AipListCard({ item }: { item: AipListItem }) {
               <span className="inline-flex md:mt-auto">
                 <Button
                   type="button"
+                  data-testid={`citizen-aip-view-details-${item.id}`}
                   className="h-10 rounded-lg bg-[#03455f] px-4 text-white hover:bg-[#02384d]"
                   tabIndex={-1}
                 >

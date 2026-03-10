@@ -178,6 +178,7 @@ export default function AipManagementView({
           </Select>
 
           <Button
+            data-testid="aip-upload-open-button"
             className="bg-[#022437] hover:bg-[#022437]/90"
             onClick={() => setOpenUpload(true)}
           >

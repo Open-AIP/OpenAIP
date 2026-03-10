@@ -82,7 +82,11 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
             </thead>
             <tbody>
               {aips.map((aip, index) => (
-                <tr key={aip.id ?? `aip-${index}`} className="border-b border-slate-100 hover:bg-slate-50">
+                <tr
+                  key={aip.id ?? `aip-${index}`}
+                  data-testid={`city-submission-row-${aip.id ?? index}`}
+                  className="border-b border-slate-100 hover:bg-slate-50"
+                >
                   <td className="py-4 px-4 text-sm text-slate-900">
                     {aip.barangayName || "Barangay"}
                   </td>
@@ -91,6 +95,7 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
                   </td>
                   <td className="py-4 px-4">
                     <Badge
+                      data-testid={`city-submission-status-badge-${aip.id ?? index}`}
                       variant="outline"
                       className={`rounded-full ${getAipStatusBadgeClass(aip.status)}`}
                     >
@@ -120,6 +125,7 @@ export function SubmissionTable({ aips }: SubmissionTableProps) {
 
                       return (
                     <Button
+                      data-testid={`city-submission-action-${aip.id ?? index}`}
                       variant={isPending ? "default" : "outline"}
                       size="sm"
                       className={

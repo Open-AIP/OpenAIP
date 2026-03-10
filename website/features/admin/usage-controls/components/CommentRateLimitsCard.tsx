@@ -64,6 +64,7 @@ export default function CommentRateLimitsCard({
             <Input
               type="number"
               min={1}
+              data-testid="admin-feedback-max-comments-input"
               value={maxComments}
               onChange={(e) => {
                 const parsed = Number.parseInt(e.target.value, 10);
@@ -80,12 +81,16 @@ export default function CommentRateLimitsCard({
               onValueChange={(value) => setTimeWindow(value as "hour" | "day")}
               disabled={loading}
             >
-              <SelectTrigger className="h-10">
+              <SelectTrigger data-testid="admin-feedback-time-window-trigger" className="h-10">
                 <SelectValue placeholder="Select window" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="hour">Per hour</SelectItem>
-                <SelectItem value="day">Per day</SelectItem>
+                <SelectItem value="hour" data-testid="admin-feedback-time-window-option-hour">
+                  Per hour
+                </SelectItem>
+                <SelectItem value="day" data-testid="admin-feedback-time-window-option-day">
+                  Per day
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -100,6 +105,7 @@ export default function CommentRateLimitsCard({
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
+            data-testid="admin-save-feedback-rate-limits"
             className="bg-[#0E5D6F] text-white hover:bg-[#0E5D6F]/90"
             onClick={handleSave}
             disabled={!canSave}
@@ -107,7 +113,7 @@ export default function CommentRateLimitsCard({
             Save Feedback Rate Limits
           </Button>
           {saved && (
-            <span className="text-[12px] text-emerald-600">
+            <span data-testid="admin-feedback-rate-limit-saved" className="text-[12px] text-emerald-600">
               Rate limits saved successfully.
             </span>
           )}

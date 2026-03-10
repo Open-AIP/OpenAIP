@@ -66,6 +66,7 @@ export default function ChatbotRateLimitsCard({
             <Input
               type="number"
               min={1}
+              data-testid="admin-chatbot-max-requests-input"
               value={maxRequests}
               onChange={(e) => {
                 const parsed = Number.parseInt(e.target.value, 10);
@@ -82,18 +83,22 @@ export default function ChatbotRateLimitsCard({
               onValueChange={(value) => setTimeWindow(value as "per_hour" | "per_day")}
               disabled={loading}
             >
-              <SelectTrigger className="h-10">
+              <SelectTrigger data-testid="admin-chatbot-time-window-trigger" className="h-10">
                 <SelectValue placeholder="Select window" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="per_hour">Per hour</SelectItem>
-                <SelectItem value="per_day">Per day</SelectItem>
+                <SelectItem value="per_hour" data-testid="admin-chatbot-time-window-option-per_hour">
+                  Per hour
+                </SelectItem>
+                <SelectItem value="per_day" data-testid="admin-chatbot-time-window-option-per_day">
+                  Per day
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="rounded-lg bg-slate-50 px-4 py-3 text-[12px] text-slate-600">
+        <div data-testid="admin-chatbot-current-limit" className="rounded-lg bg-slate-50 px-4 py-3 text-[12px] text-slate-600">
           <div className="font-medium">
             Current limit: {maxRequests} requests {toLabel(timeWindow).toLowerCase()}
           </div>
@@ -102,6 +107,7 @@ export default function ChatbotRateLimitsCard({
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
+            data-testid="admin-save-chatbot-rate-limits"
             className="bg-[#0E5D6F] text-white hover:bg-[#0E5D6F]/90"
             onClick={handleSave}
             disabled={!canSave}
@@ -109,7 +115,7 @@ export default function ChatbotRateLimitsCard({
             Save Chatbot Rate Limits
           </Button>
           {saved && (
-            <span className="text-[12px] text-emerald-600">
+            <span data-testid="admin-chatbot-rate-limit-saved" className="text-[12px] text-emerald-600">
               Rate limits saved successfully.
             </span>
           )}

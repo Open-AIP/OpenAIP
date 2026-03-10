@@ -252,6 +252,7 @@ function ThreadList({
   selectedFeedbackId,
   setThreadRef,
   setFeedbackRef,
+  threadTestId,
 }: {
   threads: AipFeedbackThread[];
   postingReplyRootId: string | null;
@@ -266,6 +267,7 @@ function ThreadList({
   selectedFeedbackId?: string | null;
   setThreadRef?: (threadId: string) => (node: HTMLDivElement | null) => void;
   setFeedbackRef?: (feedbackId: string) => (node: HTMLDivElement | null) => void;
+  threadTestId?: string;
 }) {
   if (threads.length === 0) {
     return null;
@@ -283,6 +285,7 @@ function ThreadList({
           <div
             key={thread.root.id}
             ref={setThreadRef?.(thread.root.id)}
+            data-testid={threadTestId}
             className={`space-y-3 rounded-2xl border border-slate-200 p-4 ${
               isSelectedThread ? "border-sky-300 ring-2 ring-sky-200" : ""
             }`}
@@ -679,6 +682,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
               selectedFeedbackId={selectedFeedbackId}
               setThreadRef={setThreadRef}
               setFeedbackRef={setFeedbackRef}
+              threadTestId="citizen-feedback-thread"
             />
           ) : null}
         </CardContent>
@@ -724,6 +728,7 @@ export default function AipFeedbackTab({ aipId, feedbackCount }: Props) {
               selectedFeedbackId={selectedFeedbackId}
               setThreadRef={setThreadRef}
               setFeedbackRef={setFeedbackRef}
+              threadTestId="workflow-feedback-thread"
             />
           ) : null}
         </CardContent>

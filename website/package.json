@@ -10,7 +10,11 @@
         "diagnose:city-aips-500": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/diagnose-city-aips-500.ts",
         "lint": "eslint",
         "test:ui": "vitest run",
-        "test:ui:watch": "vitest"
+        "test:ui:watch": "vitest",
+        "e2e:install": "playwright install --with-deps",
+        "e2e": "node scripts/e2e/run-e2e.mjs",
+        "e2e:ui": "playwright test --ui",
+        "e2e:report": "playwright show-report ../evidence-pack/01-functional/playwright-report"
     },
     "dependencies": {
         "@hookform/resolvers": "^5.2.2",
@@ -43,6 +47,7 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
+        "@playwright/test": "^1.51.1",
         "@tailwindcss/postcss": "^4",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.0",

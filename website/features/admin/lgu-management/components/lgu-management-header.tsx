@@ -13,7 +13,7 @@ export default function LguManagementHeader({ onAdd }: { onAdd: () => void }) {
         </p>
       </div>
 
-      <Button className="bg-teal-700 hover:bg-teal-800" onClick={onAdd}>
+      <Button data-testid="admin-add-lgu-button" className="bg-teal-700 hover:bg-teal-800" onClick={onAdd}>
         <Plus className="h-4 w-4" />
         Add LGU
       </Button>

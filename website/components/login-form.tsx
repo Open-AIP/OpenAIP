@@ -128,6 +128,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                       id="email"
                       type="email"
                       autoComplete="email"
+                      data-testid="auth-login-email"
                       placeholder={getRoleEmailPlaceholder(role)}
                       required
                       value={email}
@@ -144,6 +145,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                         id="password"
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
+                        data-testid="auth-login-password"
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -160,12 +162,17 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                     </div>
                   </div>
                   {error && (
-                    <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <p
+                      role="alert"
+                      data-testid="auth-login-error"
+                      className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                    >
                       {error}
                     </p>
                   )}
                   <Button
                     type="submit"
+                    data-testid="auth-login-submit"
                     className="h-12 w-full bg-[#022437] text-base font-medium text-white hover:bg-[#022437]/90 focus-visible:ring-2 focus-visible:ring-[#022437]/40"
                     disabled={isLoading}
                   >
@@ -233,6 +240,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                   id="email"
                   type="email"
                   autoComplete="email"
+                  data-testid="auth-login-email"
                   placeholder={getRoleEmailPlaceholder(role)}
                   required
                   value={email}
@@ -253,13 +261,18 @@ export function LoginForm({role, baseURL}:AuthParameters) {
                   id="password"
                   type="password"
                   autoComplete="current-password"
+                  data-testid="auth-login-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {error && (
+                <p data-testid="auth-login-error" className="text-sm text-red-500">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" data-testid="auth-login-submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Logging in...' : 'Login'}
               </Button>
             </div>

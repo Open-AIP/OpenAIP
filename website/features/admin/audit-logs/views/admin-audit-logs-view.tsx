@@ -216,7 +216,7 @@ export default function AdminAuditLogsView({ logs, total, filters }: Props) {
       <div className="text-sm text-slate-500">{`Showing ${showingFrom}-${showingTo} of ${total} events`}</div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <Table>
+        <Table data-testid="admin-audit-table">
           <TableHeader>
             <TableRow className="bg-slate-50">
               <TableHead className="w-[180px]">NAME</TableHead>
@@ -228,7 +228,7 @@ export default function AdminAuditLogsView({ logs, total, filters }: Props) {
           </TableHeader>
           <TableBody>
             {rows.map(({ row, name, position, eventLabel, details }) => (
-              <TableRow key={row.id} className="border-slate-200">
+              <TableRow data-testid="admin-audit-row" key={row.id} className="border-slate-200">
                 <TableCell className="p-4 font-medium text-slate-900">{name}</TableCell>
                 <TableCell className="text-slate-600">{position}</TableCell>
                 <TableCell className="text-slate-900">{eventLabel}</TableCell>

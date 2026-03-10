@@ -141,6 +141,7 @@ export default function UploadAipDialog({
       }}
     >
       <DialogContent className="sm:max-w-[720px] overflow-hidden p-0" showCloseButton={false}>
+        <div data-testid="aip-upload-dialog" />
         <div className="p-8 pb-4">
           <DialogHeader className="space-y-2">
             <div className="flex items-start justify-between gap-4">
@@ -173,6 +174,7 @@ export default function UploadAipDialog({
             <input
               ref={fileRef}
               type="file"
+              data-testid="aip-upload-file-input"
               accept="application/pdf"
               className="hidden"
               onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
@@ -181,6 +183,7 @@ export default function UploadAipDialog({
 
             <button
               type="button"
+              data-testid="aip-upload-file-button"
               onClick={() => fileRef.current?.click()}
               disabled={isSubmitting}
               className={[
@@ -224,12 +227,12 @@ export default function UploadAipDialog({
               }}
               disabled={isSubmitting}
             >
-              <SelectTrigger className="h-12 border-slate-200 bg-slate-50">
+              <SelectTrigger data-testid="aip-upload-year-select" className="h-12 border-slate-200 bg-slate-50">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
-                  <SelectItem key={y} value={String(y)}>
+                  <SelectItem key={y} value={String(y)} data-testid={`aip-upload-year-option-${y}`}>
                     {y}
                   </SelectItem>
                 ))}
@@ -238,7 +241,10 @@ export default function UploadAipDialog({
           </div>
 
           {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div
+              data-testid="aip-upload-error"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
               {error}
             </div>
           ) : null}
@@ -253,6 +259,7 @@ export default function UploadAipDialog({
             </DialogClose>
 
             <Button
+              data-testid="aip-upload-submit-button"
               className="h-11 bg-[#022437] px-8 hover:bg-[#022437]/90"
               onClick={submit}
               disabled={isSubmitting}

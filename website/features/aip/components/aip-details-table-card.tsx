@@ -100,7 +100,7 @@ export function AipDetailsTableCard({
   const showingEnd = filtered.length === 0 ? 0 : pageEnd;
 
   return (
-    <Card className="border-slate-200">
+    <Card data-testid="aip-details-table-card" className="border-slate-200">
       <CardContent className="px-6">
         {showCommentingNote && !canComment && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -143,7 +143,7 @@ export function AipDetailsTableCard({
           </div>
         </div>
 
-        <div className="mt-4 border border-slate-200 rounded-lg overflow-hidden bg-white">
+        <div data-testid="aip-details-table" className="mt-4 border border-slate-200 rounded-lg overflow-hidden bg-white">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 hover:bg-slate-50">
@@ -165,6 +165,7 @@ export function AipDetailsTableCard({
                 return (
                   <TableRow
                     key={r.id}
+                    data-testid={`aip-project-row-${r.id}`}
                     className={`cursor-pointer ${rowClass} ${
                       focusedRowId === r.id
                         ? "ring-2 ring-amber-400 ring-inset"

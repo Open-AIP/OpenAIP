@@ -54,6 +54,11 @@ function formatHeaderSubtext(variant: LguVariant, scopeDisplayName?: string): st
   return "Local Government";
 }
 
+function toSidebarTestId(variant: LguVariant, label: string): string {
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${variant}-sidebar-${slug}`;
+}
+
 export default function LguSidebar({ variant, scopeDisplayName }: Props) {
   const pathname = usePathname();
   const nav = variant === "barangay" ? BARANGAY_NAV : CITY_NAV;
@@ -70,6 +75,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
 
   return (
     <aside
+      data-testid={`${variant}-sidebar`}
       className={cn(
         // ✅ Width collapses on small screens, full on md+
         "shrink-0 sticky top-0 bg-[#022437] text-white flex flex-col",
@@ -139,6 +145,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                     {/* ✅ On small screens: keep it simple (no dropdown expansion) */}
                     <button
                       type="button"
+                      data-testid={toSidebarTestId(variant, item.label)}
                       onClick={() => toggleDropdown(item.href)}
                       className={cn(baseRowClass, "gap-0 md:gap-3")}
                     >
@@ -171,6 +178,7 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                               <li key={child.href}>
                                 <Link
                                   href={child.href}
+                                  data-testid={toSidebarTestId(variant, child.label)}
                                   className={cn(
                                     "flex items-center gap-3 rounded-xl px-3 py-1.5 text-xs transition-colors",
                                     "hover:bg-white/10",
@@ -188,7 +196,11 @@ export default function LguSidebar({ variant, scopeDisplayName }: Props) {
                     </div>
                   </div>
                 ) : (
-                  <Link href={item.href} className={cn(baseRowClass, "gap-0 md:gap-3")}>
+                  <Link
+                    href={item.href}
+                    data-testid={toSidebarTestId(variant, item.label)}
+                    className={cn(baseRowClass, "gap-0 md:gap-3")}
+                  >
                     <Icon className="h-4.5 w-4.5 md:h-4 md:w-4 mx-auto md:mx-0" />
                     <span className="hidden md:block font-medium">{item.label}</span>
                   </Link>

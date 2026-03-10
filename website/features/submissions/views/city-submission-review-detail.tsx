@@ -228,7 +228,7 @@ export default function CitySubmissionReviewDetail({
 
   if (showSuccess) {
     return (
-      <div className="space-y-6">
+      <div data-testid="city-publish-success-card" className="space-y-6">
         <BreadcrumbNav items={breadcrumbItems} />
         <PublishSuccessCard
           barangayName={aip.barangayName}
@@ -247,6 +247,7 @@ export default function CitySubmissionReviewDetail({
         <CardContent className="p-6 flex items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-slate-900">{aipDisplayLabel}</h1>
           <Badge
+            data-testid="city-submission-status-badge"
             variant="outline"
             className={`rounded-full ${getAipStatusBadgeClass(effectiveStatus)}`}
           >
@@ -290,6 +291,7 @@ export default function CitySubmissionReviewDetail({
                     Revision Comments <span className="text-rose-600">*</span>
                   </div>
                   <Textarea
+                    data-testid="city-review-note-input"
                     value={note}
                     onChange={(e) => {
                       setNote(e.target.value);
@@ -299,15 +301,20 @@ export default function CitySubmissionReviewDetail({
                     className="min-h-[90px]"
                   />
                   {noteError ? (
-                    <div className="text-xs text-rose-600">{noteError}</div>
+                    <div data-testid="city-review-note-error" className="text-xs text-rose-600">
+                      {noteError}
+                    </div>
                   ) : null}
                 </div>
 
                 {submitError ? (
-                  <div className="text-xs text-rose-600">{submitError}</div>
+                  <div data-testid="city-review-error" className="text-xs text-rose-600">
+                    {submitError}
+                  </div>
                 ) : null}
 
                 <Button
+                  data-testid="city-publish-aip-button"
                   className="w-full bg-teal-600 hover:bg-teal-700"
                   onClick={() => setPublishOpen(true)}
                   disabled={!effectiveCanReview || submitting}
@@ -315,6 +322,7 @@ export default function CitySubmissionReviewDetail({
                   Publish AIP
                 </Button>
                 <Button
+                  data-testid="city-request-revision-button"
                   variant="outline"
                   className="w-full border-orange-400 text-orange-600 hover:bg-orange-50"
                   onClick={() => {
@@ -354,10 +362,13 @@ export default function CitySubmissionReviewDetail({
                 </div>
 
                 {submitError ? (
-                  <div className="text-xs text-rose-600">{submitError}</div>
+                  <div data-testid="city-review-error" className="text-xs text-rose-600">
+                    {submitError}
+                  </div>
                 ) : null}
 
                 <Button
+                  data-testid="city-claim-review-button"
                   className="w-full bg-teal-600 hover:bg-teal-700"
                   onClick={claimReview}
                   disabled={submitting}
@@ -433,7 +444,9 @@ export default function CitySubmissionReviewDetail({
             </div>
 
             {submitError ? (
-              <div className="text-xs text-rose-600">{submitError}</div>
+              <div data-testid="city-review-error" className="text-xs text-rose-600">
+                {submitError}
+              </div>
             ) : null}
 
             <div className="flex justify-end gap-3">
@@ -441,6 +454,7 @@ export default function CitySubmissionReviewDetail({
                 Just View
               </Button>
               <Button
+                data-testid="city-claim-review-confirm-button"
                 className="bg-teal-600 hover:bg-teal-700"
                 onClick={claimReview}
                 disabled={submitting}
@@ -479,6 +493,7 @@ export default function CitySubmissionReviewDetail({
                 Cancel
               </Button>
               <Button
+                data-testid="city-publish-confirm-button"
                 className="bg-teal-600 hover:bg-teal-700"
                 onClick={confirmPublish}
                 disabled={submitting}
@@ -515,6 +530,7 @@ export default function CitySubmissionReviewDetail({
                 Cancel
               </Button>
               <Button
+                data-testid="city-request-revision-confirm-button"
                 className="bg-orange-600 hover:bg-orange-700"
                 onClick={confirmRequestRevision}
                 disabled={submitting}

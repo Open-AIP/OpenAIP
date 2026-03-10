@@ -110,7 +110,12 @@ export default function AccountsTable({
 
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.id} className="hover:bg-slate-50">
+              <TableRow
+                key={row.id}
+                data-testid={`admin-account-row-${row.id}`}
+                data-account-email={row.email.toLowerCase()}
+                className="hover:bg-slate-50"
+              >
                 <TableCell className="text-sm text-slate-900 font-medium">
                   {row.fullName}
                 </TableCell>

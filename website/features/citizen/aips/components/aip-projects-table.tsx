@@ -62,7 +62,7 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
   const canGoNext = offset + PAGE_SIZE < filteredRows.length;
 
   return (
-    <Card className="border-slate-200">
+    <Card data-testid="citizen-aip-projects-table" className="border-slate-200">
       <CardHeader>
         <CardTitle className="text-2xl text-slate-900">{aip.title} Details</CardTitle>
       </CardHeader>

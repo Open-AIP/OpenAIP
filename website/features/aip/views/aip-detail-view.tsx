@@ -200,6 +200,53 @@ function clampProgress(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+function normalizeMessage(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+type EmbeddingStatus = NonNullable<AipHeader["embedding"]>["status"];
+
+function toEmbeddingStatus(value: string): EmbeddingStatus | null {
+  if (
+    value === "queued" ||
+    value === "running" ||
+    value === "succeeded" ||
+    value === "failed"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function isEmbedStage(stage: string): boolean {
+  return stage === "embed";
+}
+
+function buildEmbeddingFromRun(input: {
+  runId: string;
+  status: string;
+  progressMessage?: string | null;
+  errorMessage?: string | null;
+  overallProgressPct?: number | null;
+  updatedAt?: string | null;
+}): AipHeader["embedding"] {
+  const status = toEmbeddingStatus(input.status);
+  if (!status) return undefined;
+  return {
+    runId: input.runId,
+    status,
+    overallProgressPct:
+      typeof input.overallProgressPct === "number"
+        ? clampProgress(input.overallProgressPct)
+        : null,
+    progressMessage: normalizeMessage(input.progressMessage),
+    errorMessage: normalizeMessage(input.errorMessage),
+    updatedAt: input.updatedAt ?? null,
+  };
+}
+
 function hasSummaryText(summaryText: string | undefined): boolean {
   return typeof summaryText === "string" && summaryText.trim().length > 0;
 }
@@ -331,6 +378,7 @@ export default function AipDetailView({
   const [isRetryingEmbedding, setIsRetryingEmbedding] = useState(false);
   const [embeddingRetryError, setEmbeddingRetryError] = useState<string | null>(null);
   const [embeddingRetrySuccess, setEmbeddingRetrySuccess] = useState<string | null>(null);
+  const [liveEmbedding, setLiveEmbedding] = useState<AipHeader["embedding"]>(aip.embedding);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [unresolvedAiCount, setUnresolvedAiCount] = useState(0);
@@ -350,8 +398,9 @@ export default function AipDetailView({
   const [cityPublishConfirmOpen, setCityPublishConfirmOpen] = useState(false);
   const [deleteDraftConfirmOpen, setDeleteDraftConfirmOpen] = useState(false);
   const lastHydratedRunIdRef = useRef<string | null>(null);
+  const lastHydratedEmbedRunIdRef = useRef<string | null>(null);
   const chatbotReadiness =
-    aip.status === "published" ? getAipChatbotReadinessStatus(aip.embedding) : null;
+    aip.status === "published" ? getAipChatbotReadinessStatus(liveEmbedding) : null;
   const isEmbedFailed = chatbotReadiness?.kind === "failed";
   const isEmbedRunning = chatbotReadiness?.kind === "embedding";
   const canManualEmbedDispatch =
@@ -415,23 +464,59 @@ export default function AipDetailView({
         if (cancelled) return;
 
         if (payload.run?.runId) {
-          setActiveRunId(payload.run.runId);
-          setProcessingState("processing");
-          setIsFinalizingAfterSuccess(false);
-          setFailedRun(null);
-          setRetryError(null);
-          setFinalizingNotice(null);
+          if (isEmbedStage(payload.run.stage)) {
+            setLiveEmbedding(
+              buildEmbeddingFromRun({
+                runId: payload.run.runId,
+                status: payload.run.status,
+                errorMessage: payload.run.errorMessage,
+                updatedAt: payload.run.createdAt,
+              })
+            );
+            setActiveRunId(null);
+            setProcessingRun(null);
+            setProcessingState("idle");
+            setIsFinalizingAfterSuccess(false);
+            setFailedRun(null);
+            setRetryError(null);
+            setFinalizingNotice(null);
+          } else {
+            setActiveRunId(payload.run.runId);
+            setProcessingState("processing");
+            setIsFinalizingAfterSuccess(false);
+            setFailedRun(null);
+            setRetryError(null);
+            setFinalizingNotice(null);
+          }
         } else if (payload.failedRun?.runId) {
-          setActiveRunId(null);
-          setProcessingState("idle");
-          setIsFinalizingAfterSuccess(false);
-          setFinalizingNotice(null);
-          setFailedRun({
-            runId: payload.failedRun.runId,
-            stage: toDisplayPipelineStage(payload.failedRun.stage),
-            message: payload.failedRun.errorMessage,
-          });
-          setRetryError(null);
+          if (isEmbedStage(payload.failedRun.stage)) {
+            setLiveEmbedding(
+              buildEmbeddingFromRun({
+                runId: payload.failedRun.runId,
+                status: payload.failedRun.status,
+                errorMessage: payload.failedRun.errorMessage,
+                updatedAt: payload.failedRun.createdAt,
+              })
+            );
+            setActiveRunId(null);
+            setProcessingRun(null);
+            setProcessingState("idle");
+            setIsFinalizingAfterSuccess(false);
+            setFinalizingNotice(null);
+            setFailedRun(null);
+            setRetryError(null);
+          } else {
+            setActiveRunId(null);
+            setProcessingState("idle");
+            setIsFinalizingAfterSuccess(false);
+            setFinalizingNotice(null);
+            setFailedRun({
+              runId: payload.failedRun.runId,
+              stage: toDisplayPipelineStage(payload.failedRun.stage),
+              message: payload.failedRun.errorMessage,
+            });
+            setRetryError(null);
+          }
         } else {
           setActiveRunId(null);
           setProcessingState("idle");
@@ -480,6 +565,40 @@ export default function AipDetailView({
         );
         return;
       }
+
+      if (isEmbedStage(payload.stage)) {
+        setEmbeddingRetryError(null);
+        if (
+          payload.status === "running" ||
+          payload.status === "succeeded" ||
+          payload.status === "failed"
+        ) {
+          setEmbeddingRetrySuccess(null);
+        }
+        setLiveEmbedding(
+          buildEmbeddingFromRun({
+            runId: payload.runId,
+            status: payload.status,
+            progressMessage: payload.progressMessage,
+            errorMessage: payload.errorMessage,
+            overallProgressPct: payload.overallProgressPct,
+            updatedAt: payload.progressUpdatedAt,
+          })
+        );
+        setProcessingRun(null);
+        setProcessingState("idle");
+        setIsFinalizingAfterSuccess(false);
+        setFinalizingNotice(null);
+        setFailedRun((current) => (current?.runId === payload.runId ? null : current));
+        setRetryError(null);
+        setRunNotice(null);
+        setActiveRunId((current) => (current === payload.runId ? null : current));
+        if (runIdFromQuery) {
+          clearRunQuery();
+        }
+        return;
+      }
+
       const displayStage = toDisplayPipelineStage(payload.stage);
 
       const shouldShowSyncingMessage =
@@ -581,6 +700,37 @@ export default function AipDetailView({
     }
   }, [activeRunId, applyRunStatusPayload, isCityScope, shouldTrackRunStatus]);
 
+  const hydrateEmbedSnapshot = useCallback(async (mode: "initial" | "resync" = "initial") => {
+    if (!shouldTrackRunStatus || aip.status !== "published") return;
+    const embedRunId = liveEmbedding?.runId;
+    if (!embedRunId) return;
+    if (mode === "initial" && lastHydratedEmbedRunIdRef.current === embedRunId) return;
+    if (mode === "initial") {
+      lastHydratedEmbedRunIdRef.current = embedRunId;
+    }
+    try {
+      const runApiScope = isCityScope ? "city" : "barangay";
+      const res = await fetch(
+        `/api/${runApiScope}/aips/runs/${encodeURIComponent(embedRunId)}`
+      );
+      if (!res.ok) return;
+      const payload = (await res.json()) as RunSnapshotPayload;
+      if (!payload || payload.runId !== embedRunId || !isEmbedStage(payload.stage)) return;
+      applyRunStatusPayload({
+        runId: payload.runId,
+        status: payload.status,
+        stage: payload.stage,
+        errorMessage: payload.errorMessage,
+        overallProgressPct: payload.overallProgressPct,
+        stageProgressPct: payload.stageProgressPct,
+        progressMessage: payload.progressMessage,
+        progressUpdatedAt: payload.progressUpdatedAt,
+      });
+    } catch {
+      // best-effort sync; realtime remains primary transport
+    }
+  }, [aip.status, applyRunStatusPayload, isCityScope, liveEmbedding?.runId, shouldTrackRunStatus]);
+
   useEffect(() => {
     if (!activeRunId) {
       lastHydratedRunIdRef.current = null;
@@ -588,6 +738,14 @@ export default function AipDetailView({
     }
     void hydrateRunSnapshot("initial");
   }, [activeRunId, hydrateRunSnapshot]);
+
+  useEffect(() => {
+    if (aip.status !== "published" || !liveEmbedding?.runId) {
+      lastHydratedEmbedRunIdRef.current = null;
+      return;
+    }
+    void hydrateEmbedSnapshot("initial");
+  }, [aip.status, hydrateEmbedSnapshot, liveEmbedding?.runId]);
 
   const handleRealtimeUnavailable = useCallback(() => {
     setRunNotice(LIVE_STATUS_UNAVAILABLE_NOTICE);
@@ -613,6 +771,39 @@ export default function AipDetailView({
     },
     [handleRealtimeUnavailable, hydrateRunSnapshot]
   );
+
+  const handleRealtimeEmbedRunEvent = useCallback(
+    (event: ExtractionRunRealtimeEvent) => {
+      if (!isEmbedStage(event.run.stage ?? "")) return;
+      applyRunStatusPayload(mapRealtimeEventToRunStatusPayload(event));
+    },
+    [applyRunStatusPayload]
+  );
+
+  const handleRealtimeEmbedStatusChange = useCallback(
+    (status: REALTIME_SUBSCRIBE_STATES) => {
+      if (status === "SUBSCRIBED") {
+        setRunNotice(null);
+        void hydrateEmbedSnapshot("resync");
+        return;
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        handleRealtimeUnavailable();
+      }
+    },
+    [handleRealtimeUnavailable, hydrateEmbedSnapshot]
+  );
+
+  useExtractionRunsRealtime({
+    enabled: shouldTrackRunStatus && aip.status === "published",
+    aipId: aip.id,
+    channelKey: `${scope}-aip-detail-embed-${aip.id}`,
+    onRunEvent: handleRealtimeEmbedRunEvent,
+    onSubscribeError: () => {
+      handleRealtimeUnavailable();
+    },
+    onStatusChange: handleRealtimeEmbedStatusChange,
+  });
 
   useExtractionRunsRealtime({
     enabled: shouldTrackRunStatus && Boolean(activeRunId),
@@ -702,7 +893,14 @@ export default function AipDetailView({
           ? "Embedding retry dispatched."
           : "Embedding job dispatched.";
       setEmbeddingRetrySuccess(successMessage);
-      router.refresh();
+      setLiveEmbedding({
+        runId: liveEmbedding?.runId ?? `embed-dispatch-${Date.now()}`,
+        status: "queued",
+        overallProgressPct: null,
+        progressMessage: payload.message ?? "Search indexing job dispatched.",
+        errorMessage: null,
+        updatedAt: new Date().toISOString(),
+      });
     } catch (error) {
       setEmbeddingRetryError(
         error instanceof Error ? error.message : "Failed to dispatch embedding."
@@ -710,7 +908,7 @@ export default function AipDetailView({
     } finally {
       setIsRetryingEmbedding(false);
     }
-  }, [aip.id, isCityScope, router]);
+  }, [aip.id, isCityScope, liveEmbedding?.runId]);
 
   const handleRetryFailedRun = useCallback(async (mode: RetryFailedRunMode) => {
     if (!failedRun) return;
@@ -767,6 +965,10 @@ export default function AipDetailView({
     setAiFlaggedProjects([]);
     setFlaggedPage(1);
   }, [aip.id]);
+
+  useEffect(() => {
+    setLiveEmbedding(aip.embedding);
+  }, [aip.embedding, aip.id]);
 
   useEffect(() => {
     if (aip.status !== "for_revision") {

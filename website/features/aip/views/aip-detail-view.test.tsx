@@ -31,6 +31,7 @@ let mockProjectsState = {
 };
 let mockSearchParams = new URLSearchParams();
 let latestRealtimeArgs: UseExtractionRunsRealtimeInput | null = null;
+let realtimeArgsHistory: UseExtractionRunsRealtimeInput[] = [];
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/barangay/aips/aip-001",
@@ -113,7 +114,14 @@ vi.mock("../hooks/use-extraction-runs-realtime", async () => {
   return {
     ...actual,
     useExtractionRunsRealtime: vi.fn((args: UseExtractionRunsRealtimeInput) => {
-      latestRealtimeArgs = args;
+      realtimeArgsHistory.push(args);
+      if (args.runId) {
+        latestRealtimeArgs = args;
+        return;
+      }
+      if (!latestRealtimeArgs || !latestRealtimeArgs.runId) {
+        latestRealtimeArgs = args;
+      }
     }),
   };
 });
@@ -185,11 +193,22 @@ function flaggedProject(
   };
 }
 
+function findLatestRealtimeArgs(
+  predicate: (args: UseExtractionRunsRealtimeInput) => boolean
+): UseExtractionRunsRealtimeInput | null {
+  for (let index = realtimeArgsHistory.length - 1; index >= 0; index -= 1) {
+    const args = realtimeArgsHistory[index];
+    if (predicate(args)) return args;
+  }
+  return null;
+}
+
 describe("AipDetailView sidebar behavior", () => {
   beforeEach(() => {
     lastDetailsTableProps = null;
     mockSearchParams = new URLSearchParams();
     latestRealtimeArgs = null;
+    realtimeArgsHistory = [];
     mockProjectsState = {
       rows: [],
       loading: false,
@@ -495,6 +514,346 @@ describe("AipDetailView sidebar behavior", () => {
 
     expect(screen.getByText("Needs Embedding")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Embedding" })).toBeInTheDocument();
+  });
+
+  it("updates embed sidebar state from aip-level realtime events without takeover layout", async () => {
+    render(<AipDetailView aip={baseAip("published", { embedding: undefined })} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    const embedRealtimeArgs = await waitFor(() => {
+      const args = findLatestRealtimeArgs(
+        (value) =>
+          value.aipId === "aip-001" &&
+          value.channelKey?.includes("aip-detail-embed-aip-001") === true
+      );
+      expect(args).not.toBeNull();
+      return args as UseExtractionRunsRealtimeInput;
+    });
+
+    act(() => {
+      embedRealtimeArgs.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-embed-100",
+          aip_id: "aip-001",
+          stage: "embed",
+          status: "running",
+          error_message: null,
+          overall_progress_pct: 34,
+          stage_progress_pct: 34,
+          progress_message: "Indexing chunks...",
+          progress_updated_at: "2026-03-10T10:00:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Currently Embedding")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Progress: 34%")).toBeInTheDocument();
+    expect(screen.queryByTestId("aip-processing-inline-status")).not.toBeInTheDocument();
+    expect(screen.getByTestId("aip-pdf-container")).toBeInTheDocument();
+
+    act(() => {
+      embedRealtimeArgs.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-embed-100",
+          aip_id: "aip-001",
+          stage: "embed",
+          status: "failed",
+          error_message: "Embedding provider timeout.",
+          overall_progress_pct: 34,
+          stage_progress_pct: 34,
+          progress_message: "Embedding provider timeout.",
+          progress_updated_at: "2026-03-10T10:01:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to Embed")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Embedding provider timeout.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry Embedding" })).toBeInTheDocument();
+    expect(screen.queryByText("Pipeline Failed")).not.toBeInTheDocument();
+
+    act(() => {
+      embedRealtimeArgs.onRunEvent?.({
+        eventType: "UPDATE",
+        run: {
+          id: "run-embed-101",
+          aip_id: "aip-001",
+          stage: "embed",
+          status: "succeeded",
+          error_message: null,
+          overall_progress_pct: 100,
+          stage_progress_pct: 100,
+          progress_message: EMBED_SKIP_NO_ARTIFACT_MESSAGE,
+          progress_updated_at: "2026-03-10T10:02:00.000Z",
+        },
+      } as ExtractionRunRealtimeEvent);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Needs Embedding")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Start Embedding" })).toBeInTheDocument();
+  });
+
+  it("keeps detail layout visible when active lookup returns an embed run", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/barangay/aips/aip-001/runs/active")) {
+          return new Response(
+            JSON.stringify({
+              run: {
+                runId: "run-embed-lookup",
+                aipId: "aip-001",
+                stage: "embed",
+                status: "running",
+                errorMessage: null,
+                createdAt: "2026-03-10T10:00:00.000Z",
+              },
+              failedRun: null,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null, failedRun: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(<AipDetailView aip={baseAip("published", { embedding: undefined })} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Currently Embedding")).toBeInTheDocument();
+    expect(screen.queryByTestId("aip-processing-inline-status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pipeline Failed")).not.toBeInTheDocument();
+    expect(screen.getByTestId("aip-pdf-container")).toBeInTheDocument();
+    expect(screen.getByTestId("aip-details-table-view")).toBeInTheDocument();
+  });
+
+  it("rehydrates embed snapshot when embed realtime reconnects", async () => {
+    let embedSnapshotCallCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/barangay/aips/aip-001/runs/active")) {
+        return new Response(
+          JSON.stringify({
+            run: {
+              runId: "run-embed-lookup",
+              aipId: "aip-001",
+              stage: "embed",
+              status: "running",
+              errorMessage: null,
+              createdAt: "2026-03-10T10:00:00.000Z",
+            },
+            failedRun: null,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      if (url.includes("/api/barangay/aips/runs/run-embed-lookup")) {
+        embedSnapshotCallCount += 1;
+        if (embedSnapshotCallCount === 1) {
+          return new Response(
+            JSON.stringify({
+              runId: "run-embed-lookup",
+              aipId: "aip-001",
+              stage: "embed",
+              status: "running",
+              errorMessage: null,
+              overallProgressPct: 85,
+              stageProgressPct: 85,
+              progressMessage: "Computing embeddings.",
+              progressUpdatedAt: "2026-03-10T10:00:00.000Z",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            runId: "run-embed-lookup",
+            aipId: "aip-001",
+            stage: "embed",
+            status: "succeeded",
+            errorMessage: null,
+            overallProgressPct: 100,
+            stageProgressPct: 100,
+            progressMessage: "Search indexing completed successfully.",
+            progressUpdatedAt: "2026-03-10T10:01:00.000Z",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      return new Response(JSON.stringify({ run: null, failedRun: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AipDetailView aip={baseAip("published", { embedding: undefined })} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Currently Embedding")).toBeInTheDocument();
+    });
+
+    const embedRealtimeArgs = await waitFor(() => {
+      const args = findLatestRealtimeArgs(
+        (value) =>
+          value.aipId === "aip-001" &&
+          value.channelKey?.includes("aip-detail-embed-aip-001") === true
+      );
+      expect(args).not.toBeNull();
+      return args as UseExtractionRunsRealtimeInput;
+    });
+
+    const callsBeforeReconnect = fetchMock.mock.calls.length;
+    act(() => {
+      embedRealtimeArgs.onStatusChange?.("SUBSCRIBED" as never);
+    });
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeReconnect);
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Chatbot Ready")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Currently Embedding")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aip-processing-inline-status")).not.toBeInTheDocument();
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("keeps detail layout visible when active lookup returns failed embed run", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/barangay/aips/aip-001/runs/active")) {
+          return new Response(
+            JSON.stringify({
+              run: null,
+              failedRun: {
+                runId: "run-embed-failed",
+                aipId: "aip-001",
+                stage: "embed",
+                status: "failed",
+                errorMessage: "Embedding request failed.",
+                createdAt: "2026-03-10T10:01:00.000Z",
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+        return new Response(JSON.stringify({ run: null, failedRun: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    render(<AipDetailView aip={baseAip("published", { embedding: undefined })} scope="barangay" />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Failed to Embed")).toBeInTheDocument();
+    expect(screen.getByText("Embedding request failed.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry Embedding" })).toBeInTheDocument();
+    expect(screen.queryByText("Pipeline Failed")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aip-processing-inline-status")).not.toBeInTheDocument();
+    expect(screen.getByTestId("aip-pdf-container")).toBeInTheDocument();
+  });
+
+  it("dispatches embed retry without requiring router refresh", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/barangay/aips/aip-001/embed/retry")) {
+        expect(init?.method).toBe("POST");
+        return new Response(
+          JSON.stringify({
+            reason: "failed",
+            message: "Search indexing retry dispatched.",
+          }),
+          {
+            status: 202,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      return new Response(JSON.stringify({ run: null, failedRun: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <AipDetailView
+        aip={baseAip("published", {
+          embedding: {
+            runId: "run-embed-old",
+            status: "failed",
+            progressMessage: null,
+            errorMessage: "Previous embedding failed.",
+            overallProgressPct: null,
+          },
+        })}
+        scope="barangay"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking extraction status...")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry Embedding" }));
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([request]) =>
+          String(request).includes("/api/barangay/aips/aip-001/embed/retry")
+        )
+      ).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Embedding retry dispatched.")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Currently Embedding")).toBeInTheDocument();
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
   it("hides reviewer feedback history for published AIP with no feedback cycles", async () => {

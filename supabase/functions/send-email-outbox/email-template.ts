@@ -452,8 +452,6 @@ const TEMPLATE_REGISTRY: Record<string, EventTemplateSpec> = {
       buildDetailsRows([
         { label: "LGU", value: context.details.lguName },
         { label: "AIP", value: context.details.entityLabel },
-        { label: "Run ID", value: context.details.runId },
-        { label: "Stage", value: context.details.stage },
         { label: "Completed at", value: context.details.occurredAt },
       ]),
   },
@@ -493,8 +491,6 @@ const TEMPLATE_REGISTRY: Record<string, EventTemplateSpec> = {
       buildDetailsRows([
         { label: "LGU", value: context.details.lguName },
         { label: "AIP", value: context.details.entityLabel },
-        { label: "Run ID", value: context.details.runId },
-        { label: "Stage", value: context.details.stage },
         { label: "Completed at", value: context.details.occurredAt },
       ]),
   },
@@ -511,8 +507,6 @@ const TEMPLATE_REGISTRY: Record<string, EventTemplateSpec> = {
       buildDetailsRows([
         { label: "LGU", value: context.details.lguName },
         { label: "AIP", value: context.details.entityLabel },
-        { label: "Run ID", value: context.details.runId },
-        { label: "Failed stage", value: context.details.stage },
         { label: "Error code", value: context.details.errorCode },
         { label: "Error message", value: context.details.errorMessage },
         { label: "Failed at", value: context.details.occurredAt },

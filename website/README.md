@@ -141,6 +141,8 @@ node scripts/repo-smoke/run.js
   - `docs/sql/2026-03-03_notifications_outbox_tables_rls.sql`
   - `docs/sql/2026-03-03_notifications_admin_pipeline_outbox_alerts.sql`
   - `docs/sql/2026-03-10_notifications_aip_embed_terminal_status.sql`
+  - `docs/sql/2026-03-10_notifications_aip_embed_action_url_scoped.sql`
+  - `docs/sql/2026-03-10_realtime_publication_extraction_notifications.sql`
 - Citizen landing/about-us seeded app settings depend on:
   - `docs/sql/2026-03-01_citizen_about_us_content_settings.sql`
   - `docs/sql/2026-03-01_citizen_dashboard_content_settings.sql`

@@ -417,7 +417,8 @@ Deno.test("renderTemplateHtml renders uploader extraction success and failure te
 
   assertEquals(successHtml.includes("AIP processing completed"), true);
   assertEquals(successHtml.includes("Open AIP"), true);
-  assertEquals(successHtml.includes("Run ID: <strong>run-001</strong>"), true);
+  assertEquals(successHtml.includes("Run ID: <strong>run-001</strong>"), false);
+  assertEquals(successHtml.includes("Stage: <strong>categorize</strong>"), false);
   assertEquals(successHtml.includes("/api/notifications/open?dedupe="), true);
 
   assertEquals(failedHtml.includes("AIP processing failed"), true);
@@ -440,7 +441,7 @@ Deno.test("renderTemplateHtml renders uploader embed success and failure templat
       run_id: "run-embed-001",
       stage: "embed",
       occurred_at: "2026-03-10T01:00:00.000Z",
-      action_url: "/barangay/aips/aip-1?run=run-embed-001",
+      action_url: "/barangay/aips/aip-1",
       notification_ref: "AIP_EMBED_SUCCEEDED:aip:aip-1:run:run-embed-001:status->succeeded",
     },
     "https://openaip.example.com"
@@ -458,7 +459,7 @@ Deno.test("renderTemplateHtml renders uploader embed success and failure templat
       error_code: "EMBED_TIMEOUT",
       error_message: "Embedding provider timeout while indexing chunks.",
       occurred_at: "2026-03-10T01:10:00.000Z",
-      action_url: "/barangay/aips/aip-1?run=run-embed-002",
+      action_url: "/barangay/aips/aip-1",
       notification_ref: "AIP_EMBED_FAILED:aip:aip-1:run:run-embed-002:status->failed",
     },
     "https://openaip.example.com"
@@ -466,11 +467,14 @@ Deno.test("renderTemplateHtml renders uploader embed success and failure templat
 
   assertEquals(successHtml.includes("AIP embedding completed"), true);
   assertEquals(successHtml.includes("Open AIP"), true);
-  assertEquals(successHtml.includes("Run ID: <strong>run-embed-001</strong>"), true);
+  assertEquals(successHtml.includes("Run ID: <strong>run-embed-001</strong>"), false);
+  assertEquals(successHtml.includes("Stage: <strong>embed</strong>"), false);
   assertEquals(successHtml.includes("/api/notifications/open?dedupe="), true);
 
   assertEquals(failedHtml.includes("AIP embedding failed"), true);
   assertEquals(failedHtml.includes("Review failed indexing run"), true);
+  assertEquals(failedHtml.includes("Run ID: <strong>run-embed-002</strong>"), false);
+  assertEquals(failedHtml.includes("Failed stage: <strong>embed</strong>"), false);
   assertEquals(failedHtml.includes("Error code: <strong>EMBED_TIMEOUT</strong>"), true);
   assertEquals(
     failedHtml.includes("Error message: <strong>Embedding provider timeout while indexing chunks.</strong>"),
@@ -518,7 +522,7 @@ Deno.test("renderTemplateHtml resolves uppercase embed template keys", () => {
       entity_label: "AIP FY 2026",
       lgu_name: "City of Sample",
       run_id: "run-embed-010",
-      action_url: "/city/aips/aip-10?run=run-embed-010",
+      action_url: "/city/aips/aip-10",
     },
     "https://openaip.example.com"
   );
@@ -531,7 +535,7 @@ Deno.test("renderTemplateHtml resolves uppercase embed template keys", () => {
       entity_label: "AIP FY 2026",
       run_id: "run-embed-011",
       error_message: "Embedding request failed",
-      action_url: "/city/aips/aip-10?run=run-embed-011",
+      action_url: "/city/aips/aip-10",
     },
     "https://openaip.example.com"
   );

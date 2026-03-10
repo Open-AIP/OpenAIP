@@ -67,7 +67,7 @@ describe("buildNotificationActionUrl()", () => {
         aipId: "aip-1",
         runId: "run-embed-1",
       })
-    ).toBe("/barangay/aips/aip-1?run=run-embed-1");
+    ).toBe("/barangay/aips/aip-1");
 
     expect(
       buildNotificationActionUrl({
@@ -77,7 +77,7 @@ describe("buildNotificationActionUrl()", () => {
         aipId: "aip-1",
         runId: "run-embed-2",
       })
-    ).toBe("/city/aips/aip-1?run=run-embed-2");
+    ).toBe("/city/aips/aip-1");
   });
 
   it("routes aip published per recipient scope", () => {
@@ -239,6 +239,6 @@ describe("buildNotificationActionUrl()", () => {
         entityType: "aip",
         runId: "run-embed-3",
       })
-    ).toBe("/admin/aip-monitoring?run=run-embed-3");
+    ).toBe("/admin/aip-monitoring");
   });
 });

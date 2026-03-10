@@ -191,6 +191,8 @@ PIPELINE_CATEGORIZE_RESPONSE_BUFFER_TOKENS=2000
 PIPELINE_CATEGORIZE_PROJECT_FIELD_CHAR_LIMIT=500
 PIPELINE_EXTRACT_MAX_PAGES=200
 PIPELINE_PARSE_TIMEOUT_SECONDS=20
+PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS=300
+# Legacy fallback for per-page extraction timeout when PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS is unset.
 PIPELINE_EXTRACT_TIMEOUT_SECONDS=1800
 PIPELINE_EMBED_TIMEOUT_SECONDS=300
 PIPELINE_RETRY_FAILURE_THRESHOLD=5
@@ -273,7 +275,8 @@ Pipeline env reference:
 | `PIPELINE_CATEGORIZE_PROJECT_FIELD_CHAR_LIMIT` | No | Server-only | Per-field character cap in compact categorization payloads (default `500`) |
 | `PIPELINE_EXTRACT_MAX_PAGES` | No | Server-only | Hard page cap per source PDF; fails with `PDF_PAGE_LIMIT_EXCEEDED` (default `200`) |
 | `PIPELINE_PARSE_TIMEOUT_SECONDS` | No | Server-only | Timeout budget for initial PDF parse/read (default `20`) |
-| `PIPELINE_EXTRACT_TIMEOUT_SECONDS` | No | Server-only | Timeout budget for extraction stage page loop (default `1800`) |
+| `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS` | No | Server-only | Per-page timeout budget for extraction page split+upload+parse (default `300`) |
+| `PIPELINE_EXTRACT_TIMEOUT_SECONDS` | No (legacy) | Server-only | Legacy fallback per-page extraction timeout used only when `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS` is unset |
 | `PIPELINE_EMBED_TIMEOUT_SECONDS` | No | Server-only | Timeout budget for embedding stage (default `300`) |
 | `PIPELINE_RETRY_FAILURE_THRESHOLD` | No | Server-only | Failed-run threshold for worker retry block on same uploader+file (default `5`) |
 | `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS` | No | Server-only | Lookback window for retry block evaluation (default `21600`) |
@@ -599,7 +602,7 @@ Outbox function optional tuning env:
 - Citizen about-us reference documents are served from `about-us-docs` (configured via `content.citizen_about_us` in `app.settings`).
 - Extraction runs are queued in `public.extraction_runs`.
 - Worker downloads source PDFs using signed URLs with configured timeout and size bounds (`PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS`, `PIPELINE_SOURCE_PDF_MAX_BYTES`).
-- Worker enforces extraction page/parse/elapsed bounds and embedding timeout, and persists explicit failure reason codes in `public.extraction_runs.error_code`.
+- Worker enforces extraction max-page, parse timeout, per-page extraction timeout, and embedding timeout guardrails, and persists explicit failure reason codes in `public.extraction_runs.error_code`.
 - Artifact payloads are stored directly in `artifact_json` using the stage contract (`aip_artifact_v1.x.x`).
 - Web repo generates short-lived signed URLs when serving PDF references (10-minute TTL in current implementation).
 
@@ -654,7 +657,7 @@ docker build -f Dockerfile.worker -t openaip-pipeline-worker .
 
 Production runtime requirements:
 - Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`, `SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET`, `AIP_UPLOAD_MAX_BYTES`, `AIP_UPLOAD_FAILURE_THRESHOLD`, `AIP_UPLOAD_FAILURE_WINDOW_MINUTES`, `AIP_UPLOAD_FAILURE_COOLDOWN_MINUTES`)
-- Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (recommended guardrails: `PIPELINE_EXTRACT_MAX_PAGES`, `PIPELINE_PARSE_TIMEOUT_SECONDS`, `PIPELINE_EXTRACT_TIMEOUT_SECONDS`, `PIPELINE_EMBED_TIMEOUT_SECONDS`, `PIPELINE_RETRY_FAILURE_THRESHOLD`, `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS`, `PIPELINE_SUPABASE_HTTP_TIMEOUT_SECONDS`, `PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS`, `PIPELINE_SOURCE_PDF_MAX_BYTES`)
+- Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (recommended guardrails: `PIPELINE_EXTRACT_MAX_PAGES`, `PIPELINE_PARSE_TIMEOUT_SECONDS`, `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS`, `PIPELINE_EMBED_TIMEOUT_SECONDS`, `PIPELINE_RETRY_FAILURE_THRESHOLD`, `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS`, `PIPELINE_SUPABASE_HTTP_TIMEOUT_SECONDS`, `PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS`, `PIPELINE_SOURCE_PDF_MAX_BYTES`; legacy fallback: `PIPELINE_EXTRACT_TIMEOUT_SECONDS`)
 - Outbox function envs (if using email notifications): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`, `APP_BASE_URL` (optional: `EMAIL_OUTBOX_BATCH_SIZE`, `EMAIL_OUTBOX_MAX_ATTEMPTS`, `EMAIL_OUTBOX_FAILURE_THRESHOLD_PER_HOUR`)
 - Supabase project with DB schema and storage buckets in place
 - `app.settings` schema/table available to service role, with seeded keys `content.citizen_about_us` and `content.citizen_dashboard`
@@ -708,7 +711,7 @@ Common hosting options for this codebase:
 | Runs stay `queued` forever | Worker not running or cannot claim runs | Start `openaip-worker`; verify pipeline `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` |
 | Worker fails with `OPENAI_API_KEY not found` | Missing OpenAI secret in pipeline env | Set `OPENAI_API_KEY` in `aip-intelligence-pipeline/.env` |
 | Run fails with `error_code=PDF_PAGE_LIMIT_EXCEEDED` | PDF page count exceeded `PIPELINE_EXTRACT_MAX_PAGES` | Increase cap if acceptable or upload smaller PDFs |
-| Run fails with `error_code=PARSE_TIMEOUT` / `EXTRACT_TIMEOUT` / `EMBED_TIMEOUT` | Stage exceeded configured timeout budget | Tune relevant `PIPELINE_*_TIMEOUT_SECONDS` values and inspect problematic PDF complexity |
+| Run fails with `error_code=PARSE_TIMEOUT` / `EXTRACT_TIMEOUT` / `EMBED_TIMEOUT` | Stage exceeded configured timeout budget | Tune relevant timeout envs (`PIPELINE_PARSE_TIMEOUT_SECONDS`, `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS`, `PIPELINE_EMBED_TIMEOUT_SECONDS`; legacy fallback: `PIPELINE_EXTRACT_TIMEOUT_SECONDS`) and inspect problematic PDF complexity |
 | Run fails with `error_code=SOURCE_PDF_TOO_LARGE` | Downloaded source PDF exceeded `PIPELINE_SOURCE_PDF_MAX_BYTES` | Increase cap carefully or reject/replace oversized source file |
 | Run fails with `error_code=RUN_RETRY_BLOCKED` | Same uploader+file exceeded retry-failure threshold in lookback window | Wait for `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS` or adjust retry guardrail envs |
 | `POST /v1/runs/dev/local` returns 403 | Dev routes disabled | Set `PIPELINE_DEV_ROUTES=true` in pipeline env |

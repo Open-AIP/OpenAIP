@@ -106,7 +106,8 @@ Common optional runtime vars:
 - `PIPELINE_RUNS_DEDUPE_TTL_SECONDS` (default `30`)
 - `PIPELINE_EXTRACT_MAX_PAGES` (default `200`; fail code `PDF_PAGE_LIMIT_EXCEEDED`)
 - `PIPELINE_PARSE_TIMEOUT_SECONDS` (default `20`; fail code `PARSE_TIMEOUT`)
-- `PIPELINE_EXTRACT_TIMEOUT_SECONDS` (default `1800`; fail code `EXTRACT_TIMEOUT`)
+- `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS` (default `300`; fail code `EXTRACT_TIMEOUT`)
+- `PIPELINE_EXTRACT_TIMEOUT_SECONDS` (legacy fallback; interpreted as per-page timeout when new env is unset)
 - `PIPELINE_EMBED_TIMEOUT_SECONDS` (default `300`; fail code `EMBED_TIMEOUT`)
 - `PIPELINE_RETRY_FAILURE_THRESHOLD` (default `5`; fail code `RUN_RETRY_BLOCKED`)
 - `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS` (default `21600`; lookback window for retry blocking)
@@ -127,7 +128,7 @@ Common optional runtime vars:
 
 Guardrail behavior (worker + adapters):
 - Source-PDF download is bounded by timeout and byte cap before extraction starts.
-- Extraction enforces parse timeout, overall extraction timeout, and max page count.
+- Extraction enforces parse timeout, per-page extraction timeout, and max page count.
 - Embed stage is timeout-bounded.
 - Repeated failures for the same `created_by + uploaded_file_id + aip_id` are blocked to prevent endless retries.
 - Failure reason is persisted to `public.extraction_runs.error_code` for UI/ops visibility.

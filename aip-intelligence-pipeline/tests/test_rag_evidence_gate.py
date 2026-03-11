@@ -52,7 +52,11 @@ def test_evidence_gate_allows_strong_final_evidence() -> None:
             channels=["dense"],
         ),
     ]
-    gate = evaluate_evidence_gate(question="What are the health expenditures in 2025?", selected_docs=docs)
+    gate = evaluate_evidence_gate(
+        question="What are the health expenditures in 2025?",
+        selected_docs=docs,
+        min_similarity=0.3,
+    )
     assert gate["decision"] == "allow"
 
 
@@ -64,12 +68,20 @@ def test_evidence_gate_clarifies_when_final_docs_too_few() -> None:
             content="Single weakly relevant chunk.",
         )
     ]
-    gate = evaluate_evidence_gate(question="Explain this project", selected_docs=docs)
+    gate = evaluate_evidence_gate(
+        question="Explain this project",
+        selected_docs=docs,
+        min_similarity=0.3,
+    )
     assert gate["decision"] == "clarify"
 
 
 def test_evidence_gate_refuses_no_evidence() -> None:
-    gate = evaluate_evidence_gate(question="Explain this project", selected_docs=[])
+    gate = evaluate_evidence_gate(
+        question="Explain this project",
+        selected_docs=[],
+        min_similarity=0.3,
+    )
     assert gate["decision"] == "refuse"
 
 
@@ -90,8 +102,56 @@ def test_evidence_gate_refuses_year_mismatch() -> None:
             channels=["dense"],
         ),
     ]
-    gate = evaluate_evidence_gate(question="What happened in 2025?", selected_docs=docs)
+    gate = evaluate_evidence_gate(
+        question="What happened in 2025?",
+        selected_docs=docs,
+        min_similarity=0.3,
+    )
     assert gate["decision"] == "refuse"
+
+
+def test_evidence_gate_refuses_when_similarity_below_threshold() -> None:
+    docs = [
+        _FakeDoc(
+            chunk_id="c1",
+            similarity=0.24,
+            content="Mentions project context but with low similarity.",
+        ),
+        _FakeDoc(
+            chunk_id="c2",
+            similarity=0.22,
+            content="Another weakly matched context.",
+        ),
+    ]
+    gate = evaluate_evidence_gate(
+        question="Explain the project benefits.",
+        selected_docs=docs,
+        min_similarity=0.3,
+    )
+    assert gate["decision"] == "refuse"
+    assert gate["reason"] == "below_min_similarity"
+
+
+def test_evidence_gate_refuses_scope_mismatch() -> None:
+    docs = [
+        _FakeDoc(
+            chunk_id="c1",
+            similarity=0.82,
+            content="Scoped to another barangay.",
+        )
+    ]
+    docs[0].metadata["scope_id"] = "brgy-2"
+    gate = evaluate_evidence_gate(
+        question="What are the health expenditures?",
+        selected_docs=docs,
+        min_similarity=0.3,
+        retrieval_scope={
+            "mode": "named_scopes",
+            "targets": [{"scope_type": "barangay", "scope_id": "brgy-1", "scope_name": "Mamatid"}],
+        },
+    )
+    assert gate["decision"] == "refuse"
+    assert gate["reason"] == "scope_mismatch"
 
 
 def test_borderline_evidence_never_triggers_when_selected_docs_empty() -> None:
@@ -145,12 +205,11 @@ def test_answer_with_rag_zero_selected_docs_always_refuses(monkeypatch) -> None:
     assert result["retrieval_meta"]["response_mode_source"] == "pipeline_refusal"
 
 
-def test_answer_with_rag_borderline_verifier_fail_downgrades_to_partial_when_enabled(
+def test_answer_with_rag_verifier_fail_refuses(
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("RAG_BORDERLINE_PARTIAL_ENABLED", "true")
-    monkeypatch.setenv("RAG_PARTIAL_MODE_ENABLED", "false")
-    monkeypatch.setenv("RAG_EVIDENCE_GATE_ENABLED", "false")
+    monkeypatch.setenv("RAG_EVIDENCE_GATE_ENABLED", "true")
+    monkeypatch.setenv("RAG_GATE_MIN_FINAL_DOCS", "1")
     monkeypatch.setenv("RAG_BORDERLINE_EXPLICIT_MATCH_MIN", "0.20")
 
     fake_supabase_client_module = types.SimpleNamespace(create_client=lambda *_args, **_kwargs: object())
@@ -209,11 +268,9 @@ def test_answer_with_rag_borderline_verifier_fail_downgrades_to_partial_when_ena
         min_similarity=0.3,
     )
 
-    assert result["refused"] is False
-    assert result["retrieval_meta"]["reason"] == "partial_evidence"
-    assert result["retrieval_meta"]["response_mode_source"] == "pipeline_partial"
-    assert result["retrieval_meta"]["borderline_detected"] is True
-    assert result["retrieval_meta"]["borderline_reason_code"] == "borderline_no_explicit_match"
+    assert result["refused"] is True
+    assert result["retrieval_meta"]["reason"] == "verifier_failed"
+    assert result["retrieval_meta"]["response_mode_source"] == "pipeline_refusal"
 
 
 def test_answer_with_rag_skips_generation_when_gate_blocks(monkeypatch) -> None:
@@ -270,4 +327,50 @@ def test_answer_with_rag_skips_generation_when_gate_blocks(monkeypatch) -> None:
 
     assert result["retrieval_meta"]["evidence_gate_decision"] == "clarify"
     assert result["retrieval_meta"]["evidence_gate_reason_code"] == "clarify_partial_evidence"
+    assert result["retrieval_meta"]["generation_skipped_by_gate"] is True
+
+
+def test_answer_with_rag_refuses_scope_mismatch_before_generation(monkeypatch) -> None:
+    fake_supabase_client_module = types.SimpleNamespace(create_client=lambda *_args, **_kwargs: object())
+
+    class _ForbiddenChatOpenAI:
+        def __init__(self, *args, **kwargs):  # noqa: D401, ANN001, ANN003
+            raise AssertionError("Generation should not run for scope mismatch")
+
+    monkeypatch.setitem(sys.modules, "supabase.client", fake_supabase_client_module)
+    monkeypatch.setitem(sys.modules, "langchain_openai", types.SimpleNamespace(ChatOpenAI=_ForbiddenChatOpenAI))
+
+    docs = [_FakeDoc(chunk_id="c1", similarity=0.91, content="Out-of-scope content.")]
+    docs[0].metadata["scope_id"] = "brgy-2"
+    docs[0].metadata["scope_name"] = "Other"
+    monkeypatch.setattr(
+        "openaip_pipeline.services.rag.rag.run_hybrid_retrieval",
+        lambda **_kwargs: {
+            "hybrid_enabled": False,
+            "keyword_enabled": False,
+            "rrf_enabled": False,
+            "dense_docs": docs,
+            "keyword_docs": [],
+            "fused_docs": docs,
+            "strong_docs": docs,
+        },
+    )
+
+    result = answer_with_rag(
+        supabase_url="https://example.test",
+        supabase_service_key="service-key",
+        openai_api_key="openai-key",
+        embeddings_model="text-embedding-3-large",
+        chat_model="gpt-5.2",
+        question="What does the AIP say?",
+        retrieval_scope={
+            "mode": "named_scopes",
+            "targets": [{"scope_type": "barangay", "scope_id": "brgy-1", "scope_name": "Mamatid"}],
+        },
+        top_k=8,
+        min_similarity=0.3,
+    )
+
+    assert result["refused"] is True
+    assert result["retrieval_meta"]["reason"] == "scope_mismatch"
     assert result["retrieval_meta"]["generation_skipped_by_gate"] is True

@@ -4168,7 +4168,7 @@ async function executeSemanticTaskForMixed(input: {
         question: conditionedQuery,
         retrievalScope: input.retrievalScope,
       }),
-      topK: 4,
+      topK: 5,
       minSimilarity: 0.3,
     });
 
@@ -4470,6 +4470,7 @@ export async function POST(request: Request) {
     });
     const earlyDocLimitField = detectDocLimitFieldFromQuery(content.toLowerCase());
     const enforceWebsiteSemanticDocLimitRefusal = false;
+    const enforceUnsupportedGuardBeforePipeline = false;
     const allowLineItemSqlRouting = false;
     const allowMetadataSqlRouting = false;
     const applyWebsiteSemanticPreflightRefusal = false;
@@ -8091,7 +8092,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (isUnsupportedRequestQuery(content)) {
+    if (enforceUnsupportedGuardBeforePipeline && isUnsupportedRequestQuery(content)) {
       const refusal = buildRefusalMessage({
         intent: "pipeline_fallback",
         queryText: content,
@@ -8199,7 +8200,7 @@ export async function POST(request: Request) {
             question: content,
             retrievalScope: scope.retrievalScope,
           }),
-          topK: 4,
+          topK: 5,
           minSimilarity: 0.3,
         });
 

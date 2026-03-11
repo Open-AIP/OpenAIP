@@ -23,6 +23,16 @@ from openaip_pipeline.services.rag.retriever import (
 SOURCE_TAG_PATTERN = re.compile(r"\[(S\d+)\]")
 YEAR_PATTERN = re.compile(r"\b(20\d{2})\b")
 MAX_SNIPPET_LENGTH = 360
+RAG_CONFIG: dict[str, Any] = {
+    "top_k": 5,
+    "max_context_chunks": 4,
+    "min_similarity": 0.30,
+    "retrieval_fetch_k": 20,
+    "mmr_lambda": 0.5,
+    "llm_model": "gpt-4o-mini",
+    "temperature": 0.0,
+    "max_tokens": 500,
+}
 
 
 def _source_id(index: int, doc: Any) -> str:
@@ -107,6 +117,14 @@ def _float_env(name: str, default: float, *, minimum: float = 0.0, maximum: floa
     return parsed
 
 
+def _string_env(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    text = value.strip()
+    return text or default
+
+
 def _hybrid_retrieval_enabled() -> bool:
     return _bool_env("RAG_HYBRID_RETRIEVAL_ENABLED", False)
 
@@ -182,12 +200,44 @@ def _effective_top_k(*, top_k: int, retrieval_mode: str) -> int:
     return max(3, min(top_k, 5))
 
 
+def _load_rag_config() -> dict[str, Any]:
+    configured_top_k = _int_env("RAG_TOP_K", int(RAG_CONFIG["top_k"]), minimum=1, maximum=30)
+    configured_fetch_k = _int_env(
+        "RAG_RETRIEVAL_FETCH_K",
+        int(RAG_CONFIG["retrieval_fetch_k"]),
+        minimum=1,
+        maximum=60,
+    )
+    config = {
+        "top_k": configured_top_k,
+        "max_context_chunks": _int_env(
+            "RAG_MAX_CONTEXT_CHUNKS",
+            int(RAG_CONFIG["max_context_chunks"]),
+            minimum=1,
+            maximum=12,
+        ),
+        "min_similarity": _float_env(
+            "RAG_MIN_SIMILARITY",
+            float(RAG_CONFIG["min_similarity"]),
+            minimum=0.0,
+            maximum=1.0,
+        ),
+        "retrieval_fetch_k": max(configured_top_k, configured_fetch_k),
+        "mmr_lambda": _float_env("RAG_MMR_LAMBDA", float(RAG_CONFIG["mmr_lambda"]), minimum=0.0, maximum=1.0),
+        "llm_model": _string_env("RAG_LLM_MODEL", str(RAG_CONFIG["llm_model"])),
+        "temperature": _float_env("RAG_LLM_TEMPERATURE", float(RAG_CONFIG["temperature"]), minimum=0.0, maximum=2.0),
+        "max_tokens": _int_env("RAG_LLM_MAX_TOKENS", int(RAG_CONFIG["max_tokens"]), minimum=64, maximum=4000),
+    }
+    return config
+
+
 def _active_rag_flags() -> dict[str, bool]:
     return {
         "RAG_HYBRID_RETRIEVAL_ENABLED": _hybrid_retrieval_enabled(),
         "RAG_KEYWORD_RETRIEVAL_ENABLED": _keyword_retrieval_enabled(),
         "RAG_RRF_FUSION_ENABLED": _rrf_fusion_enabled(),
         "RAG_EVIDENCE_GATE_ENABLED": _evidence_gate_enabled(),
+        "RAG_EVIDENCE_GATE_ENFORCED": True,
         "RAG_BORDERLINE_PARTIAL_ENABLED": _borderline_partial_enabled(),
         "RAG_SELECTIVE_MULTI_QUERY_ENABLED": _selective_multi_query_enabled(),
         "RAG_DIVERSITY_SELECTION_ENABLED": _diversity_selection_enabled(),
@@ -196,7 +246,15 @@ def _active_rag_flags() -> dict[str, bool]:
 
 
 def _rag_calibration_snapshot() -> dict[str, int | float | bool]:
+    rag_config = _load_rag_config()
     return {
+        "RAG_TOP_K": int(rag_config["top_k"]),
+        "RAG_MAX_CONTEXT_CHUNKS": int(rag_config["max_context_chunks"]),
+        "RAG_MIN_SIMILARITY": float(rag_config["min_similarity"]),
+        "RAG_RETRIEVAL_FETCH_K": int(rag_config["retrieval_fetch_k"]),
+        "RAG_MMR_LAMBDA": float(rag_config["mmr_lambda"]),
+        "RAG_LLM_TEMPERATURE": float(rag_config["temperature"]),
+        "RAG_LLM_MAX_TOKENS": int(rag_config["max_tokens"]),
         "RAG_HYBRID_DENSE_K": _hybrid_dense_k(),
         "RAG_HYBRID_KEYWORD_K": _hybrid_keyword_k(),
         "RAG_RRF_K": _rrf_k(),
@@ -215,8 +273,10 @@ def _evidence_gate_reason_code(reason: str) -> str:
         return "clarify_partial_evidence"
     if normalized == "no_final_candidates":
         return "refuse_no_evidence"
-    if normalized == "explicit_year_not_found":
+    if normalized in {"explicit_year_not_found", "scope_mismatch"}:
         return "refuse_misaligned_evidence"
+    if normalized == "below_min_similarity":
+        return "refuse_weak_evidence"
     return "retry_low_confidence"
 
 
@@ -235,6 +295,50 @@ def _doc_similarity_score(doc: Any) -> float:
     if hybrid is not None:
         return hybrid
     return _safe_float(metadata.get("similarity")) or 0.0
+
+
+def _doc_similarity_for_threshold(doc: Any) -> float:
+    metadata = getattr(doc, "metadata", {}) or {}
+    return _safe_float(metadata.get("similarity")) or 0.0
+
+
+def _normalize_scope_value(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _doc_matches_scope_target(doc: Any, target: dict[str, Any]) -> bool:
+    metadata = getattr(doc, "metadata", {}) or {}
+    doc_scope_type = _normalize_scope_value(metadata.get("scope_type"))
+    doc_scope_id = str(metadata.get("scope_id") or "").strip()
+    doc_scope_name = _normalize_scope_value(metadata.get("scope_name"))
+
+    target_scope_type = _normalize_scope_value(target.get("scope_type"))
+    target_scope_id = str(target.get("scope_id") or "").strip()
+    target_scope_name = _normalize_scope_value(target.get("scope_name"))
+
+    if target_scope_type and doc_scope_type and target_scope_type != doc_scope_type:
+        return False
+    if target_scope_id and doc_scope_id:
+        return target_scope_id == doc_scope_id
+    if target_scope_name and doc_scope_name:
+        return target_scope_name == doc_scope_name
+    return False
+
+
+def _doc_within_scope(doc: Any, retrieval_scope: dict[str, Any] | None) -> bool:
+    scope = retrieval_scope or {}
+    mode = _normalize_scope_value(scope.get("mode") or "global")
+    if mode == "global":
+        return True
+    if mode not in {"own_barangay", "named_scopes"}:
+        return True
+    targets = scope.get("targets")
+    if not isinstance(targets, list) or not targets:
+        return False
+    for target in targets:
+        if isinstance(target, dict) and _doc_matches_scope_target(doc, target):
+            return True
+    return False
 
 
 def _channels_for_doc(doc: Any) -> set[str]:
@@ -305,14 +409,17 @@ def run_hybrid_retrieval(
     retrieval_filters: dict[str, Any] | None,
     top_k: int,
     min_similarity: float,
+    retrieval_fetch_k: int | None = None,
 ) -> dict[str, Any]:
     resolved_mode = _normalize_retrieval_mode(retrieval_mode)
     effective_top_k = _effective_top_k(top_k=top_k, retrieval_mode=resolved_mode)
     hybrid_enabled = _hybrid_retrieval_enabled()
     keyword_enabled = _keyword_retrieval_enabled()
 
-    dense_k = _hybrid_dense_k() if hybrid_enabled else max(1, min(effective_top_k, 12))
-    keyword_k = _hybrid_keyword_k() if hybrid_enabled else 0
+    configured_fetch_k = int(retrieval_fetch_k or _hybrid_dense_k())
+    configured_fetch_k = max(effective_top_k, min(configured_fetch_k, 60))
+    dense_k = configured_fetch_k if hybrid_enabled else max(1, min(configured_fetch_k, 60))
+    keyword_k = (max(effective_top_k, min(configured_fetch_k, 60)) if hybrid_enabled else 0)
     max_candidates = max(1, min(dense_k + max(0, keyword_k), 60))
 
     dense_docs = retrieve_dense_docs(
@@ -374,6 +481,7 @@ def run_hybrid_retrieval(
         "strong_docs": strong_docs,
         "retrieval_mode": resolved_mode,
         "effective_top_k": effective_top_k,
+        "retrieval_fetch_k": configured_fetch_k,
         "retrieval_filters": retrieval_filters or {},
     }
 
@@ -438,6 +546,7 @@ def _select_diverse_docs(
     *,
     max_docs: int = 6,
     min_docs: int = 4,
+    mmr_lambda: float = 0.5,
 ) -> list[Any]:
     if not docs:
         return []
@@ -471,7 +580,7 @@ def _select_diverse_docs(
             if any(_doc_section_key(existing) == candidate_section for existing in selected):
                 section_penalty = 0.15
 
-            mmr_score = relevance - (0.35 * max_content_overlap) - section_penalty
+            mmr_score = (mmr_lambda * relevance) - ((1.0 - mmr_lambda) * max_content_overlap) - section_penalty
             if mmr_score > best_score:
                 best_score = mmr_score
                 best_index = index
@@ -745,6 +854,8 @@ def evaluate_evidence_gate(
     *,
     question: str,
     selected_docs: list[Any],
+    min_similarity: float,
+    retrieval_scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not selected_docs:
         return {
@@ -756,10 +867,23 @@ def evaluate_evidence_gate(
                 "year_match_ratio": 0.0,
                 "top_overlap": 0.0,
                 "top2_concentration": 0.0,
+                "top_similarity": 0.0,
+                "min_similarity": min_similarity,
             },
         }
 
     final_count = len(selected_docs)
+    scope_mismatch_count = sum(1 for doc in selected_docs if not _doc_within_scope(doc, retrieval_scope))
+    if scope_mismatch_count > 0:
+        return {
+            "decision": "refuse",
+            "reason": "scope_mismatch",
+            "metrics": {
+                "final_candidate_count": final_count,
+                "scope_mismatch_count": scope_mismatch_count,
+            },
+        }
+
     requested_years = sorted({int(match) for match in YEAR_PATTERN.findall(question)})
     fiscal_years = [
         int(value)
@@ -783,6 +907,20 @@ def evaluate_evidence_gate(
     top2_concentration = (
         float(top_score) / float(second_score + 1e-6) if second_score > 0 else float("inf")
     )
+    top_similarity = max((_doc_similarity_for_threshold(doc) for doc in selected_docs), default=0.0)
+    if top_similarity < min_similarity:
+        return {
+            "decision": "refuse",
+            "reason": "below_min_similarity",
+            "metrics": {
+                "final_candidate_count": final_count,
+                "top_similarity": top_similarity,
+                "min_similarity": min_similarity,
+                "year_match_count": year_match_count,
+                "year_match_ratio": year_match_ratio,
+            },
+        }
+
     top_overlap = max(
         (_text_overlap(question, str(getattr(doc, "page_content", "") or "")) for doc in selected_docs),
         default=0.0,
@@ -799,6 +937,8 @@ def evaluate_evidence_gate(
                 "year_match_ratio": year_match_ratio,
                 "top_overlap": top_overlap,
                 "top2_concentration": top2_concentration,
+                "top_similarity": top_similarity,
+                "min_similarity": min_similarity,
             },
         }
 
@@ -813,6 +953,8 @@ def evaluate_evidence_gate(
                 "year_match_ratio": year_match_ratio,
                 "top_overlap": top_overlap,
                 "top2_concentration": top2_concentration,
+                "top_similarity": top_similarity,
+                "min_similarity": min_similarity,
             },
         }
 
@@ -826,6 +968,8 @@ def evaluate_evidence_gate(
                 "year_match_ratio": year_match_ratio,
                 "top_overlap": top_overlap,
                 "top2_concentration": top2_concentration,
+                "top_similarity": top_similarity,
+                "min_similarity": min_similarity,
             },
         }
 
@@ -838,6 +982,8 @@ def evaluate_evidence_gate(
             "year_match_ratio": year_match_ratio,
             "top_overlap": top_overlap,
             "top2_concentration": top2_concentration,
+            "top_similarity": top_similarity,
+            "min_similarity": min_similarity,
         },
     }
 
@@ -897,17 +1043,32 @@ def answer_with_rag(
     supabase_service_key: str,
     openai_api_key: str,
     embeddings_model: str,
-    chat_model: str,
+    chat_model: str | None,
     question: str,
     retrieval_scope: dict[str, Any] | None = None,
     retrieval_mode: str = "qa",
     retrieval_filters: dict[str, Any] | None = None,
-    top_k: int = 4,
-    min_similarity: float = 0.3,
+    top_k: int | None = None,
+    min_similarity: float | None = None,
     metadata_filter: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from langchain_openai import ChatOpenAI
     from supabase.client import create_client
+
+    rag_config = _load_rag_config()
+    requested_top_k = int(top_k) if isinstance(top_k, int) and top_k > 0 else int(rag_config["top_k"])
+    requested_min_similarity = (
+        float(min_similarity)
+        if isinstance(min_similarity, (int, float))
+        else float(rag_config["min_similarity"])
+    )
+    requested_min_similarity = max(0.0, min(requested_min_similarity, 1.0))
+    max_context_chunks = int(rag_config["max_context_chunks"])
+    retrieval_fetch_k = max(requested_top_k, int(rag_config["retrieval_fetch_k"]))
+    mmr_lambda = float(rag_config["mmr_lambda"])
+    effective_chat_model = (chat_model or "").strip() or str(rag_config["llm_model"])
+    llm_temperature = float(rag_config["temperature"])
+    llm_max_tokens = int(rag_config["max_tokens"])
 
     started_at = time.perf_counter()
     stage_latency_ms: dict[str, float] = {}
@@ -915,7 +1076,7 @@ def answer_with_rag(
     rag_calibration = _rag_calibration_snapshot()
     resolved_scope = retrieval_scope or {"mode": "global", "targets": []}
     resolved_mode = _normalize_retrieval_mode(retrieval_mode)
-    effective_top_k = _effective_top_k(top_k=top_k, retrieval_mode=resolved_mode)
+    effective_top_k = _effective_top_k(top_k=requested_top_k, retrieval_mode=resolved_mode)
     supabase = create_client(supabase_url, supabase_service_key)
     retrieval_started_at = time.perf_counter()
     retrieval_bundle = run_hybrid_retrieval(
@@ -926,7 +1087,8 @@ def answer_with_rag(
         retrieval_mode=resolved_mode,
         retrieval_filters=retrieval_filters,
         top_k=effective_top_k,
-        min_similarity=min_similarity,
+        min_similarity=requested_min_similarity,
+        retrieval_fetch_k=retrieval_fetch_k,
     )
     stage_latency_ms["retrieval_ms"] = round((time.perf_counter() - retrieval_started_at) * 1000.0, 3)
 
@@ -935,6 +1097,7 @@ def answer_with_rag(
     docs = list(retrieval_bundle.get("fused_docs") or [])
     strong_docs = list(retrieval_bundle.get("strong_docs") or [])
     effective_top_k = int(retrieval_bundle.get("effective_top_k") or effective_top_k)
+    retrieval_fetch_k = int(retrieval_bundle.get("retrieval_fetch_k") or retrieval_fetch_k)
     resolved_mode = _normalize_retrieval_mode(str(retrieval_bundle.get("retrieval_mode") or resolved_mode))
     applied_filters = dict(retrieval_bundle.get("retrieval_filters") or retrieval_filters or {})
     diversity_enabled = _diversity_selection_enabled()
@@ -953,14 +1116,30 @@ def answer_with_rag(
     multi_query_reason = "not_attempted"
     multi_query_reason_code_value = "not_attempted"
     selected_docs: list[Any] = []
-    effective_strong_docs = list(strong_docs)
     effective_docs = list(docs)
+    scope_filtered_docs = [doc for doc in effective_docs if _doc_within_scope(doc, resolved_scope)]
+    top_similarity = max((_doc_similarity_for_threshold(doc) for doc in scope_filtered_docs), default=0.0)
+    effective_strong_docs = [
+        doc
+        for doc in scope_filtered_docs
+        if _doc_similarity_for_threshold(doc) >= requested_min_similarity
+    ]
     borderline_detected = False
     borderline_reason_code = "not_evaluated"
     response_mode_source = "pipeline_refusal"
     retrieval_context_meta = {
         "retrieval_mode": resolved_mode,
         "applied_retrieval_filters": applied_filters,
+        "rag_config": {
+            "top_k": requested_top_k,
+            "max_context_chunks": max_context_chunks,
+            "min_similarity": requested_min_similarity,
+            "retrieval_fetch_k": retrieval_fetch_k,
+            "mmr_lambda": mmr_lambda,
+            "llm_model": effective_chat_model,
+            "temperature": llm_temperature,
+            "max_tokens": llm_max_tokens,
+        },
     }
 
     def attach(
@@ -1027,158 +1206,240 @@ def answer_with_rag(
             ),
         )
 
-    if not effective_strong_docs:
-        if docs and _partial_mode_enabled():
-            response_mode_source = "pipeline_partial"
-            borderline_detected = False
-            borderline_reason_code = "partial_mode_initial_fallback"
-            return attach(
-                _build_partial_evidence(
-                    question=question,
-                    reason="partial_evidence",
-                    docs=docs,
-                    top_k=effective_top_k,
-                    min_similarity=min_similarity,
-                    retrieval_scope=resolved_scope,
-                ),
-                selected_count=min(3, len(docs)),
-                strong_count_override=0,
-            )
+    if not effective_docs:
+        gate_decision = "refuse"
+        gate_reason = "no_final_candidates"
+        gate_reason_code = _evidence_gate_reason_code(gate_reason)
+        gate_metrics = {
+            "final_candidate_count": 0,
+            "top_similarity": 0.0,
+            "min_similarity": requested_min_similarity,
+        }
+        generation_skipped_by_gate = True
         response_mode_source = "pipeline_refusal"
         borderline_detected = False
-        borderline_reason_code = "no_strong_docs"
+        borderline_reason_code = "no_candidates"
         return attach(
             _build_refusal(
                 question=question,
                 reason="insufficient_evidence",
-                docs=docs,
+                docs=[],
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
-            selected_count=min(3, len(docs)),
+            selected_count=0,
             strong_count_override=0,
+            generation_skipped_override=True,
+            extra_meta=gate_metrics,
+        )
+
+    if not scope_filtered_docs:
+        gate_decision = "refuse"
+        gate_reason = "scope_mismatch"
+        gate_reason_code = _evidence_gate_reason_code(gate_reason)
+        gate_metrics = {
+            "scope_mismatch_count": len(effective_docs),
+            "final_candidate_count": len(effective_docs),
+        }
+        generation_skipped_by_gate = True
+        response_mode_source = "pipeline_refusal"
+        borderline_detected = False
+        borderline_reason_code = "scope_mismatch"
+        return attach(
+            _build_refusal(
+                question=question,
+                reason="scope_mismatch",
+                docs=[],
+                top_k=effective_top_k,
+                min_similarity=requested_min_similarity,
+                retrieval_scope=resolved_scope,
+                verifier_passed=False,
+            ),
+            selected_count=0,
+            strong_count_override=0,
+            generation_skipped_override=True,
+            extra_meta=gate_metrics,
+        )
+
+    if top_similarity < requested_min_similarity or not effective_strong_docs:
+        gate_decision = "refuse"
+        gate_reason = "below_min_similarity"
+        gate_reason_code = _evidence_gate_reason_code(gate_reason)
+        gate_metrics = {
+            "final_candidate_count": len(scope_filtered_docs),
+            "top_similarity": top_similarity,
+            "min_similarity": requested_min_similarity,
+        }
+        generation_skipped_by_gate = True
+        response_mode_source = "pipeline_refusal"
+        borderline_detected = False
+        borderline_reason_code = "below_min_similarity"
+        return attach(
+            _build_refusal(
+                question=question,
+                reason="below_min_similarity",
+                docs=scope_filtered_docs,
+                top_k=effective_top_k,
+                min_similarity=requested_min_similarity,
+                retrieval_scope=resolved_scope,
+                verifier_passed=False,
+            ),
+            selected_count=0,
+            strong_count_override=0,
+            generation_skipped_override=True,
+            extra_meta=gate_metrics,
         )
 
     selection_started_at = time.perf_counter()
-    selection_max_docs = 5 if resolved_mode == "qa" else 6
-    selection_min_docs = 3 if resolved_mode == "qa" else 4
+    selection_max_docs = max_context_chunks
+    selection_min_docs = min(2, selection_max_docs)
     selected_docs = (
         _select_diverse_docs(
             effective_strong_docs,
             max_docs=selection_max_docs,
             min_docs=selection_min_docs,
+            mmr_lambda=mmr_lambda,
         )
         if diversity_enabled
         else effective_strong_docs[: min(selection_max_docs, len(effective_strong_docs))]
     )
     stage_latency_ms["selection_ms"] = round((time.perf_counter() - selection_started_at) * 1000.0, 3)
 
-    if _evidence_gate_enabled():
-        gate_started_at = time.perf_counter()
-        gate = evaluate_evidence_gate(question=question, selected_docs=selected_docs)
-        gate_decision = str(gate.get("decision") or "clarify")
-        gate_reason = str(gate.get("reason") or "gate_blocked")
+    if not selected_docs:
+        gate_decision = "refuse"
+        gate_reason = "no_final_candidates"
         gate_reason_code = _evidence_gate_reason_code(gate_reason)
-        gate_metrics = dict(gate.get("metrics") or {})
-        if gate_decision != "allow" and _selective_multi_query_enabled():
-            should_retry, retry_reason = should_retry_multi_query(
-                gate_decision=gate_decision,
-                gate_reason=gate_reason,
+        gate_metrics = {"final_candidate_count": 0}
+        generation_skipped_by_gate = True
+        response_mode_source = "pipeline_refusal"
+        borderline_detected = False
+        borderline_reason_code = "no_selected_docs"
+        return attach(
+            _build_refusal(
+                question=question,
+                reason="insufficient_evidence",
+                docs=[],
+                top_k=effective_top_k,
+                min_similarity=requested_min_similarity,
+                retrieval_scope=resolved_scope,
+                verifier_passed=False,
+            ),
+            selected_count=0,
+            generation_skipped_override=True,
+            extra_meta=gate_metrics,
+        )
+
+    gate_started_at = time.perf_counter()
+    gate = evaluate_evidence_gate(
+        question=question,
+        selected_docs=selected_docs,
+        min_similarity=requested_min_similarity,
+        retrieval_scope=resolved_scope,
+    )
+    gate_decision = str(gate.get("decision") or "clarify")
+    gate_reason = str(gate.get("reason") or "gate_blocked")
+    gate_reason_code = _evidence_gate_reason_code(gate_reason)
+    gate_metrics = dict(gate.get("metrics") or {})
+    if gate_decision != "allow" and _selective_multi_query_enabled():
+        should_retry, retry_reason = should_retry_multi_query(
+            gate_decision=gate_decision,
+            gate_reason=gate_reason,
+        )
+        if should_retry:
+            variants = build_multi_query_variants(
+                question=question,
+                max_variants=_selective_multi_query_max_variants(),
             )
-            if should_retry:
-                variants = build_multi_query_variants(
-                    question=question,
-                    max_variants=_selective_multi_query_max_variants(),
-                )
-                if variants:
-                    multi_query_triggered = True
-                    multi_query_variant_count = len(variants)
-                    multi_query_reason = retry_reason or "retryable_low_confidence"
-                    multi_query_reason_code_value = multi_query_reason_code(multi_query_reason)
+            if variants:
+                multi_query_triggered = True
+                multi_query_variant_count = len(variants)
+                multi_query_reason = retry_reason or "retryable_low_confidence"
+                multi_query_reason_code_value = multi_query_reason_code(multi_query_reason)
 
-                    variant_docs: list[Any] = []
-                    for variant in variants:
-                        variant_bundle = run_hybrid_retrieval(
-                            supabase=supabase,
-                            embeddings_model=embeddings_model,
-                            question=variant,
-                            retrieval_scope=resolved_scope,
-                            retrieval_mode=resolved_mode,
-                            retrieval_filters=applied_filters,
-                            top_k=effective_top_k,
-                            min_similarity=min_similarity,
-                        )
-                        variant_strong_docs = list(variant_bundle.get("strong_docs") or [])
-                        if variant_strong_docs:
-                            variant_docs.extend(variant_strong_docs)
-
-                    if variant_docs:
-                        max_candidates = max(12, min(60, len(effective_strong_docs) + len(variant_docs)))
-                        effective_strong_docs = merge_multi_query_candidates(
-                            base_docs=effective_strong_docs,
-                            variant_docs=variant_docs,
-                            max_candidates=max_candidates,
-                        )
-                        effective_docs = list(effective_strong_docs)
-                        selected_docs = (
-                            _select_diverse_docs(
-                                effective_strong_docs,
-                                max_docs=selection_max_docs,
-                                min_docs=selection_min_docs,
-                            )
-                            if diversity_enabled
-                            else effective_strong_docs[: min(selection_max_docs, len(effective_strong_docs))]
-                        )
-                        gate = evaluate_evidence_gate(question=question, selected_docs=selected_docs)
-                        gate_decision = str(gate.get("decision") or "clarify")
-                        gate_reason = str(gate.get("reason") or "gate_blocked")
-                        gate_reason_code = _evidence_gate_reason_code(gate_reason)
-                        gate_metrics = dict(gate.get("metrics") or {})
-                else:
-                    multi_query_reason = "no_variants_generated"
-                    multi_query_reason_code_value = multi_query_reason_code(multi_query_reason)
-        stage_latency_ms["gate_ms"] = round((time.perf_counter() - gate_started_at) * 1000.0, 3)
-
-        if gate_decision != "allow":
-            generation_skipped_by_gate = True
-            if gate_decision == "clarify":
-                response_mode_source = "pipeline_partial"
-                borderline_detected = False
-                borderline_reason_code = "gate_clarify"
-                return attach(
-                    _build_partial_evidence(
-                        question=question,
-                        reason="partial_evidence",
-                        docs=selected_docs,
-                        top_k=effective_top_k,
-                        min_similarity=min_similarity,
+                variant_docs: list[Any] = []
+                for variant in variants:
+                    variant_bundle = run_hybrid_retrieval(
+                        supabase=supabase,
+                        embeddings_model=embeddings_model,
+                        question=variant,
                         retrieval_scope=resolved_scope,
-                    ),
-                    selected_count=len(selected_docs),
-                    generation_skipped_override=True,
-                    extra_meta=gate_metrics,
-                )
-            response_mode_source = "pipeline_refusal"
-            borderline_detected = False
-            borderline_reason_code = "gate_refuse"
-            return attach(
-                _build_refusal(
-                    question=question,
-                    reason="insufficient_evidence",
-                    docs=selected_docs,
-                    top_k=effective_top_k,
-                    min_similarity=min_similarity,
-                    retrieval_scope=resolved_scope,
-                    verifier_passed=False,
-                ),
-                selected_count=len(selected_docs),
-                generation_skipped_override=True,
-                extra_meta=gate_metrics,
-            )
+                        retrieval_mode=resolved_mode,
+                        retrieval_filters=applied_filters,
+                        top_k=effective_top_k,
+                        min_similarity=requested_min_similarity,
+                        retrieval_fetch_k=retrieval_fetch_k,
+                    )
+                    variant_candidates = list(variant_bundle.get("fused_docs") or [])
+                    variant_scope_filtered = [
+                        doc
+                        for doc in variant_candidates
+                        if _doc_within_scope(doc, resolved_scope)
+                        and _doc_similarity_for_threshold(doc) >= requested_min_similarity
+                    ]
+                    if variant_scope_filtered:
+                        variant_docs.extend(variant_scope_filtered)
 
-    llm = ChatOpenAI(model=chat_model, temperature=0, api_key=openai_api_key)
+                if variant_docs:
+                    max_candidates = max(12, min(60, len(effective_strong_docs) + len(variant_docs)))
+                    effective_strong_docs = merge_multi_query_candidates(
+                        base_docs=effective_strong_docs,
+                        variant_docs=variant_docs,
+                        max_candidates=max_candidates,
+                    )
+                    effective_docs = list(effective_strong_docs)
+                    selected_docs = (
+                        _select_diverse_docs(
+                            effective_strong_docs,
+                            max_docs=selection_max_docs,
+                            min_docs=selection_min_docs,
+                            mmr_lambda=mmr_lambda,
+                        )
+                        if diversity_enabled
+                        else effective_strong_docs[: min(selection_max_docs, len(effective_strong_docs))]
+                    )
+                    gate = evaluate_evidence_gate(
+                        question=question,
+                        selected_docs=selected_docs,
+                        min_similarity=requested_min_similarity,
+                        retrieval_scope=resolved_scope,
+                    )
+                    gate_decision = str(gate.get("decision") or "clarify")
+                    gate_reason = str(gate.get("reason") or "gate_blocked")
+                    gate_reason_code = _evidence_gate_reason_code(gate_reason)
+                    gate_metrics = dict(gate.get("metrics") or {})
+            else:
+                multi_query_reason = "no_variants_generated"
+                multi_query_reason_code_value = multi_query_reason_code(multi_query_reason)
+    stage_latency_ms["gate_ms"] = round((time.perf_counter() - gate_started_at) * 1000.0, 3)
+
+    if gate_decision != "allow":
+        generation_skipped_by_gate = True
+        response_mode_source = "pipeline_refusal"
+        borderline_detected = False
+        borderline_reason_code = "gate_blocked"
+        return attach(
+            _build_refusal(
+                question=question,
+                reason="insufficient_evidence",
+                docs=selected_docs,
+                top_k=effective_top_k,
+                min_similarity=requested_min_similarity,
+                retrieval_scope=resolved_scope,
+                verifier_passed=False,
+            ),
+            selected_count=len(selected_docs),
+            generation_skipped_override=True,
+            extra_meta=gate_metrics,
+        )
+
+    llm = ChatOpenAI(
+        model=effective_chat_model,
+        temperature=llm_temperature,
+        max_tokens=llm_max_tokens,
+        api_key=openai_api_key,
+    )
     system_prompt = read_text("prompts/rag/system.txt").strip()
 
     generation_instruction = (
@@ -1210,7 +1471,7 @@ def answer_with_rag(
                 reason="validation_failed",
                 docs=selected_docs,
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
@@ -1226,7 +1487,7 @@ def answer_with_rag(
                 reason="validation_failed",
                 docs=selected_docs,
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
@@ -1253,7 +1514,7 @@ def answer_with_rag(
                 reason="validation_failed",
                 docs=selected_docs,
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
@@ -1268,7 +1529,7 @@ def answer_with_rag(
                 reason="verifier_failed",
                 docs=selected_docs,
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
@@ -1306,45 +1567,6 @@ def answer_with_rag(
         borderline_detected = bool(borderline_eval.get("is_borderline") is True)
         borderline_reason_code = str(borderline_eval.get("reason_code") or "not_borderline")
         borderline_metrics = dict(borderline_eval.get("metrics") or {})
-
-        if _borderline_partial_enabled() and borderline_detected:
-            response_mode_source = "pipeline_partial"
-            return attach(
-                _build_partial_evidence(
-                    question=question,
-                    reason="partial_evidence",
-                    docs=selected_docs,
-                    top_k=effective_top_k,
-                    min_similarity=min_similarity,
-                    retrieval_scope=resolved_scope,
-                ),
-                selected_count=len(selected_docs),
-                extra_meta={
-                    **gate_metrics,
-                    **borderline_metrics,
-                },
-                borderline_detected_override=True,
-                borderline_reason_code_override=borderline_reason_code,
-                response_mode_source_override="pipeline_partial",
-            )
-
-        if _partial_mode_enabled():
-            response_mode_source = "pipeline_partial"
-            return attach(
-                _build_partial_evidence(
-                    question=question,
-                    reason="partial_evidence",
-                    docs=selected_docs,
-                    top_k=effective_top_k,
-                    min_similarity=min_similarity,
-                    retrieval_scope=resolved_scope,
-                ),
-                selected_count=len(selected_docs),
-                extra_meta={
-                    **gate_metrics,
-                    **borderline_metrics,
-                },
-            )
         response_mode_source = "pipeline_refusal"
         return attach(
             _build_refusal(
@@ -1352,7 +1574,7 @@ def answer_with_rag(
                 reason="verifier_failed",
                 docs=selected_docs,
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
@@ -1375,7 +1597,7 @@ def answer_with_rag(
                 reason="validation_failed",
                 docs=selected_docs,
                 top_k=effective_top_k,
-                min_similarity=min_similarity,
+                min_similarity=requested_min_similarity,
                 retrieval_scope=resolved_scope,
                 verifier_passed=False,
             ),
@@ -1394,7 +1616,7 @@ def answer_with_rag(
             "retrieval_meta": {
                 "reason": "ok",
                 "top_k": effective_top_k,
-                "min_similarity": min_similarity,
+                "min_similarity": requested_min_similarity,
                 "context_count": len(selected_docs),
                 "verifier_passed": True,
                 "scope_mode": resolved_scope.get("mode", "global"),

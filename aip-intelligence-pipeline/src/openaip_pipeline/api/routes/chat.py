@@ -167,7 +167,7 @@ class ChatAnswerRequest(BaseModel):
     retrieval_mode: Literal["qa", "overview"] = "qa"
     retrieval_filters: RetrievalFilters = Field(default_factory=RetrievalFilters)
     model_name: str | None = None
-    top_k: int = Field(default=4, ge=1, le=30)
+    top_k: int = Field(default=5, ge=1, le=30)
     min_similarity: float = Field(default=0.3, ge=0.0, le=1.0)
 
 

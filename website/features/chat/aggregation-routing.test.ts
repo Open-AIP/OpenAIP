@@ -1660,15 +1660,17 @@ describe("aggregation routing", () => {
     ).toBe(false);
   });
 
-  it("refuses opinionated inflated-budget prompt instead of line-item clarification", async () => {
+  it("routes opinionated inflated-budget prompt to pipeline fallback", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "Do you think Pulo's FY 2026 AIP has inflated budgets?",
     });
 
-    expect(payload.status).toBe("refusal");
-    const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("I can only answer based on published AIP data");
+    expect(payload.status).toBe("answer");
+    const assistant = payload.assistantMessage as { content: string; retrievalMeta?: { routeFamily?: string } };
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
     ).toBe(false);

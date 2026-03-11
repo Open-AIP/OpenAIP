@@ -508,7 +508,7 @@ export async function POST(request: Request) {
         message: userMessage,
         retrievalScope,
       }),
-      topK: 4,
+      topK: 5,
     });
 
     const citations = toDbCitations({

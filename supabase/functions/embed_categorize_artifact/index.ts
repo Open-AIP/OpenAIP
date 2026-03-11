@@ -1,21 +1,33 @@
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.90.1";
+import {
+  createClient,
+  type SupabaseClient,
+} from "npm:@supabase/supabase-js@2.90.1";
 
 const EMBEDDING_MODEL = "text-embedding-3-large";
 const EMBEDDING_DIMS = 3072;
-const MIN_TARGET_TOKENS = 200;
-const MAX_TARGET_TOKENS = 800;
-const GROUP_TARGET_TOKENS = 700;
 const EMBED_RUN_ERROR_CODE = "EMBED_CATEGORIZE_FAILED";
 const SKIP_NO_ARTIFACT_MESSAGE = "No categorize artifact; skipping.";
 const MAX_CLOCK_SKEW_SECONDS = 60;
 const DEFAULT_JOB_AUDIENCE = "embed-categorize-dispatcher";
 const DEFAULT_NONCE_TTL_SECONDS = 120;
 const DEFAULT_DEDUPE_TTL_SECONDS = 300;
+const DEFAULT_STALE_SECONDS = 300;
+const DEFAULT_EMBED_BATCH_SIZE = 16;
+const DEFAULT_MAX_BATCHES_PER_INVOCATION = 4;
+const DEFAULT_HEARTBEAT_EVERY_BATCHES = 1;
+const CHUNK_INGESTION_VERSION = 2;
+const DEFAULT_DOCUMENT_TYPE = "AIP";
+const DEFAULT_PUBLICATION_STATUS = "published";
+const ARTIFACT_CHUNK_PAGE_SIZE = 500;
+const EMBEDDING_EXISTENCE_LOOKUP_BATCH_SIZE = 200;
 
 // Process-local cache only. Multi-instance deployments need shared KV (Redis/DB)
 // for strong replay and idempotency guarantees.
 const NONCE_CACHE = new Map<string, number>();
-const JOB_RESULT_CACHE = new Map<string, { expiresAt: number; response: Record<string, unknown> }>();
+const JOB_RESULT_CACHE = new Map<
+  string,
+  { expiresAt: number; response: Record<string, unknown> }
+>();
 const JOB_INFLIGHT_CACHE = new Map<string, number>();
 
 type PublishPayload = {
@@ -23,6 +35,8 @@ type PublishPayload = {
   request_id?: string | null;
   artifact_id?: string | null;
   published_at?: string | null;
+  document_type?: string | null;
+  publication_status?: string | null;
   fiscal_year?: number | null;
   scope_type?: "barangay" | "city" | "municipality" | string | null;
   scope_id?: string | null;
@@ -36,27 +50,49 @@ type AipContext = {
   scopeType: "barangay" | "city" | "municipality" | "unknown";
   scopeId: string | null;
   scopeLabel: string;
+  documentType: string;
+  publicationStatus: string;
 };
 
 type ChunkPlan = {
   chunkIndex: number;
+  chunkType: "project" | "section_summary" | "category_summary";
   chunkText: string;
   metadata: Record<string, unknown>;
+  ingestionVersion: number;
+  documentType: string;
+  publicationStatus: string;
+  fiscalYear: number | null;
+  scopeType: "barangay" | "city" | "municipality" | "unknown";
+  scopeName: string;
+  officeName: string | null;
+  projectRefCode: string | null;
+  sourcePage: number | null;
+  themeTags: string[];
+  sectorTags: string[];
 };
 
 type PreparedProject = {
   ordinal: number;
   aipRefCode: string;
   description: string;
+  implementingAgency: string;
+  officeName: string;
+  startDate: string;
+  completionDate: string;
+  expectedOutput: string;
   category: "health" | "infrastructure" | "other";
   sectorCode: string;
   sectorLabel: string;
-  fundingSource: string;
+  sourceOfFunds: string;
   ps: string;
   mooe: string;
   fe: string;
   co: string;
   total: string;
+  sourcePage: number | null;
+  themeTags: string[];
+  sectorTags: string[];
 };
 
 type ChunkRow = {
@@ -64,6 +100,15 @@ type ChunkRow = {
   chunk_index: number;
   chunk_text: string;
   metadata: Record<string, unknown> | null;
+};
+
+type EmbedRunRow = {
+  id: string;
+  status: string;
+  stage_progress_pct: number | null;
+  progress_updated_at: string | null;
+  started_at: string | null;
+  created_at: string | null;
 };
 
 type EmbedRunStatusPatch = {
@@ -78,6 +123,23 @@ type EmbedRunStatusPatch = {
   error_message?: string | null;
 };
 
+type EmbedHeartbeatPayload = {
+  processed: number;
+  totalMissing: number;
+  remaining: number;
+  batchNo: number;
+  totalBatches: number;
+};
+
+type EmbedWindowResult = {
+  inserted: number;
+  processed: number;
+  totalMissing: number;
+  remaining: number;
+  batchesProcessed: number;
+  totalBatches: number;
+};
+
 const FALLBACK_SECTOR_LABELS: Record<string, string> = {
   "1000": "General Services",
   "3000": "Social Services",
@@ -85,6 +147,86 @@ const FALLBACK_SECTOR_LABELS: Record<string, string> = {
   "9000": "Other Services",
   unknown: "Unknown Sector",
 };
+
+const THEME_TAG_RULES: Array<{ tag: string; keywords: string[] }> = [
+  {
+    tag: "health",
+    keywords: ["health", "medical", "clinic", "nutrition", "wellness"],
+  },
+  {
+    tag: "disaster",
+    keywords: ["disaster", "drrm", "risk reduction", "calamity"],
+  },
+  {
+    tag: "emergency response",
+    keywords: [
+      "emergency",
+      "rescue",
+      "response",
+      "rapid response",
+      "first aid",
+    ],
+  },
+  {
+    tag: "peace and order",
+    keywords: ["peace and order", "tanod", "security", "peacekeeping"],
+  },
+  {
+    tag: "senior citizens",
+    keywords: ["senior citizen", "elderly", "older persons"],
+  },
+  {
+    tag: "pwd",
+    keywords: ["pwd", "person with disability", "persons with disability"],
+  },
+  {
+    tag: "gad",
+    keywords: ["gad", "gender and development", "women", "gender"],
+  },
+  {
+    tag: "infrastructure",
+    keywords: [
+      "infrastructure",
+      "road",
+      "bridge",
+      "drainage",
+      "canal",
+      "building",
+      "flood control",
+    ],
+  },
+  {
+    tag: "livelihood",
+    keywords: ["livelihood", "employment", "income", "entrepreneurship"],
+  },
+  {
+    tag: "environment",
+    keywords: [
+      "environment",
+      "climate",
+      "tree",
+      "greening",
+      "waste management",
+    ],
+  },
+  {
+    tag: "sanitation",
+    keywords: ["sanitation", "hygiene", "toilet", "sanitary"],
+  },
+  { tag: "training", keywords: ["training", "capacity building", "workshop"] },
+  { tag: "seminar", keywords: ["seminar", "orientation"] },
+  { tag: "procurement", keywords: ["procurement", "purchase", "acquisition"] },
+  {
+    tag: "construction",
+    keywords: ["construction", "construct", "rehabilitation", "repair"],
+  },
+  { tag: "assistance", keywords: ["assistance", "aid", "subsidy", "support"] },
+  { tag: "maintenance", keywords: ["maintenance", "upkeep"] },
+  {
+    tag: "operations",
+    keywords: ["operation", "operations", "operating", "administrative"],
+  },
+];
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -115,6 +257,69 @@ function readIntEnv(name: string, fallback: number): number {
   const parsed = Number.parseInt(raw.trim(), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return parsed;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function toFiniteInteger(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(1, Math.floor(value));
+  }
+  return Math.max(1, Math.floor(fallback));
+}
+
+export function computeEmbeddingWindowSize(
+  missingCount: number,
+  batchSize: number,
+  maxBatchesPerInvocation: number,
+): number {
+  if (!Number.isFinite(missingCount) || missingCount <= 0) return 0;
+  const safeBatchSize = toFiniteInteger(batchSize, DEFAULT_EMBED_BATCH_SIZE);
+  const safeMaxBatches = toFiniteInteger(
+    maxBatchesPerInvocation,
+    DEFAULT_MAX_BATCHES_PER_INVOCATION,
+  );
+  return Math.min(Math.floor(missingCount), safeBatchSize * safeMaxBatches);
+}
+
+export function computeEmbedStageProgressPct(
+  processed: number,
+  totalMissing: number,
+): number {
+  if (!Number.isFinite(totalMissing) || totalMissing <= 0) return 99;
+  const safeProcessed = clamp(
+    Number.isFinite(processed) ? processed : 0,
+    0,
+    totalMissing,
+  );
+  const ratio = safeProcessed / totalMissing;
+  return clamp(Math.round(85 + ratio * 14), 85, 99);
+}
+
+export function shouldQueueEmbedContinuation(
+  remainingEmbeddings: number,
+): boolean {
+  return Number.isFinite(remainingEmbeddings) && remainingEmbeddings > 0;
+}
+
+export function isEmbedRunStale(
+  run: {
+    progress_updated_at?: string | null;
+    started_at?: string | null;
+    created_at?: string | null;
+  },
+  nowMs: number,
+  staleSeconds: number,
+): boolean {
+  const staleMs = toFiniteInteger(staleSeconds, DEFAULT_STALE_SECONDS) * 1000;
+  const heartbeatAt =
+    run.progress_updated_at ?? run.started_at ?? run.created_at;
+  if (!heartbeatAt) return true;
+  const parsedMs = Date.parse(heartbeatAt);
+  if (!Number.isFinite(parsedMs)) return true;
+  return parsedMs + staleMs < nowMs;
 }
 
 function pruneNonceCache(nowMs: number): void {
@@ -152,7 +357,10 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-async function hmacSha256(secret: string, payload: string): Promise<Uint8Array> {
+async function hmacSha256(
+  secret: string,
+  payload: string,
+): Promise<Uint8Array> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
@@ -161,11 +369,20 @@ async function hmacSha256(secret: string, payload: string): Promise<Uint8Array> 
     false,
     ["sign"],
   );
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(payload),
+  );
   return new Uint8Array(signature);
 }
 
-function buildCanonical(aud: string, ts: string, nonce: string, rawBody: string): string {
+function buildCanonical(
+  aud: string,
+  ts: string,
+  nonce: string,
+  rawBody: string,
+): string {
   return `${aud}|${ts}|${nonce}|${rawBody}`;
 }
 
@@ -177,10 +394,7 @@ function resolveJobKey(payload: PublishPayload): string | null {
   return null;
 }
 
-function logEvent(
-  event: string,
-  payload: Record<string, unknown>,
-): void {
+function logEvent(event: string, payload: Record<string, unknown>): void {
   console.log(
     JSON.stringify({
       event,
@@ -196,7 +410,15 @@ function normalizeString(value: unknown, fallback = "N/A"): string {
   return trimmed || fallback;
 }
 
-function normalizeCategory(value: unknown): "health" | "infrastructure" | "other" {
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  return trimmed || null;
+}
+
+function normalizeCategory(
+  value: unknown,
+): "health" | "infrastructure" | "other" {
   const lowered = normalizeString(value, "other").toLowerCase();
   if (lowered === "health" || lowered === "healthcare") return "health";
   if (lowered === "infrastructure") return "infrastructure";
@@ -228,8 +450,77 @@ function formatAmount(value: unknown): string {
   return parsed.toFixed(2);
 }
 
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+function toInteger(value: unknown): number | null {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value)
+  ) {
+    return value;
+  }
+  if (typeof value !== "string") return null;
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function firstNumberOrNull(...values: unknown[]): number | null {
+  for (const value of values) {
+    const parsed = toInteger(value);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
+
+function normalizeTag(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatTags(tags: string[]): string {
+  if (tags.length === 0) return "none";
+  return tags.join(", ");
+}
+
+function uniqueSortedTags(tags: Iterable<string>): string[] {
+  const out = new Set<string>();
+  for (const tag of tags) {
+    const normalized = normalizeTag(tag);
+    if (!normalized) continue;
+    out.add(normalized);
+  }
+  return [...out].sort((a, b) => a.localeCompare(b));
+}
+
+function generateThemeTags(text: string): string[] {
+  const normalized = normalizeTag(text);
+  if (!normalized) return [];
+  const out: string[] = [];
+  for (const rule of THEME_TAG_RULES) {
+    if (
+      rule.keywords.some((keyword) =>
+        normalized.includes(normalizeTag(keyword)),
+      )
+    ) {
+      out.push(rule.tag);
+    }
+  }
+  return uniqueSortedTags(out);
+}
+
+function normalizeSectorLabelToTag(label: string): string | null {
+  const normalized = normalizeTag(label);
+  if (!normalized || normalized === "unknown sector") return null;
+  return normalized;
+}
+
+function scopeLabelToName(label: string): string {
+  const value = normalizeString(label, "Unknown Scope");
+  const parts = value.split(":");
+  if (parts.length < 2) return value;
+  return normalizeString(parts.slice(1).join(":"), value);
 }
 
 function compareProjects(a: PreparedProject, b: PreparedProject): number {
@@ -245,6 +536,32 @@ function categoryOrder(category: string): number {
   if (category === "infrastructure") return 1;
   if (category === "other") return 2;
   return 3;
+}
+
+function resolveSourcePage(row: Record<string, unknown>): number | null {
+  const provenance =
+    row.provenance && typeof row.provenance === "object"
+      ? (row.provenance as Record<string, unknown>)
+      : {};
+  return firstNumberOrNull(
+    row.source_page,
+    row.page_no,
+    row.page,
+    provenance.source_page,
+    provenance.page_no,
+    provenance.page,
+  );
+}
+
+function buildSectorTags(args: {
+  category: PreparedProject["category"];
+  sectorLabel: string;
+}): string[] {
+  const tags: string[] = [];
+  if (args.category !== "other") tags.push(args.category);
+  const sectorTag = normalizeSectorLabelToTag(args.sectorLabel);
+  if (sectorTag) tags.push(sectorTag);
+  return uniqueSortedTags(tags);
 }
 
 function extractProjects(
@@ -265,23 +582,61 @@ function extractProjects(
         ? (row.classification as Record<string, unknown>)
         : {};
 
-    const aipRefCode = normalizeString(row.aip_ref_code, `UNSPECIFIED-${index + 1}`);
+    const aipRefCode = normalizeString(
+      row.aip_ref_code,
+      `UNSPECIFIED-${index + 1}`,
+    );
     const description = normalizeString(row.program_project_description);
+    const implementingAgency = normalizeString(
+      row.implementing_agency ?? row.office,
+    );
+    const officeName = normalizeString(
+      row.office ?? row.implementing_agency,
+      implementingAgency,
+    );
+    const startDate = normalizeString(row.start_date, "N/A");
+    const completionDate = normalizeString(
+      row.completion_date ?? row.end_date,
+      "N/A",
+    );
+    const expectedOutput = normalizeString(row.expected_output, "N/A");
     const category = normalizeCategory(classification.category ?? row.category);
     const sectorCode = normalizeString(
       classification.sector_code,
       inferSectorCode(aipRefCode),
     );
-    const sectorLabel = sectorLabels.get(sectorCode) ?? FALLBACK_SECTOR_LABELS[sectorCode] ?? "Unknown Sector";
+    const sectorLabel =
+      sectorLabels.get(sectorCode) ??
+      FALLBACK_SECTOR_LABELS[sectorCode] ??
+      "Unknown Sector";
+    const sourceOfFunds = normalizeString(row.source_of_funds);
+    const sourcePage = resolveSourcePage(row);
+
+    const thematicText = [
+      description,
+      implementingAgency,
+      officeName,
+      expectedOutput,
+      sourceOfFunds,
+      category,
+      sectorLabel,
+    ].join(" ");
+    const themeTags = generateThemeTags(thematicText);
+    const sectorTags = buildSectorTags({ category, sectorLabel });
 
     prepared.push({
       ordinal: index,
       aipRefCode,
       description,
+      implementingAgency,
+      officeName,
+      startDate,
+      completionDate,
+      expectedOutput,
       category,
       sectorCode,
       sectorLabel,
-      fundingSource: normalizeString(row.source_of_funds),
+      sourceOfFunds,
       ps: formatAmount(amounts.personal_services ?? row.personal_services),
       mooe: formatAmount(
         amounts.maintenance_and_other_operating_expenses ??
@@ -290,6 +645,9 @@ function extractProjects(
       fe: formatAmount(amounts.financial_expenses ?? row.financial_expenses),
       co: formatAmount(amounts.capital_outlay ?? row.capital_outlay),
       total: formatAmount(amounts.total ?? row.total),
+      sourcePage,
+      themeTags,
+      sectorTags,
     });
   }
 
@@ -300,124 +658,208 @@ function extractProjects(
 function formatProjectChunkText(
   project: PreparedProject,
   context: AipContext,
+  aipId: string,
   artifactId: string,
 ): string {
   const fy = context.fiscalYear ?? "N/A";
+  const sourceChunkRecordId = `${aipId}:${project.aipRefCode}:${project.ordinal + 1}`;
   return [
-    `AIP Categorization | FY=${fy} | Scope=${context.scopeLabel}`,
-    `Project: ${project.aipRefCode} - ${project.description}`,
-    `Sector: ${project.sectorCode} (${project.sectorLabel})`,
-    `Category: ${project.category}`,
-    `Amounts: PS=${project.ps}, MOOE=${project.mooe}, FE=${project.fe}, CO=${project.co}, Total=${project.total}`,
-    `Funding Source: ${project.fundingSource}`,
-    `Source: categorize artifact ${artifactId}`,
+    "AIP Project",
+    `Document Type: ${context.documentType}`,
+    `Publication Status: ${context.publicationStatus}`,
+    `FY: ${fy}`,
+    `Scope Type: ${context.scopeType}`,
+    `Scope Name: ${scopeLabelToName(context.scopeLabel)}`,
+    `AIP ID: ${aipId}`,
+    `AIP Ref Code: ${project.aipRefCode}`,
+    `Title: ${project.description}`,
+    `Implementing Agency: ${project.implementingAgency}`,
+    `Office: ${project.officeName}`,
+    `Start Date: ${project.startDate}`,
+    `Completion Date: ${project.completionDate}`,
+    `Expected Output: ${project.expectedOutput}`,
+    `Source of Funds: ${project.sourceOfFunds}`,
+    `Personal Services: ${project.ps}`,
+    `MOOE: ${project.mooe}`,
+    `Capital Outlay: ${project.co}`,
+    `Total: ${project.total}`,
+    `Sector Tags: ${formatTags(project.sectorTags)}`,
+    `Theme Tags: ${formatTags(project.themeTags)}`,
+    `Source Page: ${project.sourcePage ?? "N/A"}`,
+    `Source Chunk ID: ${sourceChunkRecordId}`,
+    `Source Artifact: ${artifactId}`,
   ].join("\n");
 }
 
-function formatGroupedProjectLine(project: PreparedProject): string {
+function sumProjectTotals(projects: PreparedProject[]): string {
+  const total = projects.reduce(
+    (acc, project) => acc + (toNumber(project.total) ?? 0),
+    0,
+  );
+  return total.toFixed(2);
+}
+
+function topTags(projects: PreparedProject[], maxCount = 8): string[] {
+  const counts = new Map<string, number>();
+  for (const project of projects) {
+    for (const tag of project.themeTags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => {
+      const countDiff = b[1] - a[1];
+      if (countDiff !== 0) return countDiff;
+      return a[0].localeCompare(b[0]);
+    })
+    .slice(0, maxCount)
+    .map(([tag]) => tag);
+}
+
+function collectGroupPages(projects: PreparedProject[]): number[] {
+  const pages = new Set<number>();
+  for (const project of projects) {
+    if (project.sourcePage !== null) pages.add(project.sourcePage);
+  }
+  return [...pages].sort((a, b) => a - b);
+}
+
+function formatSummaryChunkText(args: {
+  context: AipContext;
+  scopeName: string;
+  sectionType: "office" | "service_category";
+  sectionName: string;
+  projectRefs: string[];
+  topThemes: string[];
+  pages: number[];
+  projectCount: number;
+  totalAmount: string;
+  chunkRecordId: string;
+  artifactId: string;
+}): string {
+  const fy = args.context.fiscalYear ?? "N/A";
+  const sourcePages = args.pages.length > 0 ? args.pages.join(", ") : "N/A";
   return [
-    `- ${project.aipRefCode} | ${project.description}`,
-    `  Sector=${project.sectorCode} (${project.sectorLabel})`,
-    `  Amounts=PS:${project.ps}, MOOE:${project.mooe}, FE:${project.fe}, CO:${project.co}, Total:${project.total}`,
-    `  Funding=${project.fundingSource}`,
+    "AIP Section Summary",
+    `Document Type: ${args.context.documentType}`,
+    `Publication Status: ${args.context.publicationStatus}`,
+    `FY: ${fy}`,
+    `Scope Type: ${args.context.scopeType}`,
+    `Scope Name: ${args.scopeName}`,
+    `Section Type: ${args.sectionType}`,
+    `Section Name: ${args.sectionName}`,
+    `Summary: ${args.projectCount} project(s) with aggregate total ${args.totalAmount} under ${args.sectionName}.`,
+    `Representative Project Refs: ${args.projectRefs.join(", ") || "none"}`,
+    `Top Themes: ${formatTags(args.topThemes)}`,
+    `Source Pages: ${sourcePages}`,
+    `Source Chunk ID: ${args.chunkRecordId}`,
+    `Source Artifact: ${args.artifactId}`,
   ].join("\n");
 }
 
-function formatCategoryChunkText(
-  category: string,
-  part: number,
-  lines: string[],
-  context: AipContext,
-  artifactId: string,
-): string {
-  const fy = context.fiscalYear ?? "N/A";
-  return [
-    `AIP Categorization | FY=${fy} | Scope=${context.scopeLabel}`,
-    `Category Group: ${category} (part ${part})`,
-    "Projects:",
-    ...lines,
-    `Source: categorize artifact ${artifactId}`,
-  ].join("\n");
-}
-
-function buildGroupedChunks(
+function buildSummaryChunks(
   projects: PreparedProject[],
   context: AipContext,
+  aipId: string,
   artifactId: string,
-): Array<{ chunkText: string; category: string }> {
-  const groups = new Map<string, PreparedProject[]>();
+): Array<{
+  chunkType: "section_summary" | "category_summary";
+  chunkText: string;
+  metadata: Record<string, unknown>;
+  officeName: string | null;
+  sourcePage: number | null;
+  themeTags: string[];
+  sectorTags: string[];
+}> {
+  const groups = new Map<
+    string,
+    { sectionType: "office" | "service_category"; projects: PreparedProject[] }
+  >();
   for (const project of projects) {
-    const key = project.category;
-    const current = groups.get(key) ?? [];
-    current.push(project);
+    const hasOffice = normalizeString(project.officeName, "N/A") !== "N/A";
+    const key = hasOffice
+      ? `office:${project.officeName}`
+      : `category:${project.category}`;
+    const sectionType: "office" | "service_category" = hasOffice
+      ? "office"
+      : "service_category";
+    const current = groups.get(key) ?? { sectionType, projects: [] };
+    current.projects.push(project);
     groups.set(key, current);
   }
 
-  const groupedChunks: Array<{ chunkText: string; category: string }> = [];
-  const orderedCategories = [...groups.keys()].sort((a, b) => {
-    const orderDiff = categoryOrder(a) - categoryOrder(b);
+  const orderedGroups = [...groups.entries()].sort((a, b) => {
+    const aType = a[1].sectionType;
+    const bType = b[1].sectionType;
+    if (aType !== bType) return aType.localeCompare(bType);
+    const orderDiff =
+      categoryOrder(a[0].split(":")[1] ?? "other") -
+      categoryOrder(b[0].split(":")[1] ?? "other");
     if (orderDiff !== 0) return orderDiff;
-    return a.localeCompare(b);
+    return a[0].localeCompare(b[0]);
   });
 
-  for (const category of orderedCategories) {
-    const projectsInCategory = [...(groups.get(category) ?? [])].sort(compareProjects);
-    let part = 1;
-    let currentLines: string[] = [];
+  const summaries: Array<{
+    chunkType: "section_summary" | "category_summary";
+    chunkText: string;
+    metadata: Record<string, unknown>;
+    officeName: string | null;
+    sourcePage: number | null;
+    themeTags: string[];
+    sectorTags: string[];
+  }> = [];
 
-    for (const project of projectsInCategory) {
-      const candidateLines = [...currentLines, formatGroupedProjectLine(project)];
-      const candidateText = formatCategoryChunkText(
-        category,
-        part,
-        candidateLines,
-        context,
-        artifactId,
-      );
-      const candidateTokens = estimateTokens(candidateText);
+  for (const [key, group] of orderedGroups) {
+    const projectsInGroup = [...group.projects].sort(compareProjects);
+    const scopeName = scopeLabelToName(context.scopeLabel);
+    const sectionName =
+      group.sectionType === "office"
+        ? normalizeString(projectsInGroup[0]?.officeName, "General")
+        : normalizeString(key.split(":")[1], "General");
+    const pages = collectGroupPages(projectsInGroup);
+    const representativeRefs = projectsInGroup
+      .slice(0, 10)
+      .map((project) => project.aipRefCode);
+    const topThemes = topTags(projectsInGroup, 10);
+    const sectorTags = uniqueSortedTags(
+      projectsInGroup.flatMap((project) => project.sectorTags),
+    );
+    const chunkRecordId = `${aipId}:${group.sectionType}:${sectionName}`;
+    const chunkText = formatSummaryChunkText({
+      context,
+      scopeName,
+      sectionType: group.sectionType,
+      sectionName,
+      projectRefs: representativeRefs,
+      topThemes,
+      pages,
+      projectCount: projectsInGroup.length,
+      totalAmount: sumProjectTotals(projectsInGroup),
+      chunkRecordId,
+      artifactId,
+    });
 
-      if (
-        currentLines.length > 0 &&
-        candidateTokens > MAX_TARGET_TOKENS &&
-        estimateTokens(formatCategoryChunkText(category, part, currentLines, context, artifactId)) >=
-          MIN_TARGET_TOKENS
-      ) {
-        groupedChunks.push({
-          chunkText: formatCategoryChunkText(category, part, currentLines, context, artifactId),
-          category,
-        });
-        part += 1;
-        currentLines = [formatGroupedProjectLine(project)];
-        continue;
-      }
-
-      if (
-        currentLines.length > 0 &&
-        candidateTokens > GROUP_TARGET_TOKENS &&
-        estimateTokens(formatCategoryChunkText(category, part, currentLines, context, artifactId)) >=
-          MIN_TARGET_TOKENS
-      ) {
-        groupedChunks.push({
-          chunkText: formatCategoryChunkText(category, part, currentLines, context, artifactId),
-          category,
-        });
-        part += 1;
-        currentLines = [formatGroupedProjectLine(project)];
-        continue;
-      }
-
-      currentLines = candidateLines;
-    }
-
-    if (currentLines.length > 0) {
-      groupedChunks.push({
-        chunkText: formatCategoryChunkText(category, part, currentLines, context, artifactId),
-        category,
-      });
-    }
+    const chunkType: "section_summary" | "category_summary" =
+      group.sectionType === "office" ? "section_summary" : "category_summary";
+    summaries.push({
+      chunkType,
+      chunkText,
+      metadata: {
+        chunk_kind: chunkType,
+        section_type: group.sectionType,
+        section_name: sectionName,
+        representative_refs: representativeRefs,
+        top_themes: topThemes,
+        source_pages: pages,
+      },
+      officeName: group.sectionType === "office" ? sectionName : null,
+      sourcePage: pages.length > 0 ? pages[0] : null,
+      themeTags: topThemes,
+      sectorTags,
+    });
   }
 
-  return groupedChunks;
+  return summaries;
 }
 
 export function buildChunkPlan(args: {
@@ -433,59 +875,117 @@ export function buildChunkPlan(args: {
   const projects = extractProjects(args.projectsRaw, args.sectorLabels);
   if (projects.length === 0) return [];
 
+  const scopeName = scopeLabelToName(args.context.scopeLabel);
   const projectChunks = projects.map((project) => {
-    const chunkText = formatProjectChunkText(project, args.context, args.artifactId);
+    const chunkText = formatProjectChunkText(
+      project,
+      args.context,
+      args.aipId,
+      args.artifactId,
+    );
     return {
+      chunkType: "project" as const,
       project,
       chunkText,
-      tokens: estimateTokens(chunkText),
+      metadata: {
+        chunk_kind: "project",
+        project_ref: project.aipRefCode,
+        title: project.description,
+        implementing_agency: project.implementingAgency,
+        office_name: project.officeName,
+        start_date: project.startDate,
+        completion_date: project.completionDate,
+        expected_output: project.expectedOutput,
+        source_of_funds: project.sourceOfFunds,
+        personal_services: project.ps,
+        maintenance_and_other_operating_expenses: project.mooe,
+        capital_outlay: project.co,
+        total: project.total,
+        source_page: project.sourcePage,
+        sector_code: project.sectorCode,
+        sector_label: project.sectorLabel,
+        category: project.category,
+        theme_tags: project.themeTags,
+        sector_tags: project.sectorTags,
+      },
     };
   });
-
-  const inTarget = projectChunks.filter(
-    (chunk) => chunk.tokens >= MIN_TARGET_TOKENS && chunk.tokens <= MAX_TARGET_TOKENS,
-  ).length;
-  const inTargetRatio = projectChunks.length > 0 ? inTarget / projectChunks.length : 0;
-  const useProjectChunks = projectChunks.length <= 3 || inTargetRatio >= 0.6;
 
   const baseMetadata = {
     source: "categorize_artifact",
     artifact_id: args.artifactId,
     artifact_run_id: args.artifactRunId,
     artifact_type: "categorize",
-    fiscal_year: args.context.fiscalYear,
+    fiscal_year: args.context.fiscalYear ?? null,
     scope_type: args.scopeType,
     scope_id: args.scopeId,
+    scope_name: scopeName,
+    aip_id: args.aipId,
+    document_type: args.context.documentType,
+    publication_status: args.context.publicationStatus,
+    ingestion_version: CHUNK_INGESTION_VERSION,
   };
 
-  if (useProjectChunks) {
-    return projectChunks.map((chunk, idx) => ({
-      chunkIndex: idx,
-      chunkText: chunk.chunkText,
-      metadata: {
-        ...baseMetadata,
-        chunk_kind: "project",
-        project_ref: chunk.project.aipRefCode,
-      },
-    }));
-  }
-
-  const grouped = buildGroupedChunks(projects, args.context, args.artifactId);
-  return grouped.map((groupedChunk, idx) => ({
+  const projectPlans: ChunkPlan[] = projectChunks.map((chunk, idx) => ({
     chunkIndex: idx,
-    chunkText: groupedChunk.chunkText,
+    chunkType: "project",
+    chunkText: chunk.chunkText,
     metadata: {
       ...baseMetadata,
-      chunk_kind: "category_group",
+      ...chunk.metadata,
+      chunk_type: "project",
     },
+    ingestionVersion: CHUNK_INGESTION_VERSION,
+    documentType: args.context.documentType,
+    publicationStatus: args.context.publicationStatus,
+    fiscalYear: args.context.fiscalYear ?? null,
+    scopeType: args.scopeType,
+    scopeName,
+    officeName: normalizeOptionalString(chunk.project.officeName),
+    projectRefCode: chunk.project.aipRefCode,
+    sourcePage: chunk.project.sourcePage,
+    themeTags: chunk.project.themeTags,
+    sectorTags: chunk.project.sectorTags,
   }));
+
+  const summaryChunks = buildSummaryChunks(
+    projects,
+    args.context,
+    args.aipId,
+    args.artifactId,
+  );
+  const summaryPlans: ChunkPlan[] = summaryChunks.map((chunk, index) => ({
+    chunkIndex: projectPlans.length + index,
+    chunkType: chunk.chunkType,
+    chunkText: chunk.chunkText,
+    metadata: {
+      ...baseMetadata,
+      ...chunk.metadata,
+      chunk_type: chunk.chunkType,
+    },
+    ingestionVersion: CHUNK_INGESTION_VERSION,
+    documentType: args.context.documentType,
+    publicationStatus: args.context.publicationStatus,
+    fiscalYear: args.context.fiscalYear ?? null,
+    scopeType: args.scopeType,
+    scopeName,
+    officeName: chunk.officeName,
+    projectRefCode: null,
+    sourcePage: chunk.sourcePage,
+    themeTags: chunk.themeTags,
+    sectorTags: chunk.sectorTags,
+  }));
+
+  return [...projectPlans, ...summaryPlans];
 }
 
 function vectorLiteral(values: number[]): string {
   return `[${values.map((value) => Number(value).toString()).join(",")}]`;
 }
 
-async function fetchSectorLabels(supabase: SupabaseClient): Promise<Map<string, string>> {
+async function fetchSectorLabels(
+  supabase: SupabaseClient,
+): Promise<Map<string, string>> {
   const labels = new Map<string, string>();
   const { data, error } = await supabase.from("sectors").select("code,label");
   if (error) {
@@ -527,7 +1027,9 @@ async function createEmbedRun(
     .single();
 
   if (error || !data?.id) {
-    throw new Error(`Failed to create embed run: ${error?.message ?? "missing run id"}`);
+    throw new Error(
+      `Failed to create embed run: ${error?.message ?? "missing run id"}`,
+    );
   }
 
   const runId = normalizeString((data as Record<string, unknown>).id, "");
@@ -587,6 +1089,42 @@ async function markEmbedRunFailed(
   });
 }
 
+async function loadLatestRunningEmbedRun(
+  supabase: SupabaseClient,
+  aipId: string,
+): Promise<EmbedRunRow | null> {
+  const { data, error } = await supabase
+    .from("extraction_runs")
+    .select(
+      "id,status,stage_progress_pct,progress_updated_at,started_at,created_at",
+    )
+    .eq("aip_id", aipId)
+    .eq("stage", "embed")
+    .eq("status", "running")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load running embed run: ${error.message}`);
+  }
+  if (!data) return null;
+  const row = data as Record<string, unknown>;
+  return {
+    id: normalizeString(row.id, ""),
+    status: normalizeString(row.status, ""),
+    stage_progress_pct:
+      typeof row.stage_progress_pct === "number"
+        ? row.stage_progress_pct
+        : null,
+    progress_updated_at:
+      typeof row.progress_updated_at === "string"
+        ? row.progress_updated_at
+        : null,
+    started_at: typeof row.started_at === "string" ? row.started_at : null,
+    created_at: typeof row.created_at === "string" ? row.created_at : null,
+  };
+}
+
 async function resolveAipContext(
   supabase: SupabaseClient,
   aipId: string,
@@ -595,7 +1133,7 @@ async function resolveAipContext(
   const { data, error } = await supabase
     .from("aips")
     .select(
-      "id,fiscal_year,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)",
+      "id,status,fiscal_year,barangay_id,city_id,municipality_id,barangay:barangays!aips_barangay_id_fkey(name),city:cities!aips_city_id_fkey(name),municipality:municipalities!aips_municipality_id_fkey(name)",
     )
     .eq("id", aipId)
     .maybeSingle();
@@ -611,10 +1149,24 @@ async function resolveAipContext(
       : typeof payload.fiscal_year === "number"
         ? payload.fiscal_year
         : null;
+  const documentType = normalizeString(
+    payload.document_type,
+    DEFAULT_DOCUMENT_TYPE,
+  ).toUpperCase();
+  const publicationStatus = normalizeString(
+    row?.status ?? payload.publication_status,
+    DEFAULT_PUBLICATION_STATUS,
+  ).toLowerCase();
 
-  const barangayId = normalizeString(row?.barangay_id ?? payload.barangay_id, "");
+  const barangayId = normalizeString(
+    row?.barangay_id ?? payload.barangay_id,
+    "",
+  );
   const cityId = normalizeString(row?.city_id ?? payload.city_id, "");
-  const municipalityId = normalizeString(row?.municipality_id ?? payload.municipality_id, "");
+  const municipalityId = normalizeString(
+    row?.municipality_id ?? payload.municipality_id,
+    "",
+  );
 
   if (barangayId) {
     const barangayName = normalizeString(
@@ -626,15 +1178,22 @@ async function resolveAipContext(
       scopeType: "barangay",
       scopeId: barangayId,
       scopeLabel: `Barangay: ${barangayName}`,
+      documentType,
+      publicationStatus,
     };
   }
   if (cityId) {
-    const cityName = normalizeString((row?.city as Record<string, unknown> | undefined)?.name, cityId);
+    const cityName = normalizeString(
+      (row?.city as Record<string, unknown> | undefined)?.name,
+      cityId,
+    );
     return {
       fiscalYear,
       scopeType: "city",
       scopeId: cityId,
       scopeLabel: `City: ${cityName}`,
+      documentType,
+      publicationStatus,
     };
   }
   if (municipalityId) {
@@ -647,6 +1206,8 @@ async function resolveAipContext(
       scopeType: "municipality",
       scopeId: municipalityId,
       scopeLabel: `Municipality: ${municipalityName}`,
+      documentType,
+      publicationStatus,
     };
   }
 
@@ -655,6 +1216,8 @@ async function resolveAipContext(
     scopeType: "unknown",
     scopeId: normalizeString(payload.scope_id, "") || null,
     scopeLabel: "Unknown LGU",
+    documentType,
+    publicationStatus,
   };
 }
 
@@ -690,7 +1253,9 @@ async function selectLatestSucceededCategorizeArtifact(
     .limit(50);
 
   if (artifactsError) {
-    throw new Error(`Failed to load categorize artifacts: ${artifactsError.message}`);
+    throw new Error(
+      `Failed to load categorize artifacts: ${artifactsError.message}`,
+    );
   }
 
   if (!artifacts || artifacts.length === 0) return null;
@@ -698,7 +1263,9 @@ async function selectLatestSucceededCategorizeArtifact(
   const runIds = [
     ...new Set(
       artifacts
-        .map((row) => normalizeString((row as Record<string, unknown>).run_id, ""))
+        .map((row) =>
+          normalizeString((row as Record<string, unknown>).run_id, ""),
+        )
         .filter((id) => id.length > 0),
     ),
   ];
@@ -737,38 +1304,36 @@ async function selectLatestSucceededCategorizeArtifact(
   return null;
 }
 
-function isCategorizeArtifactChunk(
-  chunk: ChunkRow,
-  artifactId: string,
-): boolean {
-  const metadata = chunk.metadata;
-  if (!metadata || typeof metadata !== "object") return false;
-  return (
-    (metadata as Record<string, unknown>).source === "categorize_artifact" &&
-    String((metadata as Record<string, unknown>).artifact_id ?? "") === artifactId
-  );
-}
-
 async function loadArtifactChunks(
   supabase: SupabaseClient,
   aipId: string,
   runId: string,
   artifactId: string,
 ): Promise<ChunkRow[]> {
-  const { data, error } = await supabase
-    .from("aip_chunks")
-    .select("id,chunk_index,chunk_text,metadata")
-    .eq("aip_id", aipId)
-    .eq("run_id", runId)
-    .order("chunk_index", { ascending: true });
+  const chunks: ChunkRow[] = [];
+  for (let offset = 0; ; offset += ARTIFACT_CHUNK_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("aip_chunks")
+      .select("id,chunk_index,chunk_text,metadata")
+      .eq("aip_id", aipId)
+      .eq("run_id", runId)
+      .contains("metadata", {
+        source: "categorize_artifact",
+        artifact_id: artifactId,
+      })
+      .order("chunk_index", { ascending: true })
+      .range(offset, offset + ARTIFACT_CHUNK_PAGE_SIZE - 1);
 
-  if (error) {
-    throw new Error(`Failed to load existing chunks: ${error.message}`);
+    if (error) {
+      throw new Error(`Failed to load existing chunks: ${error.message}`);
+    }
+
+    const page = (data ?? []).map((row) => row as ChunkRow);
+    chunks.push(...page);
+    if (page.length < ARTIFACT_CHUNK_PAGE_SIZE) break;
   }
 
-  return (data ?? [])
-    .map((row) => row as ChunkRow)
-    .filter((row) => isCategorizeArtifactChunk(row, artifactId));
+  return chunks;
 }
 
 async function embedTexts(texts: string[]): Promise<number[][]> {
@@ -789,7 +1354,9 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`OpenAI embeddings request failed (${response.status}): ${detail}`);
+    throw new Error(
+      `OpenAI embeddings request failed (${response.status}): ${detail}`,
+    );
   }
 
   const payload = (await response.json()) as {
@@ -811,58 +1378,239 @@ async function embedTexts(texts: string[]): Promise<number[][]> {
   return vectors;
 }
 
-async function insertMissingEmbeddings(
+async function loadMissingArtifactChunkRows(
   supabase: SupabaseClient,
-  aipId: string,
   chunks: ChunkRow[],
-): Promise<number> {
-  if (chunks.length === 0) return 0;
+): Promise<ChunkRow[]> {
+  if (chunks.length === 0) return [];
 
   const chunkIds = chunks.map((chunk) => chunk.id);
-  const { data: existingEmbeddings, error: existingError } = await supabase
-    .from("aip_chunk_embeddings")
-    .select("chunk_id")
-    .in("chunk_id", chunkIds);
-
-  if (existingError) {
-    throw new Error(`Failed to load existing embeddings: ${existingError.message}`);
-  }
-
-  const existingSet = new Set<string>(
-    (existingEmbeddings ?? []).map((row) =>
-      normalizeString((row as Record<string, unknown>).chunk_id, ""),
-    ),
-  );
-
-  const missing = chunks.filter((chunk) => !existingSet.has(chunk.id));
-  if (missing.length === 0) return 0;
-
-  const batchSize = 16;
-  let inserted = 0;
-  for (let start = 0; start < missing.length; start += batchSize) {
-    const slice = missing.slice(start, start + batchSize);
-    const vectors = await embedTexts(slice.map((row) => row.chunk_text));
-    const rows = slice.map((chunk, index) => ({
-      chunk_id: chunk.id,
-      aip_id: aipId,
-      embedding: vectorLiteral(vectors[index]),
-      embedding_model: EMBEDDING_MODEL,
-    }));
-
-    const { error: insertError } = await supabase
+  const existingSet = new Set<string>();
+  for (
+    let start = 0;
+    start < chunkIds.length;
+    start += EMBEDDING_EXISTENCE_LOOKUP_BATCH_SIZE
+  ) {
+    const slice = chunkIds.slice(
+      start,
+      start + EMBEDDING_EXISTENCE_LOOKUP_BATCH_SIZE,
+    );
+    const { data: existingEmbeddings, error: existingError } = await supabase
       .from("aip_chunk_embeddings")
-      .upsert(rows, {
-        onConflict: "chunk_id",
-        ignoreDuplicates: true,
-      });
+      .select("chunk_id")
+      .in("chunk_id", slice);
 
-    if (insertError) {
-      throw new Error(`Failed to insert chunk embeddings: ${insertError.message}`);
+    if (existingError) {
+      throw new Error(
+        `Failed to load existing embeddings: ${existingError.message}`,
+      );
     }
-    inserted += rows.length;
+
+    for (const row of existingEmbeddings ?? []) {
+      const chunkId = normalizeString(
+        (row as Record<string, unknown>).chunk_id,
+        "",
+      );
+      if (chunkId) existingSet.add(chunkId);
+    }
   }
 
-  return inserted;
+  return chunks.filter((chunk) => !existingSet.has(chunk.id));
+}
+
+async function insertEmbeddingRows(
+  supabase: SupabaseClient,
+  aipId: string,
+  chunkSlice: ChunkRow[],
+): Promise<number> {
+  if (chunkSlice.length === 0) return 0;
+  const vectors = await embedTexts(chunkSlice.map((row) => row.chunk_text));
+  const rows = chunkSlice.map((chunk, index) => ({
+    chunk_id: chunk.id,
+    aip_id: aipId,
+    embedding: vectorLiteral(vectors[index]),
+    embedding_model: EMBEDDING_MODEL,
+  }));
+
+  const { error: insertError } = await supabase
+    .from("aip_chunk_embeddings")
+    .upsert(rows, {
+      onConflict: "chunk_id",
+      ignoreDuplicates: true,
+    });
+
+  if (insertError) {
+    throw new Error(
+      `Failed to insert chunk embeddings: ${insertError.message}`,
+    );
+  }
+  return rows.length;
+}
+
+async function processEmbedWindow(params: {
+  supabase: SupabaseClient;
+  aipId: string;
+  missingChunks: ChunkRow[];
+  batchSize: number;
+  maxBatchesPerInvocation: number;
+  heartbeatEveryBatches: number;
+  onHeartbeat?: (payload: EmbedHeartbeatPayload) => Promise<void>;
+}): Promise<EmbedWindowResult> {
+  const safeBatchSize = toFiniteInteger(
+    params.batchSize,
+    DEFAULT_EMBED_BATCH_SIZE,
+  );
+  const safeMaxBatches = toFiniteInteger(
+    params.maxBatchesPerInvocation,
+    DEFAULT_MAX_BATCHES_PER_INVOCATION,
+  );
+  const safeHeartbeatEvery = toFiniteInteger(
+    params.heartbeatEveryBatches,
+    DEFAULT_HEARTBEAT_EVERY_BATCHES,
+  );
+  const totalMissing = params.missingChunks.length;
+  const windowSize = computeEmbeddingWindowSize(
+    totalMissing,
+    safeBatchSize,
+    safeMaxBatches,
+  );
+  const window = params.missingChunks.slice(0, windowSize);
+  const totalBatches =
+    window.length === 0 ? 0 : Math.ceil(window.length / safeBatchSize);
+
+  let inserted = 0;
+  let processed = 0;
+  let batchesProcessed = 0;
+  for (let start = 0; start < window.length; start += safeBatchSize) {
+    const slice = window.slice(start, start + safeBatchSize);
+    inserted += await insertEmbeddingRows(params.supabase, params.aipId, slice);
+    processed += slice.length;
+    batchesProcessed += 1;
+    const shouldHeartbeat =
+      batchesProcessed % safeHeartbeatEvery === 0 ||
+      batchesProcessed === totalBatches;
+    if (shouldHeartbeat && params.onHeartbeat) {
+      await params.onHeartbeat({
+        processed,
+        totalMissing,
+        remaining: Math.max(0, totalMissing - processed),
+        batchNo: batchesProcessed,
+        totalBatches,
+      });
+    }
+  }
+
+  return {
+    inserted,
+    processed,
+    totalMissing,
+    remaining: Math.max(0, totalMissing - processed),
+    batchesProcessed,
+    totalBatches,
+  };
+}
+
+async function dispatchEmbedContinuation(
+  supabase: SupabaseClient,
+  aipId: string,
+): Promise<unknown> {
+  const { data, error } = await supabase.rpc(
+    "dispatch_embed_categorize_for_aip",
+    {
+      p_aip_id: aipId,
+    },
+  );
+  if (error) {
+    throw new Error(`Failed to dispatch embed continuation: ${error.message}`);
+  }
+  if (data === null) {
+    throw new Error(
+      "Failed to dispatch embed continuation: dispatch returned null.",
+    );
+  }
+  return data;
+}
+
+async function reconcileStaleEmbedRun(params: {
+  supabase: SupabaseClient;
+  aipId: string;
+  staleRunId: string;
+}): Promise<{
+  recoveredAsSucceeded: boolean;
+  artifactId: string | null;
+  artifactRunId: string | null;
+  missingEmbeddings: number;
+}> {
+  const artifact = await selectLatestSucceededCategorizeArtifact(
+    params.supabase,
+    params.aipId,
+  );
+  const artifactId = artifact ? normalizeString(artifact.id, "") : "";
+  const artifactRunId = artifact ? normalizeString(artifact.run_id, "") : "";
+
+  if (!artifact || !artifactId || !artifactRunId) {
+    await markEmbedRunFailed(
+      params.supabase,
+      params.staleRunId,
+      "Stale embed run recovered: no valid categorize artifact available for reconciliation.",
+    );
+    return {
+      recoveredAsSucceeded: false,
+      artifactId: artifactId || null,
+      artifactRunId: artifactRunId || null,
+      missingEmbeddings: 0,
+    };
+  }
+
+  const chunkRows = await loadArtifactChunks(
+    params.supabase,
+    params.aipId,
+    artifactRunId,
+    artifactId,
+  );
+  if (chunkRows.length === 0) {
+    await markEmbedRunFailed(
+      params.supabase,
+      params.staleRunId,
+      "Stale embed run recovered: no artifact chunks available for reconciliation.",
+    );
+    return {
+      recoveredAsSucceeded: false,
+      artifactId,
+      artifactRunId,
+      missingEmbeddings: 0,
+    };
+  }
+
+  const missing = await loadMissingArtifactChunkRows(
+    params.supabase,
+    chunkRows,
+  );
+  if (missing.length === 0) {
+    await markEmbedRunSucceeded(
+      params.supabase,
+      params.staleRunId,
+      "Search indexing complete (stale run recovered).",
+    );
+    return {
+      recoveredAsSucceeded: true,
+      artifactId,
+      artifactRunId,
+      missingEmbeddings: 0,
+    };
+  }
+
+  await markEmbedRunFailed(
+    params.supabase,
+    params.staleRunId,
+    `Stale embed run recovered with ${missing.length} embeddings remaining; run closed for retry.`,
+  );
+  return {
+    recoveredAsSucceeded: false,
+    artifactId,
+    artifactRunId,
+    missingEmbeddings: missing.length,
+  };
 }
 
 export async function handleRequest(request: Request): Promise<Response> {
@@ -871,11 +1619,37 @@ export async function handleRequest(request: Request): Promise<Response> {
   }
 
   const startedAtMs = Date.now();
-  const nonceTtlMs = readIntEnv("EMBED_CATEGORIZE_NONCE_TTL_SECONDS", DEFAULT_NONCE_TTL_SECONDS) * 1000;
-  const dedupeTtlMs = readIntEnv("EMBED_CATEGORIZE_DEDUPE_TTL_SECONDS", DEFAULT_DEDUPE_TTL_SECONDS) * 1000;
+  const nonceTtlMs =
+    readIntEnv(
+      "EMBED_CATEGORIZE_NONCE_TTL_SECONDS",
+      DEFAULT_NONCE_TTL_SECONDS,
+    ) * 1000;
+  const dedupeTtlMs =
+    readIntEnv(
+      "EMBED_CATEGORIZE_DEDUPE_TTL_SECONDS",
+      DEFAULT_DEDUPE_TTL_SECONDS,
+    ) * 1000;
+  const staleSeconds = readIntEnv(
+    "EMBED_CATEGORIZE_STALE_SECONDS",
+    DEFAULT_STALE_SECONDS,
+  );
+  const embedBatchSize = readIntEnv(
+    "EMBED_CATEGORIZE_EMBED_BATCH_SIZE",
+    DEFAULT_EMBED_BATCH_SIZE,
+  );
+  const maxBatchesPerInvocation = readIntEnv(
+    "EMBED_CATEGORIZE_MAX_BATCHES_PER_INVOCATION",
+    DEFAULT_MAX_BATCHES_PER_INVOCATION,
+  );
+  const heartbeatEveryBatches = readIntEnv(
+    "EMBED_CATEGORIZE_HEARTBEAT_EVERY_BATCHES",
+    DEFAULT_HEARTBEAT_EVERY_BATCHES,
+  );
   const audience =
-    normalizeString(Deno.env.get("EMBED_CATEGORIZE_JOB_AUDIENCE"), DEFAULT_JOB_AUDIENCE) ||
-    DEFAULT_JOB_AUDIENCE;
+    normalizeString(
+      Deno.env.get("EMBED_CATEGORIZE_JOB_AUDIENCE"),
+      DEFAULT_JOB_AUDIENCE,
+    ) || DEFAULT_JOB_AUDIENCE;
   const expectedSecret = Deno.env.get("EMBED_CATEGORIZE_JOB_SECRET") ?? "";
 
   let payload: PublishPayload;
@@ -885,7 +1659,10 @@ export async function handleRequest(request: Request): Promise<Response> {
   let aipId = "";
   let jobKey: string | null = null;
 
-  const logWithContext = (event: string, payloadFields: Record<string, unknown>): void => {
+  const logWithContext = (
+    event: string,
+    payloadFields: Record<string, unknown>,
+  ): void => {
     logEvent(event, {
       request_id: requestId,
       artifact_id: loggedArtifactId ?? requestArtifactId,
@@ -896,11 +1673,16 @@ export async function handleRequest(request: Request): Promise<Response> {
   const rawBody = await request.text();
   const ts = normalizeString(request.headers.get("x-job-ts"), "");
   const nonce = normalizeString(request.headers.get("x-job-nonce"), "");
-  const providedSigHex = normalizeString(request.headers.get("x-job-sig"), "").toLowerCase();
+  const providedSigHex = normalizeString(
+    request.headers.get("x-job-sig"),
+    "",
+  ).toLowerCase();
 
   if (!expectedSecret || !ts || !nonce || !providedSigHex) {
     logWithContext("embed_categorize.auth.failed", {
-      reason: !expectedSecret ? "missing_server_secret_or_header" : "missing_header",
+      reason: !expectedSecret
+        ? "missing_server_secret_or_header"
+        : "missing_header",
       elapsed_ms: elapsedMs(startedAtMs),
     });
     return json(401, { error: "Unauthorized." });
@@ -971,12 +1753,16 @@ export async function handleRequest(request: Request): Promise<Response> {
     return json(400, { error: "Missing required field: aip_id." });
   }
   if (!requestId && !requestArtifactId) {
-    return json(400, { error: "Missing required field: request_id or artifact_id." });
+    return json(400, {
+      error: "Missing required field: request_id or artifact_id.",
+    });
   }
 
   jobKey = resolveJobKey(payload);
   if (!jobKey) {
-    return json(400, { error: "Missing required field: request_id or artifact_id." });
+    return json(400, {
+      error: "Missing required field: request_id or artifact_id.",
+    });
   }
 
   const idempotentResponseBase = {
@@ -1032,6 +1818,7 @@ export async function handleRequest(request: Request): Promise<Response> {
   let embedRunId: string | null = null;
   let artifactId: string | null = null;
   let artifactRunId: string | null = null;
+  let runProgressFloor = 1;
 
   logWithContext("embed_categorize.request.received", {
     aip_id: aipId,
@@ -1046,23 +1833,97 @@ export async function handleRequest(request: Request): Promise<Response> {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    embedRunId = await createEmbedRun(supabase, aipId);
-    logWithContext("embed_categorize.run.created", {
-      aip_id: aipId,
-      embed_run_id: embedRunId,
-      elapsed_ms: elapsedMs(startedAtMs),
-    });
+    let activeRun = await loadLatestRunningEmbedRun(supabase, aipId);
+    if (activeRun?.id) {
+      if (isEmbedRunStale(activeRun, Date.now(), staleSeconds)) {
+        logWithContext("embed_categorize.stale_run.detected", {
+          aip_id: aipId,
+          stale_run_id: activeRun.id,
+          stale_seconds: staleSeconds,
+          elapsed_ms: elapsedMs(startedAtMs),
+        });
+        const recovery = await reconcileStaleEmbedRun({
+          supabase,
+          aipId,
+          staleRunId: activeRun.id,
+        });
+        logWithContext("embed_categorize.stale_run.reconciled", {
+          aip_id: aipId,
+          stale_run_id: activeRun.id,
+          recovered_as_succeeded: recovery.recoveredAsSucceeded,
+          missing_embeddings: recovery.missingEmbeddings,
+          artifact_id: recovery.artifactId,
+          artifact_run_id: recovery.artifactRunId,
+          elapsed_ms: elapsedMs(startedAtMs),
+        });
+        if (recovery.recoveredAsSucceeded) {
+          const responseBody = {
+            ok: true,
+            aip_id: aipId,
+            artifact_id: recovery.artifactId ?? requestArtifactId,
+            request_id: requestId,
+            run_id: activeRun.id,
+            recovered_stale_run: true,
+            message: "Search indexing complete (stale run recovered).",
+            continuation_queued: false,
+            remaining_embeddings: 0,
+          };
+          cacheJobResult(responseBody);
+          return json(200, responseBody);
+        }
+        activeRun = await loadLatestRunningEmbedRun(supabase, aipId);
+      }
+      if (activeRun?.id) {
+        embedRunId = activeRun.id;
+        runProgressFloor = clamp(activeRun.stage_progress_pct ?? 1, 1, 99);
+        logWithContext("embed_categorize.run.reused", {
+          aip_id: aipId,
+          embed_run_id: embedRunId,
+          stage_progress_pct: activeRun.stage_progress_pct,
+          elapsed_ms: elapsedMs(startedAtMs),
+        });
+      }
+    }
 
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 10,
-      stage_progress_pct: 10,
-      progress_message: "Loading latest categorize artifact.",
-      progress_updated_at: nowIso(),
-    });
+    if (!embedRunId) {
+      embedRunId = await createEmbedRun(supabase, aipId);
+      runProgressFloor = 1;
+      logWithContext("embed_categorize.run.created", {
+        aip_id: aipId,
+        embed_run_id: embedRunId,
+        elapsed_ms: elapsedMs(startedAtMs),
+      });
+    }
 
-    const artifact = await selectLatestSucceededCategorizeArtifact(supabase, aipId);
+    const patchRunProgress = async (
+      requestedPct: number,
+      message: string,
+    ): Promise<void> => {
+      if (!supabase || !embedRunId) return;
+      runProgressFloor = Math.max(
+        runProgressFloor,
+        clamp(Math.round(requestedPct), 0, 99),
+      );
+      await patchEmbedRun(supabase, embedRunId, {
+        overall_progress_pct: runProgressFloor,
+        stage_progress_pct: runProgressFloor,
+        progress_message: message,
+        progress_updated_at: nowIso(),
+      });
+    };
+
+    await patchRunProgress(10, "Loading latest categorize artifact.");
+
+    const artifact = await selectLatestSucceededCategorizeArtifact(
+      supabase,
+      aipId,
+    );
     if (!artifact) {
-      await markEmbedRunSucceeded(supabase, embedRunId, SKIP_NO_ARTIFACT_MESSAGE);
+      await markEmbedRunSucceeded(
+        supabase,
+        embedRunId,
+        SKIP_NO_ARTIFACT_MESSAGE,
+      );
       logWithContext("embed_categorize.skipped.no_artifact", {
         aip_id: aipId,
         embed_run_id: embedRunId,
@@ -1083,7 +1944,11 @@ export async function handleRequest(request: Request): Promise<Response> {
     artifactRunId = normalizeString(artifact.run_id, "");
     if (artifactId) loggedArtifactId = artifactId;
     if (!artifactId || !artifactRunId) {
-      await markEmbedRunSucceeded(supabase, embedRunId, SKIP_NO_ARTIFACT_MESSAGE);
+      await markEmbedRunSucceeded(
+        supabase,
+        embedRunId,
+        SKIP_NO_ARTIFACT_MESSAGE,
+      );
       logWithContext("embed_categorize.skipped.invalid_artifact_identity", {
         aip_id: aipId,
         embed_run_id: embedRunId,
@@ -1100,12 +1965,7 @@ export async function handleRequest(request: Request): Promise<Response> {
       return json(202, responseBody);
     }
 
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 20,
-      stage_progress_pct: 20,
-      progress_message: "Categorize artifact selected.",
-      progress_updated_at: nowIso(),
-    });
+    await patchRunProgress(20, "Categorize artifact selected.");
     logWithContext("embed_categorize.artifact.selected", {
       aip_id: aipId,
       embed_run_id: embedRunId,
@@ -1115,9 +1975,15 @@ export async function handleRequest(request: Request): Promise<Response> {
     });
 
     const artifactJson = artifact.artifact_json as Record<string, unknown>;
-    const projectsRaw = Array.isArray(artifactJson.projects) ? artifactJson.projects : [];
+    const projectsRaw = Array.isArray(artifactJson.projects)
+      ? artifactJson.projects
+      : [];
     if (projectsRaw.length === 0) {
-      await markEmbedRunSucceeded(supabase, embedRunId, SKIP_NO_ARTIFACT_MESSAGE);
+      await markEmbedRunSucceeded(
+        supabase,
+        embedRunId,
+        SKIP_NO_ARTIFACT_MESSAGE,
+      );
       logWithContext("embed_categorize.skipped.empty_projects", {
         aip_id: aipId,
         embed_run_id: embedRunId,
@@ -1136,134 +2002,221 @@ export async function handleRequest(request: Request): Promise<Response> {
       return json(202, responseBody);
     }
 
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 30,
-      stage_progress_pct: 30,
-      progress_message: "Preparing chunk metadata and context.",
-      progress_updated_at: nowIso(),
-    });
+    await patchRunProgress(30, "Preparing chunk metadata and context.");
 
     const sectorLabels = await fetchSectorLabels(supabase);
     const context = await resolveAipContext(supabase, aipId, payload);
     const uploadedFileId = await resolveCurrentUploadedFileId(supabase, aipId);
 
-    const existingBefore = await loadArtifactChunks(supabase, aipId, artifactRunId, artifactId);
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 45,
-      stage_progress_pct: 45,
-      progress_message: "Building retrieval chunk plan.",
-      progress_updated_at: nowIso(),
-    });
-    const chunkPlan = buildChunkPlan({
-      projectsRaw,
-      context,
-      artifactId,
-      artifactRunId,
+    await patchRunProgress(45, "Building retrieval chunk plan.");
+    let chunkRows = await loadArtifactChunks(
+      supabase,
       aipId,
-      scopeType: context.scopeType,
-      scopeId: context.scopeId,
-      sectorLabels,
-    });
+      artifactRunId,
+      artifactId,
+    );
+    let chunksNew = 0;
+    if (chunkRows.length === 0) {
+      const chunkPlan = buildChunkPlan({
+        projectsRaw,
+        context,
+        artifactId,
+        artifactRunId,
+        aipId,
+        scopeType: context.scopeType,
+        scopeId: context.scopeId,
+        sectorLabels,
+      });
+      if (chunkPlan.length === 0) {
+        await markEmbedRunSucceeded(
+          supabase,
+          embedRunId,
+          SKIP_NO_ARTIFACT_MESSAGE,
+        );
+        logWithContext("embed_categorize.skipped.empty_chunk_plan", {
+          aip_id: aipId,
+          embed_run_id: embedRunId,
+          artifact_id: artifactId,
+          artifact_run_id: artifactRunId,
+          elapsed_ms: elapsedMs(startedAtMs),
+        });
+        const responseBody = {
+          message: SKIP_NO_ARTIFACT_MESSAGE,
+          aip_id: aipId,
+          run_id: embedRunId,
+          request_id: requestId,
+          artifact_id: artifactId,
+        };
+        cacheJobResult(responseBody);
+        return json(202, responseBody);
+      }
 
-    if (chunkPlan.length === 0) {
-      await markEmbedRunSucceeded(supabase, embedRunId, SKIP_NO_ARTIFACT_MESSAGE);
-      logWithContext("embed_categorize.skipped.empty_chunk_plan", {
+      logWithContext("embed_categorize.chunks.planned", {
         aip_id: aipId,
         embed_run_id: embedRunId,
         artifact_id: artifactId,
         artifact_run_id: artifactRunId,
+        chunks_planned: chunkPlan.length,
         elapsed_ms: elapsedMs(startedAtMs),
       });
-      const responseBody = {
-        message: SKIP_NO_ARTIFACT_MESSAGE,
+
+      const rows = chunkPlan.map((chunk) => ({
         aip_id: aipId,
-        run_id: embedRunId,
-        request_id: requestId,
+        uploaded_file_id: uploadedFileId,
+        run_id: artifactRunId,
+        chunk_index: chunk.chunkIndex,
+        chunk_text: chunk.chunkText,
+        metadata: chunk.metadata,
+        chunk_type: chunk.chunkType,
+        ingestion_version: chunk.ingestionVersion,
+        document_type: chunk.documentType,
+        publication_status: chunk.publicationStatus,
+        fiscal_year: chunk.fiscalYear,
+        scope_type: chunk.scopeType,
+        scope_name: chunk.scopeName,
+        office_name: chunk.officeName,
+        project_ref_code: chunk.projectRefCode,
+        source_page: chunk.sourcePage,
+        theme_tags: chunk.themeTags,
+        sector_tags: chunk.sectorTags,
+      }));
+
+      await patchRunProgress(60, "Writing chunk rows.");
+      const { error: chunkUpsertError } = await supabase
+        .from("aip_chunks")
+        .upsert(rows, {
+          onConflict: "aip_id,run_id,chunk_index",
+          ignoreDuplicates: false,
+        });
+      if (chunkUpsertError) {
+        throw new Error(
+          `Failed to upsert aip chunks: ${chunkUpsertError.message}`,
+        );
+      }
+      chunksNew = rows.length;
+      logWithContext("embed_categorize.chunks.upserted", {
+        aip_id: aipId,
+        embed_run_id: embedRunId,
         artifact_id: artifactId,
-      };
-      cacheJobResult(responseBody);
-      return json(202, responseBody);
+        artifact_run_id: artifactRunId,
+        rows_attempted: rows.length,
+        elapsed_ms: elapsedMs(startedAtMs),
+      });
+      chunkRows = await loadArtifactChunks(
+        supabase,
+        aipId,
+        artifactRunId,
+        artifactId,
+      );
+    } else {
+      logWithContext("embed_categorize.chunks.reused", {
+        aip_id: aipId,
+        embed_run_id: embedRunId,
+        artifact_id: artifactId,
+        artifact_run_id: artifactRunId,
+        existing_rows: chunkRows.length,
+        elapsed_ms: elapsedMs(startedAtMs),
+      });
     }
 
-    logWithContext("embed_categorize.chunks.planned", {
-      aip_id: aipId,
-      embed_run_id: embedRunId,
-      artifact_id: artifactId,
-      artifact_run_id: artifactRunId,
-      chunks_planned: chunkPlan.length,
-      elapsed_ms: elapsedMs(startedAtMs),
-    });
-
-    const rows = chunkPlan.map((chunk) => ({
-      aip_id: aipId,
-      uploaded_file_id: uploadedFileId,
-      run_id: artifactRunId,
-      chunk_index: chunk.chunkIndex,
-      chunk_text: chunk.chunkText,
-      metadata: chunk.metadata,
-    }));
-
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 60,
-      stage_progress_pct: 60,
-      progress_message: "Writing chunk rows.",
-      progress_updated_at: nowIso(),
-    });
-    const { error: chunkUpsertError } = await supabase.from("aip_chunks").upsert(rows, {
-      onConflict: "aip_id,run_id,chunk_index",
-      ignoreDuplicates: true,
-    });
-    if (chunkUpsertError) {
-      throw new Error(`Failed to upsert aip chunks: ${chunkUpsertError.message}`);
-    }
-    logWithContext("embed_categorize.chunks.upserted", {
-      aip_id: aipId,
-      embed_run_id: embedRunId,
-      artifact_id: artifactId,
-      artifact_run_id: artifactRunId,
-      rows_attempted: rows.length,
-      elapsed_ms: elapsedMs(startedAtMs),
-    });
-
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 75,
-      stage_progress_pct: 75,
-      progress_message: "Loading chunks for embedding.",
-      progress_updated_at: nowIso(),
-    });
-    const chunkRows = await loadArtifactChunks(supabase, aipId, artifactRunId, artifactId);
+    await patchRunProgress(75, "Loading chunks for embedding.");
     if (chunkRows.length === 0) {
       throw new Error(
         "Chunk upsert completed but no categorize_artifact chunks were readable for the selected artifact.",
       );
     }
 
-    await patchEmbedRun(supabase, embedRunId, {
-      overall_progress_pct: 85,
-      stage_progress_pct: 85,
-      progress_message: "Computing embeddings.",
-      progress_updated_at: nowIso(),
+    const missingRows = await loadMissingArtifactChunkRows(supabase, chunkRows);
+    await patchRunProgress(
+      85,
+      `Computing embeddings 0/${missingRows.length} (batch 0/0), remaining ${missingRows.length}.`,
+    );
+    const embedWindow = await processEmbedWindow({
+      supabase,
+      aipId,
+      missingChunks: missingRows,
+      batchSize: embedBatchSize,
+      maxBatchesPerInvocation,
+      heartbeatEveryBatches,
+      onHeartbeat: async (heartbeat) => {
+        await patchRunProgress(
+          computeEmbedStageProgressPct(
+            heartbeat.processed,
+            heartbeat.totalMissing,
+          ),
+          "Computing embeddings " +
+            `${heartbeat.processed}/${heartbeat.totalMissing} ` +
+            `(batch ${heartbeat.batchNo}/${heartbeat.totalBatches}), ` +
+            `remaining ${heartbeat.remaining}.`,
+        );
+      },
     });
-    const embeddingsNew = await insertMissingEmbeddings(supabase, aipId, chunkRows);
+
     logWithContext("embed_categorize.embeddings.inserted", {
       aip_id: aipId,
       embed_run_id: embedRunId,
       artifact_id: artifactId,
       artifact_run_id: artifactRunId,
       chunks_total: chunkRows.length,
-      embeddings_new: embeddingsNew,
+      missing_before: missingRows.length,
+      embeddings_new: embedWindow.inserted,
+      processed: embedWindow.processed,
+      remaining: embedWindow.remaining,
+      batches_processed: embedWindow.batchesProcessed,
+      total_batches: embedWindow.totalBatches,
       elapsed_ms: elapsedMs(startedAtMs),
     });
 
-    await markEmbedRunSucceeded(supabase, embedRunId, "Search indexing complete.");
+    if (shouldQueueEmbedContinuation(embedWindow.remaining)) {
+      const continuationRequestId = await dispatchEmbedContinuation(
+        supabase,
+        aipId,
+      );
+      await patchRunProgress(
+        computeEmbedStageProgressPct(
+          embedWindow.processed,
+          embedWindow.totalMissing,
+        ),
+        `Queued continuation. processed ${embedWindow.processed}/${embedWindow.totalMissing}, remaining ${embedWindow.remaining}.`,
+      );
+      logWithContext("embed_categorize.continuation.queued", {
+        aip_id: aipId,
+        embed_run_id: embedRunId,
+        artifact_id: artifactId,
+        artifact_run_id: artifactRunId,
+        continuation_request_id: continuationRequestId,
+        remaining_embeddings: embedWindow.remaining,
+        elapsed_ms: elapsedMs(startedAtMs),
+      });
+      return json(202, {
+        ok: true,
+        aip_id: aipId,
+        artifact_id: artifactId,
+        request_id: requestId,
+        run_id: embedRunId,
+        chunks_total: chunkRows.length,
+        chunks_new: chunksNew,
+        embeddings_new: embedWindow.inserted,
+        continuation_queued: true,
+        continuation_request_id: continuationRequestId,
+        remaining_embeddings: embedWindow.remaining,
+      });
+    }
+
+    await markEmbedRunSucceeded(
+      supabase,
+      embedRunId,
+      "Search indexing complete.",
+    );
     logWithContext("embed_categorize.completed", {
       aip_id: aipId,
       embed_run_id: embedRunId,
       artifact_id: artifactId,
       artifact_run_id: artifactRunId,
       chunks_total: chunkRows.length,
-      chunks_new: Math.max(0, chunkRows.length - existingBefore.length),
-      embeddings_new: embeddingsNew,
+      chunks_new: chunksNew,
+      embeddings_new: embedWindow.inserted,
+      remaining_embeddings: 0,
       elapsed_ms: elapsedMs(startedAtMs),
     });
 
@@ -1274,8 +2227,10 @@ export async function handleRequest(request: Request): Promise<Response> {
       request_id: requestId,
       run_id: embedRunId,
       chunks_total: chunkRows.length,
-      chunks_new: Math.max(0, chunkRows.length - existingBefore.length),
-      embeddings_new: embeddingsNew,
+      chunks_new: chunksNew,
+      embeddings_new: embedWindow.inserted,
+      continuation_queued: false,
+      remaining_embeddings: 0,
     };
     cacheJobResult(responseBody);
     return json(200, responseBody);

@@ -467,8 +467,8 @@ vercel --prod
         <span class="hljs-attr">value:</span> <span class="hljs-string">&quot;200&quot;</span>
       <span class="hljs-bullet">-</span> <span class="hljs-attr">key:</span> <span class="hljs-string">PIPELINE_PARSE_TIMEOUT_SECONDS</span>
         <span class="hljs-attr">value:</span> <span class="hljs-string">&quot;20&quot;</span>
-      <span class="hljs-bullet">-</span> <span class="hljs-attr">key:</span> <span class="hljs-string">PIPELINE_EXTRACT_TIMEOUT_SECONDS</span>
-        <span class="hljs-attr">value:</span> <span class="hljs-string">&quot;1800&quot;</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">key:</span> <span class="hljs-string">PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS</span>
+        <span class="hljs-attr">value:</span> <span class="hljs-string">&quot;300&quot;</span>
       <span class="hljs-bullet">-</span> <span class="hljs-attr">key:</span> <span class="hljs-string">PIPELINE_EMBED_TIMEOUT_SECONDS</span>
         <span class="hljs-attr">value:</span> <span class="hljs-string">&quot;300&quot;</span>
       <span class="hljs-bullet">-</span> <span class="hljs-attr">key:</span> <span class="hljs-string">PIPELINE_RETRY_FAILURE_THRESHOLD</span>
@@ -504,13 +504,17 @@ vercel --prod
 <ul>
 <li><code>PIPELINE_EXTRACT_MAX_PAGES</code></li>
 <li><code>PIPELINE_PARSE_TIMEOUT_SECONDS</code></li>
-<li><code>PIPELINE_EXTRACT_TIMEOUT_SECONDS</code></li>
+<li><code>PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS</code></li>
 <li><code>PIPELINE_EMBED_TIMEOUT_SECONDS</code></li>
 <li><code>PIPELINE_RETRY_FAILURE_THRESHOLD</code></li>
 <li><code>PIPELINE_RETRY_FAILURE_WINDOW_SECONDS</code></li>
 <li><code>PIPELINE_SUPABASE_HTTP_TIMEOUT_SECONDS</code></li>
 <li><code>PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS</code></li>
 <li><code>PIPELINE_SOURCE_PDF_MAX_BYTES</code></li>
+</ul>
+<p>Legacy fallback (optional):</p>
+<ul>
+<li><code>PIPELINE_EXTRACT_TIMEOUT_SECONDS</code> (used only when <code>PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS</code> is unset)</li>
 </ul>
 <h2 id="6-integrate-vercel--render">6) Integrate Vercel + Render</h2>
 <h3 id="61-wire-api-url">6.1 Wire API URL</h3>

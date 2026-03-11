@@ -235,15 +235,15 @@ export default function AddLguModal({
                 setParentId("");
               }}
             >
-              <SelectTrigger className="h-11 w-full">
+              <SelectTrigger data-testid="admin-add-lgu-type-trigger" className="h-11 w-full">
                 <SelectValue placeholder="Select LGU Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="region">Region</SelectItem>
-                <SelectItem value="province">Province</SelectItem>
-                <SelectItem value="city">City</SelectItem>
-                <SelectItem value="municipality">Municipality</SelectItem>
-                <SelectItem value="barangay">Barangay</SelectItem>
+                <SelectItem value="region" data-testid="admin-add-lgu-type-option-region">Region</SelectItem>
+                <SelectItem value="province" data-testid="admin-add-lgu-type-option-province">Province</SelectItem>
+                <SelectItem value="city" data-testid="admin-add-lgu-type-option-city">City</SelectItem>
+                <SelectItem value="municipality" data-testid="admin-add-lgu-type-option-municipality">Municipality</SelectItem>
+                <SelectItem value="barangay" data-testid="admin-add-lgu-type-option-barangay">Barangay</SelectItem>
               </SelectContent>
             </Select>
             {errors.type ? <div className="text-xs text-rose-600">{errors.type}</div> : null}
@@ -254,6 +254,7 @@ export default function AddLguModal({
               LGU Name <span className="text-rose-600">*</span>
             </Label>
             <Input
+              data-testid="admin-add-lgu-name"
               className="h-11"
               placeholder="Enter LGU name"
               value={name}
@@ -267,6 +268,7 @@ export default function AddLguModal({
               PSGC Code <span className="text-rose-600">*</span>
             </Label>
             <Input
+              data-testid="admin-add-lgu-code"
               className="h-11"
               placeholder={
                 selectedType
@@ -294,7 +296,7 @@ export default function AddLguModal({
                   if (type === "barangay") setParentId("");
                 }}
               >
-                <SelectTrigger className="h-11 w-full">
+                <SelectTrigger data-testid="admin-add-lgu-region-trigger" className="h-11 w-full">
                   <SelectValue
                     placeholder={
                       type === "barangay"
@@ -308,7 +310,11 @@ export default function AddLguModal({
                     <SelectItem value="all">All regions</SelectItem>
                   ) : null}
                   {regions.map((row) => (
-                    <SelectItem key={row.id} value={row.id}>
+                    <SelectItem
+                      key={row.id}
+                      value={row.id}
+                      data-testid={`admin-add-lgu-region-option-${row.id}`}
+                    >
                       {row.name}
                     </SelectItem>
                   ))}
@@ -337,7 +343,7 @@ export default function AddLguModal({
                 }}
                 disabled={type === "city" && ncrSelected}
               >
-                <SelectTrigger className="h-11 w-full">
+                <SelectTrigger data-testid="admin-add-lgu-province-trigger" className="h-11 w-full">
                   <SelectValue
                     placeholder={
                       type === "barangay"
@@ -353,7 +359,11 @@ export default function AddLguModal({
                     <SelectItem value="all">All provinces</SelectItem>
                   ) : null}
                   {filteredProvinces.map((row) => (
-                    <SelectItem key={row.id} value={row.id}>
+                    <SelectItem
+                      key={row.id}
+                      value={row.id}
+                      data-testid={`admin-add-lgu-province-option-${row.id}`}
+                    >
                       {row.name}
                     </SelectItem>
                   ))}
@@ -383,12 +393,17 @@ export default function AddLguModal({
                     setParentId("");
                   }}
                 >
-                  <SelectTrigger className="h-11 w-full">
+                  <SelectTrigger data-testid="admin-add-lgu-parent-type-trigger" className="h-11 w-full">
                     <SelectValue placeholder="Select parent type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="city">City</SelectItem>
-                    <SelectItem value="municipality">Municipality</SelectItem>
+                    <SelectItem value="city" data-testid="admin-add-lgu-parent-type-option-city">City</SelectItem>
+                    <SelectItem
+                      value="municipality"
+                      data-testid="admin-add-lgu-parent-type-option-municipality"
+                    >
+                      Municipality
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.parentType ? (
@@ -400,13 +415,17 @@ export default function AddLguModal({
                 <Label>
                   Parent LGU <span className="text-rose-600">*</span>
                 </Label>
-                <Select value={parentId} onValueChange={setParentId}>
-                  <SelectTrigger className="h-11 w-full">
+              <Select value={parentId} onValueChange={setParentId}>
+                  <SelectTrigger data-testid="admin-add-lgu-parent-trigger" className="h-11 w-full">
                     <SelectValue placeholder="Select parent city/municipality" />
                   </SelectTrigger>
                   <SelectContent>
                     {parentOptions.map((row) => (
-                      <SelectItem key={row.id} value={row.id}>
+                      <SelectItem
+                        key={row.id}
+                        value={row.id}
+                        data-testid={`admin-add-lgu-parent-option-${row.id}`}
+                      >
                         {row.name}
                       </SelectItem>
                     ))}
@@ -421,6 +440,7 @@ export default function AddLguModal({
 
           <div className="pt-2 flex items-center gap-3">
             <Button
+              data-testid="admin-add-lgu-submit"
               className="flex-1 bg-teal-700 hover:bg-teal-800"
               onClick={handleSave}
               disabled={submitting}

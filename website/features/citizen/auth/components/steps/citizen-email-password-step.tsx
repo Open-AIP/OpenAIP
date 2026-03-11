@@ -79,6 +79,7 @@ export default function CitizenEmailPasswordStep({
                 autoComplete="email"
                 required
                 autoFocus
+                data-testid="citizen-auth-email-input"
                 value={email}
                 onChange={(event) => onEmailChange(event.target.value)}
                 placeholder="you@example.com"
@@ -101,6 +102,7 @@ export default function CitizenEmailPasswordStep({
                 type="password"
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 required
+                data-testid="citizen-auth-password-input"
                 value={password}
                 onChange={(event) => onPasswordChange(event.target.value)}
                 className="h-12 rounded-xl border-slate-300 bg-white pl-11 text-base text-slate-900 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
@@ -125,6 +127,7 @@ export default function CitizenEmailPasswordStep({
           {errorMessage ? (
             <p
               role="alert"
+              data-testid="citizen-auth-error"
               className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
             >
               {errorMessage}
@@ -133,6 +136,7 @@ export default function CitizenEmailPasswordStep({
 
           <Button
             type="submit"
+            data-testid="citizen-auth-submit"
             className="h-12 w-full rounded-xl bg-[#022E45] text-base font-semibold text-white hover:bg-[#01304A] focus-visible:ring-2 focus-visible:ring-[#0EA5C6]/40"
             disabled={isLoading || disableSubmit}
           >

@@ -57,18 +57,21 @@ export default function AipDetailsTabs({ aip }: { aip: AipDetails }) {
     >
       <TabsList className="h-10 rounded-full bg-slate-200 p-1">
         <TabsTrigger
+          data-testid="citizen-aip-tab-overview"
           value="overview"
           className="h-8 rounded-full px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
           Overview
         </TabsTrigger>
         <TabsTrigger
+          data-testid="citizen-aip-tab-accountability"
           value="accountability"
           className="h-8 rounded-full px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
           Accountability
         </TabsTrigger>
         <TabsTrigger
+          data-testid="citizen-aip-tab-feedback"
           value="feedback"
           className="h-8 rounded-full px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >

@@ -6,7 +6,7 @@ import tempfile
 import time
 from typing import Any, Callable
 
-from openai import OpenAI
+from openai import APITimeoutError, OpenAI
 from pydantic import BaseModel, Field
 from pypdf import PdfReader, PdfWriter
 
@@ -90,6 +90,17 @@ def _read_positive_float_env(name: str, default: float) -> float:
     return parsed if parsed > 0 else default
 
 
+def _read_optional_positive_float_env(name: str) -> float | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return None
+    try:
+        parsed = float(raw.strip())
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
 def _resolve_max_pages(value: int | None) -> int:
     if isinstance(value, int) and value > 0:
         return value
@@ -102,16 +113,32 @@ def _resolve_parse_timeout_seconds(value: float | None) -> float:
     return _read_positive_float_env("PIPELINE_PARSE_TIMEOUT_SECONDS", 20.0)
 
 
-def _resolve_extract_timeout_seconds(value: float | None) -> float:
-    if isinstance(value, (int, float)) and float(value) > 0:
-        return float(value)
-    return _read_positive_float_env("PIPELINE_EXTRACT_TIMEOUT_SECONDS", 1800.0)
+def _resolve_extract_page_timeout_seconds(
+    *,
+    extract_page_timeout_seconds: float | None,
+    extract_timeout_seconds: float | None,
+) -> float:
+    if isinstance(extract_page_timeout_seconds, (int, float)) and float(extract_page_timeout_seconds) > 0:
+        return float(extract_page_timeout_seconds)
+    if isinstance(extract_timeout_seconds, (int, float)) and float(extract_timeout_seconds) > 0:
+        return float(extract_timeout_seconds)
+
+    page_env_timeout = _read_optional_positive_float_env("PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS")
+    if page_env_timeout is not None:
+        return page_env_timeout
+
+    legacy_env_timeout = _read_optional_positive_float_env("PIPELINE_EXTRACT_TIMEOUT_SECONDS")
+    if legacy_env_timeout is not None:
+        return legacy_env_timeout
+
+    return 300.0
 
 
 # Security proof:
 # - PIPELINE_EXTRACT_MAX_PAGES (default 200) rejects oversized page-count PDFs with PDF_PAGE_LIMIT_EXCEEDED.
 # - PIPELINE_PARSE_TIMEOUT_SECONDS (default 20) rejects slow parse with PARSE_TIMEOUT.
-# - PIPELINE_EXTRACT_TIMEOUT_SECONDS (default 1800) bounds per-run extraction time with EXTRACT_TIMEOUT.
+# - PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS (default 300) bounds each page extraction step with EXTRACT_TIMEOUT.
+# - PIPELINE_EXTRACT_TIMEOUT_SECONDS is a legacy fallback for per-page timeout when new config is unset.
 
 
 def extract_single_page_pdf(original_pdf_path: str, page_index: int) -> str:
@@ -214,29 +241,67 @@ def extract_brgy_aip_from_pdf_page(
     model: str,
     system_prompt: str,
     user_prompt: str,
+    page_timeout_seconds: float,
 ) -> tuple[BrgyAIPExtraction, dict[str, Any]]:
-    page_pdf = extract_single_page_pdf(pdf_path, page_index)
-    with open(page_pdf, "rb") as file_handle:
-        uploaded = client.files.create(file=file_handle, purpose="user_data")
-    response = client.responses.parse(
-        model=model,
-        input=[
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_file", "file_id": uploaded.id},
-                    {"type": "input_text", "text": user_prompt},
-                ],
-            },
-        ],
-        text_format=BrgyAIPExtraction,
-        temperature=0,
-    )
+    page_number = page_index + 1
+    page_started = time.perf_counter()
+    page_pdf: str | None = None
+    response: Any | None = None
     try:
-        os.remove(page_pdf)
-    except OSError:
-        pass
+        page_pdf = extract_single_page_pdf(pdf_path, page_index)
+        remaining_after_split = page_timeout_seconds - (time.perf_counter() - page_started)
+        if remaining_after_split <= 0:
+            raise ExtractionGuardrailError(
+                "EXTRACT_TIMEOUT",
+                f"Extraction timed out on page {page_number}/{total_pages} after {page_timeout_seconds:.2f}s.",
+            )
+
+        upload_client = client.with_options(timeout=max(remaining_after_split, 0.001))
+        with open(page_pdf, "rb") as file_handle:
+            uploaded = upload_client.files.create(file=file_handle, purpose="user_data")
+
+        remaining_after_upload = page_timeout_seconds - (time.perf_counter() - page_started)
+        if remaining_after_upload <= 0:
+            raise ExtractionGuardrailError(
+                "EXTRACT_TIMEOUT",
+                f"Extraction timed out on page {page_number}/{total_pages} after {page_timeout_seconds:.2f}s.",
+            )
+
+        parse_client = client.with_options(timeout=max(remaining_after_upload, 0.001))
+        response = parse_client.responses.parse(
+            model=model,
+            input=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_file", "file_id": uploaded.id},
+                        {"type": "input_text", "text": user_prompt},
+                    ],
+                },
+            ],
+            text_format=BrgyAIPExtraction,
+            temperature=0,
+        )
+        if (time.perf_counter() - page_started) > page_timeout_seconds:
+            raise ExtractionGuardrailError(
+                "EXTRACT_TIMEOUT",
+                f"Extraction timed out on page {page_number}/{total_pages} after {page_timeout_seconds:.2f}s.",
+            )
+    except APITimeoutError as error:
+        raise ExtractionGuardrailError(
+            "EXTRACT_TIMEOUT",
+            f"Extraction timed out on page {page_number}/{total_pages} after {page_timeout_seconds:.2f}s.",
+        ) from error
+    finally:
+        if page_pdf:
+            try:
+                os.remove(page_pdf)
+            except OSError:
+                pass
+
+    if response is None:
+        raise RuntimeError("Extraction response was empty.")
     parsed: BrgyAIPExtraction = response.output_parsed
     return parsed, safe_usage_dict(response)
 
@@ -250,6 +315,7 @@ def extract_brgy_aip_from_pdf_all_pages(
     max_pages: int | None = None,
     parse_timeout_seconds: float | None = None,
     extract_timeout_seconds: float | None = None,
+    extract_page_timeout_seconds: float | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], int]:
     parse_started = time.perf_counter()
     reader = PdfReader(pdf_path)
@@ -272,8 +338,10 @@ def extract_brgy_aip_from_pdf_all_pages(
             f"PDF has {total_pages} pages, exceeding limit of {resolved_max_pages}.",
         )
 
-    extract_timeout = _resolve_extract_timeout_seconds(extract_timeout_seconds)
-    extract_started = time.perf_counter()
+    extract_page_timeout = _resolve_extract_page_timeout_seconds(
+        extract_page_timeout_seconds=extract_page_timeout_seconds,
+        extract_timeout_seconds=extract_timeout_seconds,
+    )
 
     projects: list[dict[str, Any]] = []
     project_key_normalized_changes_count = 0
@@ -281,11 +349,6 @@ def extract_brgy_aip_from_pdf_all_pages(
     system_prompt = read_text("prompts/extraction/barangay_system.txt")
     user_prompt = read_text("prompts/extraction/barangay_user.txt")
     for index in range(total_pages):
-        if time.perf_counter() - extract_started > extract_timeout:
-            raise ExtractionGuardrailError(
-                "EXTRACT_TIMEOUT",
-                f"Extraction exceeded timeout ({extract_timeout:.2f}s) after {index} page(s).",
-            )
         page_data, page_usage = extract_brgy_aip_from_pdf_page(
             client=client,
             pdf_path=pdf_path,
@@ -294,6 +357,7 @@ def extract_brgy_aip_from_pdf_all_pages(
             model=model,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
+            page_timeout_seconds=extract_page_timeout,
         )
         for row_index, row in enumerate(page_data.projects):
             row_payload = row.model_dump(mode="python")
@@ -325,6 +389,7 @@ def run_extraction(
     max_pages: int | None = None,
     parse_timeout_seconds: float | None = None,
     extract_timeout_seconds: float | None = None,
+    extract_page_timeout_seconds: float | None = None,
 ) -> ExtractionResult:
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
@@ -338,6 +403,7 @@ def run_extraction(
         max_pages=max_pages,
         parse_timeout_seconds=parse_timeout_seconds,
         extract_timeout_seconds=extract_timeout_seconds,
+        extract_page_timeout_seconds=extract_page_timeout_seconds,
     )
     document, doc_warnings = extract_document_metadata(pdf_path, scope="barangay", page_count_hint=page_count)
     fiscal_year = int(document.get("fiscal_year") or 0)

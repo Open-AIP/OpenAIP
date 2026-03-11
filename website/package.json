@@ -7,12 +7,18 @@
         "build": "npm run db:assert-hardening && next build",
         "start": "next start",
         "db:assert-hardening": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/assert-db-hardening.ts",
+        "diagnose:city-aips-500": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/diagnose-city-aips-500.ts",
         "lint": "eslint",
         "test:ui": "vitest run",
-        "test:ui:watch": "vitest"
+        "test:ui:watch": "vitest",
+        "e2e:install": "playwright install --with-deps",
+        "e2e": "node scripts/e2e/run-e2e.mjs",
+        "e2e:ui": "playwright test --ui",
+        "e2e:report": "playwright show-report ../evidence-pack/01-functional/playwright-report"
     },
     "dependencies": {
         "@hookform/resolvers": "^5.2.2",
+        "@napi-rs/canvas": "^0.1.96",
         "@radix-ui/react-dialog": "^1.1.15",
         "@radix-ui/react-dropdown-menu": "^2.1.16",
         "@radix-ui/react-label": "^2.1.8",
@@ -31,6 +37,7 @@
         "leaflet": "^1.9.4",
         "lucide-react": "^0.562.0",
         "next": "^16.1.6",
+        "pdfjs-dist": "^5.4.394",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
         "react-hook-form": "^7.71.1",
@@ -40,6 +47,7 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
+        "@playwright/test": "^1.51.1",
         "@tailwindcss/postcss": "^4",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.0",

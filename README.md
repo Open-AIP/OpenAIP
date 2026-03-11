@@ -59,7 +59,7 @@ Supabase (Auth + Postgres + Storage)
     v
 Python worker (aip-intelligence-pipeline)
     |-- claims queued extraction_runs
-    |-- extract -> validate -> summarize -> categorize
+    |-- extract -> validate -> scale_amounts -> summarize -> categorize
     |-- writes artifacts and upserts projects
     |-- optional RAG trace
     v
@@ -191,6 +191,8 @@ PIPELINE_CATEGORIZE_RESPONSE_BUFFER_TOKENS=2000
 PIPELINE_CATEGORIZE_PROJECT_FIELD_CHAR_LIMIT=500
 PIPELINE_EXTRACT_MAX_PAGES=200
 PIPELINE_PARSE_TIMEOUT_SECONDS=20
+PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS=300
+# Legacy fallback for per-page extraction timeout when PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS is unset.
 PIPELINE_EXTRACT_TIMEOUT_SECONDS=1800
 PIPELINE_EMBED_TIMEOUT_SECONDS=300
 PIPELINE_RETRY_FAILURE_THRESHOLD=5
@@ -273,7 +275,8 @@ Pipeline env reference:
 | `PIPELINE_CATEGORIZE_PROJECT_FIELD_CHAR_LIMIT` | No | Server-only | Per-field character cap in compact categorization payloads (default `500`) |
 | `PIPELINE_EXTRACT_MAX_PAGES` | No | Server-only | Hard page cap per source PDF; fails with `PDF_PAGE_LIMIT_EXCEEDED` (default `200`) |
 | `PIPELINE_PARSE_TIMEOUT_SECONDS` | No | Server-only | Timeout budget for initial PDF parse/read (default `20`) |
-| `PIPELINE_EXTRACT_TIMEOUT_SECONDS` | No | Server-only | Timeout budget for extraction stage page loop (default `1800`) |
+| `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS` | No | Server-only | Per-page timeout budget for extraction page split+upload+parse (default `300`) |
+| `PIPELINE_EXTRACT_TIMEOUT_SECONDS` | No (legacy) | Server-only | Legacy fallback per-page extraction timeout used only when `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS` is unset |
 | `PIPELINE_EMBED_TIMEOUT_SECONDS` | No | Server-only | Timeout budget for embedding stage (default `300`) |
 | `PIPELINE_RETRY_FAILURE_THRESHOLD` | No | Server-only | Failed-run threshold for worker retry block on same uploader+file (default `5`) |
 | `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS` | No | Server-only | Lookback window for retry block evaluation (default `21600`) |
@@ -404,6 +407,10 @@ Recommended workflow:
    - `website/docs/sql/2026-03-03_embed_categorize_signed_dispatch.sql`
    - `website/docs/sql/2026-03-03_notifications_outbox_tables_rls.sql`
    - `website/docs/sql/2026-03-03_notifications_admin_pipeline_outbox_alerts.sql`
+   - `website/docs/sql/2026-03-06_aip_upload_validation_gating.sql`
+   - `website/docs/sql/2026-03-10_notifications_aip_embed_terminal_status.sql`
+   - `website/docs/sql/2026-03-10_notifications_aip_embed_action_url_scoped.sql`
+   - `website/docs/sql/2026-03-10_realtime_publication_extraction_notifications.sql`
    - Note: `2026-02-26_projects_status_proposed_rename.sql` renames existing `projects.status` values from `planning` to `proposed`.
 3. Create Supabase storage buckets manually:
    - `aip-pdfs` (uploaded source PDFs)
@@ -595,7 +602,7 @@ Outbox function optional tuning env:
 - Citizen about-us reference documents are served from `about-us-docs` (configured via `content.citizen_about_us` in `app.settings`).
 - Extraction runs are queued in `public.extraction_runs`.
 - Worker downloads source PDFs using signed URLs with configured timeout and size bounds (`PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS`, `PIPELINE_SOURCE_PDF_MAX_BYTES`).
-- Worker enforces extraction page/parse/elapsed bounds and embedding timeout, and persists explicit failure reason codes in `public.extraction_runs.error_code`.
+- Worker enforces extraction max-page, parse timeout, per-page extraction timeout, and embedding timeout guardrails, and persists explicit failure reason codes in `public.extraction_runs.error_code`.
 - Artifact payloads are stored directly in `artifact_json` using the stage contract (`aip_artifact_v1.x.x`).
 - Web repo generates short-lived signed URLs when serving PDF references (10-minute TTL in current implementation).
 
@@ -650,7 +657,7 @@ docker build -f Dockerfile.worker -t openaip-pipeline-worker .
 
 Production runtime requirements:
 - Website envs: `NEXT_PUBLIC_SUPABASE_URL`, publishable/anon key, `SUPABASE_SERVICE_ROLE_KEY`, `BASE_URL` (optional: `SUPABASE_STORAGE_ARTIFACT_BUCKET`, `SUPABASE_STORAGE_PROJECT_MEDIA_BUCKET`, `AIP_UPLOAD_MAX_BYTES`, `AIP_UPLOAD_FAILURE_THRESHOLD`, `AIP_UPLOAD_FAILURE_WINDOW_MINUTES`, `AIP_UPLOAD_FAILURE_COOLDOWN_MINUTES`)
-- Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (recommended guardrails: `PIPELINE_EXTRACT_MAX_PAGES`, `PIPELINE_PARSE_TIMEOUT_SECONDS`, `PIPELINE_EXTRACT_TIMEOUT_SECONDS`, `PIPELINE_EMBED_TIMEOUT_SECONDS`, `PIPELINE_RETRY_FAILURE_THRESHOLD`, `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS`, `PIPELINE_SUPABASE_HTTP_TIMEOUT_SECONDS`, `PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS`, `PIPELINE_SOURCE_PDF_MAX_BYTES`)
+- Pipeline envs: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (recommended guardrails: `PIPELINE_EXTRACT_MAX_PAGES`, `PIPELINE_PARSE_TIMEOUT_SECONDS`, `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS`, `PIPELINE_EMBED_TIMEOUT_SECONDS`, `PIPELINE_RETRY_FAILURE_THRESHOLD`, `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS`, `PIPELINE_SUPABASE_HTTP_TIMEOUT_SECONDS`, `PIPELINE_SUPABASE_DOWNLOAD_TIMEOUT_SECONDS`, `PIPELINE_SOURCE_PDF_MAX_BYTES`; legacy fallback: `PIPELINE_EXTRACT_TIMEOUT_SECONDS`)
 - Outbox function envs (if using email notifications): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`, `APP_BASE_URL` (optional: `EMAIL_OUTBOX_BATCH_SIZE`, `EMAIL_OUTBOX_MAX_ATTEMPTS`, `EMAIL_OUTBOX_FAILURE_THRESHOLD_PER_HOUR`)
 - Supabase project with DB schema and storage buckets in place
 - `app.settings` schema/table available to service role, with seeded keys `content.citizen_about_us` and `content.citizen_dashboard`
@@ -691,7 +698,9 @@ Common hosting options for this codebase:
 |---|---|---|
 | `Missing NEXT_PUBLIC_SUPABASE_URL...` at runtime | Supabase public env vars not set in `website/.env.local` | Set `NEXT_PUBLIC_SUPABASE_URL` and one of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`, then restart `npm run dev` |
 | `BASE_URL environment variable is not configured` on auth pages | `BASE_URL` missing | Set `BASE_URL=http://localhost:3000` for local dev |
+| Hydration warning points to `app/layout.tsx` `<body>` (with unexpected extra attrs) | Browser extension mutated `html/body` before React hydration (for example grammar/spell-check extensions on editable pages) | Re-test in incognito or a clean browser profile with extensions disabled. Do not add global `suppressHydrationWarning`; keep warnings visible for real mismatches. |
 | Upload endpoint returns `Unauthorized` or `You cannot upload for this AIP right now.` | Role/scope mismatch or DB function/policies not applied | Ensure user profile role/scope is correct and SQL from `website/docs/sql/database-v2.sql` is applied |
+| `/city/aips` or `/api/city/aips/upload` shows generic HTML `500` | Production schema drift (missing table/function/column used by city AIP queries) | Run `cd website && npm run diagnose:city-aips-500`, run `website/docs/sql/2026-03-10_city_aips_500_schema_probe.sql`, then apply the recommended patch files listed by the script |
 | Upload fails with `Invalid PDF file header. Expected %PDF- magic bytes.` | Uploaded file is not a real PDF payload | Re-export/upload a valid PDF file; do not rely on extension only |
 | Upload fails with `File too large...` | File exceeded `AIP_UPLOAD_MAX_BYTES` | Increase `AIP_UPLOAD_MAX_BYTES` carefully or upload a smaller PDF |
 | Upload fails with HTTP `429` and `upload_throttled` | Uploader hit repeated failed-run cooldown window | Wait for `Retry-After` or adjust `AIP_UPLOAD_FAILURE_*` thresholds |
@@ -702,14 +711,14 @@ Common hosting options for this codebase:
 | Runs stay `queued` forever | Worker not running or cannot claim runs | Start `openaip-worker`; verify pipeline `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` |
 | Worker fails with `OPENAI_API_KEY not found` | Missing OpenAI secret in pipeline env | Set `OPENAI_API_KEY` in `aip-intelligence-pipeline/.env` |
 | Run fails with `error_code=PDF_PAGE_LIMIT_EXCEEDED` | PDF page count exceeded `PIPELINE_EXTRACT_MAX_PAGES` | Increase cap if acceptable or upload smaller PDFs |
-| Run fails with `error_code=PARSE_TIMEOUT` / `EXTRACT_TIMEOUT` / `EMBED_TIMEOUT` | Stage exceeded configured timeout budget | Tune relevant `PIPELINE_*_TIMEOUT_SECONDS` values and inspect problematic PDF complexity |
+| Run fails with `error_code=PARSE_TIMEOUT` / `EXTRACT_TIMEOUT` / `EMBED_TIMEOUT` | Stage exceeded configured timeout budget | Tune relevant timeout envs (`PIPELINE_PARSE_TIMEOUT_SECONDS`, `PIPELINE_EXTRACT_PAGE_TIMEOUT_SECONDS`, `PIPELINE_EMBED_TIMEOUT_SECONDS`; legacy fallback: `PIPELINE_EXTRACT_TIMEOUT_SECONDS`) and inspect problematic PDF complexity |
 | Run fails with `error_code=SOURCE_PDF_TOO_LARGE` | Downloaded source PDF exceeded `PIPELINE_SOURCE_PDF_MAX_BYTES` | Increase cap carefully or reject/replace oversized source file |
 | Run fails with `error_code=RUN_RETRY_BLOCKED` | Same uploader+file exceeded retry-failure threshold in lookback window | Wait for `PIPELINE_RETRY_FAILURE_WINDOW_SECONDS` or adjust retry guardrail envs |
 | `POST /v1/runs/dev/local` returns 403 | Dev routes disabled | Set `PIPELINE_DEV_ROUTES=true` in pipeline env |
 | `POST /v1/runs/*` returns 401 | Missing/invalid `aud`/`ts`/`nonce`/`sig`, stale `ts`, replayed nonce, or audience not allowlisted | Set `PIPELINE_RUNS_HMAC_SECRET` and `PIPELINE_RUNS_ALLOWED_AUDIENCES`; sign request body/path/method correctly and keep clock skew within ±60s |
 | `POST /v1/chat/*` returns 401 | Missing/invalid `x-pipeline-aud`/`x-pipeline-ts`/`x-pipeline-nonce`/`x-pipeline-sig`, stale `ts`, invalid `aud`, bad signature, or replayed `(aud,nonce,ts,body)` | Set matching `PIPELINE_HMAC_SECRET` on website + pipeline; sign `aud|ts|nonce|rawBody`, keep clock skew within ±60s, and send unique nonce per request |
 | `Invalid schema: app` from chatbot/admin settings APIs | Supabase Data API does not expose `app` schema, or `app.settings` is missing/inaccessible | Expose `app` in Supabase Data API schemas and run `website/docs/sql/2026-02-26_app_settings_schema_and_grants.sql` |
-| Notifications inbox is empty for events that should notify | Notifications tables/triggers are missing from DB baseline | Apply `website/docs/sql/2026-03-03_notifications_outbox_tables_rls.sql` and `website/docs/sql/2026-03-03_notifications_admin_pipeline_outbox_alerts.sql` (or full `database-v2.sql`) |
+| Notifications inbox is empty for events that should notify | Notifications tables/triggers or realtime publication membership are missing from DB baseline | Apply `website/docs/sql/2026-03-03_notifications_outbox_tables_rls.sql`, `website/docs/sql/2026-03-03_notifications_admin_pipeline_outbox_alerts.sql`, `website/docs/sql/2026-03-10_notifications_aip_embed_terminal_status.sql`, `website/docs/sql/2026-03-10_notifications_aip_embed_action_url_scoped.sql`, and `website/docs/sql/2026-03-10_realtime_publication_extraction_notifications.sql` (or full `database-v2.sql`) |
 | Clicking "Open related page" does not mark rows as read | `GET /api/notifications/open` route not reached (or unsafe `next` path) | Ensure links are built via tracked-open helper and `next` is an internal path beginning with `/` |
 | `send-email-outbox` returns 401/500 | Missing service-role bearer auth or missing outbox env values | Invoke with service-role JWT and set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`, `APP_BASE_URL` |
 | Citizen about-us/dashboard content does not load seeded values | `app.settings` seeds not applied or `about-us-docs` bucket missing | Apply March 1 content seed SQL files and create/verify `about-us-docs` bucket objects |

@@ -41,7 +41,12 @@ type Props = {
   scope?: "city" | "barangay";
 };
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 25 * 1024 * 1024;
+
+function bytesToMbLabel(bytes: number): string {
+  const mb = (bytes / (1024 * 1024)).toFixed(1);
+  return mb.endsWith(".0") ? mb.slice(0, -2) : mb;
+}
 
 export function buildUploadAipYears(currentYear = new Date().getFullYear()) {
   return Array.from({ length: 6 }, (_, i) => currentYear + 1 - i);
@@ -77,7 +82,9 @@ export default function UploadAipDialog({
     if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
       return "PDF only. Please upload a .pdf file.";
     }
-    if (f.size > MAX_BYTES) return "File too large. Maximum file size is 10MB.";
+    if (f.size > MAX_BYTES) {
+      return `File too large. Maximum file size is ${bytesToMbLabel(MAX_BYTES)}MB.`;
+    }
     if (!y) return "Please select the AIP year.";
     return "";
   }
@@ -134,6 +141,7 @@ export default function UploadAipDialog({
       }}
     >
       <DialogContent className="sm:max-w-[720px] overflow-hidden p-0" showCloseButton={false}>
+        <div data-testid="aip-upload-dialog" />
         <div className="p-8 pb-4">
           <DialogHeader className="space-y-2">
             <div className="flex items-start justify-between gap-4">
@@ -166,6 +174,7 @@ export default function UploadAipDialog({
             <input
               ref={fileRef}
               type="file"
+              data-testid="aip-upload-file-input"
               accept="application/pdf"
               className="hidden"
               onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
@@ -174,6 +183,7 @@ export default function UploadAipDialog({
 
             <button
               type="button"
+              data-testid="aip-upload-file-button"
               onClick={() => fileRef.current?.click()}
               disabled={isSubmitting}
               className={[
@@ -195,7 +205,9 @@ export default function UploadAipDialog({
                 ) : (
                   <>
                     <div className="text-xl font-medium text-slate-700">Click to upload PDF file</div>
-                    <div className="text-base text-slate-400">Maximum file size: 10MB</div>
+                    <div className="text-base text-slate-400">
+                      Maximum file size: {bytesToMbLabel(MAX_BYTES)}MB
+                    </div>
                   </>
                 )}
               </div>
@@ -215,12 +227,12 @@ export default function UploadAipDialog({
               }}
               disabled={isSubmitting}
             >
-              <SelectTrigger className="h-12 border-slate-200 bg-slate-50">
+              <SelectTrigger data-testid="aip-upload-year-select" className="h-12 border-slate-200 bg-slate-50">
                 <SelectValue placeholder="Select year" />
               </SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
-                  <SelectItem key={y} value={String(y)}>
+                  <SelectItem key={y} value={String(y)} data-testid={`aip-upload-year-option-${y}`}>
                     {y}
                   </SelectItem>
                 ))}
@@ -229,7 +241,10 @@ export default function UploadAipDialog({
           </div>
 
           {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div
+              data-testid="aip-upload-error"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
               {error}
             </div>
           ) : null}
@@ -244,6 +259,7 @@ export default function UploadAipDialog({
             </DialogClose>
 
             <Button
+              data-testid="aip-upload-submit-button"
               className="h-11 bg-[#022437] px-8 hover:bg-[#022437]/90"
               onClick={submit}
               disabled={isSubmitting}

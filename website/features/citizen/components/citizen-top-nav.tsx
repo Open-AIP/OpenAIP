@@ -33,6 +33,10 @@ function getNavTriggerId(href: string) {
   return `citizen-nav-trigger-${clean || 'root'}`;
 }
 
+function toNavTestId(label: string): string {
+  return `citizen-nav-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+}
+
 export default function CitizenTopNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -87,6 +91,7 @@ export default function CitizenTopNav() {
       <button
         type="button"
         className="grid h-10 w-10 place-items-center rounded-full bg-[#0B3440]"
+        data-testid="citizen-nav-account-trigger"
         aria-label="Open account"
         aria-haspopup="dialog"
         aria-expanded={accountModalOpen}
@@ -129,7 +134,10 @@ export default function CitizenTopNav() {
               return (
                 <DropdownMenu key={item.href}>
                   <DropdownMenuTrigger asChild id={getNavTriggerId(item.href)}>
-                    <button className={cn(NAV_BASE, active ? NAV_ACTIVE : NAV_INACTIVE)}>
+                    <button
+                      data-testid={toNavTestId(item.label)}
+                      className={cn(NAV_BASE, active ? NAV_ACTIVE : NAV_INACTIVE)}
+                    >
                       <span>{item.label}</span>
                       {/* Chevron inherits text color */}
                       <ChevronDown className="h-4 w-4 text-inherit" />
@@ -164,7 +172,12 @@ export default function CitizenTopNav() {
             }
 
             return (
-              <Link key={item.href} href={item.href} className={cn(NAV_BASE, active ? NAV_ACTIVE : NAV_INACTIVE)}>
+              <Link
+                key={item.href}
+                href={item.href}
+                data-testid={toNavTestId(item.label)}
+                className={cn(NAV_BASE, active ? NAV_ACTIVE : NAV_INACTIVE)}
+              >
                 {item.label}
               </Link>
             );
@@ -177,7 +190,7 @@ export default function CitizenTopNav() {
             <div className="flex items-center gap-3">{accountTrigger}</div>
           ) : (
             <Button asChild className="bg-[#0E7490] text-white hover:bg-[#0C6078]">
-              <Link href={signInHref} onClick={handleSignInClick}>
+              <Link href={signInHref} data-testid="citizen-nav-sign-in" onClick={handleSignInClick}>
                 Sign In
               </Link>
             </Button>

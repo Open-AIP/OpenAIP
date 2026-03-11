@@ -714,7 +714,7 @@ describe("metadata routing", () => {
     );
   });
 
-  it("routes available years question to metadata SQL route without pipeline fallback", async () => {
+  it("routes available years question to pipeline fallback under strict RAG-first policy", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "What years are available for this barangay?",
@@ -734,34 +734,31 @@ describe("metadata routing", () => {
         };
       };
     };
-    expect(assistant.content).toContain("Available fiscal years");
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
     expect(mockServerRpc).not.toHaveBeenCalled();
-    expect(assistant.retrievalMeta?.verifierMode).toBe("structured");
-    expect(assistant.retrievalMeta?.routeFamily).toBe("metadata_sql");
+    expect(assistant.retrievalMeta?.verifierMode).toBe("retrieval");
+    expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
     expect(assistant.retrievalMeta?.chatStrategyCalibration?.rewrite_max_user_turns).toBeGreaterThan(0);
     expect(assistant.retrievalMeta?.chatStrategyCalibration?.mixed_max_structured_tasks).toBeGreaterThan(0);
 
     const log = parseJsonLogs().find((entry) => entry.route === "metadata_sql");
-    expect(log).toBeDefined();
+    expect(log).toBeUndefined();
   });
 
-  it("routes sectors question to metadata SQL route and deduplicates sorted values", async () => {
+  it("routes sectors enumeration to pipeline fallback under strict RAG-first policy", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "What sectors exist in the AIP?",
     });
 
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Sectors");
-    expect(assistant.content.indexOf("1. Health")).toBeLessThan(
-      assistant.content.indexOf("2. Infrastructure")
-    );
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
     expect(mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_sector")).toBe(false);
   });
 
-  it("does not let semantic intent tie-break steal metadata sector enumeration", async () => {
+  it("does not let semantic tie-break force metadata SQL under strict RAG-first policy", async () => {
     mockRequestPipelineIntentClassify.mockResolvedValueOnce({
       intent: "CATEGORY_AGGREGATION",
       confidence: 0.99,
@@ -777,12 +774,12 @@ describe("metadata routing", () => {
     });
 
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Sectors");
+    expect(assistant.content).toContain("Pipeline fallback answer");
     expect(mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_sector")).toBe(false);
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it("routes scoped fund source list to metadata SQL route", async () => {
+  it("routes scoped fund source list to pipeline fallback under strict RAG-first policy", async () => {
     mockResolveRetrievalScope.mockResolvedValueOnce({
       mode: "named_scopes",
       retrievalScope: {
@@ -806,10 +803,8 @@ describe("metadata routing", () => {
     });
 
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Fund sources");
-    expect(assistant.content).toContain("Grant");
-    expect(assistant.content).not.toContain("External Source (Loan)");
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
   it("keeps totals routing behavior", async () => {
@@ -834,7 +829,7 @@ describe("metadata routing", () => {
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
-  it("returns clean no-data response for empty implementing agencies result", async () => {
+  it("routes implementing-agencies metadata list requests to pipeline fallback", async () => {
     lineItems = [];
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
@@ -842,22 +837,19 @@ describe("metadata routing", () => {
     });
 
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("No implementing agencies were found");
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it("returns project categories from published scoped AIPs only", async () => {
+  it("routes project category metadata list requests to pipeline fallback", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "List project categories for this barangay.",
     });
 
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Project categories");
-    expect(assistant.content).toContain("Health");
-    expect(assistant.content).toContain("Infrastructure");
-    expect(assistant.content).not.toContain("Other");
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
   it("does not use metadata route for mixed metadata+narrative question", async () => {

@@ -441,7 +441,13 @@ describe("chat messages clarification state machine", () => {
     mockRequestPipelineChatAnswer.mockResolvedValue({
       answer: "Pipeline fallback answer",
       refused: false,
-      citations: [],
+      citations: [
+        {
+          source_id: "S1",
+          snippet: "Pipeline fallback citation.",
+          chunk_id: "chunk-fallback",
+        },
+      ],
       retrieval_meta: {
         reason: "ok",
       },
@@ -467,53 +473,49 @@ describe("chat messages clarification state machine", () => {
     );
   });
 
-  it("returns clarification status with structured options for vague line-item query", async () => {
+  it("routes vague line-item query to pipeline fallback under strict RAG-first policy", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: "session-1",
       content: "How much is the honoraria in FY 2026 and what's the schedule?",
     });
 
-    expect(payload.status).toBe("clarification");
-    const clarification = payload.clarification as Record<string, unknown>;
-    expect(clarification.kind).toBe("line_item_disambiguation");
-    expect(Array.isArray(clarification.options)).toBe(true);
-    expect((clarification.options as unknown[]).length).toBeGreaterThanOrEqual(2);
+    expect(payload.status).toBe("answer");
+    expect(payload.clarification).toBeUndefined();
 
     const assistant = payload.assistantMessage as {
-      retrievalMeta?: { status?: string; refused?: boolean; refusalReason?: string };
+      content: string;
+      retrievalMeta?: { status?: string; refused?: boolean; refusalReason?: string; routeFamily?: string };
     };
-    expect(assistant.retrievalMeta?.status).toBe("clarification");
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(assistant.retrievalMeta?.status).toBe("answer");
     expect(assistant.retrievalMeta?.refused).toBe(false);
     expect(assistant.retrievalMeta?.refusalReason).toBeUndefined();
-
-    const clarificationLog = parseJsonLogs().find(
-      (entry) => entry.intent === "clarification_needed" && entry.route === "row_sql"
-    );
-    expect(clarificationLog).toBeDefined();
-    expect(clarificationLog?.answered).toBe(false);
-    expect(clarificationLog && "refusal_reason" in clarificationLog).toBe(false);
+    expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
+    expect(mockRequestPipelineQueryEmbedding).not.toHaveBeenCalled();
+    expect(mockMatchLineItemsRpc).not.toHaveBeenCalled();
   });
 
-  it("returns document limitation refusal for contractor queries before scope ambiguity handling", async () => {
+  it("defers contractor limitation handling to pipeline instead of early website refusal", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: "session-1",
       content: "Who are the contractors for Construction of 3-Storey Barangay Hall?",
     });
 
-    expect(payload.status).toBe("refusal");
+    expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as {
       content: string;
-      retrievalMeta?: { status?: string; refusalReason?: string };
+      retrievalMeta?: { status?: string; refusalReason?: string; routeFamily?: string };
     };
-    expect(assistant.retrievalMeta?.status).toBe("refusal");
-    expect(assistant.retrievalMeta?.refusalReason).toBe("document_limitation");
-    expect(assistant.content).toContain("does not list contractors, suppliers, or winning bidders");
-    expect(assistant.content.toLowerCase()).not.toContain("couldn't match the requested barangay/city");
-
-    expect(mockResolveRetrievalScope).not.toHaveBeenCalled();
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(assistant.retrievalMeta?.status).toBe("answer");
+    expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
+    expect(assistant.retrievalMeta?.refusalReason).toBeUndefined();
+    expect(mockResolveRetrievalScope).toHaveBeenCalledTimes(1);
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves numeric selection using pending clarification without vector rerun", async () => {
+  it("treats numeric follow-up as regular pipeline fallback when no clarification is pending", async () => {
     await callMessagesRoute({
       sessionId: "session-1",
       content: "How much is the honoraria in FY 2026 and what's the schedule?",
@@ -526,16 +528,13 @@ describe("chat messages clarification state machine", () => {
 
     expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("total allocation: PHP 50,000.00");
-    expect(assistant.content).toContain("schedule: 2026-01-01 to 2026-12-31");
-    expect(mockRequestPipelineQueryEmbedding).toHaveBeenCalledTimes(1);
-    expect(mockMatchLineItemsRpc).toHaveBeenCalledTimes(1);
-
-    const jsonLogs = parseJsonLogs();
-    expect(jsonLogs.some((entry) => entry.event === "clarification_resolved")).toBe(true);
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(2);
+    expect(mockRequestPipelineQueryEmbedding).not.toHaveBeenCalled();
+    expect(mockMatchLineItemsRpc).not.toHaveBeenCalled();
   });
 
-  it("resolves ref selection against pending clarification options", async () => {
+  it("treats ref-code follow-up as regular pipeline fallback when no clarification is pending", async () => {
     await callMessagesRoute({
       sessionId: "session-1",
       content: "How much is the honoraria in FY 2026 and what's the schedule?",
@@ -548,11 +547,13 @@ describe("chat messages clarification state machine", () => {
 
     expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Ref 3000-B");
-    expect(assistant.content).toContain("total allocation: PHP 45,000.00");
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(2);
+    expect(mockRequestPipelineQueryEmbedding).not.toHaveBeenCalled();
+    expect(mockMatchLineItemsRpc).not.toHaveBeenCalled();
   });
 
-  it("returns clarification reminder for short ambiguous retry while pending", async () => {
+  it("does not emit clarification reminder when strict RAG-first bypasses line-item clarification", async () => {
     await callMessagesRoute({
       sessionId: "session-1",
       content: "How much is the honoraria in FY 2026 and what's the schedule?",
@@ -563,9 +564,10 @@ describe("chat messages clarification state machine", () => {
       content: "hmm",
     });
 
-    expect(payload.status).toBe("clarification");
+    expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Please reply with 1-3, or type the Ref code.");
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(2);
   });
 
   it("does not trap complaint-like replies inside the clarification loop", async () => {
@@ -594,7 +596,7 @@ describe("chat messages clarification state machine", () => {
     expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it("exits clarification loop on explicit cancel phrase", async () => {
+  it("treats explicit cancel phrase as regular pipeline fallback when no clarification is pending", async () => {
     await callMessagesRoute({
       sessionId: "session-1",
       content: "How much is the honoraria in FY 2026 and what's the schedule?",
@@ -607,9 +609,10 @@ describe("chat messages clarification state machine", () => {
 
     expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Okay - please restate the project title or provide the Ref code.");
-    expect(mockRequestPipelineQueryEmbedding).toHaveBeenCalledTimes(1);
-    expect(mockMatchLineItemsRpc).toHaveBeenCalledTimes(1);
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(2);
+    expect(mockRequestPipelineQueryEmbedding).not.toHaveBeenCalled();
+    expect(mockMatchLineItemsRpc).not.toHaveBeenCalled();
   });
 
   it("asks mixed-intent clarification before executing different route kinds", async () => {
@@ -634,7 +637,7 @@ describe("chat messages clarification state machine", () => {
     }
   });
 
-  it("clarifies mixed query when planner is enabled but mixed execution is disabled", async () => {
+  it("falls back to pipeline for mixed semantic+numeric query when planner gating blocks execution", async () => {
     const prevPlanner = process.env.CHAT_MIXED_QUERY_PLANNER_ENABLED;
     const prevExecution = process.env.CHAT_MIXED_QUERY_EXECUTION_ENABLED;
     process.env.CHAT_MIXED_QUERY_PLANNER_ENABLED = "true";
@@ -648,15 +651,15 @@ describe("chat messages clarification state machine", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(payload.status).toBe("clarification");
+      expect(payload.status).toBe("answer");
       const assistant = payload.assistantMessage as {
         content: string;
         retrievalMeta?: { queryPlanMode?: string; mixedResponseMode?: string };
       };
-      expect(assistant.content).toContain("combines computed comparison and narrative explanation");
-      expect(assistant.retrievalMeta?.queryPlanMode).toBe("mixed");
-      expect(assistant.retrievalMeta?.mixedResponseMode).toBe("clarify");
-      expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+      expect(assistant.content).toContain("Pipeline fallback answer");
+      expect(assistant.retrievalMeta?.queryPlanMode).toBeUndefined();
+      expect(assistant.retrievalMeta?.mixedResponseMode).toBeUndefined();
+      expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
     } finally {
       process.env.CHAT_MIXED_QUERY_PLANNER_ENABLED = prevPlanner;
       process.env.CHAT_MIXED_QUERY_EXECUTION_ENABLED = prevExecution;

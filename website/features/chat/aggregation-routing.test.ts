@@ -785,7 +785,13 @@ describe("aggregation routing", () => {
     mockRequestPipelineChatAnswer.mockResolvedValue({
       answer: "Pipeline fallback answer",
       refused: false,
-      citations: [],
+      citations: [
+        {
+          source_id: "S1",
+          snippet: "Pipeline fallback citation.",
+          chunk_id: "chunk-fallback",
+        },
+      ],
       retrieval_meta: {
         reason: "ok",
       },
@@ -982,7 +988,7 @@ describe("aggregation routing", () => {
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
-  it("returns retrieval_failure refusal when line-item fact query has zero matches", async () => {
+  it("routes line-item fact query to pipeline fallback under strict RAG-first policy", async () => {
     rpcResponses.match_aip_line_items = [];
 
     const { payload } = await callMessagesRoute({
@@ -990,39 +996,50 @@ describe("aggregation routing", () => {
       content: "How much is allocated for SomeNonexistentProject FY 2026?",
     });
 
-    expect(payload.status).toBe("refusal");
+    expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as {
       content: string;
       retrievalMeta?: {
         status?: string;
         refusalReason?: string;
         suggestions?: string[];
+        routeFamily?: string;
       };
     };
-    expect(assistant.retrievalMeta?.status).toBe("refusal");
-    expect(assistant.retrievalMeta?.refusalReason).toBe("retrieval_failure");
-    expect(assistant.content).not.toContain("Please specify which barangay");
-    expect(assistant.retrievalMeta?.suggestions?.length).toBeGreaterThan(0);
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(assistant.retrievalMeta?.status).toBe("answer");
+    expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
+    expect(assistant.retrievalMeta?.refusalReason).toBeUndefined();
+    expect(assistant.retrievalMeta?.suggestions).toBeUndefined();
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(false);
   });
 
-  it("returns document_limitation refusal for contractor/procurement style field requests", async () => {
+  it("defers contractor/procurement refusal handling to pipeline", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "Who are the contractors for Road Concreting?",
     });
 
-    expect(payload.status).toBe("refusal");
+    expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as {
       content: string;
       retrievalMeta?: {
         status?: string;
         refusalReason?: string;
+        routeFamily?: string;
       };
     };
-    expect(assistant.retrievalMeta?.status).toBe("refusal");
-    expect(assistant.retrievalMeta?.refusalReason).toBe("document_limitation");
-    expect(assistant.content).toContain("does not list contractors, suppliers, or winning bidders");
-    expect(assistant.content.toLowerCase()).not.toContain("specify scope");
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(assistant.retrievalMeta?.status).toBe("answer");
+    expect(assistant.retrievalMeta?.routeFamily).toBe("pipeline_fallback");
+    expect(assistant.retrievalMeta?.refusalReason).toBeUndefined();
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(false);
   });
 
   it("returns city fallback clarification when city-scoped aggregate has no published city AIP", async () => {
@@ -1088,7 +1105,7 @@ describe("aggregation routing", () => {
     expect(totalsLog?.scope_reason).toBe("explicit_barangay");
   });
 
-  it("does not run fund-source aggregation for project-specific query", async () => {
+  it("routes project-specific fund-source query to pipeline fallback (not SQL aggregation)", async () => {
     mockResolveRetrievalScope.mockResolvedValueOnce({
       mode: "named_scopes",
       retrievalScope: {
@@ -1117,7 +1134,7 @@ describe("aggregation routing", () => {
 
     expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("fund source: External Source (Loan)");
+    expect(assistant.content).toContain("Pipeline fallback answer");
     expect(assistant.content).not.toContain("Budget totals by fund source");
 
     expect(
@@ -1125,8 +1142,8 @@ describe("aggregation routing", () => {
     ).toBe(false);
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
-    ).toBe(true);
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    ).toBe(false);
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
   it("runs fund-source aggregation for explicit totals query", async () => {
@@ -1171,7 +1188,7 @@ describe("aggregation routing", () => {
     expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
   });
 
-  it("uses deterministic ref fast-path before vector retrieval for line-item fact query", async () => {
+  it("routes deterministic ref-code line-item fact query to pipeline fallback", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "What is the fund source for Ref 8000-003-002-006 (FY 2026)?",
@@ -1179,8 +1196,7 @@ describe("aggregation routing", () => {
 
     expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("Ref 8000-003-002-006");
-    expect(assistant.content).toContain("fund source: General Fund");
+    expect(assistant.content).toContain("Pipeline fallback answer");
 
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_fund_source")
@@ -1189,7 +1205,7 @@ describe("aggregation routing", () => {
       mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
     ).toBe(false);
     expect(mockRequestPipelineQueryEmbedding).not.toHaveBeenCalled();
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
   it("routes loans-vs-general-fund query to fund-source aggregation", async () => {
@@ -1259,7 +1275,7 @@ describe("aggregation routing", () => {
     ).toBe(true);
   });
 
-  it("routes fund-source existence query to metadata SQL mode", async () => {
+  it("routes fund-source existence query to pipeline fallback under strict RAG-first policy", async () => {
     const { payload } = await callMessagesRoute({
       sessionId: session.id,
       content: "What fund sources exist in FY 2026?",
@@ -1270,8 +1286,8 @@ describe("aggregation routing", () => {
       content: string;
       retrievalMeta?: { verifierMode?: string };
     };
-    expect(assistant.content).toContain("Fund sources");
-    expect(assistant.retrievalMeta?.verifierMode).toBe("structured");
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(assistant.retrievalMeta?.verifierMode).toBe("retrieval");
 
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "get_totals_by_fund_source")
@@ -1279,7 +1295,7 @@ describe("aggregation routing", () => {
     expect(
       mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
     ).toBe(false);
-    expect(mockRequestPipelineChatAnswer).not.toHaveBeenCalled();
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
   });
 
   it("answers lowest allocated sector budget as structured sector aggregation", async () => {
@@ -1579,7 +1595,7 @@ describe("aggregation routing", () => {
     expect(secondAssistant.retrievalMeta?.semanticRepeatCacheHit).toBe(false);
   });
 
-  it("blocks pipeline fallback answers when retrieval verifier fails", async () => {
+  it("does not rewrite pipeline answers into website refusals when verifier policy is split", async () => {
     mockRequestPipelineChatAnswer.mockResolvedValueOnce({
       answer: "This is an ungrounded answer.",
       refused: false,
@@ -1603,18 +1619,18 @@ describe("aggregation routing", () => {
       content: "Explain flood control with citations.",
     });
 
-    expect(payload.status).toBe("refusal");
+    expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as {
       content: string;
       retrievalMeta?: { reason?: string; refused?: boolean; verifierPolicyPassed?: boolean };
     };
-    expect(assistant.content).toContain("I couldn't find a matching published AIP entry");
-    expect(assistant.retrievalMeta?.reason).toBe("verifier_failed");
-    expect(assistant.retrievalMeta?.refused).toBe(true);
+    expect(assistant.content).toContain("This is an ungrounded answer.");
+    expect(assistant.retrievalMeta?.reason).toBe("ok");
+    expect(assistant.retrievalMeta?.refused).toBe(false);
     expect(assistant.retrievalMeta?.verifierPolicyPassed).toBe(false);
   });
 
-  it("adds ref mismatch diagnostics for unavailable year and barangay filters", async () => {
+  it("routes ref mismatch query to pipeline fallback under strict RAG-first policy", async () => {
     mockResolveRetrievalScope.mockResolvedValueOnce({
       mode: "named_scopes",
       retrievalScope: {
@@ -1635,10 +1651,13 @@ describe("aggregation routing", () => {
       content: "For Ref 8000-003-002-006 in Pulo FY 2025, what is the total amount?",
     });
 
-    expect(payload.status).toBe("refusal");
+    expect(payload.status).toBe("answer");
     const assistant = payload.assistantMessage as { content: string };
-    expect(assistant.content).toContain("available fiscal years for this Ref: FY 2026");
-    expect(assistant.content).toContain("available barangays for this Ref: Barangay Mamatid");
+    expect(assistant.content).toContain("Pipeline fallback answer");
+    expect(mockRequestPipelineChatAnswer).toHaveBeenCalledTimes(1);
+    expect(
+      mockServerRpc.mock.calls.some(([fn]) => fn === "match_aip_line_items")
+    ).toBe(false);
   });
 
   it("refuses opinionated inflated-budget prompt instead of line-item clarification", async () => {

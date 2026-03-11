@@ -1912,8 +1912,57 @@ function isUnsupportedRequestQuery(queryText: string): boolean {
     /\bcorrupt(ion)?\b/.test(normalized) ||
     /\bpredict\b/.test(normalized) ||
     /\bforecast\b/.test(normalized) ||
-    /\bnext year\b.*\bbudget\b/.test(normalized)
+      /\bnext year\b.*\bbudget\b/.test(normalized)
   );
+}
+
+function hasSemanticExplanationCue(
+  queryText: string,
+  intentClassification?: PipelineIntentClassification | null
+): boolean {
+  const normalized = queryText.toLowerCase();
+  const semanticPattern =
+    /\b(explain|meaning|what does .* mean|purpose|why|describe|description|relevance|goal|goals|beneficiary|beneficiaries|theme|themes|summarize|summary|what does .* say|tell me about)\b/i;
+  if (semanticPattern.test(normalized)) {
+    return true;
+  }
+
+  return (
+    intentClassification?.intent === "PROJECT_DETAIL" ||
+    intentClassification?.intent === "DOCUMENT_EXPLANATION"
+  );
+}
+
+function isExplicitNumericAggregateQuestion(input: {
+  queryText: string;
+  intentClassification?: PipelineIntentClassification | null;
+}): boolean {
+  const normalized = input.queryText.toLowerCase();
+  const totalsIntent = detectIntent(input.queryText).intent === "total_investment_program";
+  const aggregationIntent = detectAggregationIntent(input.queryText).intent !== "none";
+  const structuredClassifierIntent =
+    input.intentClassification?.intent === "TOTAL_AGGREGATION" ||
+    input.intentClassification?.intent === "CATEGORY_AGGREGATION";
+  const semanticCue = hasSemanticExplanationCue(input.queryText, input.intentClassification);
+
+  const explicitNumericCue =
+    /\b(how many|count|number of|sum|total|overall total|grand total|top\s+\d+|top\b|bottom\b|lowest\b|highest\b|rank(?:ing)?\b|compare\b|comparison\b|difference\b|vs\b|versus\b|breakdown\b|distribution\b|totals by|total by|budget of|overall budget)\b/i.test(
+      normalized
+    );
+
+  if (semanticCue) {
+    return false;
+  }
+  if (aggregationIntent) {
+    return true;
+  }
+  if (totalsIntent && explicitNumericCue) {
+    return true;
+  }
+  if (structuredClassifierIntent && explicitNumericCue) {
+    return true;
+  }
+  return false;
 }
 
 function formatScopeLabel(target: TotalsScopeTarget): string {
@@ -4415,8 +4464,17 @@ export async function POST(request: Request) {
     }
 
     const requestedFiscalYear = extractFiscalYear(content);
+    const explicitNumericAggregateQuestion = isExplicitNumericAggregateQuestion({
+      queryText: content,
+      intentClassification: frontendIntentClassification,
+    });
     const earlyDocLimitField = detectDocLimitFieldFromQuery(content.toLowerCase());
-    if (earlyDocLimitField === "contractor") {
+    const enforceWebsiteSemanticDocLimitRefusal = false;
+    const allowLineItemSqlRouting = false;
+    const allowMetadataSqlRouting = false;
+    const applyWebsiteSemanticPreflightRefusal = false;
+    let forcePipelineFallback = false;
+    if (enforceWebsiteSemanticDocLimitRefusal && earlyDocLimitField === "contractor") {
       const refusal = buildRefusalMessage({
         intent: "unanswerable_field",
         queryText: content,
@@ -4506,7 +4564,10 @@ export async function POST(request: Request) {
       });
     }
 
-    const plannerEnabled = isChatMixedQueryPlannerEnabled() && !pendingClarification;
+    const plannerEnabled =
+      isChatMixedQueryPlannerEnabled() &&
+      !pendingClarification &&
+      explicitNumericAggregateQuestion;
     if (plannerEnabled) {
       const plannerMessages = await getSessionMessages();
       const recentDomainContext = buildRecentDomainContext({
@@ -4534,7 +4595,23 @@ export async function POST(request: Request) {
       });
 
       if (queryPlan.mode === "mixed") {
-        if (queryPlan.clarificationRequired) {
+        const hasDisallowedStructuredMixedTask = queryPlan.structuredTasks.some(
+          (task) => task.routeKind === "ROW_LOOKUP" || task.routeKind === "SQL_METADATA"
+        );
+        if (hasDisallowedStructuredMixedTask) {
+          forcePipelineFallback = true;
+          if (isTotalsDebugEnabled()) {
+            console.info(
+              JSON.stringify({
+                request_id: requestId,
+                event: "query_plan_mixed_disallowed_structured_kind",
+                disallowed_route_kinds: queryPlan.structuredTasks
+                  .map((task) => task.routeKind)
+                  .filter((kind) => kind === "ROW_LOOKUP" || kind === "SQL_METADATA"),
+              })
+            );
+          }
+        } else if (queryPlan.clarificationRequired) {
           const assistantMessage = await appendAssistantMessage({
             actor: privilegedActor,
             sessionId: session.id,
@@ -4596,9 +4673,7 @@ export async function POST(request: Request) {
             }),
             { status: 200 }
           );
-        }
-
-        if (!isChatMixedQueryExecutionEnabled()) {
+        } else if (!isChatMixedQueryExecutionEnabled()) {
           const assistantMessage = await appendAssistantMessage({
             actor: privilegedActor,
             sessionId: session.id,
@@ -4641,9 +4716,7 @@ export async function POST(request: Request) {
             }),
             { status: 200 }
           );
-        }
-
-        if (isChatMixedQueryExecutionEnabled()) {
+        } else if (isChatMixedQueryExecutionEnabled()) {
           try {
             const userBarangay = await resolveUserBarangay(actor);
             const mixedResult = await executeMixedPlan({
@@ -4855,9 +4928,15 @@ export async function POST(request: Request) {
       }
     }
 
+    const allowSqlStructuredRouting = explicitNumericAggregateQuestion && !forcePipelineFallback;
     const detectedIntent = detectIntent(content).intent;
+    const hasRawAggregationIntent = detectAggregationIntent(content).intent !== "none";
+    const canRunTotalsSql =
+      allowSqlStructuredRouting &&
+      detectedIntent === "total_investment_program" &&
+      !hasRawAggregationIntent;
 
-    if (!scope.retrievalScope && detectedIntent !== "total_investment_program") {
+    if (!scope.retrievalScope && !canRunTotalsSql) {
       const explicitScopeRequested = scopeResolution.requestedScopes.length > 0;
       const scopeResolved = scopeResolution.resolvedTargets.length > 0;
       const refusal = buildRefusalMessage({
@@ -4907,65 +4986,67 @@ export async function POST(request: Request) {
       );
     }
 
-    const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
-      intent: detectedIntent,
-      resolveTotals: async () =>
-        resolveTotalsAssistantPayload({
-          actor,
-          message: content,
-          scopeResolution,
-          requestId,
-        }),
-      resolveNormal: async () => null,
-    });
-
-    if (intentRoute.path === "totals") {
-      const totalsPayload =
-        intentRoute.value ??
-        ({
-          content: buildTotalsMissingMessage({ fiscalYear: null, scopeLabel: null }),
-          citations: [makeSystemCitation("Totals SQL path returned no payload.")],
-          retrievalMeta: {
-            refused: true,
-            reason: "insufficient_evidence",
+    if (canRunTotalsSql) {
+      const intentRoute = await routeSqlFirstTotals<TotalsAssistantPayload, null>({
+        intent: detectedIntent,
+        resolveTotals: async () =>
+          resolveTotalsAssistantPayload({
+            actor,
+            message: content,
             scopeResolution,
-          },
-        } satisfies TotalsAssistantPayload);
-      if (!intentRoute.value) {
-        logTotalsRouting(
-          makeTotalsLogPayload({
-          request_id: requestId,
-          intent: "total_investment_program",
-          route: "sql_totals",
-          fiscal_year_parsed: extractFiscalYear(content),
-          scope_reason: "unknown",
-          barangay_id_used: null,
-          aip_id_selected: null,
-          totals_found: false,
-          vector_called: false,
-          })
-        );
-      }
-
-      const assistantMessage = await appendAssistantMessage({
-        actor: privilegedActor,
-        sessionId: session.id,
-        content: totalsPayload.content,
-        citations: totalsPayload.citations,
-        retrievalMeta: {
-          ...totalsPayload.retrievalMeta,
-          latencyMs: Date.now() - startedAt,
-        },
+            requestId,
+          }),
+        resolveNormal: async () => null,
       });
 
-      return NextResponse.json(
-        chatResponsePayload({
+      if (intentRoute.path === "totals") {
+        const totalsPayload =
+          intentRoute.value ??
+          ({
+            content: buildTotalsMissingMessage({ fiscalYear: null, scopeLabel: null }),
+            citations: [makeSystemCitation("Totals SQL path returned no payload.")],
+            retrievalMeta: {
+              refused: true,
+              reason: "insufficient_evidence",
+              scopeResolution,
+            },
+          } satisfies TotalsAssistantPayload);
+        if (!intentRoute.value) {
+          logTotalsRouting(
+            makeTotalsLogPayload({
+            request_id: requestId,
+            intent: "total_investment_program",
+            route: "sql_totals",
+            fiscal_year_parsed: extractFiscalYear(content),
+            scope_reason: "unknown",
+            barangay_id_used: null,
+            aip_id_selected: null,
+            totals_found: false,
+            vector_called: false,
+            })
+          );
+        }
+
+        const assistantMessage = await appendAssistantMessage({
+          actor: privilegedActor,
           sessionId: session.id,
-          userMessage,
-          assistantMessage,
-        }),
-        { status: 200 }
-      );
+          content: totalsPayload.content,
+          citations: totalsPayload.citations,
+          retrievalMeta: {
+            ...totalsPayload.retrievalMeta,
+            latencyMs: Date.now() - startedAt,
+          },
+        });
+
+        return NextResponse.json(
+          chatResponsePayload({
+            sessionId: session.id,
+            userMessage,
+            assistantMessage,
+          }),
+          { status: 200 }
+        );
+      }
     }
 
     if (!scope.retrievalScope) {
@@ -6047,7 +6128,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (aggregationIntent.intent !== "none" && !shouldDeferAggregation) {
+    if (allowSqlStructuredRouting && aggregationIntent.intent !== "none" && !shouldDeferAggregation) {
       const explicitCityScope = await resolveExplicitCityScopeFromMessage({
         message: content,
         scopeResolution,
@@ -7144,7 +7225,11 @@ export async function POST(request: Request) {
       }
     }
 
-    if (parsedLineItemQuestion.isUnanswerableFieldQuestion && !parsedLineItemQuestion.isFactQuestion) {
+    if (
+      enforceWebsiteSemanticDocLimitRefusal &&
+      parsedLineItemQuestion.isUnanswerableFieldQuestion &&
+      !parsedLineItemQuestion.isFactQuestion
+    ) {
       const refusal = buildRefusalMessage({
         intent: "unanswerable_field",
         queryText: content,
@@ -7214,6 +7299,7 @@ export async function POST(request: Request) {
       hasMultiFieldLineItemCue;
 
     if (
+      allowLineItemSqlRouting &&
       parsedLineItemQuestion.isFactQuestion &&
       metadataIntentDetected.intent === "none" &&
       hasDeterministicLineItemTarget
@@ -7956,7 +8042,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (isChatMetadataSqlRouteEnabled() && metadataIntentDetected.intent !== "none") {
+    if (allowMetadataSqlRouting && isChatMetadataSqlRouteEnabled() && metadataIntentDetected.intent !== "none") {
       const metadataPayload = await resolveMetadataSqlPayload({
         message: content,
         scopeResolution,
@@ -8225,7 +8311,7 @@ export async function POST(request: Request) {
       };
     }
 
-    if (isChatSplitVerifierPolicyEnabled() && !assistantMeta.refused) {
+    if (applyWebsiteSemanticPreflightRefusal && isChatSplitVerifierPolicyEnabled() && !assistantMeta.refused) {
       const preflightVerifier = evaluateVerifierPolicy({
         mode: "retrieval",
         citations: assistantCitations,

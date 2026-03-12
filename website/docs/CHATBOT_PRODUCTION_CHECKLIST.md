@@ -5,7 +5,6 @@
 - Rotate `SUPABASE_SERVICE_KEY` used by `aip-intelligence-pipeline`.
 - Rotate `OPENAI_API_KEY`.
 - Set and store `PIPELINE_HMAC_SECRET` in your secret manager (do not hardcode).
-- Keep `PIPELINE_INTERNAL_TOKEN` only for legacy compatibility; chat routes no longer use it.
 - Confirm no real credentials are committed to git history.
 
 ## Environment Configuration
@@ -14,7 +13,6 @@
   - `PIPELINE_HMAC_SECRET`
 - Pipeline:
   - `PIPELINE_HMAC_SECRET`
-  - `PIPELINE_INTERNAL_TOKEN` (legacy/unused for chat auth)
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_KEY`
   - `OPENAI_API_KEY`

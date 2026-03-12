@@ -146,7 +146,6 @@ Set variables for both **Preview** and **Production** scopes.
 | `NEXT_PUBLIC_USE_MOCKS` | `false` | `false` | Keep false for real Supabase data |
 | `PIPELINE_API_BASE_URL` | Required | Required | Render pipeline API origin |
 | `PIPELINE_HMAC_SECRET` | Required | Required | Must match pipeline value |
-| `PIPELINE_INTERNAL_TOKEN` | Optional | Optional | Legacy for intent route call path |
 
 \* Set at least one of publishable key or anon key.
 
@@ -438,22 +437,14 @@ Primary reference:
 
 ## 12) Known Risk Notes
 
-### 12.1 `/intent/classify` Authentication Gap
-Current implementation in:
-- `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/intent.py`
+### 12.1 Chat API Surface
+- Chat runtime is RAG-only through `POST /v1/chat/answer`.
+- Removed endpoints: `POST /v1/chat/embed-query`, `POST /intent/classify`.
+- Website routes should call only `requestPipelineChatAnswer` and persist answer/refusal results.
 
-The `/intent/classify` route currently has no server-side auth dependency. Website currently sends `x-pipeline-token`, but the pipeline route does not enforce token/HMAC there.
-
-This is documented risk, not a deployment blocker for this guide.
-
-### 12.2 Recommended Mitigation (Non-Blocking)
-- Add server-side auth enforcement for `/intent/classify` (HMAC or equivalent).
-- Optionally rate-limit and/or IP restrict route exposure.
-- Keep endpoint observability for abnormal traffic.
-
-### 12.3 Monitoring Recommendation
-- Track request volume and source patterns for `/intent/classify`.
-- Alert on unusual spikes or unknown caller patterns.
+### 12.2 Monitoring Recommendation
+- Track refusal rates and evidence-gate outcomes for `/v1/chat/answer`.
+- Alert on sustained spikes in retrieval failures or signature failures.
 
 ## External Documentation Baseline
 - Vercel build/root directory docs: https://vercel.com/docs/builds/configure-a-build

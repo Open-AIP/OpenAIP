@@ -1,7 +1,7 @@
 # OpenAIP Threat Model
 
 ## Executive summary
-OpenAIP's top risks cluster around privileged boundary handling: service-role Supabase access in server handlers, static shared token trust between website and pipeline chat APIs, and ingesting untrusted uploaded PDFs into parser/LLM workflows. Under the selected context (web public, pipeline intended private, latest March hardening assumed, published data mostly public), the highest-priority abuse paths are unauthorized pipeline run control if network isolation drifts, internal token compromise, service-role misuse, and ingest-driven availability/cost attacks.
+OpenAIP's top risks cluster around privileged boundary handling: service-role Supabase access in server handlers, signed website-to-pipeline trust for chat APIs, and ingesting untrusted uploaded PDFs into parser/LLM workflows. Under the selected context (web public, pipeline intended private, latest March hardening assumed, published data mostly public), the highest-priority abuse paths are unauthorized pipeline run control if network isolation drifts, chat-signing secret compromise, service-role misuse, and ingest-driven availability/cost attacks.
 
 ## Scope and assumptions
 - In-scope paths:
@@ -52,10 +52,10 @@ OpenAIP's top risks cluster around privileged boundary handling: service-role Su
   - Security guarantees: only server-side env key usage (`SUPABASE_SERVICE_ROLE_KEY`) and route auth checks.
   - Validation: application-side actor checks; RLS bypass risk if handler checks fail.
 - Next.js -> Pipeline chat API:
-  - Data: question text, scope payload, embedding requests.
-  - Channel: HTTPS with `x-pipeline-token`.
-  - Security guarantees: static shared token in pipeline chat routes.
-  - Validation: pydantic request models and token equality check.
+  - Data: question text and retrieval scope/filter payloads.
+  - Channel: HTTPS with signed `x-pipeline-aud/ts/nonce/sig` headers.
+  - Security guarantees: HMAC signature verification + replay-window checks in pipeline chat route.
+  - Validation: pydantic request models and signature/body canonicalization check.
 - Pipeline worker/API -> Supabase DB/Storage:
   - Data: extraction run state, artifacts, chunks/embeddings, signed URL fetches.
   - Channel: HTTPS REST/storage APIs.
@@ -93,7 +93,7 @@ SC -->|rls sql| DB
 NX -->|service role ops| AC
 AC -->|privileged sql| DB
 AC -->|storage ops| ST
-NX -->|tokenized chat calls| PA
+NX -->|signed chat calls| PA
 OPS -->|private http| PA
 PA -->|service key rpc| DB
 PW -->|signed url download| ST
@@ -109,7 +109,7 @@ EF -->|embedding requests| OA
 | Asset | Why it matters | Security objective (C/I/A) |
 |---|---|---|
 | Supabase service-role credentials (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`) | Bypass normal RLS boundaries and enable broad DB/storage access | C, I |
-| Pipeline internal shared token (`PIPELINE_INTERNAL_TOKEN`) | Authorizes pipeline chat endpoints used for retrieval/embedding | C, I |
+| Pipeline chat signing secret (`PIPELINE_HMAC_SECRET`) | Authorizes signed website-to-pipeline chat requests | C, I |
 | Draft AIP and workflow state (`aips`, `uploaded_files`, `extraction_runs`) | Contains not-yet-public government planning data and review state | C, I |
 | Published chunk/embedding/index data (`aip_chunks`, `aip_chunk_embeddings`) | Drives chatbot grounding and public trust in answers | I, A |
 | Pipeline compute capacity and OpenAI budget | Core extraction/chat availability and operating cost control | A |
@@ -137,20 +137,20 @@ EF -->|embedding requests| OA
 | `POST /api/barangay/aips/upload` | Authenticated barangay official | Internet -> Next.js -> Supabase admin/storage | PDF upload, run queue insert | `website/app/api/barangay/aips/upload/route.ts` |
 | `POST /api/city/aips/upload` | Authenticated city official | Internet -> Next.js -> Supabase admin/storage | PDF upload, run queue insert | `website/app/api/city/aips/upload/route.ts` |
 | `GET/POST /api/*/aips/runs/[runId]*` | Authenticated LGU flows | Internet -> Next.js -> Supabase | Run status and retry operations | `website/app/api/barangay/aips/runs/[runId]/route.ts`, `.../retry/route.ts`, city equivalents |
-| `POST /api/barangay/chat/messages` | Authenticated barangay/city official | Internet -> Next.js -> Supabase + Pipeline | High-complexity route with SQL + pipeline fallback logic | `website/app/api/barangay/chat/messages/route.ts` |
+| `POST /api/barangay/chat/messages` | Authenticated barangay/city official | Internet -> Next.js -> Supabase + Pipeline | RAG-only chatbot route with retrieval-scope resolution and refusal-on-insufficient-evidence behavior | `website/app/api/barangay/chat/messages/route.ts` |
 | `POST /api/citizen/chat/reply` | Authenticated citizen | Internet -> Next.js -> Supabase + Pipeline | Citizen chatbot with quota + blocked-user checks | `website/app/api/citizen/chat/reply/route.ts` |
 | `GET /api/projects/cover/[projectId]` | Public project media URL | Internet -> Next.js -> Supabase admin/storage | Published-only cover fetch path | `website/app/api/projects/cover/[projectId]/route.ts` |
 | `GET /api/projects/media/[mediaId]` | Public/role-gated project update media | Internet -> Next.js -> Supabase admin/storage | Hidden-media access checks for scoped officials/admin | `website/app/api/projects/media/[mediaId]/route.ts` |
 | `GET /api/citizen/about-us/reference/[docId]` | Public document redirect | Internet -> Next.js -> Supabase admin/storage | Signed URL generation or HTTPS external redirect | `website/app/api/citizen/about-us/reference/[docId]/route.ts` |
 | `GET /api/system/security-policy` | Public API call | Internet -> Next.js | Returns computed lockout/session policy settings | `website/app/api/system/security-policy/route.ts`, `website/lib/security/security-settings.server.ts` |
-| `POST /v1/chat/answer`, `POST /v1/chat/embed-query` | Website server-to-pipeline call | Next.js -> Pipeline | Auth via `x-pipeline-token` | `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/chat.py`, `website/lib/chat/pipeline-client.ts` |
+| `POST /v1/chat/answer` | Website server-to-pipeline call | Next.js -> Pipeline | Signed auth via `x-pipeline-aud/ts/nonce/sig` | `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/chat.py`, `website/lib/chat/pipeline-client.ts` |
 | `POST /v1/runs/enqueue`, `GET /v1/runs/{run_id}`, `POST /v1/runs/dev/local` | Pipeline API listener | Network -> Pipeline | No internal-token enforcement on `/v1/runs/*` | `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/runs.py` |
 | `POST /functions/v1/embed_categorize_artifact` | Triggered by DB or direct caller | Supabase DB/Network -> Edge Function | Header secret check, then chunk/embed writes | `supabase/functions/embed_categorize_artifact/index.ts` |
 
 ## Top abuse paths
 1. `AP-01` Malicious PDF ingestion: compromised official uploads crafted PDF -> worker downloads signed file and parses pages -> extraction/validation prompts process adversarial content -> repeated failures/token burn degrade availability and raise cost.
 2. `AP-02` Pipeline runs abuse on exposure drift: pipeline host becomes reachable from internet -> attacker calls `/v1/runs/enqueue` or `/v1/runs/{run_id}` without token -> unauthorized run churn and status probing impact pipeline integrity/cost.
-3. `AP-03` Shared token compromise: attacker obtains `PIPELINE_INTERNAL_TOKEN` from server/log/ops leak -> calls `/v1/chat/answer` and `/v1/chat/embed-query` directly -> unauthorized usage and data scraping of published retrieval corpus.
+3. `AP-03` Chat signing-secret compromise: attacker obtains `PIPELINE_HMAC_SECRET` from server/log/ops leak -> signs arbitrary `/v1/chat/answer` calls -> unauthorized model usage and retrieval scraping of published corpus.
 4. `AP-04` Service-role misuse in web server: bug or compromise reaches handlers using `supabaseAdmin()` -> attacker drives privileged DB/storage actions that bypass normal RLS scope checks -> broad confidentiality/integrity impact.
 5. `AP-05` Edge invocation abuse: job secret leaks or edge ingress lacks stronger anti-replay controls -> attacker posts fake indexing jobs -> chunk/embedding pollution and unnecessary OpenAI spending.
 6. `AP-06` Migration drift regression: environment misses March hardening SQL while app assumes it is present -> uploader lock and quota controls weaken -> unauthorized workflow edits or abuse scale-up.
@@ -161,7 +161,7 @@ EF -->|embedding requests| OA
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | TM-001 | Malicious/compromised LGU official | Valid official account with upload rights | Upload crafted PDFs that stress parser/LLM stages and queue repeated runs | Pipeline slowdown, failed runs, higher OpenAI spend, possible extraction integrity degradation | Pipeline compute budget, run integrity, draft workflow availability | Upload gate + scope checks and PDF size/type checks (`website/app/api/*/aips/upload/route.ts`); error sanitization in worker (`worker/processor.py`) | No magic-byte validation, no malware/CDR step, limited ingestion abuse throttling | Enforce MIME+magic validation, optional malware scan/CDR, per-user queue caps, worker resource quotas, non-root containers | Alert on per-user failed-run spikes and token/spend anomalies; monitor extraction exception rates by uploader | Medium | High | high |
 | TM-002 | Remote attacker exploiting network drift | Pipeline API becomes publicly reachable | Call `/v1/runs/enqueue` and run status routes without token auth | Unauthorized run creation/status probing, compute/cost abuse, processing noise | Extraction run integrity, compute budget, operational availability | Intended private deployment pattern (docs); `dev/local` route guarded by env flag (`runs.py`) | `/v1/runs/*` lacks internal token/mTLS auth; relies on network isolation alone | Add explicit authn/authz for `/v1/runs/*` (token/mTLS/IAP), ingress allow-lists, WAF/rate-limits, disable unused routes by default | Detect non-website source IPs and abnormal enqueue rates; alert on run creation without expected caller identity | Medium (High if exposed) | High | high |
-| TM-003 | Attacker with leaked internal token | Token disclosure via server compromise/logging/ops error | Invoke pipeline chat and embedding endpoints directly with `x-pipeline-token` | Unauthorized model usage, retrieval scraping, cost escalation | Pipeline internal token, compute budget, published retrieval service quality | Token equality check in pipeline (`chat.py::_require_internal_token`); server-only env usage in website bridge (`pipeline-client.ts`) | Static long-lived shared secret, no replay protection or caller binding | Replace static token with short-lived signed service token (JWT/HMAC + timestamp + audience + nonce), rotate secrets, enforce clock window | Alert on token use from unknown origins, replay-like request bursts, and off-hours invocation patterns | Medium | High | high |
+| TM-003 | Attacker with leaked chat signing secret | Secret disclosure via server compromise/logging/ops error | Sign arbitrary `/v1/chat/answer` requests with forged `x-pipeline-*` headers | Unauthorized model usage, retrieval scraping, cost escalation | Pipeline chat signing secret, compute budget, published retrieval service quality | HMAC signature verification with timestamp/nonce and replay cache (`chat.py`); server-only env usage in website bridge (`pipeline-client.ts`) | Shared secret still high impact if leaked; replay controls are process-local | Rotate signing secret, add centralized nonce store for multi-instance replay protection, restrict pipeline ingress to trusted callers | Alert on signature-valid traffic from unknown origins and abnormal chat request bursts | Medium | High | high |
 | TM-004 | App-layer bug or server compromise | Reachability into handlers that instantiate service-role client | Abuse privileged `supabaseAdmin()` calls to bypass RLS and perform broad DB/storage operations | Confidentiality/integrity compromise across sensitive operational data | Service-role credentials, draft/workflow state, audit trust | Route-level actor checks in admin/LGU handlers; DB RLS for non-service flows (`website/app/api/**`, `database-v2.sql`) | Service-role key has broad blast radius; no centralized policy wrapper for privileged actions | Split service-role privileges by subsystem, wrap privileged operations with invariant checks, reduce direct admin client usage, add structured access audit logs | Log and alert on high-risk service-role operations (storage delete, mass updates, settings writes), with actor correlation | Medium | High | high |
 | TM-005 | External actor with leaked edge secret or weak ingress controls | Knowledge of edge endpoint and valid/accepted secret | Submit forged embed jobs to create noisy or misleading chunk/embedding updates | Retrieval integrity degradation and avoidable embedding spend | Published retrieval index integrity, OpenAI budget | Edge checks request method and `x-job-secret` (`embed_categorize_artifact/index.ts`); dispatch RPC grant limited to `service_role` (`database-v2.sql`) | Header secret alone; no nonce/timestamp anti-replay, no caller attestation | Add JWT/HMAC signed body with nonce/timestamp, rotate secret, restrict ingress by source network/service identity | Alert on edge invocations lacking expected dispatch telemetry linkage (`request_id`, AIP state), monitor embed-run anomaly rates | Medium | High | high |
 | TM-006 | Deployment/configuration drift | Incomplete SQL migration application in target env | Hardening functions/policies not present while app assumes they are | Authorization regressions and quota/abuse control weakening | Workflow integrity, rate-control effectiveness | March patches exist (`website/docs/sql/2026-03-01_*`); base schema controls in `database-v2.sql` | Root migration guidance can drift from current patch set; no enforced migration-state gate | Add CI/startup migration assertion for required security SQL files and function signatures; block deploy on drift | Emit startup/health warning on missing functions/policies; periodic migration compliance checks | Medium | High | high |
@@ -177,7 +177,7 @@ EF -->|embedding requests| OA
   - Definition: realistic attacks with strong confidentiality/integrity/availability impact that require token/role compromise or deployment drift.
   - Examples:
     - `TM-001` malicious official PDF ingestion causing sustained extraction failures/cost spikes.
-    - `TM-003` `PIPELINE_INTERNAL_TOKEN` compromise enabling unauthorized model calls.
+    - `TM-003` `PIPELINE_HMAC_SECRET` compromise enabling unauthorized signed chat calls.
     - `TM-004` misuse of `supabaseAdmin()` paths to bypass normal RLS trust boundaries.
 - `medium` for this repo:
   - Definition: attacks with meaningful but bounded impact, or strong dependency on assumptions (exposure/config state).
@@ -194,19 +194,19 @@ EF -->|embedding requests| OA
 | Path | Why it matters | Related Threat IDs |
 |---|---|---|
 | `website/lib/supabase/admin.ts` | Central privileged Supabase client using service-role key | TM-004 |
-| `website/lib/chat/pipeline-client.ts` | Shared token bridge to pipeline chat endpoints | TM-003 |
+| `website/lib/chat/pipeline-client.ts` | HMAC-signed bridge to pipeline chat endpoint | TM-003 |
 | `website/lib/supabase/proxy.ts` | Session/role gate and route-level auth behavior | TM-004, TM-007 |
 | `website/app/auth/sign-in/route.ts` | Citizen login flow and lockout interaction | TM-007 |
 | `website/app/auth/staff-sign-in/route.ts` | Staff role validation and lockout behavior | TM-007 |
 | `website/lib/security/login-attempts.server.ts` | Lockout state machine and persistence | TM-007 |
 | `website/app/api/barangay/aips/upload/route.ts` | PDF upload validation, queueing, storage write | TM-001 |
 | `website/app/api/city/aips/upload/route.ts` | City upload path symmetry and gating | TM-001 |
-| `website/app/api/barangay/chat/messages/route.ts` | High-complexity chat orchestration, quota RPC, SQL + pipeline fallback | TM-003, TM-004 |
+| `website/app/api/barangay/chat/messages/route.ts` | RAG-only chat orchestration, quota RPC, retrieval-scope gating, refusal persistence | TM-003, TM-004 |
 | `website/app/api/citizen/chat/reply/route.ts` | Citizen chatbot rate controls and pipeline bridge | TM-003 |
 | `website/app/api/system/security-policy/route.ts` | Public policy exposure surface | TM-007 |
 | `website/lib/security/security-settings.server.ts` | Serialized security policy data returned to API consumers | TM-007 |
 | `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/runs.py` | `/v1/runs/*` exposure and lack of internal-token checks | TM-002 |
-| `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/chat.py` | Internal token enforcement for chat APIs | TM-003 |
+| `aip-intelligence-pipeline/src/openaip_pipeline/api/routes/chat.py` | Signed-header verification and RAG answer endpoint enforcement | TM-003 |
 | `aip-intelligence-pipeline/src/openaip_pipeline/worker/processor.py` | Signed URL fetch, stage execution, failure handling, embedding writes | TM-001 |
 | `aip-intelligence-pipeline/src/openaip_pipeline/adapters/supabase/client.py` | Service-key REST/storage operations and signed URL creation | TM-001, TM-004 |
 | `aip-intelligence-pipeline/src/openaip_pipeline/services/extraction/barangay.py` | PDF page extraction and model call path for barangay scope | TM-001 |
@@ -222,6 +222,6 @@ EF -->|embedding requests| OA
 - Trust boundaries covered in threats: yes; each listed boundary maps to at least one `TM-*` item.
 - Runtime vs CI/dev separation: yes; dev-only route (`/v1/runs/dev/local`) and mock/dev bypass flags are explicitly called out as conditional risk factors.
 - Existing controls vs gaps for high-priority threats: yes; each high/critical-relevant threat row includes evidence-backed controls, concrete gaps, and mitigations.
-- Context assumptions reflected: yes; rankings explicitly use web-public + pipeline-private intent + latest March migrations + published-data-mostly-public stance.
+- Context assumptions reflected: yes; rankings explicitly use web-public + pipeline-private deployment + latest March migrations + published-data-mostly-public stance.
 - ID consistency: yes; abuse paths (`AP-01`..`AP-07`) and threat IDs (`TM-001`..`TM-007`) are stable and aligned.
 

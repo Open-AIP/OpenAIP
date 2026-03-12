@@ -4,11 +4,7 @@ import type {
   RetrievalScopePayload,
   RetrievalScopeTarget,
 } from "@/lib/chat/types";
-import { decideRoute } from "@/lib/chat/router-decision";
-import {
-  requestPipelineChatAnswer,
-  requestPipelineIntentClassify,
-} from "@/lib/chat/pipeline-client";
+import { requestPipelineChatAnswer } from "@/lib/chat/pipeline-client";
 import { getTypedAppSetting, isUserBlocked } from "@/lib/settings/app-settings";
 import { enforceCsrfProtection } from "@/lib/security/csrf";
 import { assertPrivilegedWriteAccess, isInvariantError } from "@/lib/security/invariants";
@@ -57,55 +53,74 @@ type ChatQuotaResult = {
   reason: string;
 };
 
+type DbCitation = {
+  id: string;
+  documentLabel: string;
+  snippet: string;
+  fiscalYear: string | null;
+  pageOrSection: string | null;
+  projectRefCode: string | null;
+};
+
 const MESSAGE_CONTENT_LIMIT = 12000;
 const RETRIEVAL_FILTER_YEAR_PATTERN = /\b(20\d{2})\b/g;
 const RETRIEVAL_FILTER_MULTI_YEAR_CUE_PATTERN =
   /\b(compare|comparison|trend|across|between|vs|versus|from\s+20\d{2}\s+to\s+20\d{2})\b/i;
 
-function isCitizenRouterV2Enabled(): boolean {
-  return process.env.CITIZEN_ROUTER_V2_ENABLED === "true";
+function normalizePipelineReason(value: unknown):
+  | "ok"
+  | "insufficient_evidence"
+  | "partial_evidence"
+  | "verifier_failed"
+  | "ambiguous_scope"
+  | "pipeline_error"
+  | "validation_failed"
+  | "unknown" {
+  if (
+    value === "ok" ||
+    value === "insufficient_evidence" ||
+    value === "partial_evidence" ||
+    value === "verifier_failed" ||
+    value === "ambiguous_scope" ||
+    value === "pipeline_error" ||
+    value === "validation_failed" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  return "unknown";
 }
 
-function conversationalReply(intent: string): string {
-  switch (intent) {
-    case "GREETING":
-      return "Hi! I can help with published AIP totals, line items, and project details. Tell me the year and budget detail you want to check.";
-    case "THANKS":
-      return "You're welcome! Tell me the year and AIP detail you want to check next.";
-    case "COMPLAINT":
-      return "Thanks for flagging that. Tell me which part seems incorrect (year, project/ref code, or scope) so I can re-check.";
-    case "CLARIFY":
-      return "Sure - tell me the year and the project/ref code or topic you mean.";
-    case "OUT_OF_SCOPE":
-      return "I can help with published AIP questions only. Ask about budgets, totals, fund sources, or project details.";
-    default:
-      return "How can I help with published AIP data?";
+function buildRefusalMessage(reason: "pipeline_error" | "validation_failed" | "insufficient_evidence"): string {
+  if (reason === "pipeline_error") {
+    return "I couldn't complete retrieval due to a temporary system issue. Please try again in a few moments.";
   }
+  if (reason === "validation_failed") {
+    return "I can't provide a grounded answer from retrieval for that request. Please include clearer scope or fiscal-year details and try again.";
+  }
+  return "I couldn't find enough relevant retrieved evidence to answer reliably.";
 }
 
-function buildFollowUps(userMessage: string): string[] {
-  const lowered = userMessage.toLowerCase();
-  if (lowered.includes("project")) {
-    return [
-      "Show the top funded projects for this scope.",
-      "Break down the budget by sector for the same fiscal year.",
-      "Compare this project's funding against last fiscal year.",
-    ];
+function normalizeSuggestedFollowUps(source: unknown): string[] {
+  if (!Array.isArray(source)) {
+    return [];
   }
+  return source
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item) => item.length > 0)
+    .slice(0, 3);
+}
 
-  if (lowered.includes("budget") || lowered.includes("allocation")) {
-    return [
-      "Show the total allocation by sector.",
-      "List the biggest line items in this scope.",
-      "Compare this fiscal year against the previous year.",
-    ];
-  }
-
-  return [
-    "Show me the total investment for this fiscal year.",
-    "List key projects in this scope.",
-    "What line items support this answer?",
-  ];
+function makeSystemDbCitation(snippet: string, metadata?: Record<string, unknown>): DbCitation {
+  return {
+    id: "system_1",
+    documentLabel: "System",
+    snippet,
+    fiscalYear: null,
+    pageOrSection: null,
+    projectRefCode: null,
+    ...(metadata ? { metadata } : {}),
+  } as DbCitation;
 }
 
 async function resolveScopeName(
@@ -259,9 +274,9 @@ function toDbCitations(payload: {
           ? `Page ${metadata.page_no}`
           : typeof citation.source_page === "number"
             ? `Page ${citation.source_page}`
-          : typeof metadata.section === "string"
-            ? metadata.section
-            : null,
+            : typeof metadata.section === "string"
+              ? metadata.section
+              : null,
       projectRefCode:
         typeof metadata.project_ref_code === "string"
           ? metadata.project_ref_code
@@ -370,6 +385,7 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+
     const privilegedActor = toPrivilegedActorContextFromProfile({
       userId,
       role: profile.role,
@@ -380,6 +396,7 @@ export async function POST(request: Request) {
     if (!privilegedActor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
     assertPrivilegedWriteAccess({
       actor: privilegedActor,
       allowlistedRoles: ["citizen"],
@@ -407,140 +424,130 @@ export async function POST(request: Request) {
       profile,
       admin,
     });
-    let intentClassification: Awaited<ReturnType<typeof requestPipelineIntentClassify>> | null = null;
+
+    let answerContent = "";
+    let refused = false;
+    let reason: ReturnType<typeof normalizePipelineReason> = "unknown";
+    let dbCitations: Json = [];
+    let retrievalMeta: Json = {};
+    let suggestedFollowUps: string[] = [];
+
     try {
-      intentClassification = await requestPipelineIntentClassify({
-        text: userMessage,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Pipeline intent classification failed.";
-      console.warn("[citizen-chat] intent classification failed:", message);
-    }
-
-    if (isCitizenRouterV2Enabled()) {
-      const routeDecision = decideRoute({
-        text: userMessage,
-        intentClassification,
-      });
-
-      if (routeDecision.kind === "CONVERSATIONAL") {
-        const suggestedFollowUps = buildFollowUps(userMessage);
-        const retrievalMeta = {
-          refused: false,
-          reason: "ok",
-          source: "citizen_router_v2",
-          routeKind: routeDecision.kind,
-          confidence: routeDecision.confidence,
-          reasons: routeDecision.reasons,
-          suggestedFollowUps,
-          ...(intentClassification ? { intentClassification } : {}),
-        } as Json;
-
-        const inserted = (await insertAssistantChatMessage({
-          actor: privilegedActor,
-          sessionId,
-          content: conversationalReply(intentClassification?.intent ?? "UNKNOWN"),
-          citations: [] as Json,
-          retrievalMeta,
-        })) as ChatMessageRow;
-
-        return NextResponse.json({
-          message: {
-            id: inserted.id,
-            sessionId: inserted.session_id,
-            role: inserted.role,
-            content: inserted.content,
-            citations: inserted.citations,
-            retrievalMeta: inserted.retrieval_meta,
-            createdAt: inserted.created_at,
-          },
-          suggestedFollowUps,
-        });
-      }
-
-      if (routeDecision.kind === "CLARIFY") {
-        const suggestedFollowUps = buildFollowUps(userMessage);
-        const clarifyContent = routeDecision.missingSlots.includes("fiscal_year_pair")
-          ? "Please specify two fiscal years to compare (for example: FY 2025 vs FY 2026)."
-          : "Please clarify the request (year and exact scope/topic) so I can answer accurately.";
-        const retrievalMeta = {
-          refused: false,
-          reason: "clarification_needed",
-          status: "clarification",
-          source: "citizen_router_v2",
-          routeKind: routeDecision.kind,
-          confidence: routeDecision.confidence,
-          reasons: routeDecision.reasons,
-          missingSlots: routeDecision.missingSlots,
-          suggestedFollowUps,
-          ...(intentClassification ? { intentClassification } : {}),
-        } as Json;
-
-        const inserted = (await insertAssistantChatMessage({
-          actor: privilegedActor,
-          sessionId,
-          content: clarifyContent,
-          citations: [] as Json,
-          retrievalMeta,
-        })) as ChatMessageRow;
-
-        return NextResponse.json({
-          message: {
-            id: inserted.id,
-            sessionId: inserted.session_id,
-            role: inserted.role,
-            content: inserted.content,
-            citations: inserted.citations,
-            retrievalMeta: inserted.retrieval_meta,
-            createdAt: inserted.created_at,
-          },
-          suggestedFollowUps,
-        });
-      }
-    }
-
-    const pipeline = await requestPipelineChatAnswer({
-      question: userMessage,
-      retrievalScope,
-      retrievalMode: "qa",
-      retrievalFilters: buildRetrievalFilters({
-        message: userMessage,
+      const pipeline = await requestPipelineChatAnswer({
+        question: userMessage,
         retrievalScope,
-      }),
-      topK: 5,
-    });
+        retrievalMode: "qa",
+        retrievalFilters: buildRetrievalFilters({
+          message: userMessage,
+          retrievalScope,
+        }),
+        topK: 5,
+      });
 
-    const citations = toDbCitations({
-      citations: pipeline.citations.map((citation) => ({
-        source_id: citation.source_id,
-        snippet: citation.snippet,
-        fiscal_year: citation.fiscal_year ?? null,
-        scope_name: citation.scope_name ?? null,
-        source_page: citation.source_page ?? null,
-        project_ref_code: citation.project_ref_code ?? null,
-        metadata: citation.metadata,
-      })),
-    });
+      reason = normalizePipelineReason(pipeline.retrieval_meta?.reason);
+      refused = Boolean(pipeline.refused);
+      answerContent = pipeline.answer.trim();
 
-    const suggestedFollowUps = buildFollowUps(userMessage);
-    const retrievalMeta = {
-      ...(pipeline.retrieval_meta ?? {}),
-      refused: pipeline.refused,
-      source: "pipeline_chat_answer",
-      sessionTitle: session.title,
-      context: session.context,
-      suggestedFollowUps,
-      ...(intentClassification ? { intentClassification } : {}),
-    } as Json;
+      const pipelineCitations = pipeline.citations
+        .map((citation) => ({
+          source_id: citation.source_id,
+          snippet: citation.snippet,
+          fiscal_year: citation.fiscal_year ?? null,
+          scope_name: citation.scope_name ?? null,
+          source_page: citation.source_page ?? null,
+          project_ref_code: citation.project_ref_code ?? null,
+          metadata: citation.metadata,
+        }))
+        .filter((citation) => citation.snippet.trim().length > 0);
+
+      if (!answerContent) {
+        refused = true;
+        reason = "validation_failed";
+        answerContent = buildRefusalMessage("validation_failed");
+      }
+
+      if (pipelineCitations.length === 0) {
+        refused = true;
+        if (reason === "ok") {
+          reason = "validation_failed";
+        }
+        dbCitations = [
+          makeSystemDbCitation("No retrieval citations were produced for this response.", {
+            reason: "missing_citations",
+          }),
+        ] as unknown as Json;
+        answerContent = buildRefusalMessage(
+          reason === "pipeline_error" ? "pipeline_error" : "validation_failed"
+        );
+      } else {
+        dbCitations = toDbCitations({
+          citations: pipelineCitations,
+        });
+      }
+
+      suggestedFollowUps = normalizeSuggestedFollowUps(
+        (pipeline.retrieval_meta as Record<string, unknown> | undefined)?.suggested_follow_ups ??
+          (pipeline.retrieval_meta as Record<string, unknown> | undefined)?.suggestedFollowUps
+      );
+
+      retrievalMeta = {
+        ...(pipeline.retrieval_meta ?? {}),
+        refused,
+        reason,
+        status: refused ? "refusal" : "answer",
+        source: "pipeline_chat_answer",
+        sessionTitle: session.title,
+        context: session.context,
+        suggestedFollowUps,
+      } as Json;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Pipeline chat request failed.";
+      refused = true;
+      reason = "pipeline_error";
+      answerContent = buildRefusalMessage("pipeline_error");
+      dbCitations = [
+        makeSystemDbCitation("Pipeline chat request failed.", {
+          reason: "pipeline_error",
+          error: message,
+        }),
+      ] as unknown as Json;
+      retrievalMeta = {
+        refused: true,
+        reason: "pipeline_error",
+        status: "refusal",
+        source: "pipeline_chat_answer",
+        sessionTitle: session.title,
+        context: session.context,
+        suggestedFollowUps: [],
+      } as Json;
+      suggestedFollowUps = [];
+    }
+
+    if (!answerContent.trim()) {
+      refused = true;
+      reason = "validation_failed";
+      answerContent = buildRefusalMessage("validation_failed");
+      dbCitations = [
+        makeSystemDbCitation("Assistant response was empty after retrieval.", {
+          reason: "validation_failed",
+        }),
+      ] as unknown as Json;
+      retrievalMeta = {
+        ...(retrievalMeta as Record<string, unknown>),
+        refused: true,
+        reason,
+        status: "refusal",
+      } as Json;
+    }
 
     const inserted = (await insertAssistantChatMessage({
       actor: privilegedActor,
       sessionId,
-      content: pipeline.answer,
-      citations,
+      content: answerContent,
+      citations: dbCitations,
       retrievalMeta,
     })) as ChatMessageRow;
+
     return NextResponse.json({
       message: {
         id: inserted.id,

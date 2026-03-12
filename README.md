@@ -162,8 +162,6 @@ NEXT_PUBLIC_TEMP_ADMIN_BYPASS=false
 NEXT_PUBLIC_API_BASE_URL=
 PIPELINE_API_BASE_URL=http://localhost:8000
 PIPELINE_HMAC_SECRET=<shared-hmac-secret>
-# Legacy/unused for chat s2s auth.
-PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 ```
 
 `aip-intelligence-pipeline/.env` (safe example):
@@ -205,8 +203,6 @@ PIPELINE_ENABLE_RAG=false
 PIPELINE_RAG_TRACE_QUERY=
 PIPELINE_DEV_ROUTES=false
 PIPELINE_HMAC_SECRET=<shared-hmac-secret>
-# Legacy/unused for chat s2s auth.
-PIPELINE_INTERNAL_TOKEN=<shared-internal-token>
 PIPELINE_RUNS_HMAC_SECRET=<hmac-secret-hex>
 PIPELINE_RUNS_ALLOWED_AUDIENCES=website-backend
 PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS=60
@@ -246,7 +242,6 @@ Website env reference:
 | `NEXT_PUBLIC_API_BASE_URL` | No | Client-exposed | Optional API base override |
 | `PIPELINE_API_BASE_URL` | Yes (chatbot) | Server-only | Internal base URL for pipeline chat endpoint |
 | `PIPELINE_HMAC_SECRET` | Yes (chatbot) | Server-only | Shared secret used to sign `x-pipeline-*` chat request headers (`aud|ts|nonce|rawBody`) |
-| `PIPELINE_INTERNAL_TOKEN` | No (legacy) | Server-only | Legacy token retained for backward compatibility; unused for `/v1/chat/*` auth |
 
 \* Set at least one of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
@@ -288,7 +283,6 @@ Pipeline env reference:
 | `PIPELINE_RAG_TRACE_QUERY` | No | Server-only | Query text used when RAG trace is enabled |
 | `PIPELINE_DEV_ROUTES` | No | Server-only | Enables `/v1/runs/dev/local` |
 | `PIPELINE_HMAC_SECRET` | Yes (chat route) | Server-only | Shared secret used to verify `x-pipeline-aud/ts/nonce/sig` for `/v1/chat/*` |
-| `PIPELINE_INTERNAL_TOKEN` | No (legacy) | Server-only | Legacy token retained for backward compatibility; unused for `/v1/chat/*` auth |
 | `PIPELINE_RUNS_HMAC_SECRET` | Yes (`/v1/runs/*`) | Server-only | HMAC secret used to verify run-control request signatures |
 | `PIPELINE_RUNS_ALLOWED_AUDIENCES` | Yes (`/v1/runs/*`) | Server-only | Comma-separated allowlist for `aud` header (example `website-backend`) |
 | `PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS` | No | Server-only | Sliding-window size for `/v1/runs/*` throttling (default `60`) |

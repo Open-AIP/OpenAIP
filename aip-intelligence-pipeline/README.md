@@ -106,7 +106,6 @@ Common optional runtime vars:
 - `RAG_LLM_TEMPERATURE` (default `0.0`)
 - `RAG_LLM_MAX_TOKENS` (default `500`)
 - `PIPELINE_HMAC_SECRET` (required by chat route)
-- `PIPELINE_INTERNAL_TOKEN` (legacy/unused for chat auth)
 - `PIPELINE_RUNS_RATE_LIMIT_WINDOW_SECONDS` (default `60`)
 - `PIPELINE_RUNS_RATE_LIMIT_PER_AUD` (default `30`)
 - `PIPELINE_RUNS_RATE_LIMIT_GLOBAL` (default `120`)
@@ -186,7 +185,6 @@ Notes:
 - Shared secret is `PIPELINE_HMAC_SECRET` (must match website secret).
 - Signature compare is constant-time.
 - Replayed `(aud, nonce, ts, body)` values are rejected via in-memory TTL cache.
-- `PIPELINE_INTERNAL_TOKEN` is legacy/unused for chat route authentication.
 
 ## Validation resources
 

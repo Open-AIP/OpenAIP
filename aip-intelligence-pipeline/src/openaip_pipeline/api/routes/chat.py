@@ -14,9 +14,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from openaip_pipeline.core.settings import Settings
-from openaip_pipeline.services.intent.chat_shortcuts import maybe_handle_conversational_intent
-from openaip_pipeline.services.intent.router import IntentRouter
-from openaip_pipeline.services.openai_utils import build_openai_client
 from openaip_pipeline.services.rag.rag import answer_with_rag
 
 _CHAT_AUTH_LOCK = threading.Lock()
@@ -135,8 +132,6 @@ async def _chat_auth_dependency(request: Request) -> None:
 
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"], dependencies=[Depends(_chat_auth_dependency)])
-logger = logging.getLogger(__name__)
-_INTENT_ROUTER = IntentRouter()
 
 
 class RetrievalScopeTarget(BaseModel):
@@ -180,51 +175,10 @@ class ChatAnswerResponse(BaseModel):
     context_count: int
 
 
-class QueryEmbeddingRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=12000)
-    model_name: str | None = None
-
-
-class QueryEmbeddingResponse(BaseModel):
-    embedding: list[float]
-    model: str
-    dimensions: int
-
-
-def _intent_router_enabled() -> bool:
-    value = os.getenv("INTENT_ROUTER_ENABLED", "false").strip().lower()
-    return value in {"1", "true", "yes", "on"}
-
-
 @router.post("/answer", response_model=ChatAnswerResponse)
 def chat_answer(
     req: ChatAnswerRequest,
 ) -> ChatAnswerResponse:
-    if _intent_router_enabled():
-        intent_result = _INTENT_ROUTER.route(req.question)
-        logger.info(
-            "Intent router: intent=%s confidence=%.3f method=%s",
-            intent_result.intent.value,
-            intent_result.confidence,
-            intent_result.method,
-        )
-        shortcut = maybe_handle_conversational_intent(req.question, intent_result)
-        if shortcut is not None:
-            return ChatAnswerResponse(
-                question=req.question,
-                answer=shortcut["message"],
-                refused=False,
-                citations=[],
-                retrieval_meta={
-                    "reason": "conversational_shortcut",
-                    "intent": intent_result.intent.value,
-                    "confidence": intent_result.confidence,
-                    "method": intent_result.method,
-                    "feature_flag": "INTENT_ROUTER_ENABLED",
-                },
-                context_count=0,
-            )
-
     settings = Settings.load(require_supabase=True, require_openai=True)
     model_name = (req.model_name or settings.pipeline_model).strip() or settings.pipeline_model
 
@@ -249,31 +203,4 @@ def chat_answer(
         citations=list(result.get("citations") or []),
         retrieval_meta=dict(result.get("retrieval_meta") or {}),
         context_count=int(result.get("context_count") or 0),
-    )
-
-
-@router.post("/embed-query", response_model=QueryEmbeddingResponse)
-def embed_query(
-    req: QueryEmbeddingRequest,
-) -> QueryEmbeddingResponse:
-    settings = Settings.load(require_supabase=False, require_openai=True)
-    model_name = (req.model_name or settings.embedding_model).strip() or settings.embedding_model
-
-    client = build_openai_client(settings.openai_api_key)
-    response = client.embeddings.create(model=model_name, input=req.text)
-    data = list(getattr(response, "data", []) or [])
-    if not data:
-        raise HTTPException(status_code=500, detail="Embedding response is empty.")
-
-    embedding = getattr(data[0], "embedding", None)
-    if not isinstance(embedding, list) or not embedding:
-        raise HTTPException(status_code=500, detail="Embedding vector missing in response.")
-    if not all(isinstance(value, (int, float)) for value in embedding):
-        raise HTTPException(status_code=500, detail="Embedding vector contains invalid values.")
-
-    normalized = [float(value) for value in embedding]
-    return QueryEmbeddingResponse(
-        embedding=normalized,
-        model=model_name,
-        dimensions=len(normalized),
     )

@@ -364,12 +364,6 @@ Required seeded keys used by the website include:</p>
 <td>Required</td>
 <td>Must match pipeline value</td>
 </tr>
-<tr>
-<td><code>PIPELINE_INTERNAL_TOKEN</code></td>
-<td>Optional</td>
-<td>Optional</td>
-<td>Legacy for intent route call path</td>
-</tr>
 </tbody>
 </table>
 <p>* Set at least one of publishable key or anon key.</p>
@@ -722,23 +716,16 @@ vercel --prod
 <li>Confirm service keys used by Vercel/Render are current and valid.</li>
 </ul>
 <h2 id="12-known-risk-notes">12) Known Risk Notes</h2>
-<h3 id="121-intentclassify-authentication-gap">12.1 <code>/intent/classify</code> Authentication Gap</h3>
-<p>Current implementation in:</p>
+<h3 id="121-chat-api-surface">12.1 Chat API Surface</h3>
 <ul>
-<li><code>aip-intelligence-pipeline/src/openaip_pipeline/api/routes/intent.py</code></li>
+<li>Chat runtime is RAG-only through <code>POST /v1/chat/answer</code>.</li>
+<li>Removed endpoints: <code>POST /v1/chat/embed-query</code>, <code>POST /intent/classify</code>.</li>
+<li>Website routes should call only <code>requestPipelineChatAnswer</code> and persist answer/refusal results.</li>
 </ul>
-<p>The <code>/intent/classify</code> route currently has no server-side auth dependency. Website currently sends <code>x-pipeline-token</code>, but the pipeline route does not enforce token/HMAC there.</p>
-<p>This is documented risk, not a deployment blocker for this guide.</p>
-<h3 id="122-recommended-mitigation-non-blocking">12.2 Recommended Mitigation (Non-Blocking)</h3>
+<h3 id="122-monitoring-recommendation">12.2 Monitoring Recommendation</h3>
 <ul>
-<li>Add server-side auth enforcement for <code>/intent/classify</code> (HMAC or equivalent).</li>
-<li>Optionally rate-limit and/or IP restrict route exposure.</li>
-<li>Keep endpoint observability for abnormal traffic.</li>
-</ul>
-<h3 id="123-monitoring-recommendation">12.3 Monitoring Recommendation</h3>
-<ul>
-<li>Track request volume and source patterns for <code>/intent/classify</code>.</li>
-<li>Alert on unusual spikes or unknown caller patterns.</li>
+<li>Track refusal rates and evidence-gate outcomes for <code>/v1/chat/answer</code>.</li>
+<li>Alert on sustained spikes in retrieval failures or signature failures.</li>
 </ul>
 <h2 id="external-documentation-baseline">External Documentation Baseline</h2>
 <ul>

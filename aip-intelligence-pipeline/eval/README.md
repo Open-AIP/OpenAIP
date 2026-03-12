@@ -49,19 +49,9 @@ Schema-only validation (JSON + schema, without global 200/count constraints):
 python eval/validate_questions.py --schema-only --path eval/questions/v2/questions.sample.jsonl
 ```
 
-## Strategy Regression (Phase 4)
+## Removed Tooling
 
-Run strategy behavior regression (route/rewrite/planner/gate/verifier telemetry comparisons):
-
-```powershell
-python -m eval.run_strategy_regression --input eval/questions/strategy/v1/cases.jsonl --stateful
-```
-
-Compare two strategy runs:
-
-```powershell
-python -m eval.compare_strategy_runs --base eval/results/<base>/summary.json --candidate eval/results/<candidate>/summary.json
-```
+Intent-classification evaluation and strategy-regression tooling were removed as part of the RAG-only chatbot refactor.
 
 ## Notes
 

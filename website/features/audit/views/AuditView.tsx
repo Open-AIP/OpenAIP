@@ -12,6 +12,7 @@
 
 import * as React from "react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -31,6 +32,8 @@ import {
 import type { ActivityLogRow } from "@/lib/repos/audit/repo";
 import { getAuditActionLabel, getAuditRoleLabel } from "@/features/audit/types/audit";
 import { Search } from "lucide-react";
+
+const PAGE_SIZE = 15;
 
 /**
  * Formats an ISO datetime string to a human-readable format
@@ -103,6 +106,7 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
   const [year, setYear] = useState<string>(String(years[0] ?? "all"));
   const [event, setEvent] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -121,6 +125,17 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
       })
       .sort((a, b) => (a.row.createdAt < b.row.createdAt ? 1 : -1));
   }, [displayRows, year, event, query]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [year, event, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.max(1, Math.min(page, totalPages));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const pagedRows = filtered.slice(startIndex, startIndex + PAGE_SIZE);
+  const showingFrom = filtered.length === 0 ? 0 : startIndex + 1;
+  const showingTo = filtered.length === 0 ? 0 : startIndex + pagedRows.length;
 
   return (
     <div className="space-y-6">
@@ -184,7 +199,9 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
         </div>
       </div>
 
-      <div className="text-sm text-slate-500">Showing {filtered.length} events</div>
+      <div className="text-sm text-slate-500">
+        {`Showing ${showingFrom}-${showingTo} of ${filtered.length} events`}
+      </div>
 
       {/* Table */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -200,7 +217,7 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
           </TableHeader>
 
           <TableBody>
-            {filtered.map(({ row, name, position, event: eventLabel, details }) => (
+            {pagedRows.map(({ row, name, position, event: eventLabel, details }) => (
               <TableRow key={row.id} className="border-slate-200">
                 <TableCell className="p-4 font-medium text-slate-900 whitespace-normal break-words align-top">
                   {name}
@@ -214,7 +231,7 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {pagedRows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="py-10 text-center text-slate-500">
                   No events found.
@@ -223,6 +240,26 @@ export default function AuditView({ logs }: { logs: ActivityLogRow[] }) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={currentPage <= 1}
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+        >
+          Previous
+        </Button>
+        <span className="text-xs text-slate-600">{`Page ${currentPage} of ${totalPages}`}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={currentPage >= totalPages}
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+        >
+          Next
+        </Button>
       </div>
     </div>
   );

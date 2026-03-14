@@ -77,7 +77,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
 
   if (isStaffRole) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-[#022034]">
+      <div className="relative min-h-screen min-h-[100dvh] overflow-hidden bg-[#022034]">
         <Image
           src="/login/building.png"
           alt=""
@@ -92,9 +92,9 @@ export function LoginForm({role, baseURL}:AuthParameters) {
           className="absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.14)_70%,rgba(0,0,0,0.26)_100%)]"
           aria-hidden
         />
-        <div className="relative z-10 grid min-h-screen lg:grid-cols-5">
-          <main className="order-1 flex items-start lg:order-2 lg:col-span-2 lg:min-h-screen lg:items-stretch">
-            <div className="w-full px-3 pb-3 pt-4 sm:px-5 sm:pb-5 sm:pt-5 lg:p-9">
+        <div className="relative z-10 grid min-h-screen min-h-[100dvh] lg:grid-cols-5">
+          <main className="order-1 flex items-center justify-center md:items-start md:justify-start lg:order-2 lg:col-span-2 lg:min-h-screen lg:items-stretch">
+            <div className="w-full px-3 py-4 sm:px-5 sm:py-5 md:px-5 md:pb-5 md:pt-5 lg:p-9">
               <Card className="relative mx-auto w-full max-w-[420px] gap-0 rounded-2xl border-slate-200 bg-white shadow-xl lg:h-full lg:max-w-none">
               <CardHeader className="items-center space-y-3 px-5 pt-5 text-center sm:space-y-4 sm:px-8 sm:pt-7 lg:px-12 lg:pt-11">
                 <div className="absolute left-5 top-5 sm:left-8 sm:top-7 lg:left-9 lg:top-9">
@@ -195,7 +195,7 @@ export function LoginForm({role, baseURL}:AuthParameters) {
             </div>
           </main>
 
-          <aside className="order-2 relative min-h-[220px] overflow-hidden lg:order-1 lg:col-span-3 lg:min-h-screen">
+          <aside className="order-2 relative hidden min-h-[220px] overflow-hidden md:block lg:order-1 lg:col-span-3 lg:min-h-screen">
             <Image
               src="/login/faded-logo.png"
               alt=""

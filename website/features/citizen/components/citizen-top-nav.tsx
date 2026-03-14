@@ -201,9 +201,14 @@ export default function CitizenTopNav() {
         <div className="ml-auto md:hidden">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Open menu" aria-controls={mobileSheetId}>
-                <Menu className="h-5 w-5" />
-              </Button>
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700"
+                aria-label="Open menu"
+                aria-controls={mobileSheetId}
+              >
+                <Menu className="h-4 w-4" />
+              </button>
             </SheetTrigger>
 
             <SheetContent id={mobileSheetId} side="right" className="w-[280px]">

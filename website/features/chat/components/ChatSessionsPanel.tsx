@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,12 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/ui/utils";
 import type { ChatSessionListItem } from "../types/chat.types";
@@ -32,6 +26,7 @@ export default function ChatSessionsPanel({
   onNewChat,
   onRename,
   onDelete,
+  compact = false,
 }: {
   sessions: ChatSessionListItem[];
   query: string;
@@ -40,6 +35,7 @@ export default function ChatSessionsPanel({
   onNewChat: () => void;
   onRename: (id: string, title: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  compact?: boolean;
 }) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -106,16 +102,32 @@ export default function ChatSessionsPanel({
 
   return (
     <>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="flex shrink-0 items-center justify-between border-b px-5 py-4">
+      <div
+        className={cn(
+          "flex h-full min-h-0 min-w-0 flex-col overflow-hidden border bg-card",
+          compact ? "rounded-none shadow-none" : "rounded-2xl shadow-sm"
+        )}
+      >
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-between border-b",
+            compact ? "px-4 py-3" : "px-5 py-4"
+          )}
+        >
           <div className="text-base font-semibold">Conversations</div>
-          <Button className="h-9 gap-2 rounded-lg px-3 text-xs" onClick={onNewChat}>
+          <Button
+            className={cn(
+              "gap-2 rounded-lg text-xs",
+              compact ? "h-10 px-3" : "h-9 px-3"
+            )}
+            onClick={onNewChat}
+          >
             <Plus className="h-4 w-4" />
             New Chat
           </Button>
         </div>
 
-        <div className="shrink-0 p-4">
+        <div className={cn("shrink-0", compact ? "p-3" : "p-4")}>
           <div className="relative">
             <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
@@ -136,7 +148,8 @@ export default function ChatSessionsPanel({
               <div
                 key={session.id}
                 className={cn(
-                  "border-l-2 px-5 py-4 transition-colors",
+                  "border-l-2 transition-colors",
+                  compact ? "px-4 py-3" : "px-5 py-4",
                   session.isActive ? "border-primary bg-muted/50" : "border-transparent hover:bg-muted/50"
                 )}
               >
@@ -183,7 +196,7 @@ export default function ChatSessionsPanel({
                         type="button"
                         onClick={() => onSelect(session.id)}
                         onDoubleClick={() => beginRename(session)}
-                        className="w-full text-left"
+                        className="w-full min-h-10 text-left"
                       >
                         <div className="truncate text-sm font-semibold">{session.title}</div>
                       </button>
@@ -192,43 +205,33 @@ export default function ChatSessionsPanel({
 
                   <div className="flex shrink-0 items-center gap-1.5">
                     <div className="text-muted-foreground text-[11px]">{session.timeLabel}</div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          disabled={isBusy}
-                          aria-label={`Conversation actions for ${session.title}`}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            beginRename(session);
-                          }}
-                          disabled={isBusy}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            setDeleteError(null);
-                            setDeleteTarget(session);
-                          }}
-                          disabled={isBusy}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={cn(compact ? "h-8 w-8" : "h-7 w-7")}
+                      onClick={() => beginRename(session)}
+                      disabled={isBusy}
+                      aria-label={`Rename ${session.title}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        compact ? "h-8 w-8 text-rose-700 hover:text-rose-700" : "h-7 w-7 text-rose-700 hover:text-rose-700"
+                      )}
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(session);
+                      }}
+                      disabled={isBusy}
+                      aria-label={`Delete ${session.title}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -236,7 +239,9 @@ export default function ChatSessionsPanel({
           })}
 
           {!sessions.length && (
-            <div className="text-muted-foreground px-5 pb-6 text-sm">No conversations found.</div>
+            <div className={cn("text-muted-foreground text-sm", compact ? "px-4 pb-4" : "px-5 pb-6")}>
+              No conversations found.
+            </div>
           )}
         </div>
       </div>

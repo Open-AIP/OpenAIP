@@ -11,11 +11,55 @@ import { AipProjectRow } from "../types";
 import { SECTOR_TABS } from "../utils";
 
 const PAGE_SIZE = 10;
+type ProjectReviewStatus = AipProjectRow["reviewStatus"];
 
-function LegendItem({ colorClass, label }: { colorClass: string; label: string }) {
+const PROJECT_REVIEW_STYLES: Record<
+  ProjectReviewStatus,
+  {
+    rowClass: string;
+    cellTextClass: string;
+    legendLabel: string;
+    legendSwatchClass: string;
+    legendSwatchTestId: string;
+  }
+> = {
+  ai_flagged: {
+    rowClass: "bg-red-500 hover:bg-red-600",
+    cellTextClass: "text-slate-900",
+    legendLabel: "GPT detected a potential error",
+    legendSwatchClass: "bg-red-500",
+    legendSwatchTestId: "aip-project-status-legend-ai-flagged",
+  },
+  reviewed: {
+    rowClass: "bg-amber-500 hover:bg-amber-600",
+    cellTextClass: "text-slate-900",
+    legendLabel: "Reviewed and commented by official",
+    legendSwatchClass: "bg-amber-500",
+    legendSwatchTestId: "aip-project-status-legend-reviewed",
+  },
+  unreviewed: {
+    rowClass: "bg-slate-300 hover:bg-slate-400",
+    cellTextClass: "text-slate-900",
+    legendLabel: "No issues detected",
+    legendSwatchClass: "bg-slate-300",
+    legendSwatchTestId: "aip-project-status-legend-unreviewed",
+  },
+};
+
+const PROJECT_REVIEW_LEGEND_ORDER: ProjectReviewStatus[] = ["ai_flagged", "reviewed", "unreviewed"];
+
+function LegendItem({
+  legendSwatchClass,
+  label,
+  swatchTestId,
+}: {
+  legendSwatchClass: string;
+  label: string;
+  swatchTestId: string;
+}) {
   return (
     <div className="flex items-center gap-2 text-[11px] text-slate-500">
-      <span className={`h-2 w-2 rounded-[2px] ${colorClass}`} />
+      <span data-testid={swatchTestId} className={`h-2 w-2 rounded-[2px] ${legendSwatchClass}`} />
       <span>{label}</span>
     </div>
   );
@@ -158,29 +202,24 @@ export function AipDetailsTableCard({
 
             <TableBody>
               {visibleRows.map((r) => {
-                const rowClass =
-                  r.reviewStatus === "ai_flagged"
-                    ? "bg-red-50 hover:bg-red-100"
-                    : r.reviewStatus === "reviewed"
-                    ? "bg-amber-50 hover:bg-amber-100"
-                    : "hover:bg-slate-50";
+                const style = PROJECT_REVIEW_STYLES[r.reviewStatus];
 
                 return (
                   <TableRow
                     key={r.id}
                     data-testid={`aip-project-row-${r.id}`}
-                    className={`cursor-pointer ${rowClass} ${
+                    className={`cursor-pointer ${style.rowClass} ${
                       focusedRowId === r.id
                         ? "ring-2 ring-amber-400 ring-inset"
                         : ""
                     }`}
                     onClick={() => onRowClick(r)}
                   >
-                    <TableCell className="text-xs text-slate-700">{r.projectRefCode}</TableCell>
-                    <TableCell className="min-w-[280px] whitespace-normal text-xs text-slate-700">
+                    <TableCell className={`text-xs ${style.cellTextClass}`}>{r.projectRefCode}</TableCell>
+                    <TableCell className={`min-w-[280px] whitespace-normal text-xs ${style.cellTextClass}`}>
                       {r.aipDescription}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs text-slate-700 text-right tabular-nums">
+                    <TableCell className={`whitespace-nowrap text-xs ${style.cellTextClass} text-right tabular-nums`}>
                       ₱{r.amount.toLocaleString()}
                     </TableCell>
                   </TableRow>
@@ -227,9 +266,17 @@ export function AipDetailsTableCard({
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end sm:gap-x-6">
-          <LegendItem colorClass="bg-red-500" label="GPT detected a potential error" />
-          <LegendItem colorClass="bg-amber-500" label="Reviewed and commented by official" />
-          <LegendItem colorClass="bg-slate-300" label="No issues detected" />
+          {PROJECT_REVIEW_LEGEND_ORDER.map((status) => {
+            const style = PROJECT_REVIEW_STYLES[status];
+            return (
+              <LegendItem
+                key={status}
+                legendSwatchClass={style.legendSwatchClass}
+                label={style.legendLabel}
+                swatchTestId={style.legendSwatchTestId}
+              />
+            );
+          })}
         </div>
       </CardContent>
     </Card>

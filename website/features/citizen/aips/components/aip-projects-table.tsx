@@ -13,6 +13,52 @@ import { formatCurrency } from '@/features/citizen/aips/data/aips.data';
 
 const SECTOR_TABS: AipProjectSector[] = ['General Sector', 'Social Sector', 'Economic Sector', 'Other Services'];
 const PAGE_SIZE = 10;
+type CitizenProjectStatus = "aiFlaggedNoLguNote" | "hasLguNote" | "noIssues";
+
+const CITIZEN_PROJECT_STATUS_STYLES: Record<
+  CitizenProjectStatus,
+  {
+    rowClass: string;
+    cellTextClass: string;
+    legendLabel: string;
+    legendSwatchClass: string;
+    legendSwatchTestId: string;
+  }
+> = {
+  aiFlaggedNoLguNote: {
+    rowClass: "bg-rose-500 hover:bg-rose-600",
+    cellTextClass: "text-slate-900",
+    legendLabel: "AI-flagged with no LGU feedback note",
+    legendSwatchClass: "bg-rose-500",
+    legendSwatchTestId: "citizen-project-status-legend-ai-flagged",
+  },
+  hasLguNote: {
+    rowClass: "bg-amber-500 hover:bg-amber-600",
+    cellTextClass: "text-slate-900",
+    legendLabel: "Has LGU feedback note",
+    legendSwatchClass: "bg-amber-500",
+    legendSwatchTestId: "citizen-project-status-legend-lgu-note",
+  },
+  noIssues: {
+    rowClass: "bg-white hover:bg-slate-50",
+    cellTextClass: "text-slate-700",
+    legendLabel: "No issues detected",
+    legendSwatchClass: "bg-white border border-slate-400",
+    legendSwatchTestId: "citizen-project-status-legend-no-issues",
+  },
+};
+
+const CITIZEN_PROJECT_LEGEND_ORDER: CitizenProjectStatus[] = [
+  "aiFlaggedNoLguNote",
+  "hasLguNote",
+  "noIssues",
+];
+
+function getCitizenProjectStatus(row: AipDetails["projectRows"][number]): CitizenProjectStatus {
+  if (row.hasLguNote) return "hasLguNote";
+  if (row.hasAiIssues) return "aiFlaggedNoLguNote";
+  return "noIssues";
+}
 
 export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
   const router = useRouter();
@@ -121,25 +167,30 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleRows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={`cursor-pointer ${
-                    row.hasLguNote
-                      ? "bg-amber-50 hover:bg-amber-100"
-                      : row.hasAiIssues
-                        ? "bg-rose-50 hover:bg-rose-100"
-                        : ""
-                  }`}
-                  onClick={() => {
-                    router.push(`/aips/${encodeURIComponent(aip.id)}/${encodeURIComponent(row.id)}`);
-                  }}
-                >
-                  <TableCell className="text-sm text-slate-700 break-words">{row.projectRefCode}</TableCell>
-                  <TableCell className="text-sm text-slate-700 break-words">{row.programDescription}</TableCell>
-                  <TableCell className="text-right text-sm text-slate-700 whitespace-nowrap">{formatCurrency(row.totalAmount)}</TableCell>
-                </TableRow>
-              ))}
+              {visibleRows.map((row) => {
+                const status = getCitizenProjectStatus(row);
+                const statusStyle = CITIZEN_PROJECT_STATUS_STYLES[status];
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={`cursor-pointer ${statusStyle.rowClass}`}
+                    onClick={() => {
+                      router.push(`/aips/${encodeURIComponent(aip.id)}/${encodeURIComponent(row.id)}`);
+                    }}
+                  >
+                    <TableCell className={`text-sm ${statusStyle.cellTextClass} break-words`}>
+                      {row.projectRefCode}
+                    </TableCell>
+                    <TableCell className={`text-sm ${statusStyle.cellTextClass} break-words`}>
+                      {row.programDescription}
+                    </TableCell>
+                    <TableCell className={`text-right text-sm ${statusStyle.cellTextClass} whitespace-nowrap`}>
+                      {formatCurrency(row.totalAmount)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {visibleRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
@@ -178,18 +229,19 @@ export default function AipProjectsTable({ aip }: { aip: AipDetails }) {
         </div>
 
         <div className="flex flex-wrap gap-3 pt-1 text-[11px] text-slate-600 sm:justify-end sm:gap-5 sm:pt-2 sm:text-xs">
-          <div className="inline-flex items-center gap-2">
-            <span className="inline-block h-3.5 w-3.5 rounded-sm bg-rose-500" aria-hidden="true" />
-            AI-flagged with no LGU feedback note
-          </div>
-          <div className="inline-flex items-center gap-2">
-            <span className="inline-block h-3.5 w-3.5 rounded-sm bg-amber-500" aria-hidden="true" />
-            Has LGU feedback note
-          </div>
-          <div className="inline-flex items-center gap-2">
-            <span className="inline-block h-3.5 w-3.5 rounded-sm border border-slate-400 bg-white" aria-hidden="true" />
-            No issues detected
-          </div>
+          {CITIZEN_PROJECT_LEGEND_ORDER.map((status) => {
+            const style = CITIZEN_PROJECT_STATUS_STYLES[status];
+            return (
+              <div key={status} className="inline-flex items-center gap-2">
+                <span
+                  data-testid={style.legendSwatchTestId}
+                  className={`inline-block h-3.5 w-3.5 rounded-sm ${style.legendSwatchClass}`}
+                  aria-hidden="true"
+                />
+                {style.legendLabel}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

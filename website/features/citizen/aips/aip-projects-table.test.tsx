@@ -95,18 +95,35 @@ describe("AipProjectsTable", () => {
   it("applies row status styling precedence for LGU notes and AI flags", () => {
     render(<AipProjectsTable aip={buildAipDetails()} />);
 
-    const rowWithLguNote = screen.getByText("General Program 1").closest("tr");
-    const rowWithUnresolvedAiFlag = screen.getByText("General Program 2").closest("tr");
-    const rowWithoutFlags = screen.getByText("General Program 3").closest("tr");
+    const programWithLguNote = screen.getByText("General Program 1");
+    const programWithUnresolvedAiFlag = screen.getByText("General Program 2");
+    const programWithoutFlags = screen.getByText("General Program 3");
+    const rowWithLguNote = programWithLguNote.closest("tr");
+    const rowWithUnresolvedAiFlag = programWithUnresolvedAiFlag.closest("tr");
+    const rowWithoutFlags = programWithoutFlags.closest("tr");
+    const unresolvedAiLegendSwatch = screen.getByTestId("citizen-project-status-legend-ai-flagged");
+    const hasLguNoteLegendSwatch = screen.getByTestId("citizen-project-status-legend-lgu-note");
+    const noIssuesLegendSwatch = screen.getByTestId("citizen-project-status-legend-no-issues");
 
-    expect(rowWithLguNote).toHaveClass("bg-amber-50");
-    expect(rowWithLguNote).not.toHaveClass("bg-rose-50");
+    expect(rowWithLguNote).toHaveClass("bg-amber-500");
+    expect(rowWithLguNote).not.toHaveClass("bg-rose-500");
 
-    expect(rowWithUnresolvedAiFlag).toHaveClass("bg-rose-50");
-    expect(rowWithUnresolvedAiFlag).not.toHaveClass("bg-amber-50");
+    expect(rowWithUnresolvedAiFlag).toHaveClass("bg-rose-500");
+    expect(rowWithUnresolvedAiFlag).not.toHaveClass("bg-amber-500");
 
-    expect(rowWithoutFlags).not.toHaveClass("bg-amber-50");
-    expect(rowWithoutFlags).not.toHaveClass("bg-rose-50");
+    expect(rowWithoutFlags).toHaveClass("bg-white");
+    expect(rowWithoutFlags).not.toHaveClass("bg-amber-500");
+    expect(rowWithoutFlags).not.toHaveClass("bg-rose-500");
+
+    expect(programWithLguNote).toHaveClass("text-slate-900");
+    expect(programWithUnresolvedAiFlag).toHaveClass("text-slate-900");
+    expect(programWithoutFlags).toHaveClass("text-slate-700");
+
+    expect(unresolvedAiLegendSwatch).toHaveClass("bg-rose-500");
+    expect(hasLguNoteLegendSwatch).toHaveClass("bg-amber-500");
+    expect(noIssuesLegendSwatch).toHaveClass("bg-white");
+    expect(noIssuesLegendSwatch).toHaveClass("border");
+    expect(noIssuesLegendSwatch).toHaveClass("border-slate-400");
   });
 
   it("shows unresolved AI notice when flagged projects have no LGU note", () => {

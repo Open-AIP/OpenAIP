@@ -22,6 +22,8 @@ export default function CitizenChatEvidence({
             {entry.href ? (
               <Link
                 href={entry.href}
+                target={entry.openInNewTab ? "_blank" : undefined}
+                rel={entry.openInNewTab ? "noreferrer noopener" : undefined}
                 className="inline-block text-xs text-[#0247A1] underline decoration-[#0247A1]/60 underline-offset-2 hover:decoration-[#0247A1]"
               >
                 {entry.displayLine}

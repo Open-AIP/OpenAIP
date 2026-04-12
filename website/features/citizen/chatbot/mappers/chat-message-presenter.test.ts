@@ -24,6 +24,7 @@ describe("mapEvidenceFromCitations", () => {
       href: "/aips/aip-1/project-1",
       displayLine: "[S1] Mamatid FY 2025 Health Station Upgrade",
     });
+    expect(evidence[0]?.openInNewTab).toBeUndefined();
   });
 
   it("builds totals evidence line with AIP label", () => {
@@ -42,8 +43,9 @@ describe("mapEvidenceFromCitations", () => {
 
     expect(evidence).toHaveLength(1);
     expect(evidence[0]).toMatchObject({
-      href: "/aips/aip-1",
+      href: "/api/citizen/chat/aips/aip-1/pdf",
       displayLine: "[S2] Mamatid FY 2025 AIP",
+      openInNewTab: true,
     });
   });
 
@@ -97,8 +99,9 @@ describe("mapEvidenceFromCitations", () => {
 
     expect(evidence).toHaveLength(1);
     expect(evidence[0]).toMatchObject({
-      href: "/aips/aip-system-1",
+      href: "/api/citizen/chat/aips/aip-system-1/pdf",
       displayLine: "[S6] Mamatid FY 2025 AIP",
+      openInNewTab: true,
     });
   });
 

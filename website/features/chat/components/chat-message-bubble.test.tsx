@@ -234,6 +234,8 @@ describe("ChatMessageBubble", () => {
       name: "[S4] Mamatid FY 2025 Health Station Upgrade",
     });
     expect(link).toHaveAttribute("href", "/barangay/aips/aip-1/project-1");
+    expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("rel");
   });
 
   it("renders city project evidence as scoped project detail link", () => {
@@ -270,9 +272,11 @@ describe("ChatMessageBubble", () => {
       name: "[S5] Cabuyao City FY 2024 Flood Control Rehabilitation",
     });
     expect(link).toHaveAttribute("href", "/city/aips/aip-city/project-city");
+    expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("rel");
   });
 
-  it("renders barangay totals evidence as scoped AIP detail link", () => {
+  it("renders barangay totals evidence as scoped AIP PDF link in a new tab", () => {
     render(
       <ChatMessageBubble
         routeScope="barangay"
@@ -303,10 +307,12 @@ describe("ChatMessageBubble", () => {
 
     expandEvidence();
     const link = screen.getByRole("link", { name: "[S6] Mamatid FY 2025 AIP" });
-    expect(link).toHaveAttribute("href", "/barangay/aips/aip-2025-1");
+    expect(link).toHaveAttribute("href", "/api/barangay/chat/aips/aip-2025-1/pdf");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer noopener");
   });
 
-  it("renders city totals evidence as scoped AIP detail link", () => {
+  it("renders city totals evidence as scoped AIP PDF link in a new tab", () => {
     render(
       <ChatMessageBubble
         routeScope="city"
@@ -338,7 +344,9 @@ describe("ChatMessageBubble", () => {
 
     expandEvidence();
     const link = screen.getByRole("link", { name: "[S7] Cabuyao City FY 2025 AIP" });
-    expect(link).toHaveAttribute("href", "/city/aips/aip-city-2025");
+    expect(link).toHaveAttribute("href", "/api/city/chat/aips/aip-city-2025/pdf");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer noopener");
   });
 
   it("renders system-scope totals evidence and resolves AIP link from metadata.aip_id", () => {
@@ -373,7 +381,9 @@ describe("ChatMessageBubble", () => {
 
     expandEvidence();
     const link = screen.getByRole("link", { name: "[S12] Mamatid FY 2025 AIP" });
-    expect(link).toHaveAttribute("href", "/barangay/aips/aip-meta-1");
+    expect(link).toHaveAttribute("href", "/api/barangay/chat/aips/aip-meta-1/pdf");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer noopener");
   });
 
   it("prefers project detail link over totals link when both metadata paths are present", () => {
@@ -517,7 +527,7 @@ describe("ChatMessageBubble", () => {
     expect(screen.queryByText("[S11] Mamatid FY 2026 Road Concreting")).not.toBeInTheDocument();
   });
 
-  it("keeps totals citations clickable when AIP route exists", () => {
+  it("keeps totals citations clickable when AIP PDF route exists", () => {
     render(
       <ChatMessageBubble
         routeScope="barangay"
@@ -546,7 +556,9 @@ describe("ChatMessageBubble", () => {
 
     expandEvidence();
     const link = screen.getByRole("link", { name: "[S9] Unknown LGU FY Unknown FY AIP" });
-    expect(link).toHaveAttribute("href", "/barangay/aips/aip-incomplete");
+    expect(link).toHaveAttribute("href", "/api/barangay/chat/aips/aip-incomplete/pdf");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer noopener");
   });
 
   it("does not render evidence container when there are no citations", () => {

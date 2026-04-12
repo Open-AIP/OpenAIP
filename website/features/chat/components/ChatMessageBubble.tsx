@@ -37,7 +37,7 @@ function buildCitationAipTotalsHref(citation: ChatCitation, routeScope: LguRoute
       : null;
   const aipId = normalizeText(citation.aipId) ?? normalizeText(metadata?.aip_id) ?? "";
   if (!aipId) return null;
-  return `/${routeScope}/aips/${encodeURIComponent(aipId)}`;
+  return `/api/${routeScope}/chat/aips/${encodeURIComponent(aipId)}/pdf`;
 }
 
 export default function ChatMessageBubble({
@@ -122,6 +122,7 @@ export default function ChatMessageBubble({
                   : shouldRenderTotalsLink
                     ? citationTotalsHref
                     : null;
+                const openInNewTab = shouldRenderTotalsLink;
                 const displayLine = formatEvidenceDisplayLine(citation, index);
 
                 return (
@@ -133,6 +134,8 @@ export default function ChatMessageBubble({
                       {citationHref ? (
                         <Link
                           href={citationHref}
+                          target={openInNewTab ? "_blank" : undefined}
+                          rel={openInNewTab ? "noreferrer noopener" : undefined}
                           className="text-[#0247A1] underline decoration-[#0247A1]/60 underline-offset-2 hover:decoration-[#0247A1]"
                         >
                           {displayLine}

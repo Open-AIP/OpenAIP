@@ -9,6 +9,7 @@ export type CitizenChatEvidenceItem = {
   id: string;
   displayLine: string;
   href: string | null;
+  openInNewTab?: boolean;
 };
 
 export type CitizenChatSessionVM = {

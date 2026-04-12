@@ -53,7 +53,7 @@ export function mapEvidenceFromCitations(
           : null;
       const totalsHref =
         aipId && isTotalsEvidenceCitation(row)
-          ? `/aips/${encodeURIComponent(aipId)}`
+          ? `/api/citizen/chat/aips/${encodeURIComponent(aipId)}/pdf`
           : null;
       const hasProjectLink = Boolean(projectHref);
       const hasTotalsLink = !hasProjectLink && Boolean(totalsHref);
@@ -63,11 +63,16 @@ export function mapEvidenceFromCitations(
           ? totalsHref
           : null;
 
-      return {
+      const evidenceItem: CitizenChatEvidenceItem = {
         id: normalizeText(row.id) ?? `evidence_${index + 1}`,
         displayLine: formatEvidenceDisplayLine(row, index),
         href,
       };
+      if (hasTotalsLink) {
+        evidenceItem.openInNewTab = true;
+      }
+
+      return evidenceItem;
     })
     .filter((item): item is CitizenChatEvidenceItem => item !== null);
 }
